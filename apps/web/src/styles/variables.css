@@ -1,0 +1,176 @@
+:root {
+  color-scheme: dark;
+
+  --color-canvas: #050b17;
+  --color-surface: #0c1425;
+  --color-surface-raised: #111929;
+  --color-surface-overlay: rgba(13, 22, 38, 0.7);
+  --color-text-primary: #edf6ff;
+  --color-text-secondary: #a1b9d8;
+  --color-text-muted: #7d94b2;
+  --color-border: rgba(135, 162, 200, 0.16);
+  --color-border-strong: rgba(135, 162, 200, 0.28);
+  --color-accent-primary: #69f0ff;
+  --color-accent-secondary: #8b5cf6;
+  --color-accent-tertiary: #22c55e;
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+  --color-danger: #f87171;
+  --color-info: #69f0ff;
+  --color-highlight: #ffffff;
+  --color-text-on-accent: #031018;
+
+  --alpha-04: 4%;
+  --alpha-08: 8%;
+  --alpha-12: 12%;
+  --alpha-16: 16%;
+  --alpha-20: 20%;
+  --alpha-24: 24%;
+  --alpha-32: 32%;
+  --alpha-40: 40%;
+  --alpha-50: 50%;
+  --alpha-60: 60%;
+  --alpha-70: 70%;
+  --alpha-80: 80%;
+  --alpha-90: 90%;
+  --alpha-full: 100%;
+
+  --font-family-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-md: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.875rem;
+  --font-size-4xl: 2.25rem;
+  --font-size-5xl: 3rem;
+  --font-size-6xl: 3.75rem;
+  --font-size-7xl: 4.5rem;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+  --line-height-tight: 1.2;
+  --line-height-display: 1.05;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+  --tracking-tight: -0.04em;
+  --tracking-tighter: -0.06em;
+  --tracking-display: -0.065em;
+  --tracking-wide: 0.02em;
+  --tracking-wider: 0.04em;
+  --tracking-widest: 0.08em;
+  --tracking-caps: 0.1em;
+
+  --space-0: 0;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-14: 3.5rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+  --space-24: 6rem;
+  --space-28: 7rem;
+  --space-32: 8rem;
+  --space-36: 9rem;
+  --space-40: 10rem;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.375rem;
+  --radius-2xl: 1.75rem;
+  --radius-full: 999px;
+
+  --shadow-sm: 0 1px 2px rgba(2, 6, 23, 0.16);
+  --shadow-md: 0 8px 32px rgba(2, 6, 23, 0.24);
+  --shadow-lg: 0 24px 80px rgba(2, 6, 23, 0.4);
+  --shadow-accent-glow: 0 12px 32px color-mix(in srgb, var(--color-accent-primary) var(--alpha-20), transparent);
+  --shadow-secondary-glow: 0 12px 32px color-mix(in srgb, var(--color-accent-secondary) var(--alpha-20), transparent);
+  --shadow-success-glow: 0 0 0 4px color-mix(in srgb, var(--color-success) var(--alpha-12), transparent);
+  --shadow-danger-glow: 0 0 0 4px color-mix(in srgb, var(--color-danger) var(--alpha-12), transparent);
+  --focus-ring: 0 0 0 3px rgba(105, 240, 255, 0.32);
+  --duration-fast: 120ms;
+  --duration-normal: 200ms;
+  --duration-slow: 400ms;
+  --duration-entrance: 1000ms;
+  --duration-pulse: 2s;
+  --duration-float: 9s;
+  --duration-orbit: 28s;
+  --duration-orbit-reverse: 22s;
+  --delay-300ms: 300ms;
+  --delay-400ms: 400ms;
+  --delay-800ms: 800ms;
+  --delay-1000ms: 1000ms;
+  --delay-1300ms: 1300ms;
+  --delay-1500ms: 1500ms;
+  --delay-1800ms: 1800ms;
+  --easing-standard: ease;
+  --easing-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+  --content-width: 1180px;
+  --content-width-dashboard: 1280px;
+  --content-width-wide: 1380px;
+  --content-width-compact: 1100px;
+  --content-width-narrow: 620px;
+  --content-width-copy: 590px;
+  --content-width-reading: 720px;
+
+  --page-background:
+    radial-gradient(circle at top left, rgba(103, 232, 249, 0.14), transparent 22%),
+    radial-gradient(circle at top right, rgba(139, 92, 246, 0.12), transparent 26%),
+    var(--color-canvas);
+
+  --surface-tint: color-mix(in srgb, var(--color-surface) 76%, var(--color-canvas));
+  --surface-tint-strong: color-mix(in srgb, var(--color-surface-raised) 90%, var(--color-canvas));
+  --surface-accent: color-mix(in srgb, var(--color-accent-primary) var(--alpha-08), transparent);
+  --surface-secondary: color-mix(in srgb, var(--color-accent-secondary) var(--alpha-08), transparent);
+  --border-accent: color-mix(in srgb, var(--color-accent-primary) var(--alpha-20), var(--color-border));
+  --border-secondary: color-mix(in srgb, var(--color-accent-secondary) var(--alpha-20), var(--color-border));
+  --color-accent-gradient: linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-secondary));
+  --color-accent-gradient-soft: linear-gradient(135deg, var(--color-accent-primary), color-mix(in srgb, var(--color-accent-primary) 72%, var(--color-accent-secondary)) 30%, var(--color-accent-secondary));
+
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+
+  --color-canvas: #eef6ff;
+  --color-surface: #f7fbff;
+  --color-surface-raised: #ffffff;
+  --color-surface-overlay: rgba(226, 238, 255, 0.82);
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #4f6783;
+  --color-text-muted: #64748b;
+  --color-border: rgba(15, 23, 42, 0.09);
+  --color-border-strong: rgba(15, 23, 42, 0.16);
+  --color-accent-primary: #0369a1;
+  --color-accent-secondary: #7c3aed;
+  --color-accent-tertiary: #16a34a;
+  --color-success: #15803d;
+  --color-warning: #a16207;
+  --color-danger: #b91c1c;
+  --color-info: #0369a1;
+  --color-highlight: #ffffff;
+  --color-text-on-accent: #ffffff;
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--color-accent-primary) var(--alpha-24), transparent);
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 8px 32px rgba(15, 23, 42, 0.06);
+  --shadow-lg: 0 30px 80px rgba(15, 23, 42, 0.08);
+  --page-background:
+    radial-gradient(circle at top left, rgba(14, 165, 233, 0.1), transparent 22%),
+    radial-gradient(circle at top right, rgba(124, 58, 237, 0.08), transparent 26%),
+    var(--color-canvas);
+
+}

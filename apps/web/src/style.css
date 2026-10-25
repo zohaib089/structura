@@ -1,0 +1,72 @@
+@import './styles/variables.css';
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  scroll-behavior: smooth;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  overflow-x: hidden;
+  background: var(--page-background);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-sans);
+  transition: background-color var(--duration-slow) var(--easing-standard),
+    color var(--duration-slow) var(--easing-standard);
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-accent-primary) var(--alpha-32), transparent);
+  color: var(--color-text-primary);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: var(--radius-full);
+  background: linear-gradient(180deg, var(--color-accent-primary), var(--color-accent-secondary));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: var(--duration-fast) !important;
+    animation-duration: var(--duration-fast) !important;
+    animation-iteration-count: 1 !important;
+  }
+}
