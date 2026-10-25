@@ -1,0 +1,809 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:repo-graph:schema:graph:1",
+  "title": "graph.json v1",
+  "description": "Deterministic, closed, source-text-free repository graph. See docs/graph-format.md.",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^1\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "summary": {
+      "type": "object",
+      "properties": {
+        "nodes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "edges": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "files": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "nodes",
+        "edges",
+        "files"
+      ],
+      "additionalProperties": false
+    },
+    "coverage": {
+      "$ref": "#/$defs/coverage"
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/node"
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/edge"
+      }
+    },
+    "extensions": {
+      "$ref": "#/$defs/extensions"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "summary",
+    "coverage",
+    "nodes",
+    "edges"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "extensions": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9-]*:[A-Za-z0-9._-]+$"
+      }
+    },
+    "position": {
+      "type": "object",
+      "properties": {
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "col": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "line",
+        "col"
+      ],
+      "additionalProperties": false
+    },
+    "span": {
+      "type": "object",
+      "properties": {
+        "start": {
+          "$ref": "#/$defs/position"
+        },
+        "end": {
+          "$ref": "#/$defs/position"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "additionalProperties": false
+    },
+    "provenance": {
+      "type": "string",
+      "enum": [
+        "EXTRACTED",
+        "INFERRED"
+      ]
+    },
+    "node": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/directoryNode"
+        },
+        {
+          "$ref": "#/$defs/fileNode"
+        },
+        {
+          "$ref": "#/$defs/symbolNode"
+        },
+        {
+          "$ref": "#/$defs/externalNode"
+        },
+        {
+          "$ref": "#/$defs/unresolvedNode"
+        }
+      ]
+    },
+    "directoryNode": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "const": "directory"
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "extensions": {
+          "$ref": "#/$defs/extensions"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "path",
+        "label"
+      ],
+      "additionalProperties": false
+    },
+    "parseInfo": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "const": "parsed"
+            }
+          },
+          "required": [
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "const": "partial"
+            },
+            "reason": {
+              "type": "string",
+              "enum": [
+                "name-too-long",
+                "syntax-errors",
+                "too-many-edges",
+                "too-many-symbols"
+              ]
+            }
+          },
+          "required": [
+            "status",
+            "reason"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "const": "skipped"
+            },
+            "reason": {
+              "type": "string",
+              "enum": [
+                "binary",
+                "id-collision",
+                "locked",
+                "max-depth",
+                "not-regular-file",
+                "path-too-long",
+                "sensitive-file",
+                "symlink",
+                "symlink-outside-root",
+                "timeout",
+                "too-large",
+                "unrepresentable-path",
+                "unsupported-language"
+              ]
+            }
+          },
+          "required": [
+            "status",
+            "reason"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "const": "failed"
+            },
+            "reason": {
+              "type": "string",
+              "enum": [
+                "changed-during-scan",
+                "parser-error",
+                "permission-denied",
+                "read-error",
+                "vanished"
+              ]
+            }
+          },
+          "required": [
+            "status",
+            "reason"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "entryCandidate": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string",
+          "enum": [
+            "conventional-name",
+            "package-bin",
+            "package-exports",
+            "package-main",
+            "package-script"
+          ]
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        }
+      },
+      "required": [
+        "reason",
+        "provenance"
+      ],
+      "additionalProperties": false
+    },
+    "fileNode": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "const": "file"
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "language": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lineCount": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "parse": {
+          "$ref": "#/$defs/parseInfo"
+        },
+        "decoding": {
+          "const": "lossy"
+        },
+        "entryCandidate": {
+          "$ref": "#/$defs/entryCandidate"
+        },
+        "extensions": {
+          "$ref": "#/$defs/extensions"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "path",
+        "label",
+        "language",
+        "lineCount",
+        "parse"
+      ],
+      "additionalProperties": false
+    },
+    "symbolNode": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "const": "symbol"
+        },
+        "file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "symbolKind": {
+          "type": "string",
+          "enum": [
+            "class",
+            "default",
+            "enum",
+            "function",
+            "interface",
+            "namespace",
+            "type",
+            "unknown",
+            "variable"
+          ]
+        },
+        "exported": {
+          "type": "boolean"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "extensions": {
+          "$ref": "#/$defs/extensions"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "file",
+        "label",
+        "symbolKind",
+        "exported",
+        "span"
+      ],
+      "additionalProperties": false
+    },
+    "externalNode": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "const": "external"
+        },
+        "ecosystem": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "extensions": {
+          "$ref": "#/$defs/extensions"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "ecosystem",
+        "label"
+      ],
+      "additionalProperties": false
+    },
+    "unresolvedNode": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "const": "unresolved"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "config-outside-root",
+            "dynamic",
+            "not-found",
+            "outside-root",
+            "target-ignored",
+            "unsupported-specifier"
+          ]
+        },
+        "extensions": {
+          "$ref": "#/$defs/extensions"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "label",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "edge": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/containsEdge"
+        },
+        {
+          "$ref": "#/$defs/extractedRefEdge"
+        },
+        {
+          "$ref": "#/$defs/inferredRefEdge"
+        }
+      ]
+    },
+    "containsEdge": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "const": "contains"
+        },
+        "provenance": {
+          "const": "EXTRACTED"
+        },
+        "extensions": {
+          "$ref": "#/$defs/extensions"
+        }
+      },
+      "required": [
+        "source",
+        "type",
+        "target",
+        "provenance"
+      ],
+      "additionalProperties": false
+    },
+    "extractedRefEdge": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "imports",
+            "reexports"
+          ]
+        },
+        "provenance": {
+          "const": "EXTRACTED"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "specifier": {
+          "type": "string"
+        },
+        "importKind": {
+          "type": "string",
+          "enum": [
+            "static",
+            "dynamic",
+            "require"
+          ]
+        },
+        "typeOnly": {
+          "type": "boolean"
+        },
+        "extensions": {
+          "$ref": "#/$defs/extensions"
+        }
+      },
+      "required": [
+        "source",
+        "type",
+        "target",
+        "provenance",
+        "span",
+        "specifier"
+      ],
+      "additionalProperties": false
+    },
+    "inferredRefEdge": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "imports",
+            "reexports"
+          ]
+        },
+        "provenance": {
+          "const": "INFERRED"
+        },
+        "confidence": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "build-output-mapping",
+            "conventional-entry",
+            "dynamic-pattern",
+            "src-subpath"
+          ]
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "specifier": {
+          "type": "string"
+        },
+        "importKind": {
+          "type": "string",
+          "enum": [
+            "static",
+            "dynamic",
+            "require"
+          ]
+        },
+        "typeOnly": {
+          "type": "boolean"
+        },
+        "extensions": {
+          "$ref": "#/$defs/extensions"
+        }
+      },
+      "required": [
+        "source",
+        "type",
+        "target",
+        "provenance",
+        "confidence",
+        "reason",
+        "span",
+        "specifier"
+      ],
+      "additionalProperties": false
+    },
+    "coverage": {
+      "type": "object",
+      "properties": {
+        "files": {
+          "type": "object",
+          "properties": {
+            "discovered": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "parsed": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "partial": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "failed": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "skipped": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "ignored": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "discovered",
+            "parsed",
+            "partial",
+            "failed",
+            "skipped",
+            "ignored"
+          ],
+          "additionalProperties": false
+        },
+        "byLanguage": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "language": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "parsed": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "partial": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "failed": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "skipped": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "language",
+              "parsed",
+              "partial",
+              "failed",
+              "skipped"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "skipped": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "binary",
+                  "changed-during-scan",
+                  "id-collision",
+                  "locked",
+                  "max-depth",
+                  "not-regular-file",
+                  "parser-error",
+                  "path-too-long",
+                  "permission-denied",
+                  "read-error",
+                  "sensitive-file",
+                  "symlink",
+                  "symlink-outside-root",
+                  "timeout",
+                  "too-large",
+                  "unrepresentable-path",
+                  "unsupported-language",
+                  "vanished"
+                ]
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "reason",
+              "count"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "ignored": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "rule": {
+                "type": "string",
+                "pattern": "^(hard|default|gitignore|ignorefile):.{1,200}$"
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "rule",
+              "count"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "unresolved": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "config-outside-root",
+                  "dynamic",
+                  "not-found",
+                  "outside-root",
+                  "target-ignored",
+                  "unsupported-specifier"
+                ]
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "reason",
+              "count"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "accounting": {
+          "type": "object",
+          "properties": {
+            "discovered": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "accounted": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "discovered",
+            "accounted"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "files",
+        "byLanguage",
+        "skipped",
+        "ignored",
+        "unresolved",
+        "accounting"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

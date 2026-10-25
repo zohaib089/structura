@@ -1,0 +1,45 @@
+{
+  "name": "@atlasmith/engine",
+  "version": "0.1.0",
+  "description": "Local-first scan engine: repository -> versioned graph.json plus coverage report.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./graph-reader": {
+      "types": "./dist/graph/browser.d.ts",
+      "default": "./dist/graph/browser.js"
+    },
+    "./schema/graph.v1.schema.json": "./schema/graph.v1.schema.json",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "schema",
+    "docs",
+    "data",
+    "grammars.manifest.json"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "tsx --test \"src/**/*.test.ts\"",
+    "schema": "tsx scripts/write-json-schema.ts"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "@vscode/tree-sitter-wasm": "0.3.1",
+    "ajv": "^8.20.0",
+    "ignore": "7.0.14",
+    "web-tree-sitter": "0.27.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}

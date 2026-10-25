@@ -1,0 +1,29 @@
+{
+  "name": "@atlasmith/cli",
+  "version": "0.1.0",
+  "description": "Thin command line front-end for the scan engine.",
+  "type": "module",
+  "bin": {
+    "atlasmith": "./dist/bin.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "pretest": "npm --prefix ../engine run build",
+    "test": "tsx --test \"src/**/*.test.ts\""
+  },
+  "license": "ISC",
+  "dependencies": {
+    "@atlasmith/engine": "0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}

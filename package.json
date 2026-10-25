@@ -1,0 +1,19 @@
+{
+  "name": "monorepo-root",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Workspace root. Product naming lives in packages/engine/src/brand.ts.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "npm run build -w packages/engine && npm run build -w packages/cli",
+    "typecheck": "npm run typecheck -w packages/engine && npm run typecheck -w packages/cli",
+    "test": "npm run build && npm test -w packages/engine -w packages/cli",
+    "test:all": "npm test && npm test -w apps/api -w packages/skills && npm run test:unit -w apps/web"
+  }
+}
