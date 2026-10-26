@@ -2,6 +2,9 @@
 import { Moon, Sun } from '@lucide/vue';
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { BRAND } from '../../../../../packages/brand/src/brand'
+import BrandMark from '../brand/BrandMark.vue'
+import { hostedAppEnabled } from '../../hosted-app'
 import { useThemeStore } from '../../stores/theme';
 import LocaleSwitcher from './LocaleSwitcher.vue'
 import { isSupportedWebLocale, readLocalePreference, resolvePreferredWebLocale } from '../../services/locale'
@@ -37,19 +40,17 @@ async function handleLogout() {
     <div class="container">
       <div class="logo-wrap">
         <RouterLink :to="`/${locale}`" class="logo" :aria-label="messages.home">
-          <div class="logo-icon" aria-label="Structura logo">
-            <span class="logo-mark"></span>
-          </div>
-          <span class="logo-text">Structura</span>
+          <BrandMark :size="28" />
+          <span class="logo-text">{{ BRAND.wordmark }}</span>
         </RouterLink>
       </div>
 
       <nav v-if="showLandingLinks" class="nav-links" :aria-label="messages.mainNavigation">
-        <a href="#what">{{ messages.whatIsIt }}</a>
+        <a href="#honest">{{ messages.honest }}</a>
+        <a href="#coverage">{{ messages.coverage }}</a>
+        <a href="#drift">{{ messages.drift }}</a>
         <a href="#how">{{ messages.howItWorks }}</a>
-        <a href="#services">{{ messages.services }}</a>
-        <a href="#reviews">{{ messages.reviews }}</a>
-        <a href="#contact">{{ messages.contact }}</a>
+        <a href="#quickstart">{{ messages.quickstart }}</a>
       </nav>
 
       <div class="right-side">
@@ -60,10 +61,10 @@ async function handleLogout() {
           <Moon v-else :size="18" />
         </button>
 
-        <button v-if="isAuthenticated" type="button" class="btn-signup" @click="handleLogout">
+        <button v-if="hostedAppEnabled && isAuthenticated" type="button" class="btn-signup" @click="handleLogout">
           {{ messages.logOut }}
         </button>
-        <template v-else>
+        <template v-else-if="hostedAppEnabled">
           <RouterLink :to="`/${locale}/auth/login`" class="btn-login">{{ messages.logIn }}</RouterLink>
           <RouterLink :to="`/${locale}/auth/signup?plan=enterprise`" class="btn-signup">
             {{ messages.launchApp }}

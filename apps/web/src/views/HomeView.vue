@@ -2,12 +2,12 @@
 import Navbar from '../components/layout/Navbar.vue'
 import FooterSection from '../components/layout/FooterSection.vue'
 import HeroSection from '../components/landing/HeroSection.vue'
-import WhatIsSection from '../components/landing/WhatIsSection.vue'
+import QuickstartSection from '../components/landing/QuickstartSection.vue'
+import HonestSection from '../components/landing/HonestSection.vue'
+import CoverageSection from '../components/landing/CoverageSection.vue'
+import DriftSection from '../components/landing/DriftSection.vue'
 import HowItWorks from '../components/landing/HowItWorks.vue'
-import ServicesSection from '../components/landing/ServicesSection.vue'
-import ClientsSection from '../components/landing/ClientsSection.vue'
-import ReviewsSection from '../components/landing/ReviewsSection.vue'
-import ContactSection from '../components/landing/ContactSection.vue'
+import LimitsSection from '../components/landing/LimitsSection.vue'
 
 import { onMounted, onUnmounted, ref } from 'vue'
 
@@ -38,12 +38,12 @@ onUnmounted(() => revealObserver?.disconnect())
   <div class="landing-page" :class="{ 'motion-ready': motionReady }">
     <Navbar />
     <HeroSection />
-    <WhatIsSection />
+    <QuickstartSection />
+    <HonestSection />
+    <CoverageSection />
+    <DriftSection />
     <HowItWorks />
-    <ServicesSection />
-    <ClientsSection />
-    <ReviewsSection />
-    <ContactSection />
+    <LimitsSection />
     <FooterSection />
   </div>
 </template>
@@ -62,22 +62,19 @@ onUnmounted(() => revealObserver?.disconnect())
   transform: translateY(0);
 }
 
-.landing-page.motion-ready > section:not(.hero).is-visible :deep(.feature),
-.landing-page.motion-ready > section:not(.hero).is-visible :deep(.step),
-.landing-page.motion-ready > section:not(.hero).is-visible :deep(.card),
-.landing-page.motion-ready > section:not(.hero).is-visible :deep(.review) {
+.landing-page.motion-ready > section:not(.hero).is-visible :deep(.card) {
   animation: card-arrive 600ms var(--easing-emphasized) both;
 }
 
-.landing-page.motion-ready > section:not(.hero).is-visible :deep(:is(.feature, .step, .card, .review):nth-child(2)) {
+.landing-page.motion-ready > section:not(.hero).is-visible :deep(.card:nth-child(2)) {
   animation-delay: 80ms;
 }
 
-.landing-page.motion-ready > section:not(.hero).is-visible :deep(:is(.feature, .step, .card, .review):nth-child(3)) {
+.landing-page.motion-ready > section:not(.hero).is-visible :deep(.card:nth-child(3)) {
   animation-delay: 160ms;
 }
 
-.landing-page.motion-ready > section:not(.hero).is-visible :deep(:is(.feature, .step, .card, .review):nth-child(4)) {
+.landing-page.motion-ready > section:not(.hero).is-visible :deep(.card:nth-child(4)) {
   animation-delay: 240ms;
 }
 
@@ -95,10 +92,7 @@ onUnmounted(() => revealObserver?.disconnect())
 
 @media (prefers-reduced-motion: reduce) {
   .landing-page.motion-ready > section:not(.hero),
-  .landing-page.motion-ready > section:not(.hero).is-visible :deep(.feature),
-  .landing-page.motion-ready > section:not(.hero).is-visible :deep(.step),
-  .landing-page.motion-ready > section:not(.hero).is-visible :deep(.card),
-  .landing-page.motion-ready > section:not(.hero).is-visible :deep(.review) {
+  .landing-page.motion-ready > section:not(.hero).is-visible :deep(.card) {
     animation: none;
     opacity: 1;
     transform: none;

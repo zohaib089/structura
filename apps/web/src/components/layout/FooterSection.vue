@@ -1,9 +1,23 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { BRAND } from '../../../../../packages/brand/src/brand'
+import { hostedAppEnabled } from '../../hosted-app'
+import BrandMark from '../brand/BrandMark.vue'
 import { getCurrentSession } from '../../services/auth'
+import { isSupportedWebLocale, localizedPath, readLocalePreference, resolvePreferredWebLocale } from '../../services/locale'
+import { landingMessages } from '../../services/landing-messages'
+import { navigationMessages } from '../../services/navigation-messages'
 
 const route = useRoute()
+const year = new Date().getFullYear()
+const locale = computed(() => {
+  const routeLocale = route.params.locale
+  if (typeof routeLocale === 'string' && isSupportedWebLocale(routeLocale)) return routeLocale
+  return resolvePreferredWebLocale(readLocalePreference(), navigator.languages)
+})
+const messages = computed(() => landingMessages(locale.value))
+const nav = computed(() => navigationMessages(locale.value))
 const isAuthenticated = computed(() => Boolean(route.fullPath) && getCurrentSession() !== null)
 </script>
 
@@ -13,49 +27,34 @@ const isAuthenticated = computed(() => Boolean(route.fullPath) && getCurrentSess
       <div class="top">
         <div class="brand-block">
           <div class="logo">
-            <div class="logo-mark" aria-hidden="true"></div>
-            <span>Structura</span>
+            <BrandMark :size="28" />
+            <span>{{ BRAND.wordmark }}</span>
           </div>
-          <p>See your code architecture clearly and help every team move with confidence.</p>
-          <div v-if="!isAuthenticated" class="cta-row">
-            <RouterLink to="/auth/signup?plan=enterprise" class="cta-btn">Request access</RouterLink>
-          </div>
+          <p>{{ BRAND.tagline }}</p>
         </div>
 
         <div class="links">
           <div class="col">
-            <h4>Product</h4>
-            <a href="#what">What is it</a>
-            <a href="#how">How it works</a>
-            <a href="#services">Services</a>
-            <a href="#reviews">Reviews</a>
+            <h4>{{ messages.footer.product }}</h4>
+            <a href="#quickstart">{{ nav.quickstart }}</a>
+            <a href="#honest">{{ nav.honest }}</a>
+            <a href="#coverage">{{ nav.coverage }}</a>
+            <a href="#drift">{{ nav.drift }}</a>
+            <a href="#how">{{ nav.howItWorks }}</a>
           </div>
           <div class="col">
-            <h4>Company</h4>
-            <a href="#contact">Contact</a>
-            <template v-if="!isAuthenticated">
-              <RouterLink to="/auth/login">Log in</RouterLink>
-              <RouterLink to="/auth/signup">Sign up</RouterLink>
-              <RouterLink to="/auth/verify-email">Verify email</RouterLink>
+            <h4>{{ messages.footer.github }}</h4>
+            <a :href="BRAND.repoUrl">{{ messages.github }}</a>
+            <template v-if="hostedAppEnabled && !isAuthenticated">
+              <RouterLink :to="localizedPath(locale, '/auth/login')">{{ nav.logIn }}</RouterLink>
+              <RouterLink :to="localizedPath(locale, '/auth/signup')">{{ nav.launchApp }}</RouterLink>
             </template>
-          </div>
-          <div class="col">
-            <h4>Resources</h4>
-            <a href="#">Documentation</a>
-            <a href="#">Security</a>
-            <a href="#">Privacy</a>
-            <a href="#">Status</a>
           </div>
         </div>
       </div>
 
       <div class="bottom">
-        <p>© 2026 Structura. Built for teams shipping complex software.</p>
-        <div class="meta-links">
-          <a href="#">Privacy</a>
-          <a href="#">Terms</a>
-          <a href="#">Support</a>
-        </div>
+        <p>© {{ year }} {{ BRAND.name }}</p>
       </div>
     </div>
   </footer>
