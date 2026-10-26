@@ -14,14 +14,26 @@ function fit() {
   <Panel position="bottom-left" class="zoom">
     <button type="button" :aria-label="zoomIn" @click="flow.zoomIn()">+</button>
     <button type="button" :aria-label="zoomOut" @click="flow.zoomOut()">−</button>
-    <button type="button" :aria-label="zoomFit" @click="fit()">0</button>
+    <button type="button" :aria-label="zoomFit" @click="fit()">Fit</button>
   </Panel>
 </template>
 
 <style scoped>
-.zoom { display: grid; }
-button {
-  min-inline-size: var(--viewer-control-size);
-  min-block-size: var(--viewer-hit-target);
+.zoom {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
 }
+button {
+  min-inline-size: var(--viewer-control-size, 2.75rem);
+  min-block-size: var(--viewer-hit-target, 2.75rem);
+  padding-inline: var(--space-2);
+  border: 0;
+  border-block-start: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-primary);
+}
+button:first-child { border-block-start: 0; }
 </style>

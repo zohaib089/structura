@@ -755,7 +755,14 @@ const snippet = 'layers: []\nrules: []\n'
   background: var(--color-surface);
   border-block-end: 1px solid var(--color-border);
 }
-.stage { position: relative; min-inline-size: 0; min-block-size: 0; }
+.stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  min-block-size: 0;
+  block-size: 100%;
+}
 .rail, .inspector {
   overflow: auto;
   padding: var(--space-3);

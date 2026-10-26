@@ -28,8 +28,9 @@ const emit = defineEmits<{ choose: []; copy: [] }>()
 
 <style scoped>
 .error-banner {
-  max-inline-size: 36rem;
-  margin: auto;
+  inline-size: min(36rem, calc(100% - var(--space-6)));
+  margin-block: auto;
+  margin-inline: auto;
   padding: var(--space-4);
   border: var(--graph-node-border-width, 1.5px) solid var(--color-danger);
   border-radius: var(--radius-md);

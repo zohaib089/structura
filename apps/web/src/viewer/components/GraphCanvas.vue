@@ -154,7 +154,7 @@ defineExpose({ root })
 </template>
 
 <style scoped>
-.canvas { position: relative; block-size: 100%; min-block-size: 24rem; direction: ltr; }
+.canvas { position: relative; flex: 1; block-size: 100%; min-block-size: 0; direction: ltr; }
 .canvas :deep(.vue-flow) { block-size: 100%; background: var(--color-canvas); }
 .canvas :deep(.vue-flow__attribution) { display: none; }
 .canvas :deep(.vue-flow__handle) { opacity: 0; }
