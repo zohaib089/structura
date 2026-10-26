@@ -10,9 +10,14 @@
   "engines": {
     "node": ">=22"
   },
+  "devDependencies": {
+    "eslint": "^9.39.1",
+    "typescript-eslint": "^8.46.2"
+  },
   "scripts": {
     "build": "npm run build -w packages/engine && npm run build -w packages/cli",
-    "typecheck": "npm run typecheck -w packages/engine && npm run typecheck -w packages/cli",
+    "typecheck": "npm run typecheck -w packages/engine && npm run build -w packages/engine && npm run typecheck -w packages/cli",
+    "lint": "tsx packages/engine/scripts/lint-restrictions.ts && eslint packages/engine/src packages/cli/src",
     "test": "npm run build && npm test -w packages/engine -w packages/cli",
     "test:all": "npm test && npm test -w apps/api -w packages/skills && npm run test:unit -w apps/web"
   }
