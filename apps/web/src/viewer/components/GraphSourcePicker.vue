@@ -34,7 +34,7 @@ const emit = defineEmits<{ sample: []; copy: [] }>()
 </template>
 
 <style scoped>
-.picker-wrap { display: grid; place-items: center; min-block-size: 100%; padding: var(--space-4); }
+.picker-wrap { display: grid; flex: 1; place-items: center; min-block-size: 100%; padding: var(--space-4); }
 .picker {
   display: grid;
   gap: var(--space-3);

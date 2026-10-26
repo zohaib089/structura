@@ -36,6 +36,7 @@ test('loads a fixture from file://, selects, and expands', async ({ page }) => {
   const cluster = page.locator('.overview-node[data-node-id="dir:apps"]')
   await cluster.click()
   await expect(cluster).toHaveAttribute('aria-selected', 'true')
+  await expect(page.locator('[data-testid="node-detail"]')).toContainText('apps')
   await expect(cluster).toHaveAttribute('data-expanded', 'false')
   await cluster.press('Enter')
   await expect(cluster).toHaveAttribute('data-expanded', 'true')
