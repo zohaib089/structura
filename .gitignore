@@ -35,3 +35,6 @@ Thumbs.db
 .cache/
 .tmp/
 tmp/
+
+# Local-first engine working directory (scan cache)
+.atlasmith/

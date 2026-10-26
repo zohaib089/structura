@@ -3,6 +3,9 @@ import test from 'node:test'
 import {
   ANALYSIS_CONTRACT_VERSION,
   ANALYSIS_SOURCE_KINDS,
+  GRAPH_SCHEMA_ID,
+  GRAPH_SCHEMA_VERSION,
+  NODE_KINDS,
   parseAnalysisInventoryResult,
   parseAnalysisRequest,
   parseAnalysisProgressEvent,
@@ -12,6 +15,10 @@ import {
 test('exports versioned, language-neutral source and analysis contract types', () => {
   assert.equal(ANALYSIS_CONTRACT_VERSION, '1.0.0')
   assert.deepEqual(ANALYSIS_SOURCE_KINDS, ['archive', 'single-file', 'github', 'gitlab'])
+  assert.equal(GRAPH_SCHEMA_VERSION, '1.0.0')
+  assert.equal(GRAPH_SCHEMA_ID, 'urn:repo-graph:schema:graph:1')
+  assert.ok(NODE_KINDS.includes('file'))
+  assert.ok(NODE_KINDS.includes('unresolved'))
 })
 
 test('parses only supported progress fields and discards unexpected payload properties', () => {
