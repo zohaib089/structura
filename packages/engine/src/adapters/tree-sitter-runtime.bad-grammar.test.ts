@@ -17,15 +17,15 @@ describe('grammar load failures are explicit', () => {
     await assert.rejects(runtime.getParser('python'), (e: unknown) => e instanceof AdapterLoadError && e.code === 'WASM_NOT_FOUND')
   })
 
-  test('corrupt grammar -> GRAMMAR_LOAD_FAILED, and a later retry with a good grammar works', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'atlasmith-grammar-'))
+  test('a grammar hash mismatch is GRAMMAR_INTEGRITY, and a later retry with a good grammar works', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'grammar-'))
     const bad = join(dir, 'bad.wasm')
     writeFileSync(bad, 'nope')
     let broken = true
     const runtime = new TreeSitterRuntime('t', {
       resolveGrammar: grammar => (broken ? bad : createRequire(import.meta.url).resolve(`@vscode/tree-sitter-wasm/wasm/tree-sitter-${grammar}.wasm`))
     })
-    await assert.rejects(runtime.getParser('typescript'), (e: unknown) => e instanceof AdapterLoadError && e.code === 'GRAMMAR_LOAD_FAILED')
+    await assert.rejects(runtime.getParser('typescript'), (error: unknown) => error instanceof AdapterLoadError && error.code === 'GRAMMAR_INTEGRITY')
     broken = false
     const parser = await runtime.getParser('typescript')
     assert.ok(parser.parse('const a = 1'))

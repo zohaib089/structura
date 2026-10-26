@@ -104,7 +104,8 @@ function addReference(
   edgeType: 'imports' | 'reexports',
   importKind: ExtractedReference['importKind'],
   typeOnly: boolean,
-  literal: string | undefined
+  literal: string | undefined,
+  names?: string[]
 ): void {
   if (state.references.length >= state.limits.maxEdgesPerFile) {
     state.omitted.edges += 1
@@ -122,13 +123,56 @@ function addReference(
       state.redactions += 1
     }
   }
-  state.references.push({ edgeType, importKind, typeOnly, specifier, redacted, span: nodeSpan(state, node) })
+  state.references.push({
+    edgeType,
+    importKind,
+    typeOnly,
+    specifier,
+    redacted,
+    span: nodeSpan(state, node),
+    ...(names && names.length > 0 ? { names } : {})
+  })
+}
+
+function importedName(item: Node): string | undefined {
+  const field = item.childForFieldName('name')
+  if (field && field.type !== 'computed_property_name') return field.text
+  return item.namedChildren.find(child => child.type === 'identifier')?.text
+}
+
+function namesFromClause(node: Node): string[] | undefined {
+  const names: string[] = []
+  const requireClause = node.children.find(child => child.type === 'import_require_clause')
+  if (requireClause) {
+    const ident = requireClause.children.find(child => child.type === 'identifier')
+    if (ident) names.push(ident.text)
+    return names.length > 0 ? names : undefined
+  }
+  const clause = node.children.find(child => child.type === 'import_clause' || child.type === 'export_clause')
+  if (!clause) return undefined
+  for (const child of clause.children) {
+    if (child.type === 'identifier') names.push(child.text)
+    else if (child.type === 'namespace_import') {
+      const ident = child.children.find(part => part.type === 'identifier')
+      if (ident) names.push(ident.text)
+    } else if (child.type === 'import_specifier' || child.type === 'export_specifier') {
+      const name = importedName(child)
+      if (name) names.push(name)
+    } else if (child.type === 'named_imports') {
+      for (const item of child.children) {
+        if (item.type !== 'import_specifier') continue
+        const name = importedName(item)
+        if (name) names.push(name)
+      }
+    }
+  }
+  return names.length > 0 ? names : undefined
 }
 
 function handleImportStatement(state: State, node: Node): void {
   const requireClause = node.children.find(child => child.type === 'import_require_clause')
   if (requireClause) {
-    addReference(state, node, 'imports', 'require', hasTypeKeyword(node), literalValue(requireClause.children.find(child => child.type === 'string') ?? null))
+    addReference(state, node, 'imports', 'require', hasTypeKeyword(node), literalValue(requireClause.children.find(child => child.type === 'string') ?? null), namesFromClause(node))
     return
   }
   let allTypeOnly = true
@@ -148,11 +192,11 @@ function handleImportStatement(state: State, node: Node): void {
       }
     }
   }
-  addReference(state, node, 'imports', 'static', hasTypeKeyword(node) || (sawBinding && allTypeOnly), literalValue(node.childForFieldName('source')))
+  addReference(state, node, 'imports', 'static', hasTypeKeyword(node) || (sawBinding && allTypeOnly), literalValue(node.childForFieldName('source')), namesFromClause(node))
 }
 
 function handleReexport(state: State, node: Node, source: Node): void {
-  addReference(state, node, 'reexports', 'static', hasTypeKeyword(node), literalValue(source))
+  addReference(state, node, 'reexports', 'static', hasTypeKeyword(node), literalValue(source), namesFromClause(node))
 }
 
 function handleCallExpression(state: State, node: Node): void {
@@ -323,31 +367,30 @@ function collectSymbols(state: State, root: Node): void {
   for (const { local, exposed, node } of localExports) {
     const existing = state.symbols.find(symbol => symbol.qualifiedName === local)
     if (existing) {
-      existing.exported = true
-      if (exposed !== local && !state.symbols.some(symbol => symbol.qualifiedName === exposed)) {
-        addSymbol(state, exposed, exposed, existing.symbolKind, true, node)
-      }
+      if (exposed === local) existing.exported = true
+      else if (!state.symbols.some(symbol => symbol.qualifiedName === exposed)) addSymbol(state, exposed, exposed, existing.symbolKind, true, node)
     } else if (!state.symbols.some(symbol => symbol.qualifiedName === exposed)) {
       addSymbol(state, exposed, exposed, 'unknown', true, node)
     }
   }
 }
 
-/** Counts ERROR / MISSING regions (each outermost region once). Iterative. */
-function countSyntaxErrors(root: Node): number {
-  if (!root.hasError) return 0
-  let count = 0
+/** Outermost ERROR / MISSING regions. Iterative, so hostile nesting cannot overflow the stack. */
+function collectSyntaxErrors(root: Node, lines: LineIndex): { span: Span }[] {
+  if (!root.hasError) return []
+  const issues: { span: Span }[] = []
   const stack: Node[] = [root]
   while (stack.length > 0) {
     const node = stack.pop() as Node
     if (node.isMissing || node.type === 'ERROR') {
-      count += 1
+      issues.push({ span: lines.span(node.startIndex, node.endIndex) })
       continue
     }
     if (!node.hasError) continue
-    for (const child of node.children) stack.push(child)
+    for (let index = node.children.length - 1; index >= 0; index -= 1) stack.push(node.children[index] as Node)
   }
-  return count
+  issues.sort(byPosition)
+  return issues
 }
 
 const byPosition = (a: { span: Span }, b: { span: Span }): number =>
@@ -369,10 +412,12 @@ export function extractModuleFacts(root: Node, content: string, limits: ExtractL
 
   state.references.sort(byPosition)
   state.symbols.sort((a, b) => byPosition(a, b) || (a.qualifiedName < b.qualifiedName ? -1 : a.qualifiedName > b.qualifiedName ? 1 : 0))
+  const syntaxErrors = collectSyntaxErrors(root, state.lines)
   return {
     references: state.references,
     symbols: state.symbols,
-    syntaxErrorCount: countSyntaxErrors(root),
+    syntaxErrorCount: syntaxErrors.length,
+    syntaxErrors,
     omitted: state.omitted,
     redactions: state.redactions
   }

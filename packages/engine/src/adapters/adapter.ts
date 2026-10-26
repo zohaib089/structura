@@ -1,4 +1,4 @@
-import type { ImportKind, Span, SymbolKind } from '../graph/types.js'
+import type { ImportKind, InferredReason, Span, SymbolKind, UnresolvedReason } from '../graph/types.js'
 
 /**
  * Language adapter contract. An adapter turns source text into language-neutral facts
@@ -36,6 +36,8 @@ export interface AdapterFileInput {
   /** Language id from the walker (`typescript`, `javascript`). */
   language: string
   limits: ExtractLimits
+  /** Per-file parse budget. The worker is terminated if cancellation does not return in time. */
+  timeoutMs?: number
 }
 
 /** One import-like reference found in a file. */
@@ -49,6 +51,8 @@ export interface ExtractedReference {
   /** True when the literal specifier looked like a secret; `specifier` then is "[redacted]". */
   redacted: boolean
   span: Span
+  /** Bound names (`import { a, b as c }` contributes `a` and `b`). Omitted when there are none. Not written to graph.json. */
+  names?: string[]
 }
 
 export interface ExtractedSymbol {
@@ -60,15 +64,42 @@ export interface ExtractedSymbol {
   span: Span
 }
 
+export interface SyntaxIssue {
+  span: Span
+}
+
 export interface AdapterParseResult {
   references: ExtractedReference[]
   symbols: ExtractedSymbol[]
   /** Number of ERROR/MISSING regions found by parser error recovery (0 = clean parse). */
   syntaxErrorCount: number
+  /** Outermost ERROR/MISSING regions. Spans only: the source text is not stored. */
+  syntaxErrors: SyntaxIssue[]
   /** Things dropped because of the caps; any non-zero value makes the file `partial`. */
   omitted: { longNames: number; symbols: number; edges: number }
   /** Number of specifiers replaced by "[redacted]". */
   redactions: number
+}
+
+/** Result of asking an adapter to parse one file. Fatal loader failures throw `AdapterLoadError` instead. */
+export type AdapterParseOutcome =
+  | { ok: true; result: AdapterParseResult }
+  | { ok: false; reason: 'timeout' }
+  | { ok: false; reason: 'parser-error'; message: string }
+
+/**
+ * Where a specifier points. Shared by every language adapter (TypeScript/JavaScript now,
+ * Python later). `provenance` is EXTRACTED for standard resolution and INFERRED when the
+ * adapter had to guess. External `name` is the package root (`react`, `fs`, `os`).
+ */
+export type ResolveOutcome =
+  | { kind: 'file'; path: string; provenance: 'EXTRACTED' }
+  | { kind: 'file'; path: string; provenance: 'INFERRED'; reason: InferredReason; confidence: number }
+  | { kind: 'external'; ecosystem: string; name: string }
+  | { kind: 'unresolved'; reason: UnresolvedReason }
+
+export interface ModuleResolver {
+  resolve(specifier: string | null, fromPath: string): ResolveOutcome
 }
 
 export interface LanguageAdapter {
@@ -76,4 +107,7 @@ export interface LanguageAdapter {
   /** Bump when output for the same input can change (invalidates cached extractions). */
   readonly version: string
   readonly languageIds: readonly string[]
+  /** Loads grammars. A failure here aborts the scan; it is never reported as "0 files parsed". */
+  load(): Promise<void>
+  parse(input: AdapterFileInput): Promise<AdapterParseOutcome>
 }

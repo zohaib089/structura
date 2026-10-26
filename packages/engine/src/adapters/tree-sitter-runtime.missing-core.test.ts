@@ -20,5 +20,13 @@ test('a missing core WASM fails loudly with WASM_NOT_FOUND', async () => {
     return true
   })
   // Parsing never silently succeeds with a broken runtime.
-  await assert.rejects(adapter.parse({ path: 'a.ts', content: 'import x from "y"', language: 'typescript' }), AdapterLoadError)
+  await assert.rejects(
+    adapter.parse({
+      path: 'a.ts',
+      content: 'import x from "y"',
+      language: 'typescript',
+      limits: { maxIdentifierLength: 64, maxSymbolsPerFile: 10, maxEdgesPerFile: 10 }
+    }),
+    AdapterLoadError
+  )
 })

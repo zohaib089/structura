@@ -1,5 +1,6 @@
 import { builtinModules } from 'node:module'
 import { posix } from 'node:path'
+import type { ModuleResolver, ResolveOutcome } from '../adapter.js'
 import type { InferredReason, UnresolvedReason } from '../../graph/types.js'
 import { LIMITS } from '../../limits.js'
 import { parseJsonc } from './jsonc.js'
@@ -13,11 +14,6 @@ export interface ResolverContext {
   /** Reads a scanned file as text (config data only: package.json, tsconfig). `undefined` when unreadable. */
   readText(path: string): Promise<string | undefined>
 }
-
-export type ResolveOutcome =
-  | { kind: 'file'; path: string; inferred?: { reason: InferredReason; confidence: number } }
-  | { kind: 'external'; ecosystem: 'npm' | 'node'; name: string }
-  | { kind: 'unresolved'; reason: UnresolvedReason }
 
 const EXTENSIONS = ['.ts', '.tsx', '.d.ts', '.js', '.jsx', '.mjs', '.cjs', '.mts', '.cts', '.json'] as const
 const JS_TO_TS: Readonly<Record<string, readonly string[]>> = {
@@ -241,11 +237,11 @@ export class TsJsResolver implements ModuleResolver {
   }
 
   private fileOutcome(path: string): ResolveOutcome {
-    return { kind: 'file', path }
+    return { kind: 'file', path, provenance: 'EXTRACTED' }
   }
 
   private inferredOutcome(path: string, reason: InferredReason, confidence: number): ResolveOutcome {
-    return { kind: 'file', path, inferred: { reason, confidence } }
+    return { kind: 'file', path, provenance: 'INFERRED', reason, confidence }
   }
 
   private failure(result: PathResult): ResolveOutcome {
@@ -377,7 +373,7 @@ export class TsJsResolver implements ModuleResolver {
   /* -------------------------------- public API -------------------------------- */
 
   resolve(specifier: string | null, fromPath: string): ResolveOutcome {
-    if (specifier === null) return { kind: 'unresolved', reason: 'dynamic' }
+    if (specifier === null) return { kind: 'unresolved', reason: 'non-literal-specifier' }
     if (specifier === '') return { kind: 'unresolved', reason: 'unsupported-specifier' }
 
     if (specifier.startsWith('./') || specifier.startsWith('../') || specifier === '.' || specifier === '..') {
@@ -386,7 +382,11 @@ export class TsJsResolver implements ModuleResolver {
       return result.kind === 'found' ? this.fileOutcome(result.path) : this.failure(result)
     }
     if (specifier.startsWith('/')) return { kind: 'unresolved', reason: 'outside-root' }
-    if (specifier.startsWith('node:')) return { kind: 'external', ecosystem: 'node', name: specifier.slice(5) || specifier }
+    if (specifier.startsWith('node:')) {
+      const bare = specifier.slice(5)
+      const root = bare.split('/')[0]
+      return { kind: 'external', ecosystem: 'node', name: root || bare || specifier }
+    }
     if (/^[a-z][a-z\d+.-]*:/i.test(specifier)) return { kind: 'unresolved', reason: 'unsupported-specifier' }
     if (specifier.startsWith('#')) return { kind: 'unresolved', reason: 'unsupported-resolution' }
 
@@ -413,7 +413,7 @@ export class TsJsResolver implements ModuleResolver {
     const name = parts.slice(0, nameLength).join('/')
     const subpath = parts.slice(nameLength).join('/')
 
-    if (builtins.has(specifier)) return { kind: 'external', ecosystem: 'node', name: specifier }
+    if (builtins.has(specifier) || builtins.has(name)) return { kind: 'external', ecosystem: 'node', name: builtins.has(name) ? name : (name.split('/')[0] || name) }
     if (!PACKAGE_NAME.test(name)) {
       return { kind: 'unresolved', reason: 'unsupported-specifier' }
     }
