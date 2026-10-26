@@ -78,6 +78,10 @@ export interface OverviewEdgeModel {
   extracted: number
   inferred: number
   unresolved: number
+  /** Empty when the bundle is not made of import or reexport edges. */
+  importKind: '' | 'static' | 'dynamic' | 'require' | 'mixed'
+  /** Empty, true, false, or mixed across the bundled import edges. */
+  typeOnly: '' | 'true' | 'false' | 'mixed'
   label: string
 }
 
@@ -537,6 +541,10 @@ interface Bundle {
   extracted: number
   inferred: number
   unresolved: number
+  staticCount: number
+  dynamicCount: number
+  requireCount: number
+  typeOnlyCount: number
 }
 
 function addBundle(
@@ -548,11 +556,28 @@ function addBundle(
   index: GraphIndex
 ) {
   const key = `${source}\u0000${target}\u0000${hierarchy ? 'h' : 'b'}`
-  const bundle = bundles.get(key) ?? { source, target, hierarchy, extracted: 0, inferred: 0, unresolved: 0 }
+  const bundle = bundles.get(key) ?? {
+    source,
+    target,
+    hierarchy,
+    extracted: 0,
+    inferred: 0,
+    unresolved: 0,
+    staticCount: 0,
+    dynamicCount: 0,
+    requireCount: 0,
+    typeOnlyCount: 0
+  }
   const targetNode = index.nodesById.get(edge.target)
   if (targetNode?.kind === 'unresolved') bundle.unresolved += 1
   else if (edge.provenance === 'INFERRED') bundle.inferred += 1
   else bundle.extracted += 1
+  if ((edge.type === 'imports' || edge.type === 'reexports') && 'importKind' in edge) {
+    if (edge.importKind === 'dynamic') bundle.dynamicCount += 1
+    else if (edge.importKind === 'require') bundle.requireCount += 1
+    else bundle.staticCount += 1
+    if (edge.typeOnly) bundle.typeOnlyCount += 1
+  }
   bundles.set(key, bundle)
 }
 
@@ -564,6 +589,7 @@ function toEdgeModel(bundle: Bundle): OverviewEdgeModel {
   else if (bundle.inferred > 0 && bundle.extracted === 0) provenance = 'INFERRED'
   else provenance = 'EXTRACTED'
   const visual = edgeVisual(provenance, resolved)
+  const imported = importSummary(bundle)
   return {
     id: `bundle:${bundle.source}>${bundle.target}:${visual}:${bundle.hierarchy ? 'h' : 'b'}`,
     source: bundle.source,
@@ -576,8 +602,25 @@ function toEdgeModel(bundle: Bundle): OverviewEdgeModel {
     extracted: bundle.extracted,
     inferred: bundle.inferred,
     unresolved: bundle.unresolved,
+    importKind: imported.importKind,
+    typeOnly: imported.typeOnly,
     label: edgeLabel(visual, weight)
   }
+}
+
+function importSummary(bundle: Bundle): Pick<OverviewEdgeModel, 'importKind' | 'typeOnly'> {
+  const total = bundle.staticCount + bundle.dynamicCount + bundle.requireCount
+  if (total === 0) return { importKind: '', typeOnly: '' }
+  const present = Number(bundle.staticCount > 0) + Number(bundle.dynamicCount > 0) + Number(bundle.requireCount > 0)
+  const importKind = present > 1
+    ? 'mixed'
+    : bundle.dynamicCount > 0
+      ? 'dynamic'
+      : bundle.requireCount > 0
+        ? 'require'
+        : 'static'
+  const typeOnly = bundle.typeOnlyCount === 0 ? 'false' : bundle.typeOnlyCount === total ? 'true' : 'mixed'
+  return { importKind, typeOnly }
 }
 
 function edgeLabel(visual: EdgeVisual, weight: number): string {

@@ -100,6 +100,8 @@ export interface ViewerMessages {
   detailsSpan: string
   detailsInternal: string
   detailsWeight: string
+  detailsImportKind: string
+  detailsTypeOnly: string
   coverageBar: string
   coverageBanner: string
   coverageFull: string
@@ -138,7 +140,7 @@ const en: ViewerMessages = {
   skip: 'Skip to graph',
   filters: 'Filters',
   inspector: 'Inspector',
-  graphLabel: 'Architecture graph. Click selects a node. Enter or double-click expands or collapses.',
+  graphLabel: 'Architecture graph. Click selects a node. Enter or double-click expands or collapses. Arrow keys move. Space selects. F focuses.',
   emptyGraph: 'This graph has no nodes.',
   expandedPath: 'Expanded path',
   search: 'Search files, symbols and layers',
@@ -231,6 +233,8 @@ const en: ViewerMessages = {
   detailsSpan: 'Span',
   detailsInternal: 'Internal edges: {n}',
   detailsWeight: 'Weight',
+  detailsImportKind: 'Import kind',
+  detailsTypeOnly: 'Type only',
   coverageBar: '{parsed} parsed · {partial} partial · {skipped} skipped of {total} discovered',
   coverageBanner: '{n} files were not analysed. They are listed below. Edges involving them may be missing.',
   coverageFull: 'All {n} discovered files were parsed.',

@@ -6,6 +6,7 @@ import type { OverviewEdgeModel, OverviewNodeModel } from '../overview'
 import FitFrame from './FitFrame.vue'
 import OverviewEdge from './OverviewEdge.vue'
 import OverviewNode from './OverviewNode.vue'
+import ZoomPad from './ZoomPad.vue'
 
 const props = defineProps<{
   nodes: OverviewNodeModel[]
@@ -21,6 +22,9 @@ const props = defineProps<{
   moreLabel: (count: number) => string
   expandLabel: string
   collapseLabel: string
+  zoomIn: string
+  zoomOut: string
+  zoomFit: string
 }>()
 
 const emit = defineEmits<{
@@ -144,6 +148,7 @@ defineExpose({ root })
         <OverviewEdge v-bind="edgeProps" />
       </template>
       <FitFrame :signature="nodes.map((node) => node.id).join('\n')" />
+      <ZoomPad :zoom-in="zoomIn" :zoom-out="zoomOut" :zoom-fit="zoomFit" />
     </VueFlow>
   </div>
 </template>
