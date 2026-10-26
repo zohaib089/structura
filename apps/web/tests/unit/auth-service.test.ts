@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { storageKey } from '../../../../packages/brand/src/brand'
 import { loginUser, signupUser } from '../../src/services/auth'
 
 describe('auth service', () => {
@@ -58,7 +59,7 @@ describe('auth service', () => {
 
     expect(result.success).toBe(true)
     expect(localStorage.length).toBe(1)
-    expect(localStorage.getItem('structura-auth-session-v2')).toContain('session-token')
-    expect(localStorage.getItem('structura-auth-session-v2')).not.toContain('StrongPassword1!')
+    expect(localStorage.getItem(storageKey('auth-session-v2'))).toContain('session-token')
+    expect(localStorage.getItem(storageKey('auth-session-v2'))).not.toContain('StrongPassword1!')
   })
 })
