@@ -195,6 +195,16 @@ describe('readGraph', () => {
       typeOnly: 'false', span
     }]))
     expect(badFlag.ok).toBe(false)
+    const writtenStatic = readGraph(document([root, file], [{
+      source: file.id, type: 'imports', target: root.id, provenance: 'EXTRACTED', specifier: './root',
+      importKind: 'static', span
+    }]))
+    expect(writtenStatic.ok).toBe(false)
+    const writtenFalse = readGraph(document([root, file], [{
+      source: file.id, type: 'imports', target: root.id, provenance: 'EXTRACTED', specifier: './root',
+      typeOnly: false, span
+    }]))
+    expect(writtenFalse.ok).toBe(false)
 
     const stripped = JSON.parse(document([root, file], [{
       source: 'dir:.', type: 'contains', target: file.id, provenance: 'EXTRACTED', importKind: 'static', typeOnly: true
@@ -211,5 +221,26 @@ describe('readGraph', () => {
       expect(result.graph.edges[0]).not.toHaveProperty('importKind')
       expect(result.graph.edges[0]).not.toHaveProperty('typeOnly')
     }
+  })
+
+  it('loads the engine canary and keeps entryCandidate', () => {
+    const result = readGraph(readFileSync(resolve('fixtures/v1.0.0.graph.json'), 'utf8'))
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const fileNode = result.graph.nodes.find((node) => node.id === 'file:src/app.ts')
+    expect(fileNode).toMatchObject({
+      kind: 'file',
+      language: 'typescript',
+      lineCount: 2,
+      entryCandidate: { reason: 'conventional-name', provenance: 'INFERRED' }
+    })
+    const imported = result.graph.edges.find((edge) => edge.type === 'imports')
+    expect(imported).toMatchObject({
+      specifier: 'left-pad',
+      importKind: 'static',
+      typeOnly: false,
+      provenance: 'EXTRACTED'
+    })
+    expect(result.graph.summary).toEqual({ nodes: 5, edges: 4, files: 1 })
   })
 })

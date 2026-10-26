@@ -4,6 +4,7 @@ import { resolvePreferredWebLocale, webLocaleDirection } from '../services/local
 import '../style.css'
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
+import './viewer-base.css'
 import { viewerMessages } from './messages'
 import ViewerApp from './ViewerApp.vue'
 

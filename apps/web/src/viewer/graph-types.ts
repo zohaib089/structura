@@ -2,6 +2,17 @@ export type Provenance = 'EXTRACTED' | 'INFERRED'
 
 export type ImportKind = 'static' | 'dynamic' | 'require'
 
+/**
+ * Written on a file when the engine marks it as an entry.
+ * These strings match packages/engine graph v1. The viewer does not import that package.
+ */
+export type EntryReason = 'conventional-name' | 'package-bin' | 'package-exports' | 'package-main' | 'package-script'
+
+export interface EntryCandidate {
+  reason: EntryReason
+  provenance: Provenance
+}
+
 export interface Pos {
   line: number
   col: number
@@ -28,6 +39,7 @@ export interface FileNode {
   lineCount: number | null
   parse: { status: 'parsed' | 'partial' | 'failed' | 'skipped'; reason?: string }
   decoding?: 'lossy'
+  entryCandidate?: EntryCandidate
 }
 
 export interface SymbolNode {
@@ -82,9 +94,14 @@ export interface ImportEdge {
   provenance: Provenance
   span: Span
   specifier: string
-  /** Omitted in the file means static. */
+  /**
+   * In memory this is always set. The published schema omits `static` and writes
+   * only `dynamic` or `require`.
+   */
   importKind: ImportKind
-  /** Omitted in the file means false. */
+  /**
+   * In memory this is always set. The published schema writes `typeOnly` only when true.
+   */
   typeOnly: boolean
   confidence?: number
   reason?: string

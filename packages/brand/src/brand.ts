@@ -24,8 +24,8 @@ export const BRAND = {
   graphFile: 'graph.json',
   /** One-liner under the logo / meta description. Positioning is a hypothesis to test in interviews. */
   tagline: 'Your architecture, owned and verified.',
-  /** PLACEHOLDERS until S-01/S-04 settle org + domain. `.example` is a reserved TLD so nothing resolves by accident. */
-  repoUrl: 'https://github.com/OWNER/atlasmith',
+  /** Repository URL. The GitHub repo has not been renamed yet. */
+  repoUrl: 'https://github.com/zohaib089/structura',
   domain: 'atlasmith.example',
   /** Previous name, used only for one-time migration of localStorage keys. */
   legacySlug: 'structura',

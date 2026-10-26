@@ -31,7 +31,7 @@ const emit = defineEmits<{ choose: []; copy: [] }>()
   max-inline-size: 36rem;
   margin: auto;
   padding: var(--space-4);
-  border: var(--graph-node-border-width) solid var(--color-danger);
+  border: var(--graph-node-border-width, 1.5px) solid var(--color-danger);
   border-radius: var(--radius-md);
   background: var(--color-surface-raised);
 }

@@ -48,11 +48,17 @@ const emit = defineEmits<{ sample: []; copy: [] }>()
   place-items: center;
   min-block-size: 8rem;
   padding: var(--space-4);
-  border: var(--graph-node-border-width) dashed var(--color-border-strong);
+  border: var(--graph-node-border-width, 1.5px) dashed var(--color-border-strong);
   border-radius: var(--radius-md);
 }
-.drop.is-dragging { background: var(--surface-brand-soft); }
-button, .choose { min-block-size: var(--viewer-hit-target); }
-.primary { background: var(--color-brand-amber-ui); color: var(--color-on-brand-amber); border: 0; }
+.drop.is-dragging { background: var(--surface-brand-soft, var(--color-surface)); }
+button, .choose { min-block-size: var(--viewer-hit-target, 2.75rem); }
+.primary {
+  background: var(--color-brand-amber-ui, var(--color-accent-primary));
+  color: var(--color-on-brand-amber, var(--color-text-on-accent));
+  border: 0;
+  border-radius: var(--radius-md);
+  padding-inline: var(--space-3);
+}
 .command { display: flex; gap: var(--space-2); align-items: center; font-family: var(--font-family-mono); }
 </style>

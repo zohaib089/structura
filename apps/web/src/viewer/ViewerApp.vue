@@ -308,8 +308,8 @@ const command = quickstartCommand()
 <style scoped>
 .viewer {
   display: grid;
-  grid-template-rows: auto 1fr;
-  min-block-size: 100vh;
+  grid-template-rows: auto minmax(0, 1fr);
+  block-size: 100vh;
   background: var(--color-canvas);
   color: var(--color-text-primary);
 }
@@ -319,15 +319,17 @@ const command = quickstartCommand()
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-3);
+  background: var(--color-surface);
+  border-block-end: 1px solid var(--color-border);
 }
-.wordmark { font-weight: 700; }
+.wordmark { font-weight: 700; letter-spacing: -0.02em; }
 .file {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   max-inline-size: 16rem;
 }
-.stage { position: relative; min-block-size: 0; }
+.stage { position: relative; min-block-size: 0; block-size: 100%; }
 .file-input {
   position: absolute;
   inline-size: 1px;
@@ -356,5 +358,12 @@ const command = quickstartCommand()
   overflow: hidden;
   clip: rect(0 0 0 0);
 }
-button { min-block-size: 2.75rem; }
+button {
+  min-block-size: 2.75rem;
+  padding-inline: var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+}
 </style>

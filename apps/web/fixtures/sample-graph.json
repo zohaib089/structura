@@ -75,7 +75,6 @@
       "provenance": "EXTRACTED",
       "specifier": "vue",
       "importKind": "dynamic",
-      "typeOnly": false,
       "span": { "start": { "line": 1, "col": 1 }, "end": { "line": 1, "col": 5 } }
     },
     {

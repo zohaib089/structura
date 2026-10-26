@@ -18,7 +18,7 @@ The viewer entry is `viewer/index.html` and `src/viewer/`. The product name, wor
 
 Click a node to select it. Enter or a double-click expands or collapses a cluster. Render caps live in `src/viewer/caps.ts`: 300 nodes on the first view, 50 per expansion, 1000 visible nodes and edges. `COMFORT_NODE_BUDGET` (150) and `COMFORT_EDGE_BUDGET` (300) are a recommended comfort setting, not the limit. The overview uses a "+N more" node when a level does not fit.
 
-`graph.json` is schema v1. Import and reexport edges may carry `importKind` (`static`, `dynamic`, or `require`, default `static`) and `typeOnly` (default `false`). The file has no tool version, timestamps, or brand strings. The viewer does not read sidecar run metadata.
+`graph.json` is schema v1, checked against the engine canary `fixtures/v1.0.0.graph.json`. Import and reexport edges omit `importKind` when it is static and omit `typeOnly` unless it is true. The reader fills those defaults in memory. A file node may include `entryCandidate`. The file has no tool version, timestamps, or brand strings. The viewer does not read sidecar run metadata. Viewer types stay in `apps/web` (TypeScript 6) and are not imported from `packages/engine` (TypeScript 7).
 
 Synthetic graphs:
 

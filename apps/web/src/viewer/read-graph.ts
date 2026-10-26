@@ -9,6 +9,8 @@ import { guardJson, syntaxWhere } from './json-guard'
 import { pointer } from './json-pointer'
 import type {
   Coverage,
+  EntryCandidate,
+  EntryReason,
   FileNode,
   GraphDocument,
   GraphEdge,
@@ -20,6 +22,7 @@ import type {
 
 const KNOWN_KINDS = new Set(['directory', 'file', 'symbol', 'external', 'unresolved'])
 const PARSE_STATUS = new Set(['parsed', 'partial', 'failed', 'skipped'])
+const ENTRY_REASONS = new Set<EntryReason>(['conventional-name', 'package-bin', 'package-exports', 'package-main', 'package-script'])
 const EXTENSION_KEY = /^[a-z][a-z0-9-]*:[A-Za-z0-9._-]+$/
 
 export function textExceedsLimit(text: string, limit = GRAPH_BYTE_LIMIT): boolean {
@@ -231,7 +234,7 @@ function readFile(value: Record<string, unknown>, id: string, base: string, path
   }
   let lineCount: number | null = null
   if (value.lineCount === null) lineCount = null
-  else if (!isCount(value.lineCount)) push(paths, `${base}/lineCount`)
+  else if (!isPosInt(value.lineCount)) push(paths, `${base}/lineCount`)
   else lineCount = value.lineCount
   if (!isRecord(value.parse) || !PARSE_STATUS.has(String(value.parse.status))) {
     push(paths, `${base}/parse`)
@@ -244,12 +247,43 @@ function readFile(value: Record<string, unknown>, id: string, base: string, path
     if (!read) return null
     reason = read
   }
-  const node: FileNode = { id, kind: 'file', path, label, language, lineCount, parse: reason ? { status, reason } : { status } }
+  if (status === 'parsed' && reason) push(paths, `${base}/parse/reason`)
+  if (status !== 'parsed' && !reason) push(paths, `${base}/parse/reason`)
+  const node: FileNode = {
+    id,
+    kind: 'file',
+    path,
+    label,
+    language,
+    lineCount,
+    parse: status !== 'parsed' && reason ? { status, reason } : { status }
+  }
   if (Object.hasOwn(value, 'decoding')) {
     if (value.decoding !== 'lossy') push(paths, `${base}/decoding`)
     else node.decoding = 'lossy'
   }
+  if (Object.hasOwn(value, 'entryCandidate')) {
+    const candidate = readEntryCandidate(value.entryCandidate, `${base}/entryCandidate`, paths)
+    if (!candidate) return null
+    node.entryCandidate = candidate
+  }
   return node
+}
+
+function readEntryCandidate(value: unknown, base: string, paths: string[]): EntryCandidate | null {
+  if (!isRecord(value)) {
+    push(paths, base)
+    return null
+  }
+  if (typeof value.reason !== 'string' || !ENTRY_REASONS.has(value.reason as EntryReason)) {
+    push(paths, `${base}/reason`)
+    return null
+  }
+  if (value.provenance !== 'EXTRACTED' && value.provenance !== 'INFERRED') {
+    push(paths, `${base}/provenance`)
+    return null
+  }
+  return { reason: value.reason as EntryReason, provenance: value.provenance }
 }
 
 function readSymbol(value: Record<string, unknown>, id: string, base: string, paths: string[]): GraphNode | null {
@@ -349,7 +383,8 @@ function readImportFields(
 ): { importKind: ImportKind; typeOnly: boolean } | null {
   let importKind: ImportKind = 'static'
   if (Object.hasOwn(value, 'importKind')) {
-    if (value.importKind !== 'static' && value.importKind !== 'dynamic' && value.importKind !== 'require') {
+    // The published schema writes this only for dynamic and require. `static` is the omission default.
+    if (value.importKind !== 'dynamic' && value.importKind !== 'require') {
       push(paths, `${base}/importKind`)
       return null
     }
@@ -357,11 +392,12 @@ function readImportFields(
   }
   let typeOnly = false
   if (Object.hasOwn(value, 'typeOnly')) {
-    if (typeof value.typeOnly !== 'boolean') {
+    // The published schema writes typeOnly only as true.
+    if (value.typeOnly !== true) {
       push(paths, `${base}/typeOnly`)
       return null
     }
-    typeOnly = value.typeOnly
+    typeOnly = true
   }
   return { importKind, typeOnly }
 }

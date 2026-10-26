@@ -16,13 +16,13 @@ export function edgeClass(visual: EdgeVisual): string {
 }
 
 export function edgeStroke(visual: EdgeVisual): string {
-  if (visual === 'inferred' || visual === 'mixed') return 'var(--graph-edge-inferred)'
-  if (visual === 'unresolved') return 'var(--graph-edge-unresolved)'
-  return 'var(--graph-edge-extracted)'
+  if (visual === 'inferred' || visual === 'mixed') return 'var(--graph-edge-inferred, var(--color-text-secondary))'
+  if (visual === 'unresolved') return 'var(--graph-edge-unresolved, var(--color-text-muted))'
+  return 'var(--graph-edge-extracted, var(--color-text-primary))'
 }
 
 export function edgeWidth(visual: EdgeVisual): string {
-  if (visual === 'unresolved') return 'var(--graph-edge-width-unresolved)'
-  if (visual === 'mixed') return 'var(--graph-edge-width-inferred)'
-  return 'var(--graph-edge-width-extracted)'
+  if (visual === 'unresolved') return 'var(--graph-edge-width-unresolved, 1.5)'
+  if (visual === 'mixed') return 'var(--graph-edge-width-inferred, 1.5)'
+  return 'var(--graph-edge-width-extracted, 1.5)'
 }

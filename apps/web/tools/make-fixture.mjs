@@ -80,14 +80,15 @@ export function buildFixture(targetNodes) {
       target: target.id,
       provenance: inferred ? 'INFERRED' : 'EXTRACTED',
       specifier: `./${target.label}`,
-      importKind: ['static', 'dynamic', 'require'][index % 3],
-      typeOnly: index % 7 === 0,
       span: { start: { line: 3, col: 1 }, end: { line: 3, col: 4 } }
     }
     if (inferred) {
       edge.confidence = 0.5
-      edge.reason = 'alias-heuristic'
+      edge.reason = 'src-subpath'
     }
+    const importKind = ['static', 'dynamic', 'require'][index % 3]
+    if (importKind !== 'static') edge.importKind = importKind
+    if (index % 7 === 0) edge.typeOnly = true
     edges.push(edge)
   }
 

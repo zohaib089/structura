@@ -82,25 +82,25 @@ function onSpace(event: KeyboardEvent) {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  min-block-size: var(--graph-node-height);
-  min-inline-size: var(--graph-node-min-width);
-  max-inline-size: var(--graph-node-max-width);
+  min-block-size: var(--graph-node-height, 2.75rem);
+  min-inline-size: var(--graph-node-min-width, 8rem);
+  max-inline-size: var(--graph-node-max-width, 14rem);
   padding-inline: var(--space-2);
-  border: var(--graph-node-border-width) solid var(--graph-node-border);
-  border-radius: var(--graph-node-radius);
-  background: var(--graph-node-fill);
+  border: var(--graph-node-border-width, 1.5px) solid var(--graph-node-border, var(--color-border-strong));
+  border-radius: var(--graph-node-radius, var(--radius-sm));
+  background: var(--graph-node-fill, var(--color-surface-raised));
   color: var(--color-text-primary);
 }
-.is-cluster { background: var(--graph-cluster-fill); }
+.is-cluster { background: var(--graph-cluster-fill, var(--color-surface)); }
 .is-more {
   border-style: dashed;
-  border-color: var(--graph-ghost-border);
+  border-color: var(--graph-ghost-border, var(--color-border-strong));
 }
 .is-selected {
-  outline: var(--graph-selected-width) solid var(--graph-selected-ring);
-  box-shadow: var(--graph-selected-halo);
+  outline: var(--graph-selected-width, 2px) solid var(--graph-selected-ring, var(--color-accent-primary));
+  box-shadow: var(--graph-selected-halo, none);
 }
-.is-dimmed { opacity: var(--graph-dim-opacity); }
+.is-dimmed { opacity: var(--graph-dim-opacity, 0.45); }
 .overview-node:focus-visible {
   outline: var(--graph-selected-width) solid var(--graph-selected-ring);
   outline-offset: var(--space-1);
@@ -114,8 +114,8 @@ function onSpace(event: KeyboardEvent) {
 .count, .kind-mark { color: var(--color-text-secondary); }
 .node-toggle {
   margin-inline-start: auto;
-  min-inline-size: var(--viewer-hit-target);
-  min-block-size: var(--viewer-hit-target);
+  min-inline-size: var(--viewer-hit-target, 2.75rem);
+  min-block-size: var(--viewer-hit-target, 2.75rem);
   border: 0;
   background: transparent;
   color: inherit;
