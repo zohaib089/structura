@@ -31,6 +31,7 @@ function onToggle(id: string) {
       <span class="pill">{{ samplePill }}</span>
       <span class="alt">{{ alt }}</span>
     </figcaption>
+    <div class="frame">
     <GraphCanvas
       :nodes="view.nodes"
       :edges="view.edges"
@@ -51,6 +52,7 @@ function onToggle(id: string) {
       @select="selectedId = $event"
       @toggle="onToggle"
     />
+    </div>
   </figure>
 </template>
 
@@ -83,10 +85,16 @@ figcaption {
   font-size: var(--font-size-sm);
 }
 
-.sample :deep(.canvas) {
+.frame {
   block-size: 28rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   overflow: hidden;
+}
+
+.frame :deep(.canvas),
+.frame :deep(.vue-flow) {
+  block-size: 100%;
+  min-block-size: 100%;
 }
 </style>
