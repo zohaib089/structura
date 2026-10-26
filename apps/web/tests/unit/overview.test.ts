@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { EXPAND_NODE_CAP, HARD_NODE_CAP, INITIAL_NODE_CAP } from '../../src/viewer/caps'
+import { COMFORT_EDGE_BUDGET, COMFORT_NODE_BUDGET, EXPAND_NODE_CAP, HARD_EDGE_CAP, HARD_NODE_CAP, INITIAL_NODE_CAP } from '../../src/viewer/caps'
 import { buildFixture } from '../../tools/make-fixture.mjs'
 import {
   buildOverview,
@@ -23,6 +23,15 @@ function load(text: string) {
 }
 
 describe('overview', () => {
+  it('keeps the comfort budget below the confirmed caps', () => {
+    expect(INITIAL_NODE_CAP).toBe(300)
+    expect(EXPAND_NODE_CAP).toBe(50)
+    expect(HARD_NODE_CAP).toBe(1000)
+    expect(HARD_EDGE_CAP).toBe(1000)
+    expect(COMFORT_NODE_BUDGET).toBeLessThan(INITIAL_NODE_CAP)
+    expect(COMFORT_EDGE_BUDGET).toBeLessThan(HARD_EDGE_CAP)
+  })
+
   it('rolls sample edges up with mixed provenance and unresolved styling', () => {
     const index = load(readFileSync(resolve('fixtures/sample-graph.json'), 'utf8'))
     const view = buildOverview(index, emptyViewState(), defaultFilters())

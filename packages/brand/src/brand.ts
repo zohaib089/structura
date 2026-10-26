@@ -1,7 +1,8 @@
 /**
  * brand.ts - THE single source of truth for the product name.
  *
- * Provisional name: "Atlasmith" (NOT confirmed by the owner). To rename, change the values below and run
+ * Confirmed name: "Atlasmith". Config file: atlasmith.yml.
+ * The plan's structura.yml is superseded. To rename, change the values below and run
  * `grep -rniE "structura|atlasmith" apps packages docs` to catch anything that bypassed this file.
  * Copy that needs the name must use `{name}` interpolation from messages files; never hard-code it.
  *
@@ -17,7 +18,7 @@ export const BRAND = {
   slug: 'atlasmith',
   /** npm package + binary name that `npx` runs. Unverified on the registry at time of writing (plan says free). */
   cliName: 'atlasmith',
-  /** Declared-architecture file (plan currently calls it structura.yml). */
+  /** Declared-architecture file. Confirmed; the plan's structura.yml is superseded. */
   configFile: 'atlasmith.yml',
   /** Engine output the viewer opens. Brand-neutral on purpose. */
   graphFile: 'graph.json',

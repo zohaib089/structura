@@ -8,7 +8,7 @@
 - Appended the design tokens in `apps/web/src/styles/variables.css` without renaming the tokens that were already there. Added `BrandMark` and logo files under `apps/web/public/brand/`. The viewer shell uses the mark plus the live wordmark. Navbar, footer, and dashboard visuals are unchanged.
 - Added a separate Vue 3 + Vue Flow viewer entry. It loads `graph.json` v1 from a file picker or a drop, parses in a worker, and draws an aggregated overview with expand, search, filters, focus, coverage, and a drift panel that stays "not configured" when the file has no drift findings.
 - Shipped a single-file `dist-viewer/index.html` with a build-time CSP: hashed inline script and style, `worker-src blob:`, `connect-src 'none'`. No `?graph=` loading.
-- Render caps default to the Tech Lead / QA numbers (initial 300, 50 per expansion, hard 1000). The designer's 150 / 300 budgets are named constants beside them and are not the runtime default. The budget meter uses the hard cap and warns at 80%.
+- Render caps are confirmed: initial 300, 50 per expansion, hard cap 1000, with a "+N more" node and a budget meter. 150 nodes / 300 edges is the comfort setting (`COMFORT_NODE_BUDGET` / `COMFORT_EDGE_BUDGET`), not a hard rule. The product name and `atlasmith.yml` are confirmed; `structura.yml` is superseded.
 
 ## Not in this change
 
