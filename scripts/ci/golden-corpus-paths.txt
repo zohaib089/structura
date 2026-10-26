@@ -1,0 +1,12 @@
+# Vendored golden-corpus repositories are fixture inputs for golden tests.
+# They must stay out of typecheck, lint, and CI scans.
+#
+# Nothing here is present in the tree today. The product roadmap
+# (knowledge/strategy/product-vision-and-implementation-roadmap.md) names
+# packages/test-fixtures as the home of "small licensed/owned repositories
+# and golden outputs". test-fixtures/ is the repository-root form of that
+# same tree. Any directory named golden-corpus is excluded as well
+# (see scripts/ci/corpus-paths.mjs).
+
+packages/test-fixtures
+test-fixtures

@@ -11,5 +11,10 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"],
+  "exclude": [
+    "../../packages/test-fixtures",
+    "../../test-fixtures",
+    "**/golden-corpus/**"
+  ]
 }
