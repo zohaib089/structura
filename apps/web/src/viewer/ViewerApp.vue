@@ -340,6 +340,13 @@ const command = quickstartCommand()
 .skip {
   position: absolute;
   inset-inline-start: var(--space-2);
+  inset-block-start: -100%;
+  z-index: 20;
+  padding: var(--space-2);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+}
+.skip:focus {
   inset-block-start: var(--space-2);
 }
 .loading, .toast, .empty-graph { padding: var(--space-3); }

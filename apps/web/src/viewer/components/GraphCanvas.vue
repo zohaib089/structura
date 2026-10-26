@@ -3,6 +3,7 @@ import { VueFlow, type Edge, type Node } from '@vue-flow/core'
 import { nextTick, ref } from 'vue'
 import { FLOW_EDGE_TYPE, FLOW_NODE_TYPE } from '../caps'
 import type { OverviewEdgeModel, OverviewNodeModel } from '../overview'
+import FitFrame from './FitFrame.vue'
 import OverviewEdge from './OverviewEdge.vue'
 import OverviewNode from './OverviewNode.vue'
 
@@ -111,7 +112,7 @@ defineExpose({ root })
       :elements-selectable="true"
       :delete-key-code="null"
       :only-render-visible-elements="false"
-      :fit-view-on-init="true"
+      :fit-view-on-init="false"
       :min-zoom="0.1"
       :max-zoom="2.5"
       @nodes-initialized="onInit"
@@ -142,6 +143,7 @@ defineExpose({ root })
       <template #edge-overview="edgeProps">
         <OverviewEdge v-bind="edgeProps" />
       </template>
+      <FitFrame :signature="nodes.map((node) => node.id).join('\n')" />
     </VueFlow>
   </div>
 </template>
