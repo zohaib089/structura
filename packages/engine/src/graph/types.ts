@@ -71,7 +71,7 @@ export const UNRESOLVED_REASONS = [
 
 /**
  * Reasons that describe a configuration problem rather than one import. They appear only in
- * `coverage.unresolved` (one count per unresolvable `extends`), never on an unresolved node,
+ * `coverage.unresolved` (one count per unreadable `extends` or project reference), never on an unresolved node,
  * so edges are identical with and without them.
  */
 export const CONFIG_UNRESOLVED_REASONS: readonly string[] = ['config-extends-unresolved', 'config-outside-root']
@@ -258,7 +258,7 @@ export interface Coverage {
   ignored: CoverageIgnored[]
   /**
    * Unresolved references grouped by reason (sorted): one per edge that ends at an unresolved node, plus
-   * configuration problems (`config-*`, `unsupported-resolution` for tsconfig project references).
+   * configuration problems (`config-*` for an `extends` or project `references` target that is missing or outside the root).
    */
   unresolved: CoverageReason[]
   /** Must be equal; unequal means a silent drop and the engine exits 3. */

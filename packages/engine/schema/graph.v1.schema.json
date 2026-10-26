@@ -565,7 +565,8 @@
           "$ref": "#/$defs/span"
         },
         "specifier": {
-          "type": "string"
+          "type": "string",
+          "description": "Module specifier text. A non-literal import() or require() is still this EXTRACTED edge, with specifier \"<non-literal>\" and importKind \"dynamic\" or \"require\". It has no confidence and no reason."
         },
         "importKind": {
           "type": "string",

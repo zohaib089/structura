@@ -152,7 +152,9 @@ export function buildGraphJsonSchema(): Schema {
           type: { type: 'string', enum: EDGE_TYPES.filter(type => type !== 'contains') },
           provenance: { const: 'EXTRACTED' },
           span: ref('span'),
-          specifier: str(),
+          specifier: str({
+            description: 'Module specifier text. A non-literal import() or require() is still this EXTRACTED edge, with specifier "<non-literal>" and importKind "dynamic" or "require". It has no confidence and no reason.'
+          }),
           importKind: { type: 'string', enum: IMPORT_KINDS.filter(kind => kind !== 'static') },
           typeOnly: { const: true }
         }),

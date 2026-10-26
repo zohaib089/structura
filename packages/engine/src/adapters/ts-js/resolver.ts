@@ -36,7 +36,7 @@ interface TsConfigInfo {
 
 /** Configuration problems, reported in `coverage.unresolved`; they never change edges. */
 export interface ConfigIssue {
-  reason: 'config-extends-unresolved' | 'config-outside-root' | 'unsupported-resolution'
+  reason: 'config-extends-unresolved' | 'config-outside-root'
   /** Config file the problem was found in (never written to graph.json). */
   file: string
 }
@@ -90,35 +90,90 @@ async function readJsonObject(context: ResolverContext, path: string): Promise<J
   }
 }
 
-async function loadTsConfig(context: ResolverContext, path: string, issues: ConfigIssue[], depth = 0, seen = new Set<string>()): Promise<TsConfigInfo | undefined> {
-  if (depth > LIMITS.maxResolutionDepth.default || seen.has(path) || !context.files.has(path)) return undefined
-  seen.add(path)
+type LocatedConfig = { kind: 'bare' } | { kind: 'outside' } | { kind: 'missing' } | { kind: 'found'; path: string }
+
+/** `extends` resolves a relative path to one JSON file. A bare package name is not a file in the scan. */
+function locateExtends(dir: string, spec: string, files: ReadonlySet<string>): LocatedConfig {
+  if (!spec.startsWith('.') && !spec.startsWith('/')) return { kind: 'bare' }
+  if (spec.startsWith('/')) return { kind: 'outside' }
+  let target = joinRepo(dir, spec)
+  if (target === '..' || target.startsWith('../')) return { kind: 'outside' }
+  if (!target.endsWith('.json')) target = target === '' ? '' : `${target}.json`
+  if (target === '' || !files.has(target)) return { kind: 'missing' }
+  return { kind: 'found', path: target }
+}
+
+/**
+ * `references[].path` may name a config file or a directory that contains `tsconfig.json`.
+ * Discovery starts at `tsconfig.json` / `jsconfig.json` and follows these links to any in-root file.
+ */
+function locateReference(dir: string, spec: string, files: ReadonlySet<string>): LocatedConfig {
+  if (!spec.startsWith('.') && !spec.startsWith('/')) return { kind: 'bare' }
+  if (spec.startsWith('/')) return { kind: 'outside' }
+  const target = joinRepo(dir, spec)
+  if (target === '..' || target.startsWith('../')) return { kind: 'outside' }
+  const candidates = target.endsWith('.json')
+    ? [target]
+    : [target === '' ? 'tsconfig.json' : `${target}/tsconfig.json`, target === '' ? '' : `${target}.json`]
+  const found = candidates.find(candidate => candidate !== '' && files.has(candidate))
+  return found ? { kind: 'found', path: found } : { kind: 'missing' }
+}
+
+function reportLocated(kind: Exclude<LocatedConfig['kind'], 'found'>, file: string, issues: ConfigIssue[]): void {
+  issues.push({ reason: kind === 'outside' ? 'config-outside-root' : 'config-extends-unresolved', file })
+}
+
+async function followConfig(
+  context: ResolverContext,
+  located: LocatedConfig,
+  issues: ConfigIssue[],
+  fromFile: string,
+  depth: number,
+  stack: Set<string>,
+  completed: Map<string, TsConfigInfo>
+): Promise<TsConfigInfo | undefined> {
+  if (located.kind !== 'found') {
+    reportLocated(located.kind, fromFile, issues)
+    return undefined
+  }
+  if (stack.has(located.path)) return undefined
+  const info = await loadTsConfig(context, located.path, issues, depth + 1, stack, completed)
+  if (!info) issues.push({ reason: 'config-extends-unresolved', file: fromFile })
+  return info
+}
+
+async function loadTsConfig(
+  context: ResolverContext,
+  path: string,
+  issues: ConfigIssue[],
+  depth = 0,
+  stack = new Set<string>(),
+  completed = new Map<string, TsConfigInfo>()
+): Promise<TsConfigInfo | undefined> {
+  const cached = completed.get(path)
+  if (cached) return cached
+  if (depth > LIMITS.maxResolutionDepth.default || stack.has(path) || !context.files.has(path)) return undefined
+  stack.add(path)
   const json = await readJsonObject(context, path)
-  if (!json) return undefined
+  if (!json) {
+    stack.delete(path)
+    return undefined
+  }
   const dir = dirOf(path)
 
   let merged: TsConfigInfo = {}
   const extendsValue = json.extends
   const parents = typeof extendsValue === 'string' ? [extendsValue] : Array.isArray(extendsValue) ? extendsValue.filter((item): item is string => typeof item === 'string') : []
-  if (Array.isArray(json.references)) {
-    // Project references are out of v1 scope: reported, never silently ignored.
-    for (const _ of json.references) issues.push({ reason: 'unsupported-resolution', file: path })
-  }
   for (const parent of parents) {
-    if (!parent.startsWith('.') && !parent.startsWith('/')) {
-      // A bare package (e.g. "@tsconfig/node20"): node_modules is never read, so it cannot be followed.
-      issues.push({ reason: 'config-extends-unresolved', file: path })
-      continue
-    }
-    let target = joinRepo(dir, parent)
-    if (parent.startsWith('/') || target === '..' || target.startsWith('../')) {
-      issues.push({ reason: 'config-outside-root', file: path })
-      continue
-    }
-    if (!target.endsWith('.json')) target += '.json'
-    const info = await loadTsConfig(context, target, issues, depth + 1, seen)
+    const info = await followConfig(context, locateExtends(dir, parent, context.files), issues, path, depth, stack, completed)
     if (info) merged = { ...merged, ...info }
-    else issues.push({ reason: 'config-extends-unresolved', file: path })
+  }
+  if (Array.isArray(json.references)) {
+    for (const reference of json.references) {
+      if (!isObject(reference) || typeof reference.path !== 'string') continue
+      const info = await followConfig(context, locateReference(dir, reference.path, context.files), issues, path, depth, stack, completed)
+      if (info) merged = { ...merged, ...info }
+    }
   }
 
   const options = isObject(json.compilerOptions) ? json.compilerOptions : {}
@@ -131,6 +186,8 @@ async function loadTsConfig(context: ResolverContext, path: string, issues: Conf
     merged.paths = { entries, base: dir }
   }
   if (merged.paths && merged.baseUrl !== undefined) merged.paths = { ...merged.paths, base: merged.baseUrl }
+  completed.set(path, merged)
+  stack.delete(path)
   return merged
 }
 

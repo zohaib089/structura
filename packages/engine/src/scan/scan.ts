@@ -37,9 +37,8 @@ import { decodeSource } from './decode.js'
 import { findEntryCandidates, readJsonValue } from './entries.js'
 import { parseRepoLimits } from './repo-limits.js'
 
-/** Specifier stored for a non-literal import. It is a marker, not source text. */
+/** Specifier stored for a non-literal import. It is a marker, not source text. The edge stays EXTRACTED. */
 export const NON_LITERAL_SPECIFIER = '<non-literal>'
-const NON_LITERAL_CONFIDENCE = 0.5
 
 export class OutputRefusedError extends Error {
   readonly code = 'OUTPUT_REFUSED' as const
@@ -223,16 +222,40 @@ async function assertReplaceable(path: string, kind: 'graph' | 'meta'): Promise<
     }
     return
   }
+  let value: unknown
   try {
-    const value: unknown = JSON.parse(text)
-    if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new OutputRefusedError('refusing to overwrite a file that is not run metadata')
+    value = JSON.parse(text)
   } catch (error) {
-    if (error instanceof OutputRefusedError || error instanceof SyntaxError) {
-      if (error instanceof OutputRefusedError) throw error
-      throw new OutputRefusedError('refusing to overwrite a file that is not run metadata')
-    }
+    if (error instanceof SyntaxError) throw new OutputRefusedError('refusing to overwrite a file that is not a previous run.json')
     throw error
   }
+  if (!isPreviousRunMeta(value)) throw new OutputRefusedError('refusing to overwrite a file that is not a previous run.json')
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/** A previous run.json, recognised by shape. Any other file, including other JSON objects, is refused. */
+function isPreviousRunMeta(value: unknown): boolean {
+  if (!isRecord(value)) return false
+  const cache = value.cache
+  const memory = value.memory
+  return value.command === 'scan'
+    && typeof value.product === 'string'
+    && typeof value.startedAt === 'string'
+    && typeof value.finishedAt === 'string'
+    && typeof value.elapsedMs === 'number'
+    && typeof value.redactions === 'number'
+    && typeof value.collapsedEdges === 'number'
+    && Array.isArray(value.strictFailures)
+    && isRecord(cache)
+    && typeof cache.hits === 'number'
+    && typeof cache.misses === 'number'
+    && isRecord(memory)
+    && typeof memory.heapUsed === 'number'
+    && typeof memory.rss === 'number'
+    && typeof memory.external === 'number'
 }
 
 async function writeExclusive(path: string, contents: string): Promise<void> {
@@ -464,9 +487,8 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
         : resolver.resolve(literal, file.path)
       const edgeSpecifier = literal === null ? NON_LITERAL_SPECIFIER : literal
       const target = rememberTarget(builder, outcome, file.path, edgeSpecifier)
-      const inferred = literal === null
-        ? { reason: 'dynamic-pattern' as const, confidence: NON_LITERAL_CONFIDENCE }
-        : target.inferred
+      // A non-literal import() is still an import site: EXTRACTED, importKind from the adapter, no confidence.
+      const inferred = literal === null ? undefined : target.inferred
       const edge: GraphEdge = inferred
         ? {
           source: fileId(file.path),

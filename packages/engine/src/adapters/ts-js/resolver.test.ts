@@ -160,8 +160,29 @@ describe('tsconfig paths and baseUrl', () => {
     assert.deepEqual(missing.configIssues.map(issue => issue.reason), ['config-extends-unresolved'])
     const outside = await makeResolver({ 'tsconfig.json': '{ "extends": "../outside.json" }', 'a.ts': '' })
     assert.deepEqual(outside.configIssues.map(issue => issue.reason), ['config-outside-root'])
-    const references = await makeResolver({ 'tsconfig.json': '{ "references": [{ "path": "./other" }] }', 'a.ts': '' })
-    assert.deepEqual(references.configIssues.map(issue => issue.reason), ['unsupported-resolution'])
+    const references = await makeResolver({ 'tsconfig.json': '{ "references": [{ "path": "../other" }] }', 'a.ts': '' })
+    assert.deepEqual(references.configIssues.map(issue => issue.reason), ['config-outside-root'])
+    const missingRef = await makeResolver({ 'tsconfig.json': '{ "references": [{ "path": "./missing.json" }] }', 'a.ts': '' })
+    assert.deepEqual(missingRef.configIssues.map(issue => issue.reason), ['config-extends-unresolved'])
+  })
+
+  test('project references are followed to in-root configs, including their extends', async () => {
+    const vue = await makeResolver({
+      'tsconfig.json': '{ "files": [], "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }] }',
+      'tsconfig.app.json': '{ "extends": "@vue/tsconfig/tsconfig.dom.json" }',
+      'tsconfig.node.json': '{ "compilerOptions": { "types": ["node"] } }',
+      'src/main.ts': ''
+    })
+    assert.deepEqual(vue.configIssues, [{ reason: 'config-extends-unresolved', file: 'tsconfig.app.json' }])
+
+    const aliased = await makeResolver({
+      'tsconfig.json': '{ "references": [{ "path": "./app" }] }',
+      'app/tsconfig.json': '{ "compilerOptions": { "baseUrl": ".", "paths": { "@lib/*": ["lib/*"] } } }',
+      'app/lib/util.ts': '',
+      'app/src/main.ts': ''
+    })
+    assert.deepEqual(aliased.configIssues, [])
+    assert.deepEqual(aliased.resolve('@lib/util', 'app/src/main.ts'), { kind: 'file', path: 'app/lib/util.ts', provenance: 'EXTRACTED' })
   })
 })
 

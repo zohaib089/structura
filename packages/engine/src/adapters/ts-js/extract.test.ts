@@ -61,17 +61,25 @@ describe('imports', () => {
     assert.equal(slice(content, result.references[0] as ExtractedReference), "import def from './a'")
   })
 
-  test('type-only imports are marked, and a mixed clause stays a value import', async () => {
+  test('typeOnly is true only when every binding is type-only; a value binding wins', async () => {
     const result = await parse(
       'src/t.ts',
-      ["import type { A } from './a'", "import { type B, type C } from './b'", "import { type D, e } from './c'", "import type Def from './d'"].join('\n')
+      [
+        "import type { A } from './a'",
+        "import { type B, type C } from './b'",
+        "import { type D, e } from './c'",
+        "import type Def from './d'",
+        "import { type A, A } from './mod'"
+      ].join('\n')
     )
     assert.deepEqual(result.references.map(brief), [
       ['./a', 'imports', 'static', true],
       ['./b', 'imports', 'static', true],
       ['./c', 'imports', 'static', false],
-      ['./d', 'imports', 'static', true]
+      ['./d', 'imports', 'static', true],
+      ['./mod', 'imports', 'static', false]
     ])
+    assert.equal(result.references.filter(reference => reference.specifier === './mod').length, 1)
   })
 
   test('re-exports and export symbols', async () => {

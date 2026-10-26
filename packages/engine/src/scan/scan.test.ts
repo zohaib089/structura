@@ -49,7 +49,11 @@ test('two scans of one fixture are byte-identical and brand-free', async () => {
     assert.ok(dynamic)
     assert.ok(first.graph.nodes.some(node => node.kind === 'external' && node.id === 'ext:node:fs'))
     assert.ok(first.graph.nodes.some(node => node.kind === 'unresolved' && node.reason === 'non-literal-specifier'))
-    assert.ok(first.graph.edges.some(edge => edge.type === 'imports' && edge.provenance === 'INFERRED' && 'reason' in edge && edge.reason === 'dynamic-pattern'))
+    const nonLiteral = first.graph.edges.find(edge => edge.type === 'imports' && edge.specifier === '<non-literal>')
+    assert.equal(nonLiteral?.provenance, 'EXTRACTED')
+    assert.equal(nonLiteral && 'importKind' in nonLiteral && nonLiteral.importKind, 'dynamic')
+    assert.equal(nonLiteral && 'confidence' in nonLiteral, false)
+    assert.equal(nonLiteral && 'reason' in nonLiteral, false)
     assert.equal(second.run.cache.hits > 0, true)
     assert.equal(first.strictFailures.length, 0)
   } finally {
@@ -71,6 +75,72 @@ test('an in-repo tsconfig extends is followed and its paths stay extracted', asy
     const edge = result.graph.edges.find(item => item.type === 'imports' && item.specifier === '@lib/util')
     assert.equal(edge?.provenance, 'EXTRACTED')
     assert.equal(edge?.target, 'file:lib/util.ts')
+  } finally {
+    cleanup()
+  }
+})
+
+test('a mixed type and value import is one extracted edge and the value wins', async () => {
+  const { root, cleanup } = makeTree({
+    'src/app.ts': "import { type A, A } from './mod'\nimport type { B } from './mod'\n",
+    'src/mod.ts': 'export type A = string\nexport const A = 1\nexport type B = number\n'
+  })
+  const out = mkdtempSync(join(tmpdir(), 'scan-out-'))
+  try {
+    const result = await scanRepository(root, { outDir: out, noCache: true, metaPath: null, limits: { jobs: 1 } })
+    const imports = result.graph.edges.filter(edge => edge.type === 'imports' && edge.specifier === './mod')
+    assert.equal(imports.length, 2)
+    const mixed = imports.find(edge => edge.span?.start.line === 1)
+    const types = imports.find(edge => edge.span?.start.line === 2)
+    assert.equal(mixed?.provenance, 'EXTRACTED')
+    assert.equal(mixed && 'typeOnly' in mixed, false)
+    assert.equal(types && 'typeOnly' in types && types.typeOnly, true)
+  } finally {
+    cleanup()
+  }
+})
+
+test('a referenced tsconfig is loaded and a package extends on it is unresolved', async () => {
+  const { root, cleanup } = makeTree({
+    'tsconfig.json': '{ "references": [{ "path": "./tsconfig.app.json" }] }\n',
+    'tsconfig.app.json': '{ "extends": "@vue/tsconfig/tsconfig.dom.json", "compilerOptions": { "paths": { "@lib/*": ["lib/*"] } } }\n',
+    'src/main.ts': "import { x } from '@lib/util'\n",
+    'lib/util.ts': 'export const x = 1\n'
+  })
+  const out = mkdtempSync(join(tmpdir(), 'scan-out-'))
+  try {
+    const result = await scanRepository(root, { outDir: out, noCache: true, metaPath: null, limits: { jobs: 1 } })
+    assert.deepEqual(result.graph.coverage.unresolved, [{ reason: 'config-extends-unresolved', count: 1 }])
+    const edge = result.graph.edges.find(item => item.type === 'imports' && item.specifier === '@lib/util')
+    assert.equal(edge?.provenance, 'EXTRACTED')
+    assert.equal(edge?.target, 'file:lib/util.ts')
+  } finally {
+    cleanup()
+  }
+})
+
+test('run metadata outside --out replaces only a previous run.json and never a symlink', async () => {
+  const { root, cleanup } = makeTree({ 'src/app.ts': 'export const value = 1\n' })
+  const out = mkdtempSync(join(tmpdir(), 'scan-out-'))
+  const metaDir = mkdtempSync(join(tmpdir(), 'scan-meta-'))
+  const meta = join(metaDir, 'notes.json')
+  try {
+    const first = await scanRepository(root, { outDir: out, metaPath: meta, noCache: true, limits: { jobs: 1 } })
+    assert.equal(first.runPath, meta)
+    assert.equal(JSON.parse(readFileSync(meta, 'utf8')).command, 'scan')
+    const second = await scanRepository(root, { outDir: out, metaPath: meta, noCache: true, limits: { jobs: 1 } })
+    assert.equal(second.graphJson, first.graphJson)
+
+    writeFileSync(meta, '{"command":"scan","product":"other"}\n')
+    await assert.rejects(scanRepository(root, { outDir: out, metaPath: meta, noCache: true, limits: { jobs: 1 } }), OutputRefusedError)
+    writeFileSync(meta, 'plain text\n')
+    await assert.rejects(scanRepository(root, { outDir: out, metaPath: meta, noCache: true, limits: { jobs: 1 } }), OutputRefusedError)
+
+    const real = join(metaDir, 'real.json')
+    writeFileSync(real, '{}\n')
+    const link = join(metaDir, 'link.json')
+    symlinkSync(real, link)
+    await assert.rejects(scanRepository(root, { outDir: out, metaPath: link, noCache: true, limits: { jobs: 1 } }), OutputRefusedError)
   } finally {
     cleanup()
   }

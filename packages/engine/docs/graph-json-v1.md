@@ -111,21 +111,27 @@ Partial:
 
 `config-extends-unresolved`, `config-outside-root`, `non-literal-specifier`, `not-found`, `outside-root`, `target-ignored`, `unsupported-resolution`, `unsupported-specifier`.
 
-`config-extends-unresolved` and `config-outside-root` are configuration problems. They appear in `coverage.unresolved` and do not create edges, so the graph is identical whether or not the config could be followed. `unsupported-resolution` is also used for out-of-v1 features (tsconfig project references, `package.json` `imports`, self-`exports`) and may therefore exceed the number of edges.
+`config-extends-unresolved` and `config-outside-root` are configuration problems. They appear in `coverage.unresolved` and do not create edges. `unsupported-resolution` is used for out-of-v1 features (`package.json` `imports`, self-`exports`) and may therefore exceed the number of edges. Project references are followed for config discovery; they are not `unsupported-resolution`.
 
-A non-literal `import()` or `require()` becomes an unresolved node with reason `non-literal-specifier` and an **INFERRED** edge (reason `dynamic-pattern`, confidence `0.5`, specifier `<non-literal>`). It is not an EXTRACTED edge. The marker is not source text.
+A non-literal `import()` or `require()` is an **EXTRACTED** edge. The import site is a fact, so the edge has no `confidence` and no `reason`. `importKind` is `dynamic` for `import()` and `require` for `require()`. `specifier` is the marker `<non-literal>` (not source text). The edge targets an unresolved node with reason `non-literal-specifier`.
 
 ### entryCandidate.reason
 
 `conventional-name`, `package-bin`, `package-exports`, `package-main`, `package-script`.
 
-Several files may be entry candidates. The schema stores one candidate per file; when a file matches more than one reason the higher-precedence one is kept: `package-exports`, then `package-main`, `package-bin`, `package-script`, then `conventional-name`. Package.json fields are `EXTRACTED`. Conventional names and script paths are `INFERRED`.
+Several files may be entry candidates. The schema stores one `entryCandidate` per file. When one file matches more than one reason, the highest precedence wins:
+
+1. `package-exports` (`EXTRACTED`)
+2. `package-main` (`EXTRACTED`)
+3. `package-bin` (`EXTRACTED`)
+4. `package-script` (`INFERRED`)
+5. `conventional-name` (`INFERRED`)
 
 ### INFERRED edge reasons
 
 `build-output-mapping`, `conventional-entry`, `dynamic-pattern`, `src-root-guess`, `src-subpath`, `submodule-heuristic`.
 
-`src-root-guess` and `submodule-heuristic` belong to the Python adapter (a later task). They are in the vocabulary so that adapter can emit them without a schema change.
+`src-root-guess` and `submodule-heuristic` belong to the Python adapter (a later task). They are in the vocabulary so that adapter can emit them without a schema change. `dynamic-pattern` stays in the vocabulary. A non-literal import does not use it; that edge is `EXTRACTED`.
 
 ## Edges
 
@@ -143,11 +149,11 @@ Edges have no id. The uniqueness key is `(source, type, target, span.start.line,
 On `imports` and `reexports` only:
 
 - `importKind`: `static` (default, omitted), `dynamic`, or `require`. Written only when it is not `static`.
-- `typeOnly`: written only when `true`. A type-only re-export is `reexports` plus `typeOnly: true`.
+- `typeOnly`: written only when `true`. Value wins: `typeOnly` is true only when every binding on that import site is type-only. A mixed site such as `import { type A, A } from './mod'` is one edge with `typeOnly` omitted. A type-only re-export is `reexports` plus `typeOnly: true`.
 
 ### Edge-key collision
 
-The key does not include `importKind` or `typeOnly`. A static import and a type-only import of the same target that start at the same position collapse to one edge (the first one kept). The TypeScript/JavaScript adapter emits a single edge for a mixed statement such as `import { type A, A } from './mod'` (`typeOnly` omitted, because the statement is not wholly type-only), so that statement does not collide with itself. A future adapter that emits both a value edge and a type-only edge for one statement would drop one. `run.json` records `collapsedEdges` when a scan drops one. This was left as specified rather than widening the key.
+The key does not include `importKind` or `typeOnly`, and the key is unchanged. A static import and a type-only import of the same target that start at the same position collapse to one edge (the first one kept). The TypeScript/JavaScript adapter emits a single edge for a mixed statement, and value wins, so that statement does not collide with itself. `run.json` records `collapsedEdges` when a scan drops one.
 
 ## Coverage
 
@@ -163,14 +169,18 @@ discovered = parsed + partial + failed + skipped + ignored
 
 ## What v1 resolves
 
-Extracted: tsconfig `paths` and `baseUrl` (a real JSONC parse, so `zustand/*` inside a string is not a comment), a `.js`/`.jsx`/`.mjs`/`.cjs` specifier that lands on `.ts`/`.tsx`/`.mts`/`.cts`, package.json `workspaces` names, relative files, `node:` and Node built-ins, literal `import()`, `require()`, static imports, re-exports, and type-only imports.
+Extracted: tsconfig `paths` and `baseUrl` (a real JSONC parse, so `zustand/*` inside a string is not a comment), a `.js`/`.jsx`/`.mjs`/`.cjs` specifier that lands on `.ts`/`.tsx`/`.mts`/`.cts`, package.json `workspaces` names, relative files, `node:` and Node built-ins, literal `import()`, `require()`, non-literal `import()` and `require()` (specifier `<non-literal>`), static imports, re-exports, and type-only imports.
+
+Config discovery reads `tsconfig.json` and `jsconfig.json`, then follows `extends` and `references` to any other in-root file (for example `tsconfig.app.json`). `paths` and `baseUrl` found that way are extracted. A bare package `extends` such as `@vue/tsconfig/...` is `config-extends-unresolved`. A target that leaves the root is `config-outside-root`.
 
 Inferred: a `dist`/`build`/`lib`/`out` entry mapped back to `src`, a conventional `src/index`, and a `src/` subpath of a workspace package.
 
-Reported unresolved, never dropped: project references, package `imports` (`#`) and self-`exports`, an `extends` that leaves the root or cannot be read (node_modules is not read), non-literal specifiers.
+Reported unresolved, never dropped: package `imports` (`#`) and self-`exports`, an `extends` or `references` target that leaves the root or cannot be read (node_modules is not read), non-literal specifiers.
 
 Comments, JSDoc `@example` blocks and commented-out code never create edges. Only the syntax tree does.
 
 ## Strict mode
 
-`--strict` exits 4 after writing the graph when default thresholds fail: any failed file, or any `timeout` skip. Partial files and unresolved imports are reported and do not fail the default thresholds. The thresholds live in `coverage/strict.ts` (`maxFailed`, `maxPartial`, `maxTimeout`, `maxUnresolved`).
+`--strict` exits 4 after writing the graph when the default thresholds fail. Those defaults fail only on failed files (`maxFailed` 0) and timeouts (`maxTimeout` 0). Partial files and unresolved imports are reported and do not fail the default thresholds (`maxPartial` and `maxUnresolved` are unbounded). The thresholds live in `packages/engine/src/report/strict.ts`.
+
+`run.json` may be written outside `--out` with `--meta`. That path uses the same output safety as `graph.json`: a symlink is never followed, and an existing file is overwritten only when its JSON shape is a previous run (`command` `"scan"` plus the run counters). Any other file is refused.
