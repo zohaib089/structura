@@ -61,7 +61,7 @@ export type PartialReason = typeof PARTIAL_REASONS[number]
 export const UNRESOLVED_REASONS = [
   'config-extends-unresolved',
   'config-outside-root',
-  'dynamic',
+  'non-literal-specifier',
   'not-found',
   'outside-root',
   'target-ignored',

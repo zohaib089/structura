@@ -6,6 +6,7 @@ import {
   GRAPH_SCHEMA_ID,
   IGNORE_RULE_PATTERN,
   INFERRED_REASONS,
+  LANGUAGES,
   NOT_PARSED_REASONS,
   PARTIAL_REASONS,
   IMPORT_KINDS,
@@ -26,6 +27,8 @@ const closed = (properties: Record<string, Schema>, required: string[]): Schema 
   required,
   additionalProperties: false
 })
+/** `typescript` | `javascript` | `python` | null. Anything else is stored as null. */
+const languageValue: Schema = { type: ['string', 'null'], enum: [...LANGUAGES, null] }
 const withExt = (properties: Record<string, Schema>): Record<string, Schema> => ({ ...properties, extensions: ref('extensions') })
 
 /**
@@ -45,7 +48,7 @@ export function buildGraphJsonSchema(): Schema {
     $schema: 'https://json-schema.org/draft/2020-12/schema',
     $id: GRAPH_SCHEMA_ID,
     title: 'graph.json v1',
-    description: 'Deterministic, closed, source-text-free repository graph. See docs/graph-format.md.',
+    description: 'Deterministic, closed, source-text-free repository graph. See docs/graph-json-v1.md.',
     type: 'object',
     properties: {
       schemaVersion: str({ pattern: '^1\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$' }),
@@ -87,7 +90,7 @@ export function buildGraphJsonSchema(): Schema {
           kind: { const: 'file' },
           path: str({ minLength: 1 }),
           label: str({ minLength: 1 }),
-          language: { type: ['string', 'null'] },
+          language: languageValue,
           lineCount: { type: ['integer', 'null'], minimum: 1 },
           parse: ref('parseInfo'),
           decoding: { const: 'lossy' },
@@ -125,7 +128,20 @@ export function buildGraphJsonSchema(): Schema {
         }),
         ['id', 'kind', 'label', 'reason']
       ),
-      edge: { oneOf: [ref('containsEdge'), ref('extractedRefEdge'), ref('inferredRefEdge')] },
+      edge: {
+        // EXTRACTED edges (contains, imports, reexports) forbid confidence and reason.
+        // INFERRED edges require both. oneOf below is what the CSP-safe reader enforces;
+        // Ajv (validateStrict) also enforces this if/then.
+        if: { type: 'object', properties: { provenance: { const: 'EXTRACTED' } }, required: ['provenance'] },
+        then: {
+          allOf: [
+            { not: { type: 'object', properties: { confidence: true }, required: ['confidence'] } },
+            { not: { type: 'object', properties: { reason: true }, required: ['reason'] } }
+          ]
+        },
+        else: { type: 'object', required: ['confidence', 'reason'] },
+        oneOf: [ref('containsEdge'), ref('extractedRefEdge'), ref('inferredRefEdge')]
+      },
       containsEdge: closed(
         withExt({ ...edgeCommon, type: { const: 'contains' }, provenance: { const: 'EXTRACTED' } }),
         ['source', 'type', 'target', 'provenance']
@@ -137,8 +153,8 @@ export function buildGraphJsonSchema(): Schema {
           provenance: { const: 'EXTRACTED' },
           span: ref('span'),
           specifier: str(),
-          importKind: { type: 'string', enum: [...IMPORT_KINDS] },
-          typeOnly: { type: 'boolean' }
+          importKind: { type: 'string', enum: IMPORT_KINDS.filter(kind => kind !== 'static') },
+          typeOnly: { const: true }
         }),
         ['source', 'type', 'target', 'provenance', 'span', 'specifier']
       ),
@@ -151,8 +167,8 @@ export function buildGraphJsonSchema(): Schema {
           reason: { type: 'string', enum: [...INFERRED_REASONS] },
           span: ref('span'),
           specifier: str(),
-          importKind: { type: 'string', enum: [...IMPORT_KINDS] },
-          typeOnly: { type: 'boolean' }
+          importKind: { type: 'string', enum: IMPORT_KINDS.filter(kind => kind !== 'static') },
+          typeOnly: { const: true }
         }),
         ['source', 'type', 'target', 'provenance', 'confidence', 'reason', 'span', 'specifier']
       ),
@@ -165,7 +181,7 @@ export function buildGraphJsonSchema(): Schema {
           byLanguage: {
             type: 'array',
             items: closed(
-              { language: { type: ['string', 'null'] }, parsed: count, partial: count, failed: count, skipped: count },
+              { language: languageValue, parsed: count, partial: count, failed: count, skipped: count },
               ['language', 'parsed', 'partial', 'failed', 'skipped']
             )
           },

@@ -1,5 +1,5 @@
 /**
- * Browser-safe entry (subpath `@atlasmith/engine/graph-reader`): types, `readGraph`, schema and ids.
+ * Browser-safe graph-reader entry: types, `readGraph`, schema and ids.
  * No Node built-ins, no Ajv, no eval/new Function => works under a strict Content-Security-Policy.
  */
 export * from './types.js'

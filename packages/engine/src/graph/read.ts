@@ -88,7 +88,8 @@ export function readGraph(input: string | unknown, options: ReadGraphOptions = {
   const newerMinor = minor > GRAPH_SCHEMA_MINOR
 
   cachedSchema ??= buildGraphJsonSchema()
-  const checked = checkAgainstSchema(cachedSchema, document, { mode: 'tolerant', lenient: newerMinor })
+  // Same-version documents are closed. A newer minor may carry unknown properties; those are stripped.
+  const checked = checkAgainstSchema(cachedSchema, document, { mode: newerMinor ? 'tolerant' : 'strict', lenient: newerMinor })
   if (checked.issues.length > 0) throw invalid(checked.issues)
   const graph = checked.value as Graph
   const semantic = checkSemantics(graph, { requireCanonicalOrder: !newerMinor })
