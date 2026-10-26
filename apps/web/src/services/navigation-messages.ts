@@ -3,11 +3,11 @@ import type { WebLocale } from './locale'
 export interface NavigationMessages {
   mainNavigation: string
   home: string
-  whatIsIt: string
+  honest: string
   howItWorks: string
-  services: string
-  reviews: string
-  contact: string
+  coverage: string
+  drift: string
+  quickstart: string
   language: string
   toggleTheme: string
   logIn: string
@@ -15,15 +15,19 @@ export interface NavigationMessages {
   launchApp: string
 }
 
+/**
+ * New landing labels are English in every locale until they are translated.
+ * Existing labels stay in the locale that already had them.
+ */
 const messages: Record<WebLocale, NavigationMessages> = {
   en: {
     mainNavigation: 'Main navigation',
     home: 'Go back home',
-    whatIsIt: 'What is it',
+    honest: 'Edges',
     howItWorks: 'How it works',
-    services: 'Services',
-    reviews: 'Reviews',
-    contact: 'Contact',
+    coverage: 'Coverage',
+    drift: 'Drift',
+    quickstart: 'Quickstart',
     language: 'Language',
     toggleTheme: 'Toggle theme',
     logIn: 'Log in',
@@ -33,11 +37,11 @@ const messages: Record<WebLocale, NavigationMessages> = {
   pt: {
     mainNavigation: 'Navegação principal',
     home: 'Voltar ao início',
-    whatIsIt: 'O que é',
+    honest: 'Edges',
     howItWorks: 'Como funciona',
-    services: 'Serviços',
-    reviews: 'Avaliações',
-    contact: 'Contato',
+    coverage: 'Coverage',
+    drift: 'Drift',
+    quickstart: 'Quickstart',
     language: 'Idioma',
     toggleTheme: 'Alternar tema',
     logIn: 'Entrar',
@@ -47,11 +51,11 @@ const messages: Record<WebLocale, NavigationMessages> = {
   it: {
     mainNavigation: 'Navigazione principale',
     home: 'Torna alla pagina iniziale',
-    whatIsIt: 'Che cos’è',
+    honest: 'Edges',
     howItWorks: 'Come funziona',
-    services: 'Servizi',
-    reviews: 'Recensioni',
-    contact: 'Contatti',
+    coverage: 'Coverage',
+    drift: 'Drift',
+    quickstart: 'Quickstart',
     language: 'Lingua',
     toggleTheme: 'Cambia tema',
     logIn: 'Accedi',
@@ -61,11 +65,11 @@ const messages: Record<WebLocale, NavigationMessages> = {
   fr: {
     mainNavigation: 'Navigation principale',
     home: 'Retour à l’accueil',
-    whatIsIt: 'Présentation',
+    honest: 'Edges',
     howItWorks: 'Fonctionnement',
-    services: 'Services',
-    reviews: 'Avis',
-    contact: 'Contact',
+    coverage: 'Coverage',
+    drift: 'Drift',
+    quickstart: 'Quickstart',
     language: 'Langue',
     toggleTheme: 'Changer de thème',
     logIn: 'Connexion',
@@ -75,11 +79,11 @@ const messages: Record<WebLocale, NavigationMessages> = {
   nl: {
     mainNavigation: 'Hoofdnavigatie',
     home: 'Terug naar home',
-    whatIsIt: 'Wat is het',
+    honest: 'Edges',
     howItWorks: 'Hoe het werkt',
-    services: 'Diensten',
-    reviews: 'Beoordelingen',
-    contact: 'Contact',
+    coverage: 'Coverage',
+    drift: 'Drift',
+    quickstart: 'Quickstart',
     language: 'Taal',
     toggleTheme: 'Thema wisselen',
     logIn: 'Inloggen',
@@ -89,11 +93,11 @@ const messages: Record<WebLocale, NavigationMessages> = {
   es: {
     mainNavigation: 'Navegación principal',
     home: 'Volver al inicio',
-    whatIsIt: 'Qué es',
+    honest: 'Edges',
     howItWorks: 'Cómo funciona',
-    services: 'Servicios',
-    reviews: 'Opiniones',
-    contact: 'Contacto',
+    coverage: 'Coverage',
+    drift: 'Drift',
+    quickstart: 'Quickstart',
     language: 'Idioma',
     toggleTheme: 'Cambiar tema',
     logIn: 'Iniciar sesión',
@@ -103,11 +107,11 @@ const messages: Record<WebLocale, NavigationMessages> = {
   ja: {
     mainNavigation: 'メインナビゲーション',
     home: 'ホームに戻る',
-    whatIsIt: 'サービスについて',
+    honest: 'Edges',
     howItWorks: '使い方',
-    services: 'サービス',
-    reviews: 'レビュー',
-    contact: 'お問い合わせ',
+    coverage: 'Coverage',
+    drift: 'Drift',
+    quickstart: 'Quickstart',
     language: '言語',
     toggleTheme: 'テーマを切り替え',
     logIn: 'ログイン',
@@ -117,11 +121,11 @@ const messages: Record<WebLocale, NavigationMessages> = {
   'zh-Hans': {
     mainNavigation: '主导航',
     home: '返回首页',
-    whatIsIt: '产品介绍',
+    honest: 'Edges',
     howItWorks: '工作原理',
-    services: '服务',
-    reviews: '评价',
-    contact: '联系',
+    coverage: 'Coverage',
+    drift: 'Drift',
+    quickstart: 'Quickstart',
     language: '语言',
     toggleTheme: '切换主题',
     logIn: '登录',
@@ -131,11 +135,11 @@ const messages: Record<WebLocale, NavigationMessages> = {
   hi: {
     mainNavigation: 'मुख्य नेविगेशन',
     home: 'मुखपृष्ठ पर वापस जाएँ',
-    whatIsIt: 'यह क्या है',
+    honest: 'Edges',
     howItWorks: 'यह कैसे काम करता है',
-    services: 'सेवाएँ',
-    reviews: 'समीक्षाएँ',
-    contact: 'संपर्क करें',
+    coverage: 'Coverage',
+    drift: 'Drift',
+    quickstart: 'Quickstart',
     language: 'भाषा',
     toggleTheme: 'थीम बदलें',
     logIn: 'लॉग इन करें',
@@ -145,11 +149,11 @@ const messages: Record<WebLocale, NavigationMessages> = {
   ur: {
     mainNavigation: 'مرکزی نیویگیشن',
     home: 'صفحۂ اول پر واپس جائیں',
-    whatIsIt: 'یہ کیا ہے',
+    honest: 'Edges',
     howItWorks: 'یہ کیسے کام کرتا ہے',
-    services: 'خدمات',
-    reviews: 'جائزے',
-    contact: 'رابطہ',
+    coverage: 'Coverage',
+    drift: 'Drift',
+    quickstart: 'Quickstart',
     language: 'زبان',
     toggleTheme: 'تھیم تبدیل کریں',
     logIn: 'لاگ اِن',
