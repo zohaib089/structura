@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory, type RouterHistory } from 'vue-router'
+import { hostedAppEnabled } from '../hosted-app'
 import { getCurrentSession } from '../services/auth'
 import {
   LOCALE_PREFERENCE_KEY,
@@ -71,12 +72,16 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
     if (!isSupportedWebLocale(routeLocale)) return { path: '/en', replace: true }
     localStorage.setItem(LOCALE_PREFERENCE_KEY, routeLocale)
 
+    if (!hostedAppEnabled && (to.meta.requiresAuth || to.meta.guestOnly)) {
+      return { path: `/${routeLocale}`, replace: true }
+    }
+
     const session = getCurrentSession()
     if (to.meta.requiresAuth && !session) {
       return { path: `/${routeLocale}/auth/login`, query: to.query, hash: to.hash }
     }
 
-    if (session && (to.meta.guestOnly || to.name === 'localized-home')) {
+    if (hostedAppEnabled && session && (to.meta.guestOnly || to.name === 'localized-home')) {
       return { path: `/${routeLocale}/dashboard` }
     }
 

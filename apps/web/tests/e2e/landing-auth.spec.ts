@@ -1,17 +1,24 @@
 import { expect, test } from '@playwright/test'
+import { BRAND, quickstartCommand } from '../../../../packages/brand/src/brand'
 
 test('landing page presents the product and its section navigation', async ({ page }) => {
   await page.goto('/')
 
   await expect(page.getByRole('banner').getByRole('link', { name: 'Log in' })).toBeVisible()
   await expect(page.getByRole('banner').getByRole('link', { name: 'Launch app' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: /see the system behind the code/i })).toBeVisible()
-  await expect(page.getByRole('link', { name: /see how it works/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: BRAND.tagline })).toBeVisible()
+  await expect(page.getByText(quickstartCommand()).first()).toBeVisible()
+  await expect(page.locator('[data-testid="graph-canvas"]')).toBeVisible()
+  await expect(page.getByText('Sample data').first()).toBeVisible()
+  await expect(page.getByText('Trusted by forward-thinking teams')).toHaveCount(0)
+  await expect(page.getByText('System Online')).toHaveCount(0)
+  await expect(page.getByText('2.1x')).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Known limits' })).toBeVisible()
 
-  await page.getByRole('link', { name: /see how it works/i }).click()
+  await page.getByRole('banner').getByRole('link', { name: 'How it works' }).click()
   await expect(page).toHaveURL(/#how$/)
   await expect(page.locator('#how')).toBeVisible()
-  await expect(page.getByRole('heading', { name: /simple workflow/i })).toBeVisible()
+  await expect(page.locator('#how').getByRole('heading', { name: 'How it works' })).toBeVisible()
 })
 
 test('authenticated landing page hides guest authentication links', async ({ page }) => {
@@ -47,6 +54,7 @@ test('signup route renders an improved authentication card', async ({ page }) =>
   await page.goto('/auth/signup')
 
   await expect(page.getByRole('heading', { name: 'Create your account' })).toBeVisible()
+  await expect(page.getByRole('checkbox', { name: 'I agree to the Terms and Privacy Policy.' })).not.toBeChecked()
   await expect(page.getByText('Secure team onboarding')).toBeVisible()
   await expect(page.getByLabel('Full name')).toBeVisible()
   await expect(page.getByRole('button', { name: /create personal account/i })).toBeVisible()
@@ -447,6 +455,7 @@ test('signup and email verification preserve an invitation until the user logs i
   await page.getByLabel('Work email').fill('invitee@example.test')
   await page.getByLabel('Password', { exact: true }).fill('StrongPassword1!')
   await page.getByLabel('Confirm', { exact: true }).fill('StrongPassword1!')
+  await page.getByRole('checkbox', { name: 'I agree to the Terms and Privacy Policy.' }).check()
   await page.getByRole('button', { name: 'Create personal account' }).click()
 
   await expect(page).toHaveURL(/\/en\/auth\/verify-email\?email=invitee@example\.test&invitation=invite-token-for-test$/)
