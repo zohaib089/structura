@@ -2,14 +2,16 @@ import { lstat, open, readdir, readlink, realpath } from 'node:fs/promises'
 import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { IGNORE_FILE } from '../brand.js'
 import { compareStrings, isRepresentablePath } from '../graph/ids.js'
-import type { SkipReason } from '../graph/types.js'
-import { resolveLimits, type ResolvedLimits } from '../limits.js'
+import { LANGUAGES, type FailReason, type SkipReason } from '../graph/types.js'
+import { LIMITS, resolveLimits, type ResolvedLimits } from '../limits.js'
 import ignore, { type Ignore } from 'ignore'
 import { HARD_EXCLUDED_NAMES, IgnoreStack, ruleLabel } from './ignore-rules.js'
-import { detectLanguage, needsShebangProbe } from './languages.js'
-import { O_NOFOLLOW, readConfigText } from './safe-fs.js'
+import { detectLanguage, needsShebangProbe, UNKNOWN_LANGUAGE, type LanguageInfo } from './languages.js'
+import { O_NOFOLLOW, readConfigText, readRegularFileSafely, type FileIdentity } from './safe-fs.js'
 import { isSensitiveFileName } from './sensitive.js'
 import { constants as fsConstants } from 'node:fs'
+
+const GRAPH_LANGUAGES = new Set<string>(LANGUAGES)
 
 /** Languages an adapter exists for. Everything else is recorded as `skipped: unsupported-language`. */
 export const ANALYSED_LANGUAGES: readonly string[] = ['typescript', 'javascript']
@@ -41,6 +43,9 @@ export interface WalkFile {
   size: number
   dev: number
   ino: number
+  /** Detector result, including languages the graph stores as null (json, markdown, unknown). */
+  detected: LanguageInfo
+  /** Graph language: `typescript` | `javascript` | `python`, or null. */
   language: string | null
   /** `analyse` files are read and parsed; `skipped` files only get a node. */
   disposition: 'analyse' | 'skipped'
@@ -54,6 +59,8 @@ export interface WalkResult {
   unnodedSkips: { reason: SkipReason; language: string | null }[]
   /** Ignored entries per rule label. A directory counts as one entry. */
   ignored: Map<string, number>
+  /** Repo-relative paths of ignored entries (a directory stands for its children). Not written to graph.json. */
+  ignoredPaths: string[]
   /** Every directory entry examined: files + ignored + skipped (descended directories are not counted). */
   discovered: number
 }
@@ -136,11 +143,13 @@ export async function walkRepository(root: string, options: WalkOptions = {}): P
   const files: WalkFile[] = []
   const unnodedSkips: WalkResult['unnodedSkips'] = []
   const ignored = new Map<string, number>()
+  const ignoredPaths: string[] = []
   const usedIds = new Set<string>()
   let discovered = 0
 
-  const countIgnored = (label: string): void => {
+  const countIgnored = (label: string, relPath: string): void => {
     ignored.set(label, (ignored.get(label) ?? 0) + 1)
+    ignoredPaths.push(relPath)
   }
 
   interface Pending {
@@ -201,12 +210,12 @@ export async function walkRepository(root: string, options: WalkOptions = {}): P
 
       // 1. Hard excludes by name or absolute path. Never overridable by config, ignore files or --include.
       if (HARD_EXCLUDED_NAMES.includes(name)) {
-        countIgnored(`hard:${name}`)
+        countIgnored(`hard:${name}`, idRel)
         continue
       }
       const hardLabel = hardPaths.get(abs)
       if (hardLabel !== undefined) {
-        countIgnored(`hard:${hardLabel.slice(0, 190)}`)
+        countIgnored(`hard:${hardLabel.slice(0, 190)}`, idRel)
         continue
       }
 
@@ -238,7 +247,7 @@ export async function walkRepository(root: string, options: WalkOptions = {}): P
           if (isDir ? includeMayReach(options.include ?? [], idRel) : include.ignores(idRel)) viaInclude = true
         }
         if (!viaInclude) {
-          countIgnored(ruleLabel(decision))
+          countIgnored(ruleLabel(decision), idRel)
           continue
         }
       }
@@ -253,7 +262,7 @@ export async function walkRepository(root: string, options: WalkOptions = {}): P
         } catch {
           // keep `symlink`
         }
-        files.push(...claim(idRel, abs, stats, null, 'skipped', reason))
+        files.push(...claim(idRel, abs, stats, UNKNOWN_LANGUAGE, null, 'skipped', reason))
         continue
       }
 
@@ -268,38 +277,40 @@ export async function walkRepository(root: string, options: WalkOptions = {}): P
 
       // 5. Files.
       if (!stats.isFile()) {
-        files.push(...claim(idRel, abs, stats, null, 'skipped', 'not-regular-file'))
+        files.push(...claim(idRel, abs, stats, UNKNOWN_LANGUAGE, null, 'skipped', 'not-regular-file'))
         continue
       }
       if (isSensitiveFileName(name)) {
-        files.push(...claim(idRel, abs, stats, null, 'skipped', 'sensitive-file'))
+        files.push(...claim(idRel, abs, stats, UNKNOWN_LANGUAGE, null, 'skipped', 'sensitive-file'))
         continue
       }
       const probe = needsShebangProbe(idRel) && stats.size <= limits.maxFileSizeBytes ? await probeFirstLine(abs) : undefined
       const detected = detectLanguage(idRel, probe)
-      const language = detected.id === 'unknown' ? null : detected.id
+      const language = GRAPH_LANGUAGES.has(detected.id) ? detected.id : null
       if (language === null || !ANALYSED_LANGUAGES.includes(language)) {
-        files.push(...claim(idRel, abs, stats, language, 'skipped', 'unsupported-language'))
+        files.push(...claim(idRel, abs, stats, detected, language, 'skipped', 'unsupported-language'))
         continue
       }
       if (stats.size > limits.maxFileSizeBytes) {
-        files.push(...claim(idRel, abs, stats, language, 'skipped', 'too-large'))
+        files.push(...claim(idRel, abs, stats, detected, language, 'skipped', 'too-large'))
         continue
       }
-      files.push(...claim(idRel, abs, stats, language, 'analyse'))
+      files.push(...claim(idRel, abs, stats, detected, language, 'analyse'))
     }
     // Depth-first in sorted order: push in reverse so the first directory is processed first.
     for (let i = childDirs.length - 1; i >= 0; i -= 1) queue.push(childDirs[i] as Pending)
   }
 
   files.sort((left, right) => compareStrings(left.path, right.path))
-  return { rootAbs, files, unnodedSkips, ignored, discovered }
+  ignoredPaths.sort(compareStrings)
+  return { rootAbs, files, unnodedSkips, ignored, ignoredPaths, discovered }
 
   /** Reserves the graph id; a second entry that normalises to the same path is skipped as `id-collision`. */
   function claim(
     idRel: string,
     absPath: string,
     stats: { size: number; dev: number; ino: number },
+    detected: LanguageInfo,
     language: string | null,
     disposition: 'analyse' | 'skipped',
     skipReason?: SkipReason
@@ -309,8 +320,29 @@ export async function walkRepository(root: string, options: WalkOptions = {}): P
       return []
     }
     usedIds.add(idRel)
-    return [{ path: idRel, absPath, size: stats.size, dev: stats.dev, ino: stats.ino, language, disposition, ...(skipReason ? { skipReason } : {}) }]
+    return [{ path: idRel, absPath, size: stats.size, dev: stats.dev, ino: stats.ino, detected, language, disposition, ...(skipReason ? { skipReason } : {}) }]
   }
+}
+
+export interface WalkedRead {
+  ok: true
+  content: Buffer
+  /** True when the bytes contain a NUL. Callers skip these as `binary` and do not decode or parse them. */
+  binary: boolean
+}
+
+/**
+ * Reads a walked file without following a symlink, enforcing the identity captured by the walk
+ * and the size cap. A missing file is `vanished`; a file that grew past the cap is `too-large`.
+ */
+export async function readWalkedFile(
+  file: { absPath: string; dev?: number; ino?: number },
+  maxBytes: number = LIMITS.maxFileSizeBytes.default
+): Promise<WalkedRead | { ok: false; reason: SkipReason | FailReason }> {
+  const expected: FileIdentity | undefined = file.dev !== undefined && file.ino !== undefined ? { dev: file.dev, ino: file.ino } : undefined
+  const result = await readRegularFileSafely(file.absPath, expected, maxBytes)
+  if (!result.ok) return { ok: false, reason: result.reason }
+  return { ok: true, content: result.content, binary: result.content.includes(0) }
 }
 
 

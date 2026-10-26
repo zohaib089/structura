@@ -1,8 +1,11 @@
 import ignore, { type Ignore } from 'ignore'
-import { IGNORE_FILE } from '../brand.js'
+import { IGNORE_FILE, OUT_DIR } from '../brand.js'
 
-/** Hard excludes by name (any depth): never overridable by config, ignore files or `--include`. */
-export const HARD_EXCLUDED_NAMES: readonly string[] = ['.git']
+/**
+ * Hard excludes by directory entry name (any depth): never overridable by config, ignore files or `--include`.
+ * `.git` and the product output directory (which also holds an in-root cache when one is explicitly requested).
+ */
+export const HARD_EXCLUDED_NAMES: readonly string[] = ['.git', OUT_DIR]
 
 /** Built-in defaults (gitignore syntax). Lowest priority: a project ignore file can `!negate` them. */
 export const DEFAULT_IGNORE_PATTERNS: readonly string[] = [
@@ -49,7 +52,6 @@ export interface IgnoreDecision {
 export function ruleLabel(decision: IgnoreDecision): string {
   let pattern = decision.pattern ?? '?'
   if (decision.source === 'default') pattern = pattern.replace(/\/+$/, '')
-  // eslint-disable-next-line no-control-regex
   pattern = pattern.replace(/[\u0000-\u001f\u007f-\u009f]/g, '?').slice(0, 190)
   return `${decision.source ?? 'default'}:${pattern || '?'}`
 }

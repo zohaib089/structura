@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { IgnoreStack } from './ignore-rules.js'
+import { IGNORE_FILE } from '../brand.js'
+import { IgnoreStack, ruleLabel } from './ignore-rules.js'
 
 test('default list ignores dependency and build directories', () => {
   const stack = IgnoreStack.create()
@@ -8,8 +9,8 @@ test('default list ignores dependency and build directories', () => {
   assert.equal(stack.test('apps/web/node_modules', true).ignored, true)
   assert.equal(stack.test('dist', true).ignored, true)
   assert.equal(stack.test('src/index.ts', false).ignored, false)
-  assert.equal(stack.test('.structura', true).ignored, true)
-  assert.match(stack.test('dist', true).detail ?? '', /default ignore: dist\//)
+  assert.equal(ruleLabel(stack.test('dist', true)), 'default:dist')
+  assert.equal(ruleLabel(stack.test('node_modules', true)), 'default:node_modules')
 })
 
 test('defaults can be disabled', () => {
@@ -27,13 +28,14 @@ test('nested ignore files apply relative to their directory and deeper files win
   assert.equal(stack.test('pkg/secret.txt', false).ignored, false, 'anchored pattern only matches at its own base')
   assert.equal(stack.test('pkg/local.txt', false).ignored, true)
   assert.equal(stack.test('other/local.txt', false).ignored, false)
-  assert.match(stack.test('pkg/local.txt', false).detail ?? '', /pkg\/\.gitignore: \/local\.txt/)
+  assert.equal(ruleLabel(stack.test('pkg/local.txt', false)), 'gitignore:/local.txt')
+  assert.equal(ruleLabel(stack.test('secret.txt', false)), 'gitignore:/secret.txt')
 })
 
-test('a later (tool) ignore file at the same level outranks .gitignore and can re-include defaults', () => {
+test('a later tool ignore file at the same level outranks gitignore and can re-include defaults', () => {
   const stack = IgnoreStack.create()
     .with('', '.gitignore', 'docs/\n')
-    .with('', '.toolignore', '!docs/\n!dist/\n')
+    .with('', IGNORE_FILE, '!docs/\n!dist/\n')
   assert.equal(stack.test('docs', true).ignored, false)
   assert.equal(stack.test('dist', true).ignored, false)
 })
