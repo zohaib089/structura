@@ -19,6 +19,10 @@ describe('landing copy', () => {
     expect(fillLanding(english.subtitle, { name: BRAND.name, graphFile: BRAND.graphFile })).toContain(BRAND.name)
     expect(text).not.toContain('2.1x')
     expect(text).not.toContain('Trusted by')
+    expect(text).not.toContain('check')
+    expect(text).toContain('TypeScript')
+    expect(text).toContain('JavaScript')
+    expect(text).toContain('Python is coming soon')
   })
 
   it('copies the quickstart command from the brand module', async () => {

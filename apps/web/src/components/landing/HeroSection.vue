@@ -119,9 +119,10 @@ h1 {
 .btn {
   padding-inline: var(--space-4);
   border-radius: var(--radius-md);
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-border);
-  color: var(--color-text-primary);
+  background: var(--color-brand-amber-ui);
+  border: 0;
+  color: var(--color-on-brand-amber);
+  font-weight: 650;
   text-decoration: none;
 }
 

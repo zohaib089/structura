@@ -9,7 +9,9 @@
 - The hero shows a copyable command from `quickstartCommand()` and the real viewer canvas on the bundled sample graph, labelled as sample data.
 - Signup no longer pre-ticks the terms checkbox.
 - `VITE_HOSTED_APP` hides login, signup, and the dashboard when set to `false`. The default is on, so existing hosted flows keep working. Auth and dashboard screens were not redesigned.
-- The shared header wordmark reads the brand constant. New landing copy is English for every locale until it is translated.
+- The shared header wordmark reads the brand constant. New landing copy is English for every locale until it is translated. That is accepted for now.
+- The only command in the quickstart is `atlasmith scan`. The page does not mention a check subcommand. Language copy says TypeScript and JavaScript now, with Python coming soon.
+- `BRAND.repoUrl` is `https://github.com/zohaib089/structura`. The repository has not been renamed.
 
 ## Depends on
 

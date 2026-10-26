@@ -40,16 +40,6 @@ const openStep = computed(() => fillLanding(messages.value.quickstart.openStep, 
             :failed-label="messages.quickstart.copyFailed"
           />
         </li>
-        <li>
-          <QuickstartCommand
-            :command="quickstartCommand('check')"
-            :label="messages.quickstart.label"
-            :copy-label="messages.quickstart.copy"
-            :copied-label="messages.quickstart.copied"
-            :failed-label="messages.quickstart.copyFailed"
-          />
-          <p class="note">{{ messages.quickstart.checkNote }}</p>
-        </li>
       </ol>
     </div>
   </section>
@@ -82,8 +72,4 @@ ol {
   list-style: none;
 }
 
-.note {
-  margin: var(--space-2) 0 0;
-  font-size: var(--font-size-sm);
-}
 </style>

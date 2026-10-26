@@ -25,7 +25,6 @@ export interface LandingMessages {
     title: string
     intro: string
     openStep: string
-    checkNote: string
   }
   honest: {
     title: string
@@ -61,7 +60,7 @@ export interface LandingMessages {
 const en: LandingMessages = {
   badge: 'Local-first · open graph.json',
   subtitle:
-    '{name} scans a repository into one {graphFile} and opens it in a static viewer. No server, no upload. Every edge is marked EXTRACTED or INFERRED, every skipped file is listed, and a declared architecture file turns drift into a CI check.',
+    '{name} scans a repository into one {graphFile} and opens it in a static viewer. No server, no upload. Every edge is marked EXTRACTED or INFERRED, and every skipped file is listed. TypeScript and JavaScript are read today. Python is coming soon.',
   openViewer: 'Open the viewer',
   github: 'View on GitHub',
   imageAlt: 'Aggregated architecture graph with extracted, inferred and unresolved edges',
@@ -86,9 +85,8 @@ const en: LandingMessages = {
     copied: 'Copied',
     copyFailed: 'Press Ctrl/⌘ C',
     title: 'Quickstart',
-    intro: 'Three steps. The commands after scan are the intended flow. Their exact names are not confirmed in this repository.',
-    openStep: 'Open {graphFile} in the viewer',
-    checkNote: 'Planned drift check. The subcommand name is not confirmed.'
+    intro: 'Two steps. The only command today is scan.',
+    openStep: 'Open {graphFile} in the viewer'
   },
   honest: {
     title: 'Every edge says how it was found',
@@ -111,23 +109,22 @@ const en: LandingMessages = {
     sampleCaption: '{parsed} parsed of {discovered} discovered in the sample'
   },
   drift: {
-    title: 'Declare it, then check it',
-    body: 'A declared architecture file is what a later check compares with the graph. This excerpt is illustrative. A CI exit code is not confirmed.',
+    title: 'Declare the architecture',
+    body: 'A declared architecture file is illustrated below. Comparing it with the graph is not a command yet. This excerpt is illustrative.',
     yamlCaption: 'Illustrative {config}',
     illustrative: '# illustrative\nlayers: []\n'
   },
   how: {
     title: 'How it works',
     steps: [
-      { title: 'Scan', body: 'Run the scan in the repository you already have. The page does not upload it.' },
-      { title: 'Open', body: 'Open the graph file in the static viewer and read each edge’s provenance.' },
-      { title: 'Check', body: 'Compare the graph with the declared architecture file. The command name is not confirmed.' }
+      { title: 'Scan', body: 'Run the scan command in the repository you already have. The page does not upload it.' },
+      { title: 'Open', body: 'Open the graph file in the static viewer and read each edge’s provenance.' }
     ]
   },
   limits: {
     title: 'Known limits',
     items: [
-      'The languages a scan can read are not confirmed in this repository yet.',
+      'A scan reads TypeScript and JavaScript today. Python is coming soon.',
       'INFERRED edges are heuristics. An aggregate is never more certain than its weakest edge.',
       'The viewer starts with at most 300 nodes and will not draw more than 1000 at once. 150 nodes and 300 edges is a comfort budget, not the limit.',
       'A hosted account is optional. Reading a graph does not require one.'
