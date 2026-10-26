@@ -13,4 +13,4 @@
 
 ## Depends on
 
-This branch starts from the static viewer branch because the landing page imports `packages/brand` and the viewer canvas.
+This branch is stacked on the viewer design branch (`cursor/viewer-design-v03-a959`), which itself stacks on the V-01/V-02 viewer. The landing page imports `packages/brand` and the viewer canvas, so those need to land first.
