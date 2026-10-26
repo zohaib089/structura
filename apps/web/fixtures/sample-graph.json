@@ -1,0 +1,106 @@
+{
+  "schemaVersion": "1.0.0",
+  "summary": { "nodes": 11, "edges": 12, "files": 3 },
+  "coverage": {
+    "files": { "discovered": 3, "parsed": 3, "partial": 0, "failed": 0, "skipped": 0, "ignored": 0 },
+    "byLanguage": [{ "language": "typescript", "parsed": 3, "partial": 0, "failed": 0, "skipped": 0 }],
+    "skipped": [],
+    "ignored": [],
+    "unresolved": [{ "reason": "not-found", "count": 1 }],
+    "accounting": { "discovered": 3, "accounted": 3 }
+  },
+  "nodes": [
+    { "id": "dir:.", "kind": "directory", "path": ".", "label": "." },
+    { "id": "dir:apps", "kind": "directory", "path": "apps", "label": "apps" },
+    { "id": "dir:apps/api", "kind": "directory", "path": "apps/api", "label": "api" },
+    { "id": "dir:apps/web", "kind": "directory", "path": "apps/web", "label": "web" },
+    { "id": "dir:packages", "kind": "directory", "path": "packages", "label": "packages" },
+    { "id": "ext:npm:vue", "kind": "external", "ecosystem": "npm", "label": "vue" },
+    {
+      "id": "file:apps/api/index.ts",
+      "kind": "file",
+      "path": "apps/api/index.ts",
+      "label": "index.ts",
+      "language": "typescript",
+      "lineCount": 40,
+      "parse": { "status": "parsed" }
+    },
+    {
+      "id": "file:apps/web/main.ts",
+      "kind": "file",
+      "path": "apps/web/main.ts",
+      "label": "main.ts",
+      "language": "typescript",
+      "lineCount": 40,
+      "parse": { "status": "parsed" }
+    },
+    {
+      "id": "file:packages/brand/brand.ts",
+      "kind": "file",
+      "path": "packages/brand/brand.ts",
+      "label": "brand.ts",
+      "language": "typescript",
+      "lineCount": 40,
+      "parse": { "status": "parsed" }
+    },
+    {
+      "id": "sym:apps/web/main.ts#start",
+      "kind": "symbol",
+      "file": "file:apps/web/main.ts",
+      "label": "start",
+      "symbolKind": "function",
+      "exported": true,
+      "span": { "start": { "line": 1, "col": 1 }, "end": { "line": 1, "col": 6 } }
+    },
+    {
+      "id": "unresolved:apps/web/main.ts::./missing",
+      "kind": "unresolved",
+      "label": "./missing",
+      "reason": "not-found"
+    }
+  ],
+  "edges": [
+    { "source": "dir:.", "type": "contains", "target": "dir:apps", "provenance": "EXTRACTED" },
+    { "source": "dir:.", "type": "contains", "target": "dir:packages", "provenance": "EXTRACTED" },
+    { "source": "dir:apps", "type": "contains", "target": "dir:apps/api", "provenance": "EXTRACTED" },
+    { "source": "dir:apps", "type": "contains", "target": "dir:apps/web", "provenance": "EXTRACTED" },
+    { "source": "dir:apps/api", "type": "contains", "target": "file:apps/api/index.ts", "provenance": "EXTRACTED" },
+    { "source": "dir:apps/web", "type": "contains", "target": "file:apps/web/main.ts", "provenance": "EXTRACTED" },
+    { "source": "dir:packages", "type": "contains", "target": "file:packages/brand/brand.ts", "provenance": "EXTRACTED" },
+    { "source": "file:apps/web/main.ts", "type": "contains", "target": "sym:apps/web/main.ts#start", "provenance": "EXTRACTED" },
+    {
+      "source": "file:apps/api/index.ts",
+      "type": "imports",
+      "target": "ext:npm:vue",
+      "provenance": "EXTRACTED",
+      "specifier": "vue",
+      "span": { "start": { "line": 1, "col": 1 }, "end": { "line": 1, "col": 5 } }
+    },
+    {
+      "source": "file:apps/web/main.ts",
+      "type": "imports",
+      "target": "file:packages/brand/brand.ts",
+      "provenance": "EXTRACTED",
+      "specifier": "./brand",
+      "span": { "start": { "line": 2, "col": 1 }, "end": { "line": 2, "col": 10 } }
+    },
+    {
+      "source": "file:apps/web/main.ts",
+      "type": "imports",
+      "target": "file:packages/brand/brand.ts",
+      "provenance": "INFERRED",
+      "specifier": "./brand",
+      "confidence": 0.4,
+      "reason": "alias-heuristic",
+      "span": { "start": { "line": 3, "col": 1 }, "end": { "line": 3, "col": 10 } }
+    },
+    {
+      "source": "file:apps/web/main.ts",
+      "type": "imports",
+      "target": "unresolved:apps/web/main.ts::./missing",
+      "provenance": "EXTRACTED",
+      "specifier": "./missing",
+      "span": { "start": { "line": 4, "col": 1 }, "end": { "line": 4, "col": 12 } }
+    }
+  ]
+}

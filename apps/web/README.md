@@ -1,5 +1,36 @@
-# Vue 3 + TypeScript + Vite
+# Web app and static graph viewer
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+`apps/web` hosts two front ends:
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+- The existing hosted UI (`npm run dev`, `npm run build`) keeps landing, auth, and workspace routes. Those screens are unchanged in this pass.
+- A separate static graph viewer (`npm run dev:viewer`, `npm run build:viewer`) opens a local `graph.json` in the browser. It does not call `/api` or `/health`, does not read `?graph=`, and does not persist anything.
+
+## Graph viewer
+
+```sh
+npm --prefix apps/web run dev:viewer
+npm --prefix apps/web run build:viewer
+```
+
+The production viewer is one file, `apps/web/dist-viewer/index.html`. Open that file with a `file://` URL. Load a graph with the file picker or by dropping a file on the window. A non-JSON extension is still parsed. `?graph=` and automatic `./graph.json` loading are unsupported: the shipped page sets `connect-src 'none'`.
+
+The viewer entry is `viewer/index.html` and `src/viewer/`. The product name, wordmark, and config filename live only in `packages/brand/src/brand.ts`. The hosted app migrates legacy `structura-*` localStorage keys when it reads theme, locale, or the auth session. The viewer never touches storage.
+
+Synthetic graphs:
+
+```sh
+node apps/web/tools/make-fixture.mjs 5000 /tmp/graph-5k.json
+node apps/web/tools/make-fixture.mjs 50000 /tmp/graph-50k.json
+```
+
+Do not commit those files. A small sample is `apps/web/fixtures/sample-graph.json`.
+
+## Tests
+
+```sh
+npm --prefix apps/web run test:typecheck
+npm --prefix apps/web run test:unit
+npm --prefix apps/web run test:e2e
+```
+
+Playwright starts the hosted dev server for the existing UI tests and also opens the built viewer over `file://`. Install Chromium once with `npm --prefix apps/web exec playwright install chromium` when the browser binary is missing.

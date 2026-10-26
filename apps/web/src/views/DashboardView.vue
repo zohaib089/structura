@@ -5,7 +5,7 @@ import Navbar from '../components/layout/Navbar.vue'
 import DashboardToast from '../components/dashboard/DashboardToast.vue'
 import SyntheticArchitectureDemo from '../components/dashboard/SyntheticArchitectureDemo.vue'
 import { getCurrentSession } from '../services/auth'
-import { isSupportedWebLocale, resolvePreferredWebLocale, LOCALE_PREFERENCE_KEY } from '../services/locale'
+import { isSupportedWebLocale, readLocalePreference, resolvePreferredWebLocale } from '../services/locale'
 import { dashboardMessages } from '../services/dashboard-messages'
 import {
   createProject,
@@ -28,7 +28,7 @@ const router = useRouter()
 const locale = computed(() => {
   const routeLocale = route.params.locale
   if (typeof routeLocale === 'string' && isSupportedWebLocale(routeLocale)) return routeLocale
-  return resolvePreferredWebLocale(localStorage.getItem(LOCALE_PREFERENCE_KEY), navigator.languages)
+  return resolvePreferredWebLocale(readLocalePreference(), navigator.languages)
 })
 const messages = computed(() => dashboardMessages(locale.value))
 type DashboardSection = 'overview' | 'projects' | 'architecture' | 'team'
