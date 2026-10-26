@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "1.0.0",
+  "summary": { "nodes": 3, "edges": 2, "files": 1 },
+  "coverage": {
+    "files": { "discovered": 1, "parsed": 1, "partial": 0, "failed": 0, "skipped": 0, "ignored": 0 },
+    "byLanguage": [{ "language": "typescript", "parsed": 1, "partial": 0, "failed": 0, "skipped": 0 }],
+    "skipped": [],
+    "ignored": [],
+    "unresolved": [{ "reason": "not-found", "count": 1 }],
+    "accounting": { "discovered": 1, "accounted": 1 }
+  },
+  "nodes": [
+    { "id": "dir:.", "kind": "directory", "path": ".", "label": "." },
+    {
+      "id": "file:src/app.ts",
+      "kind": "file",
+      "path": "src/app.ts",
+      "label": "<script>window.__xss=1</script>",
+      "language": "typescript",
+      "lineCount": 10,
+      "parse": { "status": "parsed" }
+    },
+    {
+      "id": "unresolved:src/app.ts::<img src=x onerror=window.__xss=1>",
+      "kind": "unresolved",
+      "label": "<img src=x onerror=window.__xss=1>",
+      "reason": "not-found"
+    }
+  ],
+  "edges": [
+    { "source": "dir:.", "type": "contains", "target": "file:src/app.ts", "provenance": "EXTRACTED" },
+    {
+      "source": "file:src/app.ts",
+      "type": "imports",
+      "target": "unresolved:src/app.ts::<img src=x onerror=window.__xss=1>",
+      "provenance": "EXTRACTED",
+      "specifier": "<img src=x onerror=window.__xss=1>",
+      "span": { "start": { "line": 1, "col": 1 }, "end": { "line": 1, "col": 4 } }
+    }
+  ]
+}

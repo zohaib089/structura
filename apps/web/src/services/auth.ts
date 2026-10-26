@@ -1,3 +1,5 @@
+import { BRAND, readMigrated, storageKey } from '../../../../packages/brand/src/brand'
+
 export type AuthAccountType = 'individual' | 'enterprise'
 
 export interface AuthUser {
@@ -37,19 +39,16 @@ export interface AuthResponse {
   expiresAt?: string
 }
 
-const SESSION_KEY = 'structura-auth-session-v2'
+const SESSION_SUFFIX = 'auth-session-v2'
+const SESSION_KEY = storageKey(SESSION_SUFFIX)
 
-for (const key of [
-  'structura-auth-session',
-  'structura-auth-users',
-  'structura-auth-verification',
-  'structura-auth-reset'
-]) {
-  localStorage.removeItem(key)
+for (const suffix of ['auth-session', 'auth-users', 'auth-verification', 'auth-reset']) {
+  localStorage.removeItem(`${BRAND.legacySlug}-${suffix}`)
 }
 
 function clearSession() {
   localStorage.removeItem(SESSION_KEY)
+  localStorage.removeItem(`${BRAND.legacySlug}-${SESSION_SUFFIX}`)
 }
 
 async function request(
@@ -128,7 +127,7 @@ export async function deleteAccount(email: string, password: string): Promise<Au
 }
 
 export function getCurrentSession(): AuthSession | null {
-  const raw = localStorage.getItem(SESSION_KEY)
+  const raw = readMigrated(SESSION_SUFFIX)
   if (!raw) return null
 
   try {

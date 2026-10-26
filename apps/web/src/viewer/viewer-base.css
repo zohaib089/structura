@@ -1,0 +1,22 @@
+/*
+ * Shared viewer canvas fixes. Design tokens, when present, still win for colour.
+ * The Vue Flow badge and connection handles are not part of the graph.
+ */
+.vue-flow__attribution {
+  display: none;
+}
+
+.vue-flow__handle {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.vue-flow__node,
+.vue-flow__edge {
+  font-family: var(--font-family-sans);
+  color: var(--color-text-primary);
+}
+
+.vue-flow__background {
+  background: var(--color-canvas);
+}
