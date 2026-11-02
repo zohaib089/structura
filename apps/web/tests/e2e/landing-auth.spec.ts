@@ -57,7 +57,7 @@ test('signup route renders an improved authentication card', async ({ page }) =>
 
   await expect(page.getByRole('heading', { name: 'Create your account' })).toBeVisible()
   await expect(page.getByRole('checkbox', { name: 'I agree to the Terms and Privacy Policy.' })).not.toBeChecked()
-  await expect(page.getByText('Secure team onboarding')).toBeVisible()
+  await expect(page.getByText(BRAND.tagline)).toBeVisible()
   await expect(page.getByLabel('Full name')).toBeVisible()
   await expect(page.getByRole('button', { name: /create personal account/i })).toBeVisible()
 
@@ -282,7 +282,7 @@ test('authenticated navbar logs out instead of showing launch links', async ({ p
   await expect(page.getByRole('banner').getByRole('link', { name: 'Launch app' })).toBeVisible()
 })
 
-test('dashboard navigation opens the synthetic architecture demo and manages workspace invitations', async ({ page }) => {
+test('dashboard navigation opens graph insights and manages workspace invitations', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('structura-auth-session-v2', JSON.stringify({
       token: 'e2e-session',
@@ -384,13 +384,13 @@ test('dashboard navigation opens the synthetic architecture demo and manages wor
   await dashboardNavigation.getByRole('button', { name: 'Projects' }).click()
   await expect(page.getByRole('heading', { name: 'No projects yet' })).toBeVisible()
   await dashboardNavigation.getByRole('button', { name: 'Architecture' }).click()
-  await expect(page.getByRole('heading', { name: 'Explore a sample architecture' })).toBeVisible()
-  const databaseNode = page.getByRole('button', { name: 'Database' })
-  await databaseNode.click()
-  await expect(databaseNode).toHaveAttribute('aria-pressed', 'true')
-  await expect(page.getByText('apps/api/src/database')).toBeVisible()
-  await expect(page.locator('.node-connections').getByText('Auth', { exact: true })).toBeVisible()
-  await expect(page.getByText(/bundled demo data, not your project/i)).toBeVisible()
+  const graphPanel = page.getByRole('region', { name: 'Graph insights' })
+  await expect(graphPanel.getByRole('heading', { name: 'Graph insights' })).toBeVisible()
+  await expect(graphPanel.getByRole('link', { name: 'Open viewer' })).toBeVisible()
+  await expect(graphPanel.getByText('Bundled sample graph')).toBeVisible()
+  await expect(graphPanel.locator('.summary-card').filter({ hasText: 'Files' }).getByText('3', { exact: true })).toBeVisible()
+  await expect(page.getByText(/bundled demo data, not your project/i)).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Explore a sample architecture' })).toHaveCount(0)
 
   await dashboardNavigation.getByRole('button', { name: 'Team' }).click()
   await expect(page.getByText('Taylor Engineer')).toBeVisible()

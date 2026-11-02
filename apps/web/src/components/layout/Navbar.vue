@@ -69,7 +69,8 @@ async function handleLogout() {
         <a href="#drift">{{ messages.drift }}</a>
         <a href="#how">{{ messages.howItWorks }}</a>
         <a href="#quickstart">{{ messages.quickstart }}</a>
-        <a :href="`${BRAND.repoUrl}#readme`">{{ messages.docs }}</a>
+        <a v-if="hostedAppEnabled" :href="`${BRAND.repoUrl}#readme`">{{ messages.docs }}</a>
+        <RouterLink v-if="hostedAppEnabled" :to="`/${locale}/dashboard`">{{ messages.dashboard }}</RouterLink>
         <a :href="BRAND.repoUrl">{{ messages.github }}</a>
       </nav>
 
