@@ -196,10 +196,18 @@ jobs:
           persist-credentials: false
 
       - name: Build API image
-        run: docker build -f apps/api/Dockerfile .
+        run: docker build -f apps/api/Dockerfile -t structura-api:ci .
 
       - name: Build web dev image
-        run: docker build -f apps/web/Dockerfile --target dev .
+        run: docker build -f apps/web/Dockerfile --target dev -t structura-web:ci .
 
       - name: Build viewer image
-        run: docker build -f apps/web/Dockerfile --target viewer .
+        run: docker build -f apps/web/Dockerfile --target viewer -t structura-viewer:ci .
+
+      - name: Smoke test containers
+        run: bash scripts/ci/docker-smoke.sh
+        env:
+          SKIP_BUILD: "1"
+          API_IMAGE: structura-api:ci
+          WEB_IMAGE: structura-web:ci
+          VIEWER_IMAGE: structura-viewer:ci

@@ -28,6 +28,7 @@ EXPOSE 80
 FROM deps AS dev
 COPY packages/brand/src packages/brand/src
 COPY apps/web apps/web
+RUN chown -R node:node /repo/node_modules /repo/apps/web /repo/packages/brand
 WORKDIR /repo
 EXPOSE 5173
 USER node
