@@ -1,0 +1,4 @@
+# Packages under packages/engine or packages/cli whose install scripts may run
+# after `npm ci --ignore-scripts`. Empty on purpose: lifecycle scripts can phone
+# home, so each name has to be added deliberately when a dependency truly needs
+# a rebuild (for example a vendored WASM postinstall). One package name per line.

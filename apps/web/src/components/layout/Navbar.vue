@@ -4,7 +4,7 @@ import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useThemeStore } from '../../stores/theme';
 import LocaleSwitcher from './LocaleSwitcher.vue'
-import { LOCALE_PREFERENCE_KEY, isSupportedWebLocale, resolvePreferredWebLocale } from '../../services/locale'
+import { isSupportedWebLocale, readLocalePreference, resolvePreferredWebLocale } from '../../services/locale'
 import { navigationMessages } from '../../services/navigation-messages'
 import { getCurrentSession, logoutUser } from '../../services/auth'
 
@@ -15,7 +15,7 @@ const themeStore = useThemeStore()
 const locale = computed(() => {
   const routeLocale = route.params.locale
   if (typeof routeLocale === 'string' && isSupportedWebLocale(routeLocale)) return routeLocale
-  return resolvePreferredWebLocale(localStorage.getItem(LOCALE_PREFERENCE_KEY), navigator.languages)
+  return resolvePreferredWebLocale(readLocalePreference(), navigator.languages)
 })
 const messages = computed(() => navigationMessages(locale.value))
 const showLandingLinks = computed(() => route.name === 'home' || route.name === 'localized-home')

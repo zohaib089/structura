@@ -17,7 +17,7 @@ import {
     verifyOtp,
     type AuthAccountType
 } from '../services/auth'
-import { isSupportedWebLocale, localizedPath, resolvePreferredWebLocale, LOCALE_PREFERENCE_KEY } from '../services/locale'
+import { isSupportedWebLocale, localizedPath, readLocalePreference, resolvePreferredWebLocale } from '../services/locale'
 
 type AuthView = 'login' | 'signup' | 'forgot-password' | 'reset-password' | 'verify-email' | 'otp' | 'delete-account'
 
@@ -26,7 +26,7 @@ const router = useRouter()
 const routeLocale = computed(() => {
   const locale = route.params.locale
   if (typeof locale === 'string' && isSupportedWebLocale(locale)) return locale
-  return resolvePreferredWebLocale(localStorage.getItem(LOCALE_PREFERENCE_KEY), navigator.languages)
+  return resolvePreferredWebLocale(readLocalePreference(), navigator.languages)
 })
 const coreMessages = computed(() => authCoreMessages(routeLocale.value))
 

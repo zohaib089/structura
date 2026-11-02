@@ -1,0 +1,124 @@
+{
+  "schemaVersion": "1.0.0",
+  "summary": {
+    "nodes": 5,
+    "edges": 4,
+    "files": 1
+  },
+  "coverage": {
+    "files": {
+      "discovered": 1,
+      "parsed": 1,
+      "partial": 0,
+      "failed": 0,
+      "skipped": 0,
+      "ignored": 0
+    },
+    "byLanguage": [
+      {
+        "language": "typescript",
+        "parsed": 1,
+        "partial": 0,
+        "failed": 0,
+        "skipped": 0
+      }
+    ],
+    "skipped": [],
+    "ignored": [],
+    "unresolved": [],
+    "accounting": {
+      "discovered": 1,
+      "accounted": 1
+    }
+  },
+  "nodes": [
+    {
+      "id": "dir:.",
+      "kind": "directory",
+      "path": ".",
+      "label": "."
+    },
+    {
+      "id": "dir:src",
+      "kind": "directory",
+      "path": "src",
+      "label": "src"
+    },
+    {
+      "id": "ext:npm:left-pad",
+      "kind": "external",
+      "ecosystem": "npm",
+      "label": "left-pad"
+    },
+    {
+      "id": "file:src/app.ts",
+      "kind": "file",
+      "path": "src/app.ts",
+      "label": "app.ts",
+      "language": "typescript",
+      "lineCount": 2,
+      "parse": {
+        "status": "parsed"
+      },
+      "entryCandidate": {
+        "reason": "conventional-name",
+        "provenance": "INFERRED"
+      }
+    },
+    {
+      "id": "sym:src/app.ts#main",
+      "kind": "symbol",
+      "file": "file:src/app.ts",
+      "label": "main",
+      "symbolKind": "function",
+      "exported": true,
+      "span": {
+        "start": {
+          "line": 2,
+          "col": 1
+        },
+        "end": {
+          "line": 2,
+          "col": 28
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source": "dir:.",
+      "type": "contains",
+      "target": "dir:src",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:src",
+      "type": "contains",
+      "target": "file:src/app.ts",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "file:src/app.ts",
+      "type": "contains",
+      "target": "sym:src/app.ts#main",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "file:src/app.ts",
+      "type": "imports",
+      "target": "ext:npm:left-pad",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 1,
+          "col": 1
+        },
+        "end": {
+          "line": 1,
+          "col": 34
+        }
+      },
+      "specifier": "left-pad"
+    }
+  ]
+}
