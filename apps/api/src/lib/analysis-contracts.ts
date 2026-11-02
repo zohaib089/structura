@@ -376,3 +376,15 @@ export function parseAnalysisProgressEvent(value: unknown): AnalysisProgressEven
     occurredAt
   }
 }
+
+export {
+  EDGE_TYPES,
+  GRAPH_SCHEMA_ID,
+  GRAPH_SCHEMA_VERSION,
+  LANGUAGES,
+  NODE_KINDS,
+  type Coverage,
+  type Graph,
+  type GraphEdge,
+  type GraphNode
+} from '@atlasmith/engine/graph-reader'

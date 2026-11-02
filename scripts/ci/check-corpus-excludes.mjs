@@ -11,6 +11,24 @@ import { hostileFixtures } from './list-hostile-fixtures.mjs'
 const nestedExclude = '**/golden-corpus/**'
 const problems = []
 
+function parseTsconfigJson(file) {
+  const text = fs.readFileSync(file, 'utf8')
+  try {
+    return JSON.parse(text)
+  } catch {
+    const stripped = text
+      .split('\n')
+      .filter(line => {
+        const trimmed = line.trim()
+        if (trimmed.startsWith('//')) return false
+        if (trimmed.startsWith('/*') || trimmed.startsWith('*') || trimmed.startsWith('*/')) return false
+        return true
+      })
+      .join('\n')
+    return JSON.parse(stripped)
+  }
+}
+
 function listTsconfigs(dir, out) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (entry.name === 'node_modules' || entry.name === '.git' || entry.name === 'dist') continue
@@ -29,8 +47,7 @@ if (tsconfigs.length === 0) problems.push('no tsconfig files found')
 for (const file of tsconfigs) {
   let json
   try {
-    const text = fs.readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
-    json = JSON.parse(text)
+    json = parseTsconfigJson(file)
   } catch (error) {
     problems.push(`${path.relative(repoRoot, file)} is not JSON: ${error instanceof Error ? error.message : error}`)
     continue
