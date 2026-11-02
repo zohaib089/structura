@@ -14,12 +14,14 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "pretest": "npm --prefix ../engine run build",
+    "pretest": "npm --prefix ../engine run build && npm --prefix ../source-ingest run build && npm --prefix ../scan-analysis run build",
     "test": "tsx --test \"src/**/*.test.ts\""
   },
   "license": "ISC",
   "dependencies": {
-    "@atlasmith/engine": "file:../engine"
+    "@atlasmith/engine": "file:../engine",
+    "@atlasmith/scan-analysis": "file:../scan-analysis",
+    "@atlasmith/source-ingest": "file:../source-ingest"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

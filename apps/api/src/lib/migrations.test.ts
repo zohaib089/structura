@@ -69,7 +69,9 @@ test('applies the versioned auth, workspace, invitation, and analysis metadata m
     '001_auth_baseline',
     '002_workspaces_projects',
     '003_analysis_job_metadata',
-    '004_workspace_invitations'
+    '004_workspace_invitations',
+    '005_workspace_scans',
+    '006_scan_report_json'
   ])
   assert.deepEqual(secondRun, [])
   assert.match(database.statements.join('\n'), /CREATE TABLE IF NOT EXISTS workspace_members/)

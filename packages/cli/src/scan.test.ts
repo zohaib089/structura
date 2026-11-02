@@ -23,7 +23,7 @@ function capture(): { stdout: string; stderr: string; io: { stdout: (text: strin
 test('help exits 0 and a missing command exits 2', async () => {
   const help = capture()
   assert.equal(await run(['--help'], help.io), EXIT.ok)
-  assert.match(help.stdout, /scan \[path\]/)
+  assert.match(help.stdout, /scan \[path\|git-url\]/)
   const missing = capture()
   assert.equal(await run([], missing.io), EXIT.usage)
   const unknown = capture()
