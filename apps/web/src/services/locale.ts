@@ -13,7 +13,7 @@ export const WEB_LOCALES = [
 
 export type WebLocale = typeof WEB_LOCALES[number]['tag']
 
-export const LOCALE_PREFERENCE_KEY = 'structura-locale'
+export { LOCALE_PREFERENCE_KEY, readLocalePreference } from './locale-preference'
 
 const localeTags = new Set<string>(WEB_LOCALES.map(locale => locale.tag))
 

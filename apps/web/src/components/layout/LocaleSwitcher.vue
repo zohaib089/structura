@@ -2,9 +2,9 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  LOCALE_PREFERENCE_KEY,
   WEB_LOCALES,
   isSupportedWebLocale,
+  readLocalePreference,
   resolvePreferredWebLocale
 } from '../../services/locale'
 import { navigationMessages } from '../../services/navigation-messages'
@@ -15,7 +15,7 @@ const router = useRouter()
 const locale = computed(() => {
   const routeLocale = route.params.locale
   if (typeof routeLocale === 'string' && isSupportedWebLocale(routeLocale)) return routeLocale
-  return resolvePreferredWebLocale(localStorage.getItem(LOCALE_PREFERENCE_KEY), navigator.languages)
+  return resolvePreferredWebLocale(readLocalePreference(), navigator.languages)
 })
 
 const messages = computed(() => navigationMessages(locale.value))

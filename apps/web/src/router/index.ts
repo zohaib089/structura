@@ -4,6 +4,7 @@ import {
   LOCALE_PREFERENCE_KEY,
   WEB_LOCALES,
   isSupportedWebLocale,
+  readLocalePreference,
   resolvePreferredWebLocale,
   webLocaleDirection
 } from '../services/locale'
@@ -56,7 +57,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
     const routeLocale = typeof to.params.locale === 'string' ? to.params.locale : null
     if (!routeLocale) {
       const preferredLocale = resolvePreferredWebLocale(
-        localStorage.getItem(LOCALE_PREFERENCE_KEY),
+        readLocalePreference(),
         navigator.languages
       )
       return {
