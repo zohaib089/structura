@@ -89,6 +89,8 @@ export interface RunMeta {
 
 export interface ScanOptions {
   outDir?: string
+  /** When set, graph bytes are written here instead of `<outDir>/graph.json`. */
+  graphPath?: string
   /** A path writes run.json there. `null` skips the file. Omitted writes it next to graph.json. */
   metaPath?: string | null
   include?: readonly string[]
@@ -452,14 +454,17 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
   const repoText = await readConfigText(join(rootAbs, CONFIG_FILE), resolveLimits().maxConfigFileBytes)
   const limits = resolveLimits(options.limits ?? {}, repoText ? parseRepoLimits(repoText) : {})
   const outDir = resolve(options.outDir ?? join(rootAbs, OUT_DIR))
-  if (outDir === rootAbs) throw new OutputRefusedError('--out cannot be the scan root')
-  const graphPath = join(outDir, GRAPH_FILE)
+  const graphPath = options.graphPath ? resolve(options.graphPath) : join(outDir, GRAPH_FILE)
+  if (outDir === rootAbs && !options.graphPath) throw new OutputRefusedError('--out cannot be the scan root')
   const resolvedCacheDir = options.noCache ? undefined : resolve(options.cacheDir ?? defaultCacheDir(rootAbs))
   if (!options.noCache && !options.cacheDir && resolvedCacheDir && isInsideRoot(rootAbs, resolvedCacheDir)) {
     throw new OutputRefusedError('default cache directory would be inside the scan root; pass --cache-dir explicitly')
   }
   const cacheDirectory = options.noCache ? undefined : resolvedCacheDir
-  const omitPaths = [outDir]
+  const omitPaths: string[] = options.graphPath && outDir === rootAbs ? [graphPath] : [outDir]
+  if (options.graphPath && outDir === rootAbs && options.metaPath !== null && options.metaPath === undefined) {
+    omitPaths.push(join(outDir, RUN_FILE))
+  }
   if (cacheDirectory && isInsideRoot(rootAbs, cacheDirectory)) omitPaths.push(cacheDirectory)
   if (options.metaPath) {
     const metaAbs = resolve(options.metaPath)

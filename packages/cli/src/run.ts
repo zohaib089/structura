@@ -1,4 +1,4 @@
-import { resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import { CLI_BIN, CONFIG_FILE, GRAPH_FILE, OUT_DIR, PRODUCT_NAME, RUN_FILE } from '@atlasmith/engine'
 import {
@@ -57,7 +57,7 @@ function helpText(): string {
     `       ${CLI_BIN} explain <graph.json> <id|path> [--json]`,
     '',
     'Options:',
-    '  --out <dir>           Directory for graph.json (default: <root>/' + OUT_DIR + ')',
+    '  --out <path>          Output directory, or a .json file path (default: <root>/' + OUT_DIR + ')',
     '  --meta <path>         Write run metadata to this path',
     '  --no-meta             Do not write ' + RUN_FILE,
     '  --json                Print run metadata to stdout',
@@ -151,8 +151,20 @@ export async function run(argv: readonly string[], io: RunIo = {
     if (maxDepth !== undefined) limits.maxDepth = maxDepth
     if (jobs !== undefined) limits.jobs = jobs
     const target = resolve(io.cwd, parsed.positionals[0] ?? '.')
+    let outDir: string | undefined
+    let graphPath: string | undefined
+    if (parsed.values.out) {
+      const resolvedOut = resolve(io.cwd, parsed.values.out)
+      if (resolvedOut.endsWith('.json')) {
+        graphPath = resolvedOut
+        outDir = dirname(resolvedOut)
+      } else {
+        outDir = resolvedOut
+      }
+    }
     const scanOptions: ScanOptions = {
-      outDir: parsed.values.out ? resolve(io.cwd, parsed.values.out) : undefined,
+      outDir,
+      graphPath,
       metaPath: parsed.values['no-meta'] ? null : (parsed.values.meta ? resolve(io.cwd, parsed.values.meta) : undefined),
       include: parsed.values.include,
       cacheDir: parsed.values['cache-dir'] ? resolve(io.cwd, parsed.values['cache-dir']) : undefined,

@@ -1,0 +1,15 @@
+.git
+**/.git
+**/node_modules
+node_modules
+**/.env
+**/.env.*
+**/test-results
+**/playwright-report
+**/*.log
+**/dist
+**/dist-viewer
+coverage
+.knowledge
+docs
+knowledge
