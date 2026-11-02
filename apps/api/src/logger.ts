@@ -1,12 +1,13 @@
 import { createRequire } from 'node:module'
+import { join } from 'node:path'
 import pino from 'pino'
 
-const require = createRequire(import.meta.url)
+const nodeRequire = createRequire(join(process.cwd(), 'package.json'))
 
 function developmentTransport(): pino.TransportSingleOptions | undefined {
   if (process.env.NODE_ENV !== 'development') return undefined
   try {
-    require.resolve('pino-pretty')
+    nodeRequire.resolve('pino-pretty')
   } catch {
     return undefined
   }
