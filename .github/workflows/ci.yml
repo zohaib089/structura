@@ -1,0 +1,186 @@
+# Free tier only: standard GitHub-hosted runners.
+# No larger runners, no self-hosted runners, and no paid services.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NPM_CONFIG_UPDATE_NOTIFIER: false
+
+jobs:
+  api:
+    name: API typecheck and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+
+      - name: Install
+        working-directory: apps/api
+        run: npm ci --ignore-scripts
+
+      - name: Typecheck
+        working-directory: apps/api
+        run: npm run typecheck
+
+      - name: Test
+        working-directory: apps/api
+        run: npm test
+
+  web:
+    name: Web typecheck, unit, and Playwright
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # actions: write is required to upload the Playwright report after a failure.
+    # The workflow default stays contents: read. This does not grant contents: write.
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install
+        working-directory: apps/web
+        run: npm ci --ignore-scripts
+
+      - name: Typecheck
+        working-directory: apps/web
+        run: npm run typecheck
+
+      - name: Unit tests
+        working-directory: apps/web
+        run: npm run test:unit
+
+      - name: Install Chromium
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+
+      - name: Playwright
+        working-directory: apps/web
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report
+          path: |
+            apps/web/playwright-report/
+            apps/web/test-results/
+          if-no-files-found: ignore
+
+  skills:
+    name: Skills typecheck and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: packages/skills/package-lock.json
+
+      - name: Install
+        working-directory: packages/skills
+        run: npm ci --ignore-scripts
+
+      - name: Typecheck
+        working-directory: packages/skills
+        run: npm run typecheck
+
+      - name: Test
+        working-directory: packages/skills
+        run: npm test
+
+  engine-cli-offline:
+    name: Engine and CLI offline
+    # ubuntu-24.04 is a standard GitHub-hosted image. Unprivileged user namespaces
+    # are blocked there, so the sandbox uses sudo unshare and then drops privileges.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      - name: Install engine and CLI outside the sandbox
+        run: bash scripts/ci/install-engine-cli.sh
+
+      - name: Install strace when a hostile scan will run
+        run: bash scripts/ci/install-strace-if-needed.sh
+
+      - name: Prove the network namespace blocks connect
+        run: bash scripts/ci/with-netns.sh node scripts/ci/assert-network-denied.mjs
+
+      - name: Engine and CLI tests and hostile-fixture scan
+        run: bash scripts/ci/with-netns.sh bash scripts/ci/run-engine-cli-offline.sh
+
+      - name: Strace assertion self-test
+        run: bash scripts/ci/strace-self-test.sh
+
+  import-guard:
+    name: Import guard and corpus excludes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      - name: Scan engine and CLI sources
+        run: node scripts/ci/import-guard.mjs
+
+      - name: Mutation self-test
+        run: bash scripts/ci/import-guard-self-test.sh
+
+      - name: Golden-corpus exclusion check
+        run: node scripts/ci/check-corpus-excludes.mjs
