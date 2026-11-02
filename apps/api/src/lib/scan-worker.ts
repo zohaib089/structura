@@ -1,0 +1,185 @@
+import { scanRepository } from '@atlasmith/engine'
+import {
+  assertAllowlistedGitHttpsUrl,
+  createTempWorkspace,
+  extractArchiveToDirectory,
+  limitsFromEnv,
+  redactKnownToken,
+  redactSecrets,
+  shallowCloneRepository,
+  type SourceIngestLimits
+} from '@atlasmith/source-ingest'
+import { writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import type { ScanStatus, WorkspaceScanRecord } from './scan-contracts.js'
+import type { WorkspaceQuery } from './workspace-routes.js'
+
+export interface ScanWorkerDependencies {
+  query: WorkspaceQuery
+  limits?: SourceIngestLimits
+  now?: () => Date
+  runScan?: typeof scanRepository
+  cloneRepository?: typeof shallowCloneRepository
+  extractArchive?: typeof extractArchiveToDirectory
+}
+
+const queue = new Set<string>()
+let draining = false
+
+export function enqueueWorkspaceScan(scanId: string, dependencies: ScanWorkerDependencies): void {
+  queue.add(scanId)
+  void drainScanQueue(dependencies)
+}
+
+async function drainScanQueue(dependencies: ScanWorkerDependencies): Promise<void> {
+  if (draining) return
+  draining = true
+  try {
+    while (queue.size > 0) {
+      const scanId = queue.values().next().value as string
+      queue.delete(scanId)
+      await runWorkspaceScan(scanId, dependencies)
+    }
+  } finally {
+    draining = false
+  }
+}
+
+async function runWorkspaceScan(scanId: string, dependencies: ScanWorkerDependencies): Promise<void> {
+  const limits = dependencies.limits ?? limitsFromEnv()
+  const now = dependencies.now ?? (() => new Date())
+  const runScan = dependencies.runScan ?? scanRepository
+  const cloneRepository = dependencies.cloneRepository ?? shallowCloneRepository
+  const extractArchive = dependencies.extractArchive ?? extractArchiveToDirectory
+
+  const scan = await loadScan(dependencies.query, scanId)
+  if (!scan || scan.status !== 'queued') return
+
+  await updateScan(dependencies.query, scanId, {
+    status: 'running',
+    started_at: now(),
+    error_message: null,
+    upload_payload: null
+  })
+
+  let cleanupSource: (() => Promise<void>) | undefined
+
+  try {
+    await Promise.race([
+      (async () => {
+    let sourceRoot: string
+    if (scan.source === 'git') {
+      const parsed = assertAllowlistedGitHttpsUrl(String(scan.source_url))
+      const clone = await cloneRepository({
+        url: parsed,
+        branch: scan.source_branch ?? undefined,
+        limits,
+        githubToken: process.env.GITHUB_TOKEN,
+        gitlabToken: process.env.GITLAB_TOKEN
+      })
+      sourceRoot = clone.directory
+      cleanupSource = clone.cleanup
+    } else {
+      const workspace = await createTempWorkspace('structura-upload-')
+      const archivePath = join(workspace.directory, 'upload.archive')
+      if (!scan.upload_payload) throw new Error('Upload scan is missing its payload.')
+      await writeFile(archivePath, Buffer.from(scan.upload_payload, 'base64'))
+      const extracted = await extractArchive(archivePath, join(workspace.directory, 'root'), { limits })
+      sourceRoot = extracted.rootDir
+      cleanupSource = workspace.cleanup
+    }
+
+    const output = await runScan(sourceRoot, { noCache: true, limits: { jobs: 1 } })
+    const graph = JSON.parse(output.graphJson) as unknown
+    await updateScan(dependencies.query, scanId, {
+      status: 'succeeded',
+      graph_json: graph,
+      finished_at: now(),
+      error_message: null
+    })
+      })(),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Scan timed out.')), limits.timeoutMs)
+      })
+    ])
+  } catch (error) {
+    const message = redactFailureMessage(error)
+    await updateScan(dependencies.query, scanId, {
+      status: 'failed',
+      finished_at: now(),
+      error_message: message,
+      graph_json: null
+    })
+  } finally {
+    await cleanupSource?.()
+  }
+}
+
+function redactFailureMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error)
+  return redactKnownToken(redactSecrets(message), process.env.GITHUB_TOKEN)
+    .slice(0, 2000)
+}
+
+async function loadScan(query: WorkspaceQuery, scanId: string): Promise<(WorkspaceScanRecord & { upload_payload?: string | null }) | null> {
+  const result = await query(
+    `SELECT id, workspace_id, requested_by, source, source_url, source_branch, upload_payload, status, error_message,
+            graph_json, created_at, updated_at, started_at, finished_at
+     FROM workspace_scans
+     WHERE id = $1`,
+    [scanId]
+  )
+  const row = result.rows[0]
+  if (!row) return null
+  return row as unknown as WorkspaceScanRecord & { upload_payload?: string | null }
+}
+
+async function updateScan(
+  query: WorkspaceQuery,
+  scanId: string,
+  patch: Partial<{
+    status: ScanStatus
+    error_message: string | null
+    graph_json: unknown
+    started_at: Date
+    finished_at: Date
+    upload_payload: null
+  }>
+): Promise<void> {
+  const fields: string[] = ['updated_at = NOW()']
+  const params: unknown[] = []
+  let index = 1
+
+  if (patch.status !== undefined) {
+    fields.push(`status = $${index++}`)
+    params.push(patch.status)
+  }
+  if (patch.error_message !== undefined) {
+    fields.push(`error_message = $${index++}`)
+    params.push(patch.error_message)
+  }
+  if (patch.graph_json !== undefined) {
+    fields.push(`graph_json = $${index++}`)
+    params.push(patch.graph_json)
+  }
+  if (patch.started_at !== undefined) {
+    fields.push(`started_at = $${index++}`)
+    params.push(patch.started_at)
+  }
+  if (patch.finished_at !== undefined) {
+    fields.push(`finished_at = $${index++}`)
+    params.push(patch.finished_at)
+  }
+  if (patch.upload_payload === null) {
+    fields.push('upload_payload = NULL')
+  }
+
+  params.push(scanId)
+  await query(`UPDATE workspace_scans SET ${fields.join(', ')} WHERE id = $${index}`, params)
+}
+
+export function encodeUploadPayload(payload: Buffer): string {
+  return payload.toString('base64')
+}
+
+export { runWorkspaceScan }

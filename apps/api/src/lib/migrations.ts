@@ -153,6 +153,33 @@ const migrations: Migration[] = [
         ON workspace_invitations (workspace_id, expires_at, id)
         WHERE accepted_at IS NULL AND revoked_at IS NULL;
     `
+  },
+  {
+    version: '005_workspace_scans',
+    sql: `
+      CREATE TABLE IF NOT EXISTS workspace_scans (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        requested_by TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+        source TEXT NOT NULL CHECK (source IN ('git', 'upload')),
+        source_url TEXT,
+        source_branch TEXT,
+        upload_payload TEXT,
+        status TEXT NOT NULL CHECK (status IN ('queued', 'running', 'succeeded', 'failed')),
+        error_message TEXT,
+        graph_json JSONB,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        started_at TIMESTAMPTZ,
+        finished_at TIMESTAMPTZ,
+        CHECK (
+          (source = 'git' AND source_url IS NOT NULL AND upload_payload IS NULL)
+          OR (source = 'upload' AND source_url IS NULL AND upload_payload IS NOT NULL)
+        )
+      );
+      CREATE INDEX IF NOT EXISTS workspace_scans_workspace_created_idx
+        ON workspace_scans (workspace_id, created_at DESC, id);
+    `
   }
 ]
 
