@@ -62,6 +62,7 @@ export interface OverviewNodeModel {
   remainder: number
   internalEdges: number
   dimmed: boolean
+  language?: string | null
 }
 
 export type EdgeVisual = 'extracted' | 'inferred' | 'unresolved' | 'mixed'
@@ -83,6 +84,7 @@ export interface OverviewEdgeModel {
   /** Empty, true, false, or mixed across the bundled import edges. */
   typeOnly: '' | 'true' | 'false' | 'mixed'
   label: string
+  flowing?: boolean
 }
 
 export interface OverviewModel {
@@ -682,7 +684,8 @@ function nodeModel(
       more: false,
       remainder: 0,
       internalEdges: 0,
-      dimmed: focusIds !== null && !focusIds.has(id)
+      dimmed: focusIds !== null && !focusIds.has(id),
+      language: null
     }
   }
   const node = index.nodesById.get(id)
@@ -701,7 +704,8 @@ function nodeModel(
     more: false,
     remainder: 0,
     internalEdges: 0,
-    dimmed: focusIds !== null && !focusIds.has(id)
+    dimmed: focusIds !== null && !focusIds.has(id),
+    language: node?.kind === 'file' && 'language' in node ? node.language : null
   }
 }
 
@@ -794,3 +798,7 @@ export interface SearchHit {
   kind: string
   score: number
 }
+
+
+
+

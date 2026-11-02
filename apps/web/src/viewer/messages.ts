@@ -131,6 +131,25 @@ export interface ViewerMessages {
   railToggle: string
   inspectorToggle: string
   emptyFilters: string
+  emptyBody: string
+  copyCommand: string
+  coachExpand: string
+  coachFocus: string
+  coachCoverage: string
+  coachSkip: string
+  coachNext: string
+  budgetDetail: string
+  budgetLimit: string
+  focusChip: string
+  focusEsc: string
+  readingFile: string
+  coverageSkippedNote: string
+  driftFailing: string
+  driftPassing: string
+  searchClusters: string
+  searchFiles: string
+  searchSymbols: string
+  chipCount: string
 }
 
 const en: ViewerMessages = {
@@ -148,17 +167,17 @@ const en: ViewerMessages = {
   themeToLight: 'Switch to light theme',
   themeToDark: 'Switch to dark theme',
   openFile: 'Open another file',
-  choose: 'Choose file',
-  sample: 'Open the sample graph',
+  choose: 'Choose fileâ¦',
+  sample: 'Try the sample graph',
   close: 'Close',
-  emptyTitle: 'Open a {graphFile}',
+  emptyTitle: 'Open your architecture map.',
   emptyPrivate: 'Read in your browser. Never uploaded.',
   emptyDrop: 'Drag and drop, or',
   emptyNoFile: 'No file yet? Create one:',
-  dropOverlay: 'Drop {graphFile} to open',
+  dropOverlay: 'Release to open',
   dropMultiple: 'Only one file at a time. Opened {file}.',
-  loadingReading: 'Reading… {percent}%',
-  loadingBuilding: 'Building overview…',
+  loadingReading: 'Readingâ¦ {percent}%',
+  loadingBuilding: 'Building overviewâ¦',
   loadingSr: 'Loading graph…',
   loadingCancel: 'Cancel',
   errorNotJson: 'This file is not valid JSON ({where})',
@@ -247,7 +266,7 @@ const en: ViewerMessages = {
   coverageColSkipped: 'Skipped',
   coverageExport: 'Export {n} rows',
   driftNoConfigTitle: 'No architecture file found',
-  driftNoConfigBody: 'Drift checks need a {config} in the scanned repository. This graph does not include drift findings.',
+  driftNoConfigBody: 'This graph does not include drift findings. A declared architecture file is not in the scan.',
   driftNotConfigured: 'Drift: not configured',
   driftSnippetLabel: 'Illustrative. Field names may differ; see the docs.',
   driftCopy: 'Copy snippet',
@@ -263,7 +282,26 @@ const en: ViewerMessages = {
   unknownKinds: '{n} kinds this viewer does not know',
   railToggle: 'Filters',
   inspectorToggle: 'Inspector',
-  emptyFilters: 'Open a file to filter'
+  emptyFilters: 'Open a file to filter',
+  emptyBody: 'Drop a {graphFile} here, or create one by running the command below in your repo. Nothing leaves your machine.',
+  copyCommand: 'Copy',
+  coachExpand: 'Expand a cluster',
+  coachFocus: 'Focus a node',
+  coachCoverage: 'Open Coverage',
+  coachSkip: 'Skip',
+  coachNext: 'Next',
+  budgetDetail: 'Detail reduced',
+  budgetLimit: 'Limit reached: collapse or filter to see more',
+  focusChip: 'Focused: {path} Â· depth {n}',
+  focusEsc: 'Esc',
+  readingFile: 'Reading {graphFile}, {size}',
+  coverageSkippedNote: 'Skipped files are listed, never hidden',
+  driftFailing: 'Failing Â· {n} violations',
+  driftPassing: 'Passing',
+  searchClusters: 'Clusters',
+  searchFiles: 'Files',
+  searchSymbols: 'Symbols',
+  chipCount: '{n}'
 }
 
 export function viewerMessages(_locale: WebLocale): ViewerMessages {
@@ -276,3 +314,8 @@ export function formatMessage(template: string, values: Record<string, string | 
     return value === undefined ? match : String(value)
   })
 }
+
+
+
+
+

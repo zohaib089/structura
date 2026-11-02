@@ -58,7 +58,15 @@ const emit = defineEmits<{
 
 <style scoped>
 .filters { display: grid; gap: var(--space-3); }
+legend {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
 fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
 label { display: flex; gap: var(--space-2); align-items: center; min-block-size: var(--viewer-hit-target); }
 button { min-block-size: var(--viewer-hit-target); }
 </style>
+

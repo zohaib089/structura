@@ -18,6 +18,10 @@ const props = defineProps<{
   moreLabel: string
   expandLabel: string
   collapseLabel: string
+  depth?: number
+  language?: string
+  entering?: boolean
+  enterDelay?: number
 }>()
 
 const emit = defineEmits<{ select: []; toggle: [] }>()
@@ -39,7 +43,18 @@ function onSpace(event: KeyboardEvent) {
 <template>
   <div
     class="overview-node"
-    :class="{ 'is-selected': selected, 'is-dimmed': dimmed, 'is-more': more, 'is-cluster': cluster }"
+    :class="{
+      'is-selected': selected,
+      'is-dimmed': dimmed,
+      'is-more': more,
+      'is-cluster': cluster,
+      'is-file': kind === 'file',
+      'is-external': kind === 'external',
+      'is-unresolved': kind === 'unresolved',
+      'is-expanded': expanded,
+      'is-entering': entering
+    }"
+    :style="{ '--node-layer': `var(--graph-layer-${((depth ?? 0) % 6) + 1})`, animationDelay: `${enterDelay ?? 0}ms` }"
     :data-node-id="id"
     :data-node-kind="kind"
     :data-cluster-size="cluster ? clusterSize : undefined"
@@ -50,18 +65,20 @@ function onSpace(event: KeyboardEvent) {
     :aria-selected="selected"
     :aria-expanded="cluster ? expanded : undefined"
     :aria-label="accessible"
-    :title="label || moreLabel"
+    :title="path || label || moreLabel"
     @click.stop="emit('select')"
     @dblclick.stop.prevent="emit('toggle')"
     @keydown.enter.prevent="onEnter"
     @keydown.space.prevent="onSpace"
   >
     <Handle type="target" :position="Position.Left" />
-    <span v-if="cluster" class="kind-mark" aria-hidden="true">{{ expanded ? '▾' : '▸' }}</span>
+    <span v-if="cluster" class="kind-mark" aria-hidden="true">{{ expanded ? 'â¾' : 'â¸' }}</span>
     <span v-else-if="more" class="kind-mark" aria-hidden="true">+</span>
-    <span v-else class="kind-mark" aria-hidden="true">•</span>
+    <span v-else-if="kind === 'unresolved'" class="kind-mark" aria-hidden="true">?</span>
+    <span v-else-if="kind === 'file'" class="kind-mark" aria-hidden="true">{{ (language || 'â¢').slice(0, 1) }}</span>
+    <span v-else class="kind-mark" aria-hidden="true">â¢</span>
     <span class="label" dir="ltr">{{ more ? moreLabel : label }}</span>
-    <span v-if="cluster" class="count">{{ clusterSize }}</span>
+    <span v-if="cluster" class="count tnum">{{ clusterSize }}</span>
     <button
       v-if="cluster || more"
       type="button"
@@ -91,18 +108,54 @@ function onSpace(event: KeyboardEvent) {
   background: var(--graph-node-fill, var(--color-surface-raised));
   color: var(--color-text-primary);
 }
-.is-cluster { background: var(--graph-cluster-fill, var(--color-surface)); }
-.is-more {
-  border-style: dashed;
-  border-color: var(--graph-ghost-border, var(--color-border-strong));
+.is-cluster {
+  border-radius: var(--radius-lg);
+  background: var(--surface-tint, var(--graph-cluster-fill));
+  border-inline-start: 3px solid var(--node-layer, var(--graph-layer-1));
 }
-.is-selected {
-  outline: var(--graph-selected-width, 2px) solid var(--graph-selected-ring, var(--color-accent-primary));
+.is-expanded.is-cluster {
+  background: var(--graph-frame-fill);
+  border-style: dashed;
+}
+.is-file { border-radius: var(--radius-full); }
+.is-external {
+  border-style: dashed;
+  background: var(--graph-external-fill);
+}
+.is-unresolved {
+  background: transparent;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  unicode-bidi: isolate;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+.is-selected .label { font-size: var(--font-size-sm); }
+.count, .kind-mark { color: var(--color-text-secondary); }
+.tnum { font-feature-settings: var(--font-feature-ui); font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: no-preference) {
+  .overview-node { transition: box-shadow var(--duration-fast) var(--easing-standard), border-color var(--duration-fast) var(--easing-standard); }
+  .is-entering { animation: node-in var(--duration-slow) var(--easing-emphasized) both; }
+}
+@keyframes node-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+.node-toggle {
+  margin-inline-start: auto;
+  min-inline-size: var(--viewer-hit-target, 2.75rem);
+  outline: var(--graph-selected-width, 2px) solid var(--graph-selected-ring, var(--color-brand-amber-ui));
   box-shadow: var(--graph-selected-halo, none);
 }
-.is-dimmed { opacity: var(--graph-dim-opacity, 0.45); }
+.overview-node:hover {
+  border-color: var(--graph-hover-border);
+  box-shadow: var(--shadow-md);
+}
+.is-dimmed { opacity: var(--graph-dim-opacity, 0.2); }
+.is-dimmed .label,
+.is-dimmed .count { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .overview-node:focus-visible {
-  outline: var(--graph-selected-width) solid var(--graph-selected-ring);
+  outline: var(--graph-selected-width, 2px) solid var(--graph-selected-ring);
   outline-offset: var(--space-1);
 }
 .label {
@@ -121,3 +174,8 @@ function onSpace(event: KeyboardEvent) {
   color: inherit;
 }
 </style>
+
+
+
+
+

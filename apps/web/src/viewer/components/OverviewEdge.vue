@@ -8,10 +8,13 @@ const props = defineProps<EdgeProps<OverviewEdgeModel>>()
 const visual = computed<EdgeVisual>(() => props.data?.visual ?? 'extracted')
 const path = computed(() => getBezierPath(props))
 const markerId = computed(() => `marker-${props.id}`)
+const flowing = computed(() => Boolean(props.data?.flowing) && visual.value !== 'unresolved')
 const style = computed(() => ({
   stroke: edgeStroke(visual.value),
   strokeWidth: edgeWidth(visual.value),
-  strokeDasharray: EDGE_DASH[visual.value] === 'none' ? 'none' : EDGE_DASH[visual.value],
+  strokeDasharray: flowing.value && visual.value === 'extracted'
+    ? 'var(--graph-edge-dash-flow)'
+    : EDGE_DASH[visual.value] === 'none' ? 'none' : EDGE_DASH[visual.value],
   strokeLinecap: visual.value === 'unresolved' ? 'round' : 'butt',
   fill: 'none'
 }))
@@ -19,7 +22,7 @@ const style = computed(() => ({
 
 <template>
   <g
-    :class="edgeClass(visual)"
+    :class="[edgeClass(visual), { 'is-flowing': flowing }]"
     :data-provenance="data?.provenance"
     :data-resolved="data?.resolved ? 'true' : 'false'"
     :data-weight="String(data?.weight ?? 1)"
@@ -40,3 +43,19 @@ const style = computed(() => ({
     />
   </g>
 </template>
+
+<style scoped>
+@media (prefers-reduced-motion: no-preference) {
+  .is-flowing :deep(.vue-flow__edge-path) {
+    animation: edge-flow var(--duration-flow) linear infinite;
+  }
+}
+@keyframes edge-flow {
+  to { stroke-dashoffset: var(--graph-flow-offset); }
+}
+</style>
+
+
+
+
+
