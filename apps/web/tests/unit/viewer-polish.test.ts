@@ -1,4 +1,6 @@
 import { mount } from '@vue/test-utils'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { readOnboarded, writeOnboarded } from '../../src/hosted-onboarding'
 import { budgetTone } from '../../src/viewer/budget-tone'
@@ -360,6 +362,19 @@ describe('v2 viewer polish', () => {
     const buttons = focus.findAll('button')
     await buttons[1].trigger('click')
     expect(focus.emitted('depth')?.[0]).toEqual([6])
+  })
+
+  it('uses the shared focus ring for keyboard focus and keeps amber on selection', () => {
+    const base = readFileSync(resolve('src/viewer/viewer-base.css'), 'utf8')
+    expect(base).toContain('box-shadow: var(--focus-ring)')
+    expect(base).not.toContain('brand-amber-ui')
+
+    const nodeSource = readFileSync(resolve('src/viewer/components/OverviewNode.vue'), 'utf8')
+    expect(nodeSource).toMatch(/\.overview-node:focus-visible\s*\{[^}]*var\(--focus-ring\)/)
+    expect(nodeSource).toMatch(/\.is-selected\s*\{[\s\S]*var\(--graph-selected-ring/)
+
+    const meter = readFileSync(resolve('src/viewer/components/BudgetMeter.vue'), 'utf8')
+    expect(meter).toContain('var(--graph-budget-track')
   })
 })
 

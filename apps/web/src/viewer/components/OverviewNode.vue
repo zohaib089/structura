@@ -144,19 +144,31 @@ function onSpace(event: KeyboardEvent) {
 .node-toggle {
   margin-inline-start: auto;
   min-inline-size: var(--viewer-hit-target, 2.75rem);
-  outline: var(--graph-selected-width, 2px) solid var(--graph-selected-ring, var(--color-brand-amber-ui));
-  box-shadow: var(--graph-selected-halo, none);
+  min-block-size: var(--viewer-hit-target, 2.75rem);
+  border: 0;
+  background: transparent;
+  color: inherit;
 }
 .overview-node:hover {
   border-color: var(--graph-hover-border);
   box-shadow: var(--shadow-md);
 }
+.is-selected {
+  outline: var(--graph-selected-width, 2px) solid var(--graph-selected-ring, var(--color-brand-amber-ui));
+  outline-offset: 0;
+  box-shadow: var(--graph-selected-halo, none);
+}
 .is-dimmed { opacity: var(--graph-dim-opacity, 0.2); }
 .is-dimmed .label,
 .is-dimmed .count { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .overview-node:focus-visible {
-  outline: var(--graph-selected-width, 2px) solid var(--graph-selected-ring);
-  outline-offset: var(--space-1);
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.is-selected:focus-visible {
+  outline: var(--graph-selected-width, 2px) solid var(--graph-selected-ring, var(--color-brand-amber-ui));
+  outline-offset: 0;
+  box-shadow: var(--focus-ring), var(--graph-selected-halo, none);
 }
 .label {
   overflow: hidden;
@@ -165,14 +177,6 @@ function onSpace(event: KeyboardEvent) {
   unicode-bidi: isolate;
 }
 .count, .kind-mark { color: var(--color-text-secondary); }
-.node-toggle {
-  margin-inline-start: auto;
-  min-inline-size: var(--viewer-hit-target, 2.75rem);
-  min-block-size: var(--viewer-hit-target, 2.75rem);
-  border: 0;
-  background: transparent;
-  color: inherit;
-}
 </style>
 
 

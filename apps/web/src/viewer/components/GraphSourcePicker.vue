@@ -84,7 +84,7 @@ function onCopy() {
   place-items: center;
   min-block-size: 8rem;
   padding: var(--space-4);
-  border: var(--graph-node-border-width) dashed var(--color-border-strong);
+  border: var(--graph-node-border-width) dashed var(--viewer-control-border, var(--color-border-strong));
   border-radius: var(--radius-md);
 }
 .actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }

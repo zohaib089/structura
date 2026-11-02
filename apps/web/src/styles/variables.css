@@ -304,6 +304,8 @@
   --viewer-minimap-height: 7.5rem;
   --viewer-control-size: 2.5rem;
   --viewer-hit-target: 2.75rem;          /* >=44px on (pointer: coarse) */
+  --viewer-control-border: var(--color-border-strong);
+  --graph-budget-track: var(--color-border);
 
   /* ---- Z-INDEX SCALE (app currently has 16 raw z-index values; use these in the viewer) ---- */
   --z-base: 0;
@@ -359,6 +361,8 @@
   --graph-dim-opacity: 0.22;
   --graph-dim-opacity-edge: 0.16;
   --graph-selected-halo: 0 0 0 4px color-mix(in srgb, var(--color-brand-amber-ui) var(--alpha-24), transparent);
+  --viewer-control-border: #7d8fa3; /* light #7d8fa3 | 3.04 canvas, 3.32 raised, 3.19 surface | AA graphic >=3.0 | Viewer buttons, zoom pad, palette field outline. */
+  --graph-budget-track: #7d8fa3; /* light #7d8fa3 | 3.04 canvas, 3.32 raised, 3.19 surface | AA graphic >=3.0 | Budget meter track (unfilled bar). */
 }
 
 /* v2 polish. Additive overrides. Colours stay on the tokens above. */

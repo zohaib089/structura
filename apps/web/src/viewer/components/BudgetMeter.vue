@@ -35,7 +35,7 @@ const tone = () => props.tone ?? (props.full ? 'limit' : props.warn ? 'detail' :
 .bar {
   inline-size: 6rem;
   block-size: var(--graph-budget-height);
-  background: var(--color-border);
+  background: var(--graph-budget-track, var(--color-border));
 }
 .bar span { display: block; block-size: 100%; background: var(--color-text-secondary); }
 .bar span[data-tone='detail'] { background: var(--color-info); }

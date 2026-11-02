@@ -845,13 +845,16 @@ const snippet = 'layers: []\nrules: []\n'
 button {
   min-block-size: var(--viewer-hit-target);
   padding-inline: var(--space-3);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--viewer-control-border, var(--color-border));
   border-radius: var(--radius-sm);
   background: var(--color-surface-raised);
   color: var(--color-text-primary);
 }
 button:hover:not(:disabled) { border-color: var(--graph-hover-border); }
-button:focus-visible { outline: 2px solid var(--color-brand-amber-ui); outline-offset: 2px; }
+button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
 button:active:not(:disabled) { transform: scale(0.98); }
 button:disabled { opacity: var(--alpha-40); }
 .inspector { font-size: var(--font-size-sm); line-height: var(--line-height-normal); }
