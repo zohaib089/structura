@@ -162,6 +162,17 @@ onMounted(() => input.value?.focus())
   border-radius: var(--radius-md);
 }
 input, button { min-block-size: var(--viewer-hit-target); }
+input {
+  border: 1px solid var(--viewer-control-border, var(--color-border));
+  border-radius: var(--radius-sm);
+  padding-inline: var(--space-2);
+  background: var(--color-surface);
+  color: inherit;
+}
+input:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
 h3 {
   margin: 0;
   color: var(--color-text-muted);

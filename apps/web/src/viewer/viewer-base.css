@@ -25,7 +25,10 @@
   transition: transform var(--duration-fast) var(--easing-standard), border-color var(--duration-fast) var(--easing-standard);
 }
 .viewer button:hover:not(:disabled) { border-color: var(--graph-hover-border); }
-.viewer button:focus-visible { outline: 2px solid var(--color-brand-amber-ui); outline-offset: 2px; }
+.viewer button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
 .viewer button:active:not(:disabled) { transform: scale(0.98); }
 .viewer button:disabled { opacity: var(--alpha-40); }
 .viewer legend,
@@ -41,4 +44,3 @@
   .viewer button,
   .viewer button:active { transition: none; transform: none; }
 }
-

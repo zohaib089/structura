@@ -24,7 +24,7 @@ function fit() {
   display: flex;
   flex-direction: column;
   overflow: visible;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--viewer-control-border, var(--color-border));
   border-radius: var(--radius-md);
   background: var(--color-surface-raised);
 }
