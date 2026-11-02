@@ -110,11 +110,14 @@ export function buildCoverage(input: CoverageInput): Coverage {
 }
 
 /** Human-readable coverage summary for stdout. Stable field order, no timestamps. */
-export function formatCoverageSummary(coverage: Coverage): string {
+export function formatCoverageSummary(coverage: Coverage, entryCandidates?: { files: number; candidates: number }): string {
   const files = coverage.files
   const lines = [
     `files: discovered ${files.discovered}, parsed ${files.parsed}, partial ${files.partial}, failed ${files.failed}, skipped ${files.skipped}, ignored ${files.ignored}`
   ]
+  if (entryCandidates) {
+    lines.push(`entry candidates: ${entryCandidates.candidates} across ${entryCandidates.files} file(s)`)
+  }
   if (coverage.byLanguage.length > 0) {
     lines.push(`by language: ${coverage.byLanguage.map(row => `${row.language ?? 'other'} parsed ${row.parsed} partial ${row.partial} failed ${row.failed} skipped ${row.skipped}`).join('; ')}`)
   }

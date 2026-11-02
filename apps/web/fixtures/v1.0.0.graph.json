@@ -3,7 +3,11 @@
   "summary": {
     "nodes": 5,
     "edges": 4,
-    "files": 1
+    "files": 1,
+    "entryCandidates": {
+      "files": 1,
+      "candidates": 1
+    }
   },
   "coverage": {
     "files": {
@@ -24,6 +28,7 @@
       }
     ],
     "skipped": [],
+    "failed": [],
     "ignored": [],
     "unresolved": [],
     "accounting": {
@@ -63,7 +68,17 @@
       "entryCandidate": {
         "reason": "conventional-name",
         "provenance": "INFERRED"
-      }
+      },
+      "entryCandidates": [
+        {
+          "reason": "conventional-name",
+          "evidence": {
+            "source": "src/app.ts",
+            "pointer": "src/app.ts#/conventional"
+          },
+          "confidence": 0.65
+        }
+      ]
     },
     {
       "id": "sym:src/app.ts#main",

@@ -1,5 +1,5 @@
 import { compareEdges, compareNodes } from './canonical.js'
-import { GRAPH_SCHEMA_VERSION, type Coverage, type Graph, type GraphEdge, type GraphNode } from './types.js'
+import { GRAPH_SCHEMA_VERSION, type Coverage, type Graph, type GraphEdge, type GraphNode, type SummaryEntryCandidates } from './types.js'
 
 const IMPORT_KIND_RANK: Record<'static' | 'require' | 'dynamic', number> = { static: 0, require: 1, dynamic: 2 }
 
@@ -58,12 +58,17 @@ export class GraphBuilder {
     return false
   }
 
-  build(coverage: Coverage): Graph {
+  build(coverage: Coverage, entryCandidates?: SummaryEntryCandidates): Graph {
     const nodes = [...this.nodes.values()].sort(compareNodes)
     const edges = [...this.edges.values()].sort(compareEdges)
     return {
       schemaVersion: GRAPH_SCHEMA_VERSION,
-      summary: { nodes: nodes.length, edges: edges.length, files: nodes.filter(node => node.kind === 'file').length },
+      summary: {
+        nodes: nodes.length,
+        edges: edges.length,
+        files: nodes.filter(node => node.kind === 'file').length,
+        ...(entryCandidates ? { entryCandidates } : {})
+      },
       coverage,
       nodes,
       edges

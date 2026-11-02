@@ -89,8 +89,38 @@ export const INFERRED_REASONS = [
 ] as const
 export type InferredReason = typeof INFERRED_REASONS[number]
 
-export const ENTRY_REASONS = ['conventional-name', 'package-bin', 'package-exports', 'package-main', 'package-script'] as const
+export const ENTRY_REASONS = [
+  'conventional-name',
+  'dockerfile-cmd',
+  'dockerfile-entrypoint',
+  'package-bin',
+  'package-exports',
+  'package-main',
+  'package-script',
+  'pyproject-gui-script',
+  'pyproject-script',
+  'python-name-main',
+  'setup-console-script'
+] as const
 export type EntryReason = typeof ENTRY_REASONS[number]
+
+/** Config or source file that supports an entry candidate (no file contents in graph.json). */
+export interface EntryEvidence {
+  /** Repo-relative path of the file that contains the declaration (e.g. package.json, pyproject.toml). */
+  source: string
+  /** Location inside {@link source}, e.g. `package.json#/bin/cli`. */
+  pointer?: string
+  /** Source span when the evidence is in a parsed file (1-based, UTF-16). */
+  span?: Span
+}
+
+/** One ranked entry-point hypothesis for a file (schema v1 additive field `entryCandidates`). */
+export interface EntryCandidateDetail {
+  reason: EntryReason
+  evidence: EntryEvidence
+  /** Heuristic strength in (0, 1]; see docs/graph-json-v1.md. */
+  confidence: number
+}
 
 export const SYMBOL_KINDS = ['class', 'default', 'enum', 'function', 'interface', 'namespace', 'type', 'unknown', 'variable'] as const
 export type SymbolKind = typeof SYMBOL_KINDS[number]
@@ -149,6 +179,8 @@ export interface FileNode {
   parse: ParseInfo
   decoding?: 'lossy'
   entryCandidate?: EntryCandidate
+  /** Deterministic list of entry hypotheses; sorted by descending precedence then evidence. */
+  entryCandidates?: EntryCandidateDetail[]
   extensions?: Extensions
 }
 
@@ -269,10 +301,16 @@ export interface Coverage {
   accounting: { discovered: number; accounted: number }
 }
 
+export interface SummaryEntryCandidates {
+  files: number
+  candidates: number
+}
+
 export interface Summary {
   nodes: number
   edges: number
   files: number
+  entryCandidates?: SummaryEntryCandidates
 }
 
 export interface Graph {

@@ -23,6 +23,24 @@
         "files": {
           "type": "integer",
           "minimum": 0
+        },
+        "entryCandidates": {
+          "type": "object",
+          "properties": {
+            "files": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "candidates": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "files",
+            "candidates"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [
@@ -258,10 +276,16 @@
           "type": "string",
           "enum": [
             "conventional-name",
+            "dockerfile-cmd",
+            "dockerfile-entrypoint",
             "package-bin",
             "package-exports",
             "package-main",
-            "package-script"
+            "package-script",
+            "pyproject-gui-script",
+            "pyproject-script",
+            "python-name-main",
+            "setup-console-script"
           ]
         },
         "provenance": {
@@ -271,6 +295,60 @@
       "required": [
         "reason",
         "provenance"
+      ],
+      "additionalProperties": false
+    },
+    "entryEvidence": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pointer": {
+          "type": "string"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "additionalProperties": false
+    },
+    "entryCandidateDetail": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string",
+          "enum": [
+            "conventional-name",
+            "dockerfile-cmd",
+            "dockerfile-entrypoint",
+            "package-bin",
+            "package-exports",
+            "package-main",
+            "package-script",
+            "pyproject-gui-script",
+            "pyproject-script",
+            "python-name-main",
+            "setup-console-script"
+          ]
+        },
+        "evidence": {
+          "$ref": "#/$defs/entryEvidence"
+        },
+        "confidence": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "reason",
+        "evidence",
+        "confidence"
       ],
       "additionalProperties": false
     },
@@ -320,6 +398,12 @@
         },
         "entryCandidate": {
           "$ref": "#/$defs/entryCandidate"
+        },
+        "entryCandidates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/entryCandidateDetail"
+          }
         },
         "extensions": {
           "$ref": "#/$defs/extensions"

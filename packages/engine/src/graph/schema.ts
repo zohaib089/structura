@@ -52,7 +52,12 @@ export function buildGraphJsonSchema(): Schema {
     type: 'object',
     properties: {
       schemaVersion: str({ pattern: '^1\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$' }),
-      summary: closed({ nodes: count, edges: count, files: count }, ['nodes', 'edges', 'files']),
+      summary: closed({
+        nodes: count,
+        edges: count,
+        files: count,
+        entryCandidates: closed({ files: count, candidates: count }, ['files', 'candidates'])
+      }, ['nodes', 'edges', 'files']),
       coverage: ref('coverage'),
       nodes: { type: 'array', items: ref('node') },
       edges: { type: 'array', items: ref('edge') },
@@ -84,6 +89,11 @@ export function buildGraphJsonSchema(): Schema {
         ]
       },
       entryCandidate: closed({ reason: { type: 'string', enum: [...ENTRY_REASONS] }, provenance: ref('provenance') }, ['reason', 'provenance']),
+      entryEvidence: closed({ source: str({ minLength: 1 }), pointer: str(), span: ref('span') }, ['source']),
+      entryCandidateDetail: closed(
+        { reason: { type: 'string', enum: [...ENTRY_REASONS] }, evidence: ref('entryEvidence'), confidence: { type: 'number', exclusiveMinimum: 0, maximum: 1 } },
+        ['reason', 'evidence', 'confidence']
+      ),
       fileNode: closed(
         withExt({
           id: str({ minLength: 1 }),
@@ -94,7 +104,8 @@ export function buildGraphJsonSchema(): Schema {
           lineCount: { type: ['integer', 'null'], minimum: 1 },
           parse: ref('parseInfo'),
           decoding: { const: 'lossy' },
-          entryCandidate: ref('entryCandidate')
+          entryCandidate: ref('entryCandidate'),
+          entryCandidates: { type: 'array', items: ref('entryCandidateDetail') }
         }),
         ['id', 'kind', 'path', 'label', 'language', 'lineCount', 'parse']
       ),

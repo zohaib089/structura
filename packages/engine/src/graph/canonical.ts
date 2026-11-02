@@ -11,7 +11,7 @@ import type { Coverage, Graph, GraphEdge, GraphNode } from './types.js'
 
 const NODE_ORDER: Record<string, readonly string[]> = {
   directory: ['id', 'kind', 'path', 'label', 'extensions'],
-  file: ['id', 'kind', 'path', 'label', 'language', 'lineCount', 'parse', 'decoding', 'entryCandidate', 'extensions'],
+  file: ['id', 'kind', 'path', 'label', 'language', 'lineCount', 'parse', 'decoding', 'entryCandidate', 'entryCandidates', 'extensions'],
   symbol: ['id', 'kind', 'file', 'label', 'symbolKind', 'exported', 'span', 'extensions'],
   external: ['id', 'kind', 'ecosystem', 'label', 'extensions'],
   unresolved: ['id', 'kind', 'label', 'reason', 'extensions']
@@ -22,7 +22,9 @@ const NESTED_ORDER: Record<string, readonly string[]> = {
   start: ['line', 'col'],
   end: ['line', 'col'],
   parse: ['status', 'reason'],
-  entryCandidate: ['reason', 'provenance']
+  entryCandidate: ['reason', 'provenance'],
+  entryCandidateDetail: ['reason', 'evidence', 'confidence'],
+  entryEvidence: ['source', 'pointer', 'span']
 }
 
 function ordered(value: Record<string, unknown>, order: readonly string[], nested = true): Record<string, unknown> {
@@ -38,9 +40,18 @@ function ordered(value: Record<string, unknown>, order: readonly string[], neste
 
 function nestedValue(key: string, value: unknown, nested: boolean): unknown {
   if (key === 'extensions') return sortedDeep(value)
+  if (key === 'entryCandidates' && Array.isArray(value)) {
+    return value.map(item => (typeof item === 'object' && item !== null
+      ? ordered(item as Record<string, unknown>, NESTED_ORDER.entryCandidateDetail)
+      : item))
+  }
   const order = NESTED_ORDER[key]
   if (nested && order && typeof value === 'object' && value !== null && !Array.isArray(value)) {
-    return ordered(value as Record<string, unknown>, order)
+    const record = ordered(value as Record<string, unknown>, order)
+    if (key === 'entryCandidateDetail' && record.evidence && typeof record.evidence === 'object') {
+      record.evidence = ordered(record.evidence as Record<string, unknown>, NESTED_ORDER.entryEvidence)
+    }
+    return record
   }
   return value
 }
@@ -101,7 +112,12 @@ function orderedCoverage(coverage: Coverage): Record<string, unknown> {
 export function canonicalizeGraph(graph: Graph): Graph {
   const out: Record<string, unknown> = {
     schemaVersion: graph.schemaVersion,
-    summary: { nodes: graph.summary.nodes, edges: graph.summary.edges, files: graph.summary.files },
+    summary: {
+      nodes: graph.summary.nodes,
+      edges: graph.summary.edges,
+      files: graph.summary.files,
+      ...(graph.summary.entryCandidates ? { entryCandidates: graph.summary.entryCandidates } : {})
+    },
     coverage: orderedCoverage(graph.coverage),
     nodes: [...graph.nodes].sort(compareNodes).map(orderedNode),
     edges: [...graph.edges].sort(compareEdges).map(edge => ordered(edge as unknown as Record<string, unknown>, EDGE_ORDER))

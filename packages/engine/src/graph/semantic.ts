@@ -1,5 +1,6 @@
 import type { SchemaIssue } from './schema-check.js'
 import { baseName, compareStrings, isRepresentablePath, parentPath, ROOT_DIR_ID } from './ids.js'
+import { entryCandidateIssues } from '../scan/entries.js'
 import { CONFIG_UNRESOLVED_REASONS, type Graph } from './types.js'
 
 const CONFIG_REASON_LOOKUP: Record<string, true> = Object.fromEntries(CONFIG_UNRESOLVED_REASONS.map(reason => [reason, true]))
@@ -58,6 +59,12 @@ export function checkSemantics(graph: Graph, options: SemanticOptions = {}): Sch
         }
         if ((node.parse?.status === 'parsed' || node.parse?.status === 'partial') && node.lineCount === null) {
           add(`${at}/lineCount`, 'must not be null for a parsed file')
+        }
+        if (node.entryCandidates || node.entryCandidate) {
+          for (const issue of entryCandidateIssues(
+            { path: node.path as string, entryCandidate: node.entryCandidate, entryCandidates: node.entryCandidates },
+            at
+          )) add(issue.path, issue.message)
         }
         break
       case 'external':
@@ -178,6 +185,21 @@ export function checkSemantics(graph: Graph, options: SemanticOptions = {}): Sch
   if (summary.nodes !== nodes.length) add('/summary/nodes', `is ${summary.nodes} but there are ${nodes.length} nodes`)
   if (summary.edges !== edges.length) add('/summary/edges', `is ${summary.edges} but there are ${edges.length} edges`)
   if (summary.files !== fileNodes) add('/summary/files', `is ${summary.files} but there are ${fileNodes} file nodes`)
+  if (summary.entryCandidates) {
+    let filesWithCandidates = 0
+    let candidateCount = 0
+    for (const node of nodes) {
+      if (node.kind !== 'file' || !Array.isArray(node.entryCandidates) || node.entryCandidates.length === 0) continue
+      filesWithCandidates += 1
+      candidateCount += node.entryCandidates.length
+    }
+    if (summary.entryCandidates.files !== filesWithCandidates) {
+      add('/summary/entryCandidates/files', `is ${summary.entryCandidates.files} but ${filesWithCandidates} file nodes carry entryCandidates`)
+    }
+    if (summary.entryCandidates.candidates !== candidateCount) {
+      add('/summary/entryCandidates/candidates', `is ${summary.entryCandidates.candidates} but nodes list ${candidateCount} candidate(s)`)
+    }
+  }
 
   // coverage arithmetic
   const f = coverage.files

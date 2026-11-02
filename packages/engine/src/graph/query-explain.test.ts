@@ -57,4 +57,6 @@ test('explainGraphNode reports coverage and grouped edges', () => {
   assert.equal(explained.outbound.imports?.length, 1)
   assert.equal(explained.outbound.contains?.length, 1)
   assert.equal(explained.entryCandidate?.provenance, 'INFERRED')
+  assert.equal(explained.entryCandidates?.length, 1)
+  assert.equal(explained.entryCandidates?.[0]?.reason, 'conventional-name')
 })

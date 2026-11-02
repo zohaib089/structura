@@ -3,6 +3,7 @@ import { indexNodes, resolveNodeRef } from './resolve-ref.js'
 import type {
   EdgeType,
   EntryCandidate,
+  EntryCandidateDetail,
   Graph,
   GraphEdge,
   GraphNode,
@@ -34,6 +35,7 @@ export interface ExplainNodeResult {
   exported?: boolean
   ecosystem?: string
   entryCandidate?: EntryCandidate
+  entryCandidates?: EntryCandidateDetail[]
   unresolvedReason?: UnresolvedReason
   coverage?: ParseInfo
   inbound: Partial<Record<EdgeType, ExplainedEdge[]>>
@@ -57,6 +59,7 @@ export function explainGraphNode(graph: Graph, ref: string): ExplainNodeResult {
   if (node.kind === 'file') {
     base.coverage = node.parse
     if (node.entryCandidate) base.entryCandidate = node.entryCandidate
+    if (node.entryCandidates && node.entryCandidates.length > 0) base.entryCandidates = node.entryCandidates
   }
   if (node.kind === 'symbol') {
     base.file = node.file

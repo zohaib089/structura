@@ -62,6 +62,16 @@ function formatExplainHuman(result: ExplainNodeResult): string {
   if (result.entryCandidate) {
     lines.push(`entry: ${result.entryCandidate.reason} (${result.entryCandidate.provenance})`)
   }
+  if (result.entryCandidates && result.entryCandidates.length > 0) {
+    lines.push('entry candidates:')
+    for (const candidate of result.entryCandidates) {
+      const where = candidate.evidence.pointer
+        ?? (candidate.evidence.span
+          ? `${candidate.evidence.source}@${candidate.evidence.span.start.line}:${candidate.evidence.span.start.col}`
+          : candidate.evidence.source)
+      lines.push(`  - ${candidate.reason} confidence=${candidate.confidence} evidence=${where}`)
+    }
+  }
   if (result.unresolvedReason) lines.push(`unresolved: ${result.unresolvedReason}`)
   if (result.coverage) lines.push(`coverage: ${formatCoverage(result.coverage)}`)
   for (const direction of ['inbound', 'outbound'] as const) {
