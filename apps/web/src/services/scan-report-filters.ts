@@ -20,6 +20,7 @@ export const ALL_FINDING_SECTIONS: ReportSection[] = [
   'violations',
   'security',
   'badPractices',
+  'improvements',
   'removals'
 ]
 

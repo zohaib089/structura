@@ -7,7 +7,7 @@ The Architecture scan hub adds a **Project report** view (alongside graph insigh
 - Typed client for `GET /api/workspaces/:id/scans/:scanId/report` with the same bearer envelope as scans/graph, including 409 not-ready handling.
 - Interactive folder/file tree with aggregated severity badges, optional hierarchy graph preview, detail panel, category tabs mapped to `report.json` v1, filters, and client-side JSON/Markdown export of the filtered view.
 
-Stacked frontend work targets backend contract in PR #18.
+Canonical JSON Schema: `packages/scan-analysis/schema/report.v1.schema.json` on main. Web types re-export `packages/scan-analysis/src/types.ts`; runtime parsing uses Ajv against the schema file.
 
 ## Gaps / notes
 

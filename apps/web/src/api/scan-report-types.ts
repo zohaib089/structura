@@ -1,86 +1,54 @@
-export type ReportSeverity = 'info' | 'low' | 'medium' | 'high' | 'critical'
-export type ReportProvenance = 'EXTRACTED' | 'INFERRED'
+/**
+ * report.json v1 types for the web app.
+ * Canonical JSON Schema: `packages/scan-analysis/schema/report.v1.schema.json`
+ * TypeScript mirror: `packages/scan-analysis/src/report.v1.types.ts`
+ */
+export type {
+  AnalyserRunStatus,
+  AnalyserStatus,
+  FindingProvenance,
+  FindingSection,
+  HistoryAuthor,
+  HistoryCommit,
+  HistoryFileChurn,
+  HistoryHotspot,
+  HistoryPayload,
+  ScanFinding,
+  ScanImprovement,
+  ScanReport,
+  Severity
+} from '../../../../packages/scan-analysis/src/report.v1.types.ts'
+
+export { REPORT_SCHEMA_VERSION } from '../../../../packages/scan-analysis/src/report.v1.types.ts'
+
+/** Alias used across dashboard report UI */
+export type ScanReportV1 =
+  import('../../../../packages/scan-analysis/src/report.v1.types.ts').ScanReport
+
+export type ReportSeverity =
+  import('../../../../packages/scan-analysis/src/report.v1.types.ts').Severity
 export type ReportSection =
-  | 'history'
-  | 'violations'
-  | 'security'
-  | 'badPractices'
-  | 'improvements'
-  | 'removals'
+  import('../../../../packages/scan-analysis/src/report.v1.types.ts').FindingSection
+export type ReportProvenance =
+  import('../../../../packages/scan-analysis/src/report.v1.types.ts').FindingProvenance
+export type ReportFinding =
+  import('../../../../packages/scan-analysis/src/report.v1.types.ts').ScanFinding
+export type ReportImprovement =
+  import('../../../../packages/scan-analysis/src/report.v1.types.ts').ScanImprovement
+export type ReportHistoryPayload =
+  import('../../../../packages/scan-analysis/src/report.v1.types.ts').HistoryPayload
+export type ReportHistoryCommit =
+  import('../../../../packages/scan-analysis/src/report.v1.types.ts').HistoryCommit
+export type ReportHistoryAuthor =
+  import('../../../../packages/scan-analysis/src/report.v1.types.ts').HistoryAuthor
+export type ReportFileChurn =
+  import('../../../../packages/scan-analysis/src/report.v1.types.ts').HistoryFileChurn
+export type ReportHotspot =
+  import('../../../../packages/scan-analysis/src/report.v1.types.ts').HistoryHotspot
 
-export type AnalyserRunStatus = 'ran' | 'skipped' | 'failed' | 'timeout'
-
-export interface AnalyserStatus {
-  status: AnalyserRunStatus
-  reason?: string
-  durationMs: number
-}
-
-export interface ReportFinding {
-  id: string
-  section: ReportSection
-  severity: ReportSeverity
-  file: string
-  line?: number
-  message: string
-  rule?: string
-  tool?: string
-  provenance: ReportProvenance
-}
-
-export interface ReportImprovement {
-  id: string
-  message: string
-  severity?: ReportSeverity
-  relatedFindingIds: string[]
-}
-
-export interface ReportHistoryCommit {
-  hash: string
-  author: string
-  date: string
-  subject: string
-}
-
-export interface ReportHistoryAuthor {
-  name: string
-  email?: string
-  commitCount: number
-}
-
-export interface ReportFileChurn {
-  path: string
-  additions: number
-  deletions: number
-  commits: number
-}
-
-export interface ReportHotspot {
-  path: string
-  score: number
-}
-
-export interface ReportHistoryPayload {
-  limitedHistory: boolean
-  depthRequested?: number
-  depthAvailable?: number
-  commits: ReportHistoryCommit[]
-  authors: ReportHistoryAuthor[]
-  fileChurn: ReportFileChurn[]
-  hotspots: ReportHotspot[]
-}
-
-export interface ScanReportV1 {
-  schemaVersion: '1.0.0'
-  generatedAt: string
-  analysers: Record<string, AnalyserStatus>
-  history: ReportHistoryPayload | null
-  findings: ReportFinding[]
-  improvements: ReportImprovement[]
-}
-
+/** Client-side export payload (not part of report.json v1). */
 export interface FilteredScanReportExport {
-  schemaVersion: '1.0.0'
+  schemaVersion: typeof import('../../../../packages/scan-analysis/src/report.v1.types.ts').REPORT_SCHEMA_VERSION
   generatedAt: string
   filters: {
     severities: ReportSeverity[]
