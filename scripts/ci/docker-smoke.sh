@@ -7,7 +7,6 @@ cd "$ROOT"
 API_IMAGE="${API_IMAGE:-structura-api:ci}"
 WEB_IMAGE="${WEB_IMAGE:-structura-web:ci}"
 VIEWER_IMAGE="${VIEWER_IMAGE:-structura-viewer:ci}"
-CURL_IMAGE="${CURL_IMAGE:-curlimages/curl:8.10.1}"
 
 if [[ "${SKIP_BUILD:-}" != "1" ]]; then
   docker build -f apps/api/Dockerfile -t "$API_IMAGE" .
