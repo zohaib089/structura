@@ -45,7 +45,9 @@ const TYPE_CONTEXT_NODES = new Set([
   'interface_declaration',
   'extends_type_clause',
   'constraint',
-  'default_type'
+  'default_type',
+  'type_arguments',
+  'type_parameters'
 ])
 const SCOPE_BOUNDARIES = new Set(['statement_block', 'lexical_declaration', 'variable_declaration', 'program'])
 
@@ -195,8 +197,38 @@ function handleImportStatement(state: State, node: Node): void {
   addReference(state, node, 'imports', 'static', hasTypeKeyword(node) || (sawBinding && allTypeOnly), literalValue(node.childForFieldName('source')), namesFromClause(node))
 }
 
+function reexportIsTypeOnly(node: Node): boolean {
+  if (hasTypeKeyword(node)) return true
+  if (/^export\s+type\b/.test(node.text)) return true
+  let sawExport = false
+  for (const child of node.children) {
+    if (child.type === 'type' && !child.isNamed) return true
+    if (child.type === 'namespace_export') sawExport = true
+  }
+  if (sawExport && node.children.some(child => child.type === 'type' && !child.isNamed)) return true
+  const clause = node.children.find(child => child.type === 'export_clause')
+  if (!clause) return false
+  let sawBinding = false
+  let allTypeOnly = true
+  for (const item of clause.namedChildren) {
+    if (item.type !== 'export_specifier') continue
+    sawBinding = true
+    if (!item.children.some(part => part.type === 'type' && !part.isNamed)) allTypeOnly = false
+  }
+  return sawBinding && allTypeOnly
+}
+
 function handleReexport(state: State, node: Node, source: Node): void {
-  addReference(state, node, 'reexports', 'static', hasTypeKeyword(node), literalValue(source), namesFromClause(node))
+  addReference(state, node, 'reexports', 'static', reexportIsTypeOnly(node), literalValue(source), namesFromClause(node))
+}
+
+function importSiteIsTypeOnly(node: Node): boolean {
+  if (isInTypeContext(node)) return true
+  for (let current = node.parent; current; current = current.parent) {
+    if (current.type === 'type_query' || current.type === 'type_arguments' || current.type === 'type_parameters') return true
+    if (current.type === 'unary_expression' && current.children.some(part => part.type === 'typeof' && !part.isNamed)) return true
+  }
+  return false
 }
 
 function handleCallExpression(state: State, node: Node): void {
@@ -207,7 +239,7 @@ function handleCallExpression(state: State, node: Node): void {
   else if (callee.type === 'identifier' && callee.text === 'require') kind = 'require'
   else return
   const first = node.childForFieldName('arguments')?.namedChildren.find(child => child.type !== 'comment') ?? null
-  addReference(state, node, 'imports', kind, kind === 'dynamic' && isInTypeContext(node), literalValue(first))
+  addReference(state, node, 'imports', kind, kind === 'dynamic' && importSiteIsTypeOnly(node), literalValue(first))
 }
 
 const DECLARATION_KINDS: Readonly<Record<string, SymbolKind>> = {
@@ -327,6 +359,7 @@ function collectSymbols(state: State, root: Node): void {
       continue
     }
     if (node.type === 'ambient_declaration') {
+      if (node.text.startsWith('declare module')) continue
       for (let i = node.namedChildren.length - 1; i >= 0; i -= 1) stack.push({ node: node.namedChildren[i] as Node, prefix, exported })
       continue
     }

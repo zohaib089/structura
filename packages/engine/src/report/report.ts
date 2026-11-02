@@ -107,6 +107,9 @@ export function formatCoverageSummary(coverage: Coverage): string {
   const lines = [
     `files: discovered ${files.discovered}, parsed ${files.parsed}, partial ${files.partial}, failed ${files.failed}, skipped ${files.skipped}, ignored ${files.ignored}`
   ]
+  if (coverage.byLanguage.length > 0) {
+    lines.push(`by language: ${coverage.byLanguage.map(row => `${row.language ?? 'other'} parsed ${row.parsed} partial ${row.partial} failed ${row.failed} skipped ${row.skipped}`).join('; ')}`)
+  }
   if (coverage.skipped.length > 0) lines.push(`not parsed: ${coverage.skipped.map(item => `${item.reason} ${item.count}`).join(', ')}`)
   if (coverage.ignored.length > 0) lines.push(`ignored: ${coverage.ignored.map(item => `${item.rule} ${item.count}`).join(', ')}`)
   if (coverage.unresolved.length > 0) lines.push(`unresolved: ${coverage.unresolved.map(item => `${item.reason} ${item.count}`).join(', ')}`)

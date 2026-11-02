@@ -1,4 +1,5 @@
-import { builtinModules } from 'node:module'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { posix } from 'node:path'
 import type { ModuleResolver, ResolveOutcome } from '../adapter.js'
 import type { InferredReason, UnresolvedReason } from '../../graph/types.js'
@@ -25,7 +26,9 @@ const JS_TO_TS: Readonly<Record<string, readonly string[]>> = {
 const BUILD_DIR = /^(?:\.\/)?(?:dist|build|lib|out)\/(.*)$/
 const PACKAGE_NAME = /^(?:@[a-z0-9][\w.-]*\/)?[a-z0-9][\w.-]*$/i
 const CONDITIONS = ['source', 'import', 'default', 'require', 'node', 'types'] as const
-const builtins = new Set(builtinModules.map(name => (name.startsWith('node:') ? name.slice(5) : name)))
+const builtins = new Set(
+  (JSON.parse(readFileSync(fileURLToPath(new URL('../../../data/node-builtins.json', import.meta.url)), 'utf8')) as { modules: string[] }).modules
+)
 
 interface TsConfigInfo {
   /** Repo-relative directory non-relative specifiers resolve against (`compilerOptions.baseUrl`). */
@@ -36,7 +39,7 @@ interface TsConfigInfo {
 
 /** Configuration problems, reported in `coverage.unresolved`; they never change edges. */
 export interface ConfigIssue {
-  reason: 'config-extends-unresolved' | 'config-outside-root'
+  reason: 'config-outside-root'
   /** Config file the problem was found in (never written to graph.json). */
   file: string
 }
@@ -120,7 +123,7 @@ function locateReference(dir: string, spec: string, files: ReadonlySet<string>):
 }
 
 function reportLocated(kind: Exclude<LocatedConfig['kind'], 'found'>, file: string, issues: ConfigIssue[]): void {
-  issues.push({ reason: kind === 'outside' ? 'config-outside-root' : 'config-extends-unresolved', file })
+  if (kind === 'outside') issues.push({ reason: 'config-outside-root', file })
 }
 
 async function followConfig(
@@ -137,9 +140,7 @@ async function followConfig(
     return undefined
   }
   if (stack.has(located.path)) return undefined
-  const info = await loadTsConfig(context, located.path, issues, depth + 1, stack, completed)
-  if (!info) issues.push({ reason: 'config-extends-unresolved', file: fromFile })
-  return info
+  return loadTsConfig(context, located.path, issues, depth + 1, stack, completed)
 }
 
 async function loadTsConfig(

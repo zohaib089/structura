@@ -105,13 +105,13 @@ Failed:
 
 Partial:
 
-`name-too-long`, `syntax-errors`, `too-many-edges`, `too-many-symbols`.
+`limit-exceeded`, `name-too-long`, `syntax-errors`, `too-many-edges`, `too-many-symbols`.
 
 ### unresolved reasons
 
-`config-extends-unresolved`, `config-outside-root`, `non-literal-specifier`, `not-found`, `outside-root`, `target-ignored`, `unsupported-resolution`, `unsupported-specifier`.
+`config-outside-root`, `non-literal-specifier`, `not-found`, `outside-root`, `target-ignored`, `unsupported-resolution`, `unsupported-specifier`.
 
-`config-extends-unresolved` and `config-outside-root` are configuration problems. They appear in `coverage.unresolved` and do not create edges. `unsupported-resolution` is used for out-of-v1 features (`package.json` `imports`, self-`exports`) and may therefore exceed the number of edges. Project references are followed for config discovery; they are not `unsupported-resolution`.
+`config-outside-root` is a configuration problem. It appears in `coverage.unresolved` and does not create edges. Bare package `extends` and unreadable in-root configs are ignored for coverage (paths already loaded still apply). `unsupported-resolution` is used for out-of-v1 features (`package.json` `imports`, self-`exports`) and may therefore exceed the number of edges. Project references are followed for config discovery; they are not `unsupported-resolution`.
 
 A non-literal `import()` or `require()` is an **EXTRACTED** edge. The import site is a fact, so the edge has no `confidence` and no `reason`. `importKind` is `dynamic` for `import()` and `require` for `require()`. `specifier` is the marker `<non-literal>` (not source text). The edge targets an unresolved node with reason `non-literal-specifier`.
 
@@ -171,16 +171,32 @@ discovered = parsed + partial + failed + skipped + ignored
 
 Extracted: tsconfig `paths` and `baseUrl` (a real JSONC parse, so `zustand/*` inside a string is not a comment), a `.js`/`.jsx`/`.mjs`/`.cjs` specifier that lands on `.ts`/`.tsx`/`.mts`/`.cts`, package.json `workspaces` names, relative files, `node:` and Node built-ins, literal `import()`, `require()`, non-literal `import()` and `require()` (specifier `<non-literal>`), static imports, re-exports, and type-only imports.
 
-Config discovery reads `tsconfig.json` and `jsconfig.json`, then follows `extends` and `references` to any other in-root file (for example `tsconfig.app.json`). `paths` and `baseUrl` found that way are extracted. A bare package `extends` such as `@vue/tsconfig/...` is `config-extends-unresolved`. A target that leaves the root is `config-outside-root`.
+Config discovery reads `tsconfig.json` and `jsconfig.json`, then follows `extends` and `references` to any other in-root file (for example `tsconfig.app.json`). `paths` and `baseUrl` found that way are extracted. Only a target that leaves the root is `config-outside-root`.
 
-Inferred: a `dist`/`build`/`lib`/`out` entry mapped back to `src`, a conventional `src/index`, and a `src/` subpath of a workspace package.
+Inferred: a `dist`/`build`/`lib`/`out` entry mapped back to `src`, a conventional `src/index`, and a `src/` subpath of a workspace package. Package.json entry fields that point at build output are mapped to `src/` for `entryCandidate` only. Relative `./dist/...` import specifiers are **not** mapped (package export mapping is OK).
 
-Reported unresolved, never dropped: package `imports` (`#`) and self-`exports`, an `extends` or `references` target that leaves the root or cannot be read (node_modules is not read), non-literal specifiers.
+Reported unresolved, never dropped: package `imports` (`#`) and self-`exports`, an `extends` or `references` target that leaves the root (node_modules is not read), non-literal specifiers.
+
+Only workspace members listed in the root `package.json` `workspaces` field resolve as in-repo packages. Importing the containing package by name from its own tree is `unsupported-resolution`; other packages resolve as `ext:npm:<root>`.
 
 Comments, JSDoc `@example` blocks and commented-out code never create edges. Only the syntax tree does.
 
 ## Strict mode
 
-`--strict` exits 4 after writing the graph when the default thresholds fail. Those defaults fail only on failed files (`maxFailed` 0) and timeouts (`maxTimeout` 0). Partial files and unresolved imports are reported and do not fail the default thresholds (`maxPartial` and `maxUnresolved` are unbounded). The thresholds live in `packages/engine/src/report/strict.ts`.
+`--strict` exits 4 after writing the graph when the default thresholds fail. Those defaults fail on failed files (`maxFailed` 0), timeouts (`maxTimeout` 0), and when a recognised language (`typescript`, `javascript`, `python`) has files in the scan but none were parsed because every file was skipped as `unsupported-language`. Partial files and unresolved imports are reported and do not fail the default thresholds (`maxPartial` and `maxUnresolved` are unbounded). The thresholds live in `packages/engine/src/report/strict.ts`.
+
+## Tech Lead rulings (2026-11)
+
+1. **`typeof import('…')` edges:** Any `import('…')` nested under a `type_query` (including `typeof import('…')` and generic instantiations such as `f<typeof import('…')>()`) is an **EXTRACTED** `imports` edge with `importKind: dynamic` and `typeOnly: true`. Value wins at mixed sites as usual.
+
+2. **Workspace-only in-repo resolution:** Only packages matched by the root `workspaces` patterns are resolved inside the repository. The package's own name imported from within that package is `unsupported-resolution`, not an external.
+
+3. **Module augmentation:** `declare module '…' { … }` blocks do not emit symbol nodes (the string module name is not a path-named symbol).
+
+4. **Strict on recognised-but-unsupported:** With `--strict`, if the scan sees `typescript`, `javascript`, or `python` files and every one is skipped as `unsupported-language` (so `parsed + partial` is 0), the CLI exits 4 after writing the graph.
+
+Symbol `label` values are capped at 4096 Unicode code points in output (truncated without splitting surrogates). When a symbol id would exceed 8192 UTF-16 code units, the symbol is omitted and the file is `partial` with reason `limit-exceeded`.
+
+Python stdlib data pins CPython 3.14 module names; `_typeshed` is listed as typing-only (like stubs). `winreg` is platform-independent in the pinned list for documentation purposes.
 
 `run.json` may be written outside `--out` with `--meta`. That path uses the same output safety as `graph.json`: a symlink is never followed, and an existing file is overwritten only when its JSON shape is a previous run (`command` `"scan"` plus the run counters). Any other file is refused.

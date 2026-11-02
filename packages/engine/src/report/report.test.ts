@@ -13,7 +13,7 @@ test('coverage accounts for every discovered entry and sorts its lists', () => {
       { language: 'typescript', status: 'failed', reason: 'parser-error' }
     ],
     unnoded: [{ language: null, reason: 'unrepresentable-path' }],
-    unresolved: [{ reason: 'not-found', count: 2 }, { reason: 'config-extends-unresolved', count: 1 }]
+    unresolved: [{ reason: 'not-found', count: 2 }, { reason: 'config-outside-root', count: 1 }]
   })
   assert.equal(coverage.files.discovered, 6)
   assert.equal(coverage.files.parsed, 1)
@@ -46,6 +46,7 @@ test('strict mode fails on failed files and timeouts only by default', () => {
     unresolved: [{ reason: 'not-found', count: 4 }]
   })
   const failures = strictFailures(coverage)
-  assert.deepEqual(failures, ['timeouts 1 exceed 0'])
+  assert.equal(failures.includes('timeouts 1 exceed 0'), true)
+  assert.equal(failures.some(item => item.includes('typescript')), false)
   assert.equal(strictFailures(coverage, { maxFailed: 0, maxTimeout: 1, maxPartial: 0, maxUnresolved: 0 }).join('\n').includes('partial'), true)
 })

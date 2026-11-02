@@ -32,6 +32,10 @@ test('help exits 0 and a missing command exits 2', async () => {
   assert.equal(await run(['scan', '--max-file-size', '0'], flag.io), EXIT.usage)
   const both = capture()
   assert.equal(await run(['scan', '--meta', 'run.json', '--no-meta'], both.io), EXIT.usage)
+  const cacheConflict = capture()
+  assert.equal(await run(['scan', '--cache-dir', '/tmp/x', '--no-cache'], cacheConflict.io), EXIT.usage)
+  const unknownFlag = capture()
+  assert.equal(await run(['scan', '--not-a-flag'], unknownFlag.io), EXIT.usage)
 })
 
 test('scan writes graph.json and json mode prints run metadata', async () => {

@@ -83,13 +83,17 @@ describe('imports', () => {
   })
 
   test('re-exports and export symbols', async () => {
-    const content = ["export * from './a'", "export * as ns from './b'", "export { x } from './c'", "export type { T } from './d'", 'export const k = 1', 'export function f() {}', 'export default class {}'].join('\n')
+    const content = ["export * from './a'", "export type * from './at'", "export * as ns from './b'", "export { x } from './c'", "export type { T } from './d'", "export { type B } from './e'", 'export const k = 1', 'export function f() {}', 'export default class {}'].join('\n')
     const result = await parse('src/r.ts', content)
+    const at = result.references.find(reference => reference.specifier === './at')
+    assert.equal(at?.typeOnly, true)
     assert.deepEqual(result.references.map(brief), [
       ['./a', 'reexports', 'static', false],
+      ['./at', 'reexports', 'static', true],
       ['./b', 'reexports', 'static', false],
       ['./c', 'reexports', 'static', false],
-      ['./d', 'reexports', 'static', true]
+      ['./d', 'reexports', 'static', true],
+      ['./e', 'reexports', 'static', true]
     ])
     assert.deepEqual(result.symbols.filter(symbol => symbol.exported).map(symbol => [symbol.label, symbol.symbolKind]), [
       ['k', 'variable'],
@@ -131,12 +135,18 @@ describe('imports', () => {
   })
 
   test('import-equals require and type positions', async () => {
-    const result = await parse('src/ie.ts', "import fs = require('fs')\nlet a: import('./types').Foo\ntype B = typeof import('./b')\n")
+    const result = await parse('src/ie.ts', "import fs = require('fs')\nlet a: import('./types').Foo\ntype B = typeof import('./b')\nf<typeof import('./c')>()\n")
     assert.deepEqual(result.references.map(brief), [
       ['fs', 'imports', 'require', false],
       ['./types', 'imports', 'dynamic', true],
-      ['./b', 'imports', 'dynamic', true]
+      ['./b', 'imports', 'dynamic', true],
+      ['./c', 'imports', 'dynamic', true]
     ])
+  })
+
+  test('declare module augmentation does not emit path-named symbols', async () => {
+    const result = await parse('src/aug.ts', "declare module 'foo' { export const x: number }\nexport const y = 1\n")
+    assert.deepEqual(result.symbols.map(symbol => symbol.label), ['y'])
   })
 
   test('JavaScript and JSX files', async () => {

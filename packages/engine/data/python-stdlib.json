@@ -97,6 +97,7 @@
   "_tokenize",
   "_tracemalloc",
   "_types",
+  "_typeshed",
   "_typing",
   "_uuid",
   "_warnings",

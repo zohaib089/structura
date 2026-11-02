@@ -55,11 +55,10 @@ export const NOT_PARSED_REASONS = [...SKIP_REASONS, ...FAIL_REASONS].sort() as u
 export type NotParsedReason = SkipReason | FailReason
 
 /** Reasons a file was analysed only in part. */
-export const PARTIAL_REASONS = ['name-too-long', 'syntax-errors', 'too-many-edges', 'too-many-symbols'] as const
+export const PARTIAL_REASONS = ['limit-exceeded', 'name-too-long', 'syntax-errors', 'too-many-edges', 'too-many-symbols'] as const
 export type PartialReason = typeof PARTIAL_REASONS[number]
 
 export const UNRESOLVED_REASONS = [
-  'config-extends-unresolved',
   'config-outside-root',
   'non-literal-specifier',
   'not-found',
@@ -74,7 +73,7 @@ export const UNRESOLVED_REASONS = [
  * `coverage.unresolved` (one count per unreadable `extends` or project reference), never on an unresolved node,
  * so edges are identical with and without them.
  */
-export const CONFIG_UNRESOLVED_REASONS: readonly string[] = ['config-extends-unresolved', 'config-outside-root']
+export const CONFIG_UNRESOLVED_REASONS: readonly string[] = ['config-outside-root']
 export type UnresolvedReason = typeof UNRESOLVED_REASONS[number]
 
 export const INFERRED_REASONS = [

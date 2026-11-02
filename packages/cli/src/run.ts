@@ -5,8 +5,11 @@ import {
   AccountingError,
   GraphVersionUnsupported,
   InterruptedError,
+  MaxFilesExceeded,
   OutputRefusedError,
+  ScanRootError,
   StrictCoverageError,
+  escapeTerminal,
   scanRepository,
   type LimitOverrides,
   type ScanOptions
@@ -25,6 +28,7 @@ export class UsageError extends Error {
 export function exitCodeFor(error: unknown): number {
   if (error instanceof GraphVersionUnsupported) return EXIT.usage
   if (error instanceof UsageError || error instanceof OutputRefusedError) return EXIT.usage
+  if (error instanceof MaxFilesExceeded || error instanceof ScanRootError) return EXIT.usage
   if (error instanceof AccountingError) return EXIT.accounting
   if (error instanceof StrictCoverageError) return EXIT.strict
   if (error instanceof InterruptedError) return EXIT.interrupted
@@ -91,7 +95,9 @@ export async function run(argv: readonly string[], io: RunIo = {
     }
     const [command, ...rest] = argv
     if (command !== 'scan') throw new UsageError(`unknown command "${command}". Expected: scan`)
-    const parsed = parseArgs({
+    let parsed
+    try {
+      parsed = parseArgs({
       args: [...rest],
       allowPositionals: true,
       strict: true,
@@ -111,7 +117,17 @@ export async function run(argv: readonly string[], io: RunIo = {
         jobs: { type: 'string' }
       }
     })
+    } catch (error) {
+      if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION') {
+        const message = 'message' in error && typeof (error as { message: unknown }).message === 'string'
+          ? (error as { message: string }).message
+          : 'unknown option'
+        throw new UsageError(message)
+      }
+      throw error
+    }
     if (parsed.values.meta !== undefined && parsed.values['no-meta']) throw new UsageError('--meta and --no-meta cannot be combined')
+    if (parsed.values['cache-dir'] && parsed.values['no-cache']) throw new UsageError('--cache-dir and --no-cache cannot be combined')
     if (parsed.positionals.length > 1) throw new UsageError('scan accepts at most one path')
     const limits: LimitOverrides = {}
     const maxFileSizeBytes = integerFlag(parsed.values['max-file-size'], '--max-file-size')
@@ -137,21 +153,21 @@ export async function run(argv: readonly string[], io: RunIo = {
     const output = await scanRepository(target, scanOptions)
     const summary = output.run.redactions > 0 ? `${output.summary}\nredactions: ${output.run.redactions}` : output.summary
     if (parsed.values.json) {
-      io.stdout(`${JSON.stringify(output.run)}\n`)
-      io.stderr(`${summary}\n`)
+      io.stdout(`${JSON.stringify({ ...output.run, coverage: output.graph.coverage })}\n`)
+      io.stderr(`${escapeTerminal(summary)}\n`)
     } else {
-      io.stdout(`${summary}\n`)
-      io.stdout(`wrote ${output.graphPath}\n`)
+      io.stdout(`${escapeTerminal(summary)}\n`)
+      io.stdout(`${escapeTerminal(`wrote ${output.graphPath}`)}\n`)
     }
     if (output.strictFailures.length > 0) {
-      io.stderr(`${output.strictFailures.join('\n')}\n`)
+      io.stderr(`${escapeTerminal(output.strictFailures.join('\n'))}\n`)
       return EXIT.strict
     }
     return EXIT.ok
   } catch (error) {
     const code = exitCodeFor(error)
     const message = error instanceof Error ? error.message : String(error)
-    io.stderr(`${message}\n`)
+    io.stderr(`${escapeTerminal(message)}\n`)
     return code
   }
 }

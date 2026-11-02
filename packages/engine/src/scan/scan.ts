@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { constants as fsConstants } from 'node:fs'
-import { lstat, mkdir, open, readFile, realpath } from 'node:fs/promises'
+import { lstat, mkdir, open, readFile, realpath, rename, unlink } from 'node:fs/promises'
 import { isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { CONFIG_FILE, GRAPH_FILE, OUT_DIR, PRODUCT_NAME, RUN_FILE } from '../brand.js'
@@ -32,7 +32,8 @@ import type {
 } from '../graph/types.js'
 import { resolveLimits, type LimitOverrides, type ResolvedLimits } from '../limits.js'
 import { O_NOFOLLOW, readConfigText } from '../walker/safe-fs.js'
-import { readWalkedFile, walkRepository, type WalkFile, type WalkResult } from '../walker/walk.js'
+import { MaxFilesExceeded, ScanRootError, readWalkedFile, walkRepository, type WalkFile, type WalkResult } from '../walker/walk.js'
+import { truncateCodePoints } from '../text/unicode.js'
 import { decodeSource } from './decode.js'
 import { findEntryCandidates, readJsonValue } from './entries.js'
 import { parseRepoLimits } from './repo-limits.js'
@@ -157,12 +158,20 @@ function linkDirectory(builder: GraphBuilder, filePath: string): void {
   builder.addEdge(contains(currentParent, fileId(filePath)))
 }
 
-function addSymbols(builder: GraphBuilder, filePath: string, facts: AdapterParseResult): void {
+const MAX_LABEL_CODE_POINTS = 4096
+const MAX_SYMBOL_ID_UNITS = 8192
+
+function addSymbols(builder: GraphBuilder, filePath: string, facts: AdapterParseResult): boolean {
   const counts = new Map<string, number>()
   const firstId = new Map<string, string>()
   const created: Array<{ name: string; id: string }> = []
+  let limitExceeded = false
   for (const symbol of facts.symbols) {
     const base = symbolId(filePath, symbol.qualifiedName)
+    if (base.length > MAX_SYMBOL_ID_UNITS) {
+      limitExceeded = true
+      continue
+    }
     const seen = (counts.get(base) ?? 0) + 1
     counts.set(base, seen)
     const id = seen === 1 ? base : `${base}~${seen}`
@@ -171,7 +180,7 @@ function addSymbols(builder: GraphBuilder, filePath: string, facts: AdapterParse
       id,
       kind: 'symbol',
       file: fileId(filePath),
-      label: symbol.label,
+      label: truncateCodePoints(symbol.label, MAX_LABEL_CODE_POINTS),
       symbolKind: symbol.symbolKind,
       exported: symbol.exported,
       span: symbol.span
@@ -185,6 +194,7 @@ function addSymbols(builder: GraphBuilder, filePath: string, facts: AdapterParse
     const parentId = parentName ? firstId.get(parentName) : undefined
     builder.addEdge(contains(parentId ?? fileId(filePath), symbol.id))
   }
+  return limitExceeded
 }
 
 function rememberTarget(builder: GraphBuilder, outcome: ResolveOutcome, importer: string, specifier: string): { id: string; inferred?: { reason: InferredReason; confidence: number } } {
@@ -258,17 +268,27 @@ function isPreviousRunMeta(value: unknown): boolean {
     && typeof memory.external === 'number'
 }
 
-async function writeExclusive(path: string, contents: string): Promise<void> {
+async function writeExclusive(path: string, contents: string, temporaries: string[]): Promise<void> {
   await mkdir(resolve(path, '..'), { recursive: true })
+  const temporary = `${path}.${process.pid}.tmp`
+  temporaries.push(temporary)
   let handle
   try {
-    handle = await open(path, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_TRUNC | O_NOFOLLOW, 0o644)
+    handle = await open(temporary, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_TRUNC | O_NOFOLLOW, 0o644)
     await handle.writeFile(contents, 'utf8')
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ELOOP') throw new OutputRefusedError(`refusing to write through a symlink at ${path}`)
     throw error
   } finally {
     await handle?.close()
+  }
+  try {
+    await rename(temporary, path)
+    temporaries.pop()
+  } catch (error) {
+    await unlink(temporary).catch(() => undefined)
+    temporaries.pop()
+    throw error
   }
 }
 
@@ -282,7 +302,8 @@ async function preloadConfigs(walk: WalkResult, texts: Map<string, string>, maxB
   }
 }
 
-function partialReason(result: AdapterParseResult): PartialReason | undefined {
+function partialReason(result: AdapterParseResult, limitExceeded = false): PartialReason | undefined {
+  if (limitExceeded) return 'limit-exceeded'
   if (result.omitted.symbols > 0) return 'too-many-symbols'
   if (result.omitted.edges > 0) return 'too-many-edges'
   if (result.omitted.longNames > 0) return 'name-too-long'
@@ -387,19 +408,31 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
   const repoText = await readConfigText(join(rootAbs, CONFIG_FILE), resolveLimits().maxConfigFileBytes)
   const limits = resolveLimits(options.limits ?? {}, repoText ? parseRepoLimits(repoText) : {})
   const outDir = resolve(options.outDir ?? join(rootAbs, OUT_DIR))
+  if (outDir === rootAbs) throw new OutputRefusedError('--out cannot be the scan root')
   const graphPath = join(outDir, GRAPH_FILE)
   const cacheDirectory = options.noCache ? undefined : resolve(options.cacheDir ?? defaultCacheDir(rootAbs))
   const hardExcludePaths = [outDir]
   if (cacheDirectory && isInsideRoot(rootAbs, cacheDirectory)) hardExcludePaths.push(cacheDirectory)
+  if (options.metaPath) {
+    const metaAbs = resolve(options.metaPath)
+    if (metaAbs !== rootAbs && isInsideRoot(rootAbs, metaAbs)) hardExcludePaths.push(metaAbs)
+  }
 
-  const walk = await walkRepository(rootAbs, {
-    limits,
-    include: options.include,
-    respectGitignore: options.respectGitignore,
-    useDefaultIgnores: options.useDefaultIgnores,
-    extraIgnorePatterns: options.extraIgnorePatterns,
-    hardExcludePaths
-  })
+  let walk: WalkResult
+  try {
+    walk = await walkRepository(rootAbs, {
+      limits,
+      include: options.include,
+      respectGitignore: options.respectGitignore,
+      respectToolIgnore: false,
+      useDefaultIgnores: options.useDefaultIgnores,
+      extraIgnorePatterns: options.extraIgnorePatterns,
+      hardExcludePaths
+    })
+  } catch (error) {
+    if (error instanceof MaxFilesExceeded || error instanceof ScanRootError) throw error
+    throw error
+  }
 
   const pool = new ParsePool(limits.jobs, { workerMaxFiles: limits.workerMaxFiles, workerMaxMemoryBytes: limits.workerMaxMemoryBytes })
   const adapter = createTypeScriptJavaScriptAdapter({ pool })
@@ -439,6 +472,14 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
   builder.addNode({ id: ROOT_DIR_ID, kind: 'directory', path: ROOT_PATH, label: ROOT_PATH })
   for (const record of records) {
     linkDirectory(builder, record.path)
+    const facts = parsed.get(record.path)
+    if (facts) {
+      const limitExceeded = addSymbols(builder, record.path, facts)
+      if (limitExceeded) {
+        record.status = 'partial'
+        record.reason = partialReason(facts, true)
+      }
+    }
     const node: FileNode = {
       id: fileId(record.path),
       kind: 'file',
@@ -451,8 +492,6 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
       ...(record.entry ? { entryCandidate: record.entry } : {})
     }
     builder.addNode(node)
-    const facts = parsed.get(record.path)
-    if (facts) addSymbols(builder, record.path, facts)
   }
 
   const filesByPath = new Map(walk.files.map(file => [file.path, file]))
@@ -463,7 +502,7 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
       const cached = texts.get(path)
       if (cached !== undefined) return cached
       // Extended configs (tsconfig.base.json and similar) are not named tsconfig.json, so they are
-      // read on demand. A missing or oversized file stays unresolved as config-extends-unresolved.
+      // read on demand. Missing extended configs are skipped silently.
       const file = filesByPath.get(path)
       if (!file) return undefined
       const text = await readConfigText(file.absPath, limits.maxConfigFileBytes)
@@ -557,13 +596,26 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
     memory: { heapUsed: memory.heapUsed, rss: memory.rss, external: memory.external }
   }
 
-  await assertReplaceable(graphPath, 'graph')
-  await writeExclusive(graphPath, graphJson)
+  const temporaries: string[] = []
+  const removeTemps = async (): Promise<void> => {
+    await Promise.all(temporaries.map(path => unlink(path).catch(() => undefined)))
+  }
+  if (options.signal?.aborted) {
+    await removeTemps()
+    throw new InterruptedError()
+  }
   let runPath: string | undefined
-  if (options.metaPath !== null) {
-    runPath = options.metaPath ? resolve(options.metaPath) : join(outDir, RUN_FILE)
-    await assertReplaceable(runPath, 'meta')
-    await writeExclusive(runPath, `${JSON.stringify(run, null, 2)}\n`)
+  try {
+    await assertReplaceable(graphPath, 'graph')
+    await writeExclusive(graphPath, graphJson, temporaries)
+    if (options.metaPath !== null) {
+      runPath = options.metaPath ? resolve(options.metaPath) : join(outDir, RUN_FILE)
+      await assertReplaceable(runPath, 'meta')
+      await writeExclusive(runPath, `${JSON.stringify(run, null, 2)}\n`, temporaries)
+    }
+  } catch (error) {
+    await removeTemps()
+    throw error
   }
 
   return {

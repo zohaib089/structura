@@ -6,6 +6,8 @@ const CONVENTIONAL = new Set([
   'main.ts', 'main.js', 'main.mjs', 'main.py', '__main__.py'
 ])
 
+const BUILD_DIR = /^(?:\.\/)?(?:dist|build|lib|out)\/(.*)$/
+
 const RANK: Record<EntryReason, number> = {
   'package-exports': 5,
   'package-main': 4,
@@ -21,6 +23,18 @@ function dirOf(path: string): string {
 
 function baseName(path: string): string {
   return path.slice(path.lastIndexOf('/') + 1)
+}
+
+function resolveEntryPath(dir: string, rel: string, files: ReadonlySet<string>): string | undefined {
+  const direct = joinRepo(dir, rel)
+  if (direct && files.has(direct)) return direct
+  const normalized = rel.replace(/^\.\//, '')
+  const mapped = BUILD_DIR.exec(normalized)
+  if (mapped) {
+    const source = joinRepo(dir, `src/${mapped[1] ?? ''}`)
+    if (source && files.has(source)) return source
+  }
+  return direct
 }
 
 function joinRepo(dir: string, rel: string): string | undefined {
@@ -80,19 +94,19 @@ export function findEntryCandidates(files: ReadonlySet<string>, readJson: (path:
     const json = readJson(file)
     if (!isObject(json)) continue
     for (const field of ['main', 'module'] as const) {
-      if (typeof json[field] === 'string') mark(joinRepo(dir, json[field]), 'package-main', 'EXTRACTED')
+      if (typeof json[field] === 'string') mark(resolveEntryPath(dir, json[field], files), 'package-main', 'EXTRACTED')
     }
     const exportsValue = json.exports
     if (exportsValue !== undefined) {
       const paths: string[] = []
       exportPaths(exportsValue, paths)
-      for (const rel of paths) mark(joinRepo(dir, rel), 'package-exports', 'EXTRACTED')
+      for (const rel of paths) mark(resolveEntryPath(dir, rel, files), 'package-exports', 'EXTRACTED')
     }
     const bin = json.bin
-    if (typeof bin === 'string') mark(joinRepo(dir, bin), 'package-bin', 'EXTRACTED')
+    if (typeof bin === 'string') mark(resolveEntryPath(dir, bin, files), 'package-bin', 'EXTRACTED')
     else if (isObject(bin)) {
       for (const value of Object.values(bin)) {
-        if (typeof value === 'string') mark(joinRepo(dir, value), 'package-bin', 'EXTRACTED')
+        if (typeof value === 'string') mark(resolveEntryPath(dir, value, files), 'package-bin', 'EXTRACTED')
       }
     }
     if (isObject(json.scripts)) {
@@ -100,7 +114,7 @@ export function findEntryCandidates(files: ReadonlySet<string>, readJson: (path:
         if (typeof value !== 'string') continue
         const node = /\bnode\s+(\.[^\s]+|\S+\.(?:js|mjs|cjs|ts|tsx|mts|cts))\b/.exec(value)
         const rel = node?.[1] ?? (/^\.[^\s]+$/.test(value) ? value : undefined)
-        if (rel) mark(joinRepo(dir, rel), 'package-script', 'INFERRED')
+        if (rel) mark(resolveEntryPath(dir, rel, files), 'package-script', 'INFERRED')
       }
     }
   }

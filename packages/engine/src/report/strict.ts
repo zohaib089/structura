@@ -28,8 +28,23 @@ export class StrictCoverageError extends Error {
 }
 
 /** Messages for thresholds that the coverage report misses. Empty means `--strict` passes. */
-export function strictFailures(coverage: Coverage, thresholds: StrictThresholds = DEFAULT_STRICT_THRESHOLDS): string[] {
+const RECOGNISED_LANGUAGES = ['typescript', 'javascript', 'python'] as const
+
+function recognisedLanguageFailures(coverage: Coverage): string[] {
   const failures: string[] = []
+  for (const language of RECOGNISED_LANGUAGES) {
+    const row = coverage.byLanguage.find(item => item.language === language)
+    if (!row) continue
+    const total = row.parsed + row.partial + row.failed + row.skipped
+    if (total === 0) continue
+    if (row.parsed + row.partial > 0) continue
+    if (row.skipped === total) failures.push(`${language}: ${total} file(s) skipped with none parsed (unsupported-language)`)
+  }
+  return failures
+}
+
+export function strictFailures(coverage: Coverage, thresholds: StrictThresholds = DEFAULT_STRICT_THRESHOLDS): string[] {
+  const failures: string[] = [...recognisedLanguageFailures(coverage)]
   if (coverage.files.failed > thresholds.maxFailed) {
     failures.push(`failed files ${coverage.files.failed} exceed ${thresholds.maxFailed}`)
   }

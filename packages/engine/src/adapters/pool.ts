@@ -41,9 +41,11 @@ const BACKSTOP_GRACE_MS = 2_000
 
 function workerLaunch(): { url: URL; execArgv: string[] } {
   const source = import.meta.url.endsWith('.ts')
+  const tripwire = new URL(source ? './parse-tripwire.ts' : './parse-tripwire.js', import.meta.url)
+  const execArgv = source ? ['--import', 'tsx', '--import', tripwire.href] : ['--import', tripwire.href]
   return {
     url: new URL(source ? './parse-worker.ts' : './parse-worker.js', import.meta.url),
-    execArgv: source ? ['--import', 'tsx'] : []
+    execArgv
   }
 }
 

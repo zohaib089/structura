@@ -96,7 +96,19 @@ export function checkAgainstSchema(root: Schema, value: unknown, options: CheckO
     }
     if (typeof data === 'string') {
       if (typeof schema.minLength === 'number' && data.length < schema.minLength) return fail(`must not be shorter than ${schema.minLength}`)
+      if (typeof schema.maxLength === 'number' && data.length > schema.maxLength) return fail(`must not be longer than ${schema.maxLength}`)
       if (typeof schema.pattern === 'string' && !regex(schema.pattern).test(data)) return fail(`must match ${schema.pattern}`)
+    }
+
+    if (isPlainObject(data) && schema.if !== undefined && schema.then !== undefined) {
+      const condition = check(schema.if as Schema, data, path)
+      if (condition.issues.length === 0) {
+        const thenSchema = schema.then as Schema
+        const branches = Array.isArray(thenSchema.allOf) ? (thenSchema.allOf as Schema[]) : [thenSchema]
+        for (const branch of branches) {
+          issues.push(...check(branch, data, path).issues)
+        }
+      }
     }
 
     if (Array.isArray(schema.oneOf)) {
