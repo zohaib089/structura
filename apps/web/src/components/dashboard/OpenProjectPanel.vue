@@ -58,7 +58,7 @@ async function runScan(create: () => Promise<Scan>) {
     phase.value = 'polling'
     const finished = await pollScanUntilTerminal(props.workspaceId, scan.id)
     if (finished.status === 'failed') {
-      error.value = finished.error ?? messages.value.scanFailed
+      error.value = finished.errorMessage ?? messages.value.scanFailed
     }
     emit('scanFinished', finished)
   } catch (cause) {

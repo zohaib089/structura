@@ -7,6 +7,25 @@ vi.mock('../../src/api/scans', () => ({
 
 import { getScan } from '../../src/api/scans'
 
+const now = new Date().toISOString()
+
+function mockScan(status: 'queued' | 'running' | 'succeeded') {
+  return {
+    id: 'scan-1',
+    workspaceId: 'workspace-1',
+    requestedBy: 'user-1',
+    source: 'git' as const,
+    url: 'https://github.com/acme/app',
+    branch: null,
+    status,
+    errorMessage: null,
+    createdAt: now,
+    updatedAt: now,
+    startedAt: status === 'queued' ? null : now,
+    finishedAt: status === 'succeeded' ? now : null
+  }
+}
+
 describe('pollScanUntilTerminal', () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -19,36 +38,9 @@ describe('pollScanUntilTerminal', () => {
 
   it('backs off until the scan reaches a terminal status', async () => {
     vi.mocked(getScan)
-      .mockResolvedValueOnce({
-        id: 'scan-1',
-        source: 'git',
-        url: 'https://github.com/acme/app',
-        branch: null,
-        upload_name: null,
-        status: 'queued',
-        created_at: new Date().toISOString(),
-        error: null
-      })
-      .mockResolvedValueOnce({
-        id: 'scan-1',
-        source: 'git',
-        url: 'https://github.com/acme/app',
-        branch: null,
-        upload_name: null,
-        status: 'running',
-        created_at: new Date().toISOString(),
-        error: null
-      })
-      .mockResolvedValueOnce({
-        id: 'scan-1',
-        source: 'git',
-        url: 'https://github.com/acme/app',
-        branch: null,
-        upload_name: null,
-        status: 'succeeded',
-        created_at: new Date().toISOString(),
-        error: null
-      })
+      .mockResolvedValueOnce(mockScan('queued'))
+      .mockResolvedValueOnce(mockScan('running'))
+      .mockResolvedValueOnce(mockScan('succeeded'))
 
     const updates: string[] = []
     const promise = pollScanUntilTerminal('workspace-1', 'scan-1', {

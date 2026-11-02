@@ -6,8 +6,28 @@ import {
   createUploadScan,
   getScan,
   getScanGraph,
-  listScans
+  listScans,
+  type Scan
 } from '../../src/api/scans'
+
+function sampleScan(overrides: Partial<Scan> = {}): Scan {
+  const now = new Date().toISOString()
+  return {
+    id: 'scan-1',
+    workspaceId: 'workspace-1',
+    requestedBy: 'user-1',
+    source: 'git',
+    url: 'https://github.com/acme/app',
+    branch: 'main',
+    status: 'queued',
+    errorMessage: null,
+    createdAt: now,
+    updatedAt: now,
+    startedAt: null,
+    finishedAt: null,
+    ...overrides
+  }
+}
 
 describe('scans API client', () => {
   beforeEach(() => {
@@ -30,18 +50,10 @@ describe('scans API client', () => {
   it('lists scans with bearer auth and validates records', async () => {
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
+      status: 200,
       json: async () => ({
         success: true,
-        scans: [{
-          id: 'scan-1',
-          source: 'git',
-          url: 'https://github.com/acme/app',
-          branch: 'main',
-          upload_name: null,
-          status: 'succeeded',
-          created_at: new Date().toISOString(),
-          error: null
-        }]
+        scans: [sampleScan({ status: 'succeeded', finishedAt: new Date().toISOString() })]
       })
     } as Response)
 
@@ -56,21 +68,13 @@ describe('scans API client', () => {
     )
   })
 
-  it('creates git scans as JSON POST bodies', async () => {
+  it('creates git scans as JSON POST bodies and accepts HTTP 202', async () => {
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
+      status: 202,
       json: async () => ({
         success: true,
-        scan: {
-          id: 'scan-2',
-          source: 'git',
-          url: 'https://github.com/acme/app',
-          branch: null,
-          upload_name: null,
-          status: 'queued',
-          created_at: new Date().toISOString(),
-          error: null
-        }
+        scan: sampleScan({ branch: 'dev' })
       })
     } as Response)
 
@@ -88,18 +92,14 @@ describe('scans API client', () => {
   it('uploads folder archives as multipart form data', async () => {
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
+      status: 202,
       json: async () => ({
         success: true,
-        scan: {
-          id: 'scan-3',
+        scan: sampleScan({
           source: 'upload',
           url: null,
-          branch: null,
-          upload_name: 'repo.zip',
-          status: 'queued',
-          created_at: new Date().toISOString(),
-          error: null
-        }
+          branch: null
+        })
       })
     } as Response)
 
@@ -114,6 +114,7 @@ describe('scans API client', () => {
     const sampleText = readFileSync(resolve('fixtures/sample-graph.json'), 'utf8')
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
+      status: 200,
       json: async () => ({ success: true, graph: JSON.parse(sampleText) })
     } as Response)
 
@@ -121,21 +122,33 @@ describe('scans API client', () => {
     expect(graph.summary.files).toBe(3)
   })
 
+  it('surfaces graph-not-ready 409 responses from the API', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: false,
+      status: 409,
+      json: async () => ({
+        success: false,
+        message: 'Graph is not ready yet.',
+        status: 'running'
+      })
+    } as Response)
+
+    await expect(getScanGraph('workspace-1', 'scan-1')).rejects.toThrow('Graph is not ready yet.')
+  })
+
   it('polls individual scans by id', async () => {
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
+      status: 200,
       json: async () => ({
         success: true,
-        scan: {
+        scan: sampleScan({
           id: 'scan-4',
-          source: 'git',
           url: 'https://gitlab.com/acme/app',
           branch: null,
-          upload_name: null,
           status: 'running',
-          created_at: new Date().toISOString(),
-          error: null
-        }
+          startedAt: new Date().toISOString()
+        })
       })
     } as Response)
 

@@ -29,7 +29,7 @@ let pollAbort: AbortController | null = null
 
 const selectedScan = computed(() => scans.value.find(scan => scan.id === selectedScanId.value) ?? null)
 const recentScans = computed(() =>
-  [...scans.value].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).slice(0, 5)
+  [...scans.value].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).slice(0, 5)
 )
 
 async function loadScans() {

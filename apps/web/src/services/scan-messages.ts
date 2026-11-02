@@ -69,7 +69,7 @@ const en: ScanMessages = {
     })[status]
   },
   scanSourceLabel(scan) {
-    if (scan.source === 'upload') return scan.upload_name ?? 'Folder upload'
+    if (scan.source === 'upload') return 'Folder upload'
     const branch = scan.branch ? `@${scan.branch}` : ''
     return `${scan.url ?? 'Git remote'}${branch}`
   },

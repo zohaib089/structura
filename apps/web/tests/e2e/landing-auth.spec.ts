@@ -406,13 +406,17 @@ test('dashboard navigation opens graph insights and manages workspace invitation
 
   const succeededScan = {
     id: 'scan-1',
+    workspaceId: 'workspace-1',
+    requestedBy: 'user-1',
     source: 'git',
     url: 'https://github.com/acme/sample',
     branch: 'main',
-    upload_name: null,
     status: 'succeeded',
-    created_at: new Date().toISOString(),
-    error: null
+    errorMessage: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    startedAt: new Date().toISOString(),
+    finishedAt: new Date().toISOString()
   }
   await mockScanGraph(page)
   await mockWorkspaceScans(page, [succeededScan])

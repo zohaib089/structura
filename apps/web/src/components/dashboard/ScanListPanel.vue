@@ -50,9 +50,9 @@ function formatDate(value: string) {
           <span class="scan-source">{{ messages.scanSourceLabel(scan) }}</span>
           <span class="scan-meta">
             <span class="status" :data-status="scan.status">{{ messages.scanStatus(scan.status) }}</span>
-            <time :datetime="scan.created_at">{{ formatDate(scan.created_at) }}</time>
+            <time :datetime="scan.createdAt">{{ formatDate(scan.createdAt) }}</time>
           </span>
-          <span v-if="scan.status === 'failed' && scan.error" class="scan-error">{{ scan.error }}</span>
+          <span v-if="scan.status === 'failed' && scan.errorMessage" class="scan-error">{{ scan.errorMessage }}</span>
         </button>
       </li>
     </ul>
