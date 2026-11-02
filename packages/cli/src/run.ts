@@ -1,6 +1,8 @@
-import { dirname, resolve } from 'node:path'
+import { dirname, resolve, join } from 'node:path'
+import { access, writeFile } from 'node:fs/promises'
 import { parseArgs } from 'node:util'
 import { CLI_BIN, CONFIG_FILE, GRAPH_FILE, OUT_DIR, PRODUCT_NAME, RUN_FILE } from '@atlasmith/engine'
+import { runScanAnalysis } from '@atlasmith/scan-analysis'
 import {
   AccountingError,
   GraphReadError,
@@ -72,6 +74,7 @@ function helpText(): string {
     '  --max-depth <n>       Max directory depth',
     '  --jobs <n>            Parser worker count',
     '  --branch <name>       Git branch to clone when scanning an https GitHub/GitLab URL',
+    '  --report              Write report.json next to graph.json (offline analysis)',
     '  -h, --help            Show this help',
     '',
     'Query reads an existing graph.json (nodes by default; edges when --type, --from, or --to is set).',
@@ -127,7 +130,8 @@ export async function run(argv: readonly string[], io: RunIo = {
         'max-files': { type: 'string' },
         'max-depth': { type: 'string' },
         jobs: { type: 'string' },
-        branch: { type: 'string' }
+        branch: { type: 'string' },
+        report: { type: 'boolean', default: false }
       }
     })
     } catch (error) {
@@ -203,6 +207,19 @@ export async function run(argv: readonly string[], io: RunIo = {
     if (output.strictFailures.length > 0) {
       io.stderr(`${escapeTerminal(output.strictFailures.join('\n'))}\n`)
       return EXIT.strict
+    }
+    if (parsed.values.report) {
+      const hasGit = await access(join(resolved.path, '.git')).then(() => true).catch(() => false)
+      const report = await runScanAnalysis({
+        rootDir: resolved.path,
+        graph: output.graph,
+        hasGit
+      })
+      const reportPath = join(dirname(output.graphPath), 'report.json')
+      await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8')
+      if (!parsed.values.json) {
+        io.stdout(`${escapeTerminal(`wrote ${reportPath}`)}\n`)
+      }
     }
     return EXIT.ok
   } catch (error) {

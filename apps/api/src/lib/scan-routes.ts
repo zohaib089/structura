@@ -193,6 +193,40 @@ export function registerWorkspaceScanRoutes(app: FastifyInstance, database: Work
       return { success: true, graph: scan.graph_json }
     }
   )
+
+  app.get<{ Params: { workspaceId: string; scanId: string } }>(
+    '/api/workspaces/:workspaceId/scans/:scanId/report',
+    async (request, reply) => {
+      const userId = await authenticatedUserId(request.headers.authorization, database)
+      if (!userId) return unauthenticated(reply)
+      if (!(await requireWorkspaceMember(database, request.params.workspaceId, userId))) {
+        return reply.code(404).send({ success: false, message: 'Workspace not found.' })
+      }
+
+      const result = await database.query(
+        `SELECT status, report_json
+         FROM workspace_scans
+         WHERE workspace_id = $1 AND id = $2`,
+        [request.params.workspaceId, request.params.scanId]
+      )
+      const scan = result.rows[0]
+      if (!scan) {
+        return reply.code(404).send({ success: false, message: 'Scan not found.' })
+      }
+      if (scan.status === 'queued' || scan.status === 'running') {
+        return reply.code(409).send({
+          success: false,
+          message: 'Report is not ready yet.',
+          status: scan.status
+        })
+      }
+      if (scan.status === 'failed' || scan.report_json == null) {
+        return reply.code(404).send({ success: false, message: 'Report is not available for this scan.' })
+      }
+
+      return { success: true, report: scan.report_json }
+    }
+  )
 }
 
 async function createUploadScan(

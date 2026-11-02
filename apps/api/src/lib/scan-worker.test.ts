@@ -36,6 +36,7 @@ test('scan worker stores graph json after a mocked successful scan', async () =>
       const statusIndex = text.indexOf('status = $1')
       if (statusIndex >= 0) scan.status = String(params[0])
       if (text.includes('graph_json =')) scan.graph_json = { schema: 'graph.v1' }
+      if (text.includes('report_json =')) scan.report_json = params.find(value => typeof value === 'object' && value !== null && 'schemaVersion' in (value as object)) ?? { schemaVersion: '1.0.0' }
       if (text.includes('error_message =')) scan.error_message = params[1]
       return { rows: [] }
     }
@@ -61,11 +62,20 @@ test('scan worker stores graph json after a mocked successful scan', async () =>
       summary: 'ok',
       elapsedMs: 1,
       root: directoryPlaceholder()
+    }),
+    runAnalysis: async () => ({
+      schemaVersion: '1.0.0',
+      generatedAt: '2026-11-02T00:00:01.000Z',
+      analysers: {},
+      history: null,
+      findings: [],
+      improvements: []
     })
   })
 
   assert.equal(scans.get('scan-1')?.status, 'succeeded')
   assert.deepEqual(scans.get('scan-1')?.graph_json, { schema: 'graph.v1' })
+  assert.equal((scans.get('scan-1')?.report_json as { schemaVersion?: string })?.schemaVersion, '1.0.0')
 })
 
 function directoryPlaceholder(): string {
