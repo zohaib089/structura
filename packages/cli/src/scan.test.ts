@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import test from 'node:test'
 import { GRAPH_FILE, RUN_FILE } from '@atlasmith/engine'
 import { AccountingError, MaxFilesExceeded, ScanRootError, StrictCoverageError } from '@atlasmith/engine'
@@ -86,6 +86,22 @@ test('scan exits 2 for a missing root and for max-files exceeded', async () => {
   } finally {
     rmSync(root, { recursive: true, force: true })
     rmSync(out, { recursive: true, force: true })
+  }
+})
+
+test('scan --out ending in .json writes that path as the graph file', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'cli-scan-json-out-'))
+  writeFileSync(join(root, 'main.ts'), 'export const x = 1\n')
+  const graphOut = join(mkdtempSync(join(tmpdir(), 'cli-graph-file-')), 'graph.json')
+  const cap = capture()
+  try {
+    assert.equal(await run(['scan', root, '--out', graphOut, '--no-cache', '--jobs', '1'], cap.io), EXIT.ok)
+    assert.match(cap.stdout, new RegExp(`wrote ${graphOut.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`))
+    assert.equal(readFileSync(graphOut, 'utf8').includes('"schemaVersion": "1.0.0"'), true)
+    assert.throws(() => readFileSync(join(graphOut, GRAPH_FILE), 'utf8'))
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+    rmSync(dirname(graphOut), { recursive: true, force: true })
   }
 })
 

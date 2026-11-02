@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -176,6 +176,21 @@ test('repo config can only lower a limit and an explicit flag replaces it', asyn
     assert.equal(parsed?.kind === 'file' && parsed.parse.status, 'parsed')
   } finally {
     cleanup()
+  }
+})
+
+test('an explicit graph file path writes that file instead of nesting graph.json', async () => {
+  const { root, cleanup } = makeTree({ 'src/app.ts': 'export const value = 1\n' })
+  const outDir = mkdtempSync(join(tmpdir(), 'scan-out-'))
+  const graphFile = join(outDir, 'custom.json')
+  try {
+    const result = await scanRepository(root, { outDir, graphPath: graphFile, noCache: true, metaPath: null, limits: { jobs: 1 } })
+    assert.equal(result.graphPath, graphFile)
+    assert.equal(readFileSync(graphFile, 'utf8'), result.graphJson)
+    assert.throws(() => readFileSync(join(graphFile, GRAPH_FILE), 'utf8'))
+  } finally {
+    cleanup()
+    rmSync(outDir, { recursive: true, force: true })
   }
 })
 
