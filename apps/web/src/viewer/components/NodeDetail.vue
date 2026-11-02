@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { truncateMiddle } from '../text'
+
 defineProps<{
   empty: string
   kindLabel: string
@@ -37,7 +39,7 @@ const emit = defineEmits<{ focus: [] }>()
       <h3 dir="ltr">{{ detail.title }}</h3>
       <dl>
         <div><dt>{{ kindLabel }}</dt><dd>{{ detail.kind }}</dd></div>
-        <div v-if="detail.path"><dt>{{ pathLabel }}</dt><dd dir="ltr">{{ detail.path }}</dd></div>
+        <div v-if="detail.path"><dt>{{ pathLabel }}</dt><dd class="path" dir="ltr" :title="detail.path">{{ truncateMiddle(detail.path) }}</dd></div>
         <div v-if="detail.span"><dt>{{ spanLabel }}</dt><dd dir="ltr">{{ detail.span }}</dd></div>
         <div v-if="detail.provenance"><dt>{{ provenanceLabel }}</dt><dd>{{ detail.provenance }}</dd></div>
         <div v-if="detail.confidence"><dt>{{ confidenceLabel }}</dt><dd>{{ detail.confidence }}</dd></div>
@@ -56,5 +58,9 @@ const emit = defineEmits<{ focus: [] }>()
 dl { display: grid; gap: var(--space-2); }
 div { display: flex; justify-content: space-between; gap: var(--space-2); }
 dd { margin: 0; unicode-bidi: isolate; }
+.path { font-family: var(--font-family-mono); }
 button { min-block-size: var(--viewer-hit-target); }
 </style>
+
+
+

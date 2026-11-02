@@ -20,3 +20,25 @@
 .vue-flow__background {
   background: var(--color-canvas);
 }
+
+.viewer button {
+  transition: transform var(--duration-fast) var(--easing-standard), border-color var(--duration-fast) var(--easing-standard);
+}
+.viewer button:hover:not(:disabled) { border-color: var(--graph-hover-border); }
+.viewer button:focus-visible { outline: 2px solid var(--color-brand-amber-ui); outline-offset: 2px; }
+.viewer button:active:not(:disabled) { transform: scale(0.98); }
+.viewer button:disabled { opacity: var(--alpha-40); }
+.viewer legend,
+.viewer .legend summary {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewer button,
+  .viewer button:active { transition: none; transform: none; }
+}
+

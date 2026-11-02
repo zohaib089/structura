@@ -360,3 +360,32 @@
   --graph-dim-opacity-edge: 0.16;
   --graph-selected-halo: 0 0 0 4px color-mix(in srgb, var(--color-brand-amber-ui) var(--alpha-24), transparent);
 }
+
+/* v2 polish. Additive overrides. Colours stay on the tokens above. */
+:root {
+  --graph-dim-opacity: 0.2;
+  --graph-selected-width: 2px;
+  --duration-flow: 1.6s;
+  --graph-edge-dash-flow: 8 6;
+  --graph-flow-offset: -28;
+  --graph-expand-stagger: 12ms;
+  --graph-expand-stagger-cap: 300ms;
+  --tooltip-delay: 400ms;
+  --viewer-empty-mark-size: 17.5rem;
+  --font-feature-ui: "cv11", "ss01", "tnum";
+  --color-canvas-vignette: radial-gradient(ellipse at center, transparent 42%, color-mix(in srgb, var(--color-surface) var(--alpha-40), var(--color-canvas)) 100%);
+  --graph-dot: color-mix(in srgb, var(--color-text-muted) var(--alpha-12), transparent);
+  --viewer-palette-width: 40rem;
+  --viewer-drop-border-width: 2px;
+  --nav-scroll-offset: 8px;
+}
+
+[data-theme='light'] {
+  --graph-dim-opacity: 0.2;
+  --color-canvas-vignette: radial-gradient(ellipse at center, transparent 42%, color-mix(in srgb, var(--color-surface) var(--alpha-40), var(--color-canvas)) 100%);
+  --graph-dot: color-mix(in srgb, var(--color-text-muted) var(--alpha-12), transparent);
+}
+
+
+
+

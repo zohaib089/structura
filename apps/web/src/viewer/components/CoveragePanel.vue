@@ -14,6 +14,7 @@ defineProps<{
   failed: string
   skipped: string
   exportLabel: string
+  skippedNote?: string
 }>()
 
 const emit = defineEmits<{ export: [] }>()
@@ -25,6 +26,12 @@ const emit = defineEmits<{ export: [] }>()
     <template v-else>
       <p v-if="banner" role="status">{{ banner }}</p>
       <p v-else-if="full">{{ full }}</p>
+      <div v-if="coverage" class="stack" role="img" :aria-label="bar">
+        <span class="parsed" :style="{ flexGrow: coverage.files.parsed }">{{ parsed }} {{ coverage.files.parsed }}</span>
+        <span class="skipped" :style="{ flexGrow: coverage.files.skipped }">{{ skipped }} {{ coverage.files.skipped }}</span>
+        <span class="unresolved" :style="{ flexGrow: coverage.files.failed + coverage.files.partial }">{{ failed }} {{ coverage.files.failed + coverage.files.partial }}</span>
+      </div>
+      <p v-if="skippedNote && coverage.files.parsed < coverage.files.discovered">{{ skippedNote }}</p>
       <p role="img" :aria-label="bar">{{ bar }}</p>
       <table>
         <caption class="sr-only">{{ language }}</caption>
@@ -55,6 +62,15 @@ const emit = defineEmits<{ export: [] }>()
 
 <style scoped>
 .sr-only { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.stack { display: flex; min-block-size: var(--coverage-bar-height); gap: var(--space-1); }
+.stack span { min-inline-size: 2rem; padding-inline: var(--space-1); font-size: var(--font-size-xs); }
+.parsed { background: var(--coverage-parsed); }
+.skipped { background: var(--coverage-skipped); }
+.unresolved { background: var(--coverage-partial); }
 table { inline-size: 100%; border-collapse: collapse; }
 button { min-block-size: var(--viewer-hit-target); }
 </style>
+
+
+
+

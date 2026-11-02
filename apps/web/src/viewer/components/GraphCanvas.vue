@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { Background } from '@vue-flow/background'
 import { VueFlow, type Edge, type Node } from '@vue-flow/core'
-import { nextTick, ref } from 'vue'
+import { nextTick, ref, watch } from 'vue'
 import { FLOW_EDGE_TYPE, FLOW_NODE_TYPE } from '../caps'
+import { motionMs, prefersReducedMotion } from '../motion'
 import type { OverviewEdgeModel, OverviewNodeModel } from '../overview'
 import FitFrame from './FitFrame.vue'
 import OverviewEdge from './OverviewEdge.vue'
@@ -25,6 +27,9 @@ const props = defineProps<{
   zoomIn: string
   zoomOut: string
   zoomFit: string
+  focusIds?: string[]
+  fitDuration?: number
+  fitPadding?: number
 }>()
 
 const emit = defineEmits<{
@@ -36,6 +41,28 @@ const emit = defineEmits<{
 }>()
 
 const root = ref<HTMLElement | null>(null)
+const entering = ref<Set<string>>(new Set())
+const delays = ref<Map<string, number>>(new Map())
+
+watch(() => props.nodes.map((node) => node.id).join('\n'), (next, prev) => {
+  if (!prev || prefersReducedMotion()) {
+    entering.value = new Set()
+    return
+  }
+  const before = new Set(prev.split('\n'))
+  const fresh = next.split('\n').filter((id) => id && !before.has(id))
+  const stagger = motionMs('--graph-expand-stagger', 12, false)
+  const cap = motionMs('--graph-expand-stagger-cap', 300, false)
+  delays.value = new Map(fresh.map((id, index) => [id, Math.min(index * stagger, cap)]))
+  entering.value = new Set(fresh)
+  window.setTimeout(() => { entering.value = new Set() }, motionMs('--duration-slow', 400, false) + cap)
+})
+
+function flowing(edge: OverviewEdgeModel): boolean {
+  if (!props.focusIds || edge.visual === 'unresolved') return false
+  const ids = new Set(props.focusIds)
+  return ids.has(edge.source) && ids.has(edge.target)
+}
 
 const flowNodes = () => props.nodes.map((node): Node<OverviewNodeModel> => ({
   id: node.id,
@@ -66,7 +93,7 @@ const flowEdges = () => props.edges.map((edge): Edge<OverviewEdgeModel> => ({
   selectable: true,
   deletable: false,
   focusable: false,
-  data: edge,
+  data: { ...edge, flowing: flowing(edge) },
   label: edge.label,
       domAttributes: {
         'data-provenance': edge.provenance,
@@ -137,6 +164,10 @@ defineExpose({ root })
           :dimmed="Boolean(nodeProps.data?.dimmed)"
           :tab-index="activeId === nodeProps.id ? 0 : -1"
           :path="nodeProps.data?.path ?? ''"
+          :depth="nodeProps.data?.depth ?? 0"
+          :language="nodeProps.data?.language ?? ''"
+          :entering="entering.has(nodeProps.id)"
+          :enter-delay="delays.get(nodeProps.id) ?? 0"
           :more-label="moreLabel(nodeProps.data?.remainder ?? 0)"
           :expand-label="expandLabel"
           :collapse-label="collapseLabel"
@@ -147,7 +178,13 @@ defineExpose({ root })
       <template #edge-overview="edgeProps">
         <OverviewEdge v-bind="edgeProps" />
       </template>
-      <FitFrame :signature="nodes.map((node) => node.id).join('\n')" />
+      <Background variant="dots" :gap="24" :size="1" color="var(--graph-dot)" />
+      <div class="vignette" aria-hidden="true"></div>
+      <FitFrame
+        :signature="`${nodes.map((node) => node.id).join('\n')}|${(focusIds ?? []).join(',')}`"
+        :duration="fitDuration ?? 0"
+        :padding="fitPadding ?? 0.2"
+      />
       <ZoomPad :zoom-in="zoomIn" :zoom-out="zoomOut" :zoom-fit="zoomFit" />
     </VueFlow>
   </div>
@@ -158,4 +195,18 @@ defineExpose({ root })
 .canvas :deep(.vue-flow) { block-size: 100%; background: var(--color-canvas); }
 .canvas :deep(.vue-flow__attribution) { display: none; }
 .canvas :deep(.vue-flow__handle) { opacity: 0; }
+.vignette {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-graph-controls);
+  pointer-events: none;
+  background: var(--color-canvas-vignette);
+}
 </style>
+
+
+
+
+
+
+

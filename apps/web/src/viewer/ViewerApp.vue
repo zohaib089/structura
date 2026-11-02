@@ -4,12 +4,15 @@ import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vu
 import BrandMark from '../components/brand/BrandMark.vue'
 import { resolvePreferredWebLocale, webLocaleDirection } from '../services/locale'
 import {
-  BUDGET_WARN_AT,
+  COMFORT_NODE_BUDGET,
   HARD_EDGE_CAP,
   HARD_NODE_CAP,
   SEARCH_RESULT_CAP,
   SUPPORTED_SCHEMA
 } from './caps'
+import { budgetTone } from './budget-tone'
+import { fitDurationMs } from './motion'
+import { formatByteSize } from './text'
 import type { GraphDocument, GraphError, GraphNode } from './graph-types'
 import { formatMessage, viewerMessages } from './messages'
 import {
@@ -29,6 +32,8 @@ import {
 import { parseGraphFile, type ParseHandle } from './parse-client'
 import { sampleGraph } from './sample-graph'
 import BudgetMeter from './components/BudgetMeter.vue'
+import CoachMark from './components/CoachMark.vue'
+import LoadingSkeleton from './components/LoadingSkeleton.vue'
 import CoveragePanel from './components/CoveragePanel.vue'
 import DriftPanel from './components/DriftPanel.vue'
 import ErrorBanner from './components/ErrorBanner.vue'
@@ -53,6 +58,8 @@ const graph = shallowRef<GraphDocument | null>(null)
 const error = ref<GraphError | null>(null)
 const loading = ref(false)
 const loadingVisible = ref(false)
+const loadingBytes = ref(0)
+const coachDismissed = ref(false)
 const fileName = ref('')
 const sample = ref(false)
 const dragging = ref(false)
@@ -178,6 +185,7 @@ async function openBlob(file: File, asSample: boolean) {
   filters.value = defaultFilters()
   sample.value = asSample
   fileName.value = file.name
+  loadingBytes.value = file.size
   loading.value = true
   loadingVisible.value = false
   window.clearTimeout(loadingTimer)
@@ -402,6 +410,7 @@ const legendRows = computed(() => {
   if (present.has('unresolved')) rows.push({ visual: 'unresolved', label: `${messages.provUnresolved} — ${messages.provUnresolvedDesc}` })
   return rows.map((row) => ({
     ...row,
+    active: row.visual === 'mixed' || row.visual === 'inferred' ? filters.value.provenance.inferred : filters.value.provenance[row.visual],
     count: format(messages.legendCount, {
       n: numbers.format(overview.value?.edges.filter((edge) => edge.visual === row.visual).reduce((sum, edge) => sum + edge.weight, 0) ?? 0)
     })
@@ -509,6 +518,15 @@ function exportCoverage() {
 }
 
 const command = quickstartCommand()
+const cameraDuration = computed(() => (focus.value ? fitDurationMs() : 0))
+const cameraPadding = computed(() => (focus.value ? 0.25 : 0.2))
+const meterTone = computed(() => budgetTone(overview.value?.nodes.length ?? 0, COMFORT_NODE_BUDGET, HARD_NODE_CAP))
+const skippedCount = computed(() => {
+  const files = graph.value?.coverage.files
+  if (!files) return 0
+  return files.skipped + files.failed + files.partial
+})
+const coachSteps = computed(() => [messages.coachExpand, messages.coachFocus, messages.coachCoverage])
 const snippet = 'layers: []\nrules: []\n'
 </script>
 
@@ -555,7 +573,6 @@ const snippet = 'layers: []\nrules: []\n'
         @toggle-drift="filters = { ...filters, driftOnly: !filters.driftOnly }"
         @reset="resetFilters"
       />
-      <GraphLegend :title="messages.legendTitle" :rows="legendRows" @toggle="legendToggle" />
       <button type="button" :disabled="!index || index.document.nodes.length > HARD_NODE_CAP" @click="expandEverything">
         {{ index && index.document.nodes.length > HARD_NODE_CAP
           ? format(messages.expandAllDisabled, { n: numbers.format(index.document.nodes.length), budget: numbers.format(HARD_NODE_CAP) })
@@ -564,24 +581,27 @@ const snippet = 'layers: []\nrules: []\n'
     </aside>
 
     <main class="stage">
-      <p v-if="loading" class="loading" role="status">
-        <span class="sr-only">{{ messages.loadingSr }}</span>
-        {{ loadingVisible ? messages.loadingBuilding : messages.loadingSr }}
-        <button v-if="loadingVisible" type="button" @click="closeGraph">{{ messages.loadingCancel }}</button>
-      </p>
-      <div v-if="dragging" class="drop-overlay">{{ format(messages.dropOverlay, { graphFile: BRAND.graphFile }) }}</div>
+      <LoadingSkeleton
+        v-if="loading"
+        :label="format(messages.readingFile, { graphFile: BRAND.graphFile, size: formatByteSize(loadingBytes, locale) })"
+        :cancel-label="messages.loadingCancel"
+        @cancel="closeGraph"
+      />
+      <div v-if="dragging" class="drop-overlay">{{ messages.dropOverlay }}</div>
       <GraphSourcePicker
-        v-if="!graph && !error"
-        :title="format(messages.emptyTitle, { graphFile: BRAND.graphFile })"
+        v-if="!graph && !error && !loading"
+        :title="messages.emptyTitle"
+        :body="format(messages.emptyBody, { graphFile: BRAND.graphFile })"
         :drop-hint="messages.emptyDrop"
         :choose-label="messages.choose"
         :sample-label="messages.sample"
         :private-line="messages.emptyPrivate"
         :no-file="messages.emptyNoFile"
         :command="command"
-        :copy-label="messages.toastCopied"
+        :copy-label="messages.copyCommand"
+        :copied-label="messages.toastCopied"
         :dragging="dragging"
-        :drop-overlay="format(messages.dropOverlay, { graphFile: BRAND.graphFile })"
+        :drop-overlay="messages.dropOverlay"
         @sample="openSample"
         @copy="copyText(command)"
       />
@@ -610,6 +630,8 @@ const snippet = 'layers: []\nrules: []\n'
         :unresolved="focusSummary.unresolvedLeaving ? format(messages.focusUnresolvedLeave, { n: numbers.format(focusSummary.unresolvedLeaving) }) : ''"
         :none="focusSummary.confirmed.length + focusSummary.possible.length === 0 ? format(messages.focusNone, { n: focus.depth }) : ''"
         :exit="messages.focusExit"
+        :chip="format(messages.focusChip, { path: detail?.path || focus.nodeId, n: focus.depth })"
+        :esc-hint="messages.focusEsc"
         :direction="focus.direction"
         :depth="focus.depth"
         :confirmed-only-on="focus.confirmedOnly"
@@ -636,6 +658,9 @@ const snippet = 'layers: []\nrules: []\n'
         :zoom-in="messages.zoomIn"
         :zoom-out="messages.zoomOut"
         :zoom-fit="messages.zoomFit"
+        :focus-ids="focusMembers ? [...focusMembers] : []"
+        :fit-duration="cameraDuration"
+        :fit-padding="cameraPadding"
         @select="selectNode($event, true)"
         @toggle="toggleNode"
         @select-edge="selectEdge"
@@ -643,12 +668,23 @@ const snippet = 'layers: []\nrules: []\n'
       />
       <p v-else-if="graph && graph.nodes.length === 0" class="empty-graph">{{ messages.detailsEmpty }}</p>
       <p v-if="overview && overview.nodes.length === 0 && graph" class="empty-graph">{{ messages.filterEmpty }}</p>
+      <GraphLegend class="stage-legend" :title="messages.legendTitle" :rows="legendRows" @toggle="legendToggle" />
+      <CoachMark
+        v-if="sample && !coachDismissed"
+        :steps="coachSteps"
+        :skip-label="messages.coachSkip"
+        :next-label="messages.coachNext"
+        @dismiss="coachDismissed = true"
+      />
     </main>
 
     <aside class="inspector" :class="{ 'is-open': inspectorOpen }" :aria-label="messages.inspector">
       <div role="tablist">
         <button type="button" role="tab" :aria-selected="tab === 'details'" @click="tab = 'details'">{{ messages.tabDetails }}</button>
-        <button type="button" role="tab" :aria-selected="tab === 'coverage'" @click="tab = 'coverage'">{{ messages.tabCoverage }}</button>
+        <button type="button" role="tab" :aria-selected="tab === 'coverage'" @click="tab = 'coverage'">
+          {{ messages.tabCoverage }}
+          <span v-if="skippedCount" class="tab-count">▲ {{ numbers.format(skippedCount) }}</span>
+        </button>
         <button type="button" role="tab" :aria-selected="tab === 'drift'" @click="tab = 'drift'">{{ messages.tabDrift }}</button>
       </div>
       <NodeDetail
@@ -676,6 +712,7 @@ const snippet = 'layers: []\nrules: []\n'
         :banner="coverageBanner"
         :full="graph && !coverageBanner ? format(messages.coverageFull, { n: numbers.format(graph.coverage.files.discovered) }) : ''"
         :honesty="messages.coverageHonesty"
+        :skipped-note="messages.coverageSkippedNote"
         :language="messages.coverageColLanguage"
         :parsed="messages.coverageColParsed"
         :partial="messages.coverageColPartial"
@@ -701,10 +738,13 @@ const snippet = 'layers: []\nrules: []\n'
       <BudgetMeter
         :text="format(messages.budgetMeter, { nodes: numbers.format(overview?.nodes.length ?? 0), nodeBudget: numbers.format(HARD_NODE_CAP), edges: numbers.format(overview?.edges.length ?? 0), edgeBudget: numbers.format(HARD_EDGE_CAP) })"
         :ratio="ratio"
-        :warn="ratio >= BUDGET_WARN_AT"
-        :full="atCap"
+        :warn="meterTone === 'detail'"
+        :full="meterTone === 'limit'"
+        :tone="meterTone"
         :near-label="messages.budgetNear"
+        :detail-label="messages.budgetDetail"
         :full-label="messages.budgetFull"
+        :limit-label="messages.budgetLimit"
         :hidden-label="overview && overview.hiddenNodes > 0 ? format(messages.budgetHidden, { n: numbers.format(overview.hiddenNodes) }) : ''"
       />
       <button type="button" @click="tab = 'coverage'; inspectorOpen = true">{{ format(messages.statusCoverage, { pct: numbers.format(parsedPct) }) }}</button>
@@ -720,6 +760,9 @@ const snippet = 'layers: []\nrules: []\n'
       :hint="messages.searchHint"
       :more="format(messages.searchMore, { n: numbers.format(Math.max(search.total - search.hits.length, 0)) })"
       :footer="messages.searchFooter"
+      :clusters-label="messages.searchClusters"
+      :files-label="messages.searchFiles"
+      :symbols-label="messages.searchSymbols"
       :hits="search.hits"
       :total="search.total"
       :query="query"
@@ -753,7 +796,6 @@ const snippet = 'layers: []\nrules: []\n'
   gap: var(--space-2);
   padding-inline: var(--space-3);
   background: var(--color-surface);
-  border-block-end: 1px solid var(--color-border);
 }
 .stage {
   position: relative;
@@ -767,7 +809,6 @@ const snippet = 'layers: []\nrules: []\n'
   overflow: auto;
   padding: var(--space-3);
   background: var(--color-surface);
-  border-inline: 1px solid var(--color-border);
 }
 .status {
   grid-column: 1 / -1;
@@ -776,7 +817,6 @@ const snippet = 'layers: []\nrules: []\n'
   gap: var(--space-3);
   padding-inline: var(--space-3);
   background: var(--color-surface);
-  border-block-start: 1px solid var(--color-border);
 }
 .wordmark { font-weight: 700; letter-spacing: -0.03em; }
 .pill {
@@ -810,6 +850,27 @@ button {
   background: var(--color-surface-raised);
   color: var(--color-text-primary);
 }
+button:hover:not(:disabled) { border-color: var(--graph-hover-border); }
+button:focus-visible { outline: 2px solid var(--color-brand-amber-ui); outline-offset: 2px; }
+button:active:not(:disabled) { transform: scale(0.98); }
+button:disabled { opacity: var(--alpha-40); }
+.inspector { font-size: var(--font-size-sm); line-height: var(--line-height-normal); }
+.tab-count { font-variant-numeric: tabular-nums; }
+.stage-legend {
+  position: absolute;
+  inset-inline-start: var(--space-3);
+  inset-block-end: var(--space-3);
+  z-index: var(--z-graph-controls);
+  max-inline-size: 18rem;
+  padding: var(--space-2);
+  background: var(--color-surface-raised);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+.viewer { font-feature-settings: var(--font-feature-ui); }
+@media (prefers-reduced-motion: reduce) {
+  button:active:not(:disabled) { transform: none; }
+}
 .empty-graph, .loading { padding: var(--space-4); }
 @media (max-width: 1000px) {
   .viewer { grid-template-columns: minmax(0, 1fr); }
@@ -828,3 +889,22 @@ button {
   .inspector.is-open { inset-block-end: var(--viewer-statusbar-height); block-size: 60%; }
 }
 </style>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
