@@ -14,7 +14,7 @@ import { constants as fsConstants } from 'node:fs'
 const GRAPH_LANGUAGES = new Set<string>(LANGUAGES)
 
 /** Languages an adapter exists for. Everything else is recorded as `skipped: unsupported-language`. */
-export const ANALYSED_LANGUAGES: readonly string[] = ['typescript', 'javascript']
+export const ANALYSED_LANGUAGES: readonly string[] = ['typescript', 'javascript', 'python']
 
 export interface WalkOptions {
   limits?: Partial<ResolvedLimits>

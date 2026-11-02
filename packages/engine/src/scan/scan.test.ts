@@ -39,7 +39,7 @@ test('two scans of one fixture are byte-identical and brand-free', async () => {
     assert.equal(first.graphJson.includes('startedAt'), false)
     assert.equal(first.graph.coverage.accounting.discovered, first.graph.coverage.accounting.accounted)
     assert.ok(first.graph.coverage.files.parsed >= 4)
-    assert.ok(first.graph.nodes.some(node => node.kind === 'file' && node.path === 'src/note.py' && node.parse.status === 'skipped' && node.parse.reason === 'unsupported-language'))
+    assert.ok(first.graph.nodes.some(node => node.kind === 'file' && node.path === 'src/note.py' && node.parse.status === 'parsed'))
     assert.ok(first.graph.nodes.some(node => node.kind === 'file' && node.path === 'src/alias.ts' && node.parse.status === 'skipped' && node.parse.reason === 'symlink'))
     assert.equal(first.graph.coverage.ignored.some(item => item.rule === 'default:node_modules'), true)
     assert.equal(first.graph.coverage.ignored.some(item => item.rule === 'gitignore:secret.ts'), true)

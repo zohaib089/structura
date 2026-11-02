@@ -28,4 +28,11 @@ export {
   shutdownParsePool
 } from './ts-js/adapter.js'
 export { TsJsResolver, type ConfigIssue, type ResolverContext } from './ts-js/resolver.js'
+export {
+  PYTHON_ADAPTER_ID,
+  PYTHON_ADAPTER_VERSION,
+  createPythonAdapter,
+  shutdownPythonParsePool
+} from './python/adapter.js'
+export { PythonResolver, type PythonResolverContext } from './python/resolver.js'
 export { parseJsonc } from './ts-js/jsonc.js'
