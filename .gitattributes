@@ -1,0 +1,18 @@
+# LF for text, including fixture sources, so graph.json stays byte-stable across operating systems.
+# text=auto leaves real binaries untouched. *.wasm is binary so tree-sitter grammars are never rewritten.
+* text=auto eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.py text eol=lf
+*.vue text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sh text eol=lf
+*.wasm binary
