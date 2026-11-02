@@ -11,5 +11,10 @@
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true
   },
-  "include": ["tests/**/*.ts", "src/vite-env.d.ts", "playwright.config.ts", "vitest.config.ts"]
+  "include": ["tests/**/*.ts", "src/vite-env.d.ts", "playwright.config.ts", "vitest.config.ts"],
+  "exclude": [
+    "../../packages/test-fixtures",
+    "../../test-fixtures",
+    "**/golden-corpus/**"
+  ]
 }
