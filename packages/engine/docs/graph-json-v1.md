@@ -208,7 +208,12 @@ When a symbol node id would exceed **8192 UTF-16 code units** (including a `~n` 
 
 ### CLI usage errors (exit 2)
 
-The CLI exits **2** for: an unknown option or command, `--cache-dir` combined with `--no-cache`, a scan root that does not exist or is unreadable, exceeding `--max-files`, and other usage or output-refusal errors documented above. Human-readable stdout/stderr (summaries, errors, paths) escapes bidi controls, zero-width/invisible characters, and C0/C1 controls as `\\u{...}` so terminals cannot be spoofed by malicious paths or specifiers.
+The CLI exits **2** for: an unknown option or command, `--cache-dir` combined with `--no-cache`, a scan root that does not exist or is unreadable, exceeding `--max-files`, an unreadable or invalid `graph.json`, an unknown node id in `explain`, and other usage or output-refusal errors documented above. Human-readable stdout/stderr (summaries, errors, paths) escapes bidi controls, zero-width/invisible characters, and C0/C1 controls as `\\u{...}` so terminals cannot be spoofed by malicious paths or specifiers.
+
+### Read-only graph commands
+
+- **`atlasmith query <graph.json>`** lists nodes (sorted by id). Use **`--kind`**, **`--path <glob>`**, and **`--limit`**. When **`--type`**, **`--from`**, or **`--to`** is set, lists matching edges instead (sorted by source, type, target, span). **`--json`** prints the result object; endpoints accept a node id or repo-relative path.
+- **`atlasmith explain <graph.json> <id|path>`** prints one node: kind, label, span (symbols), entry/unresolved metadata, inbound and outbound edges grouped by type, and the declaring file’s parse status. **`--json`** prints the same structure for tools.
 
 Python stdlib data pins CPython 3.14 module names; `_typeshed` is listed as typing-only (like stubs). `winreg` is platform-independent in the pinned list for documentation purposes.
 

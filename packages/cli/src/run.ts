@@ -3,6 +3,7 @@ import { parseArgs } from 'node:util'
 import { CLI_BIN, CONFIG_FILE, GRAPH_FILE, OUT_DIR, PRODUCT_NAME, RUN_FILE } from '@atlasmith/engine'
 import {
   AccountingError,
+  GraphReadError,
   GraphVersionUnsupported,
   InterruptedError,
   MaxFilesExceeded,
@@ -14,6 +15,7 @@ import {
   type LimitOverrides,
   type ScanOptions
 } from '@atlasmith/engine'
+import { graphCommandExitCode, runExplain, runQuery } from './graph-commands.js'
 
 export const EXIT = { ok: 0, runtime: 1, usage: 2, accounting: 3, strict: 4, interrupted: 130 } as const
 
@@ -26,7 +28,9 @@ export class UsageError extends Error {
 }
 
 export function exitCodeFor(error: unknown): number {
-  if (error instanceof GraphVersionUnsupported) return EXIT.usage
+  const graphCode = graphCommandExitCode(error)
+  if (graphCode !== undefined) return graphCode
+  if (error instanceof GraphReadError || error instanceof GraphVersionUnsupported) return EXIT.usage
   if (error instanceof UsageError || error instanceof OutputRefusedError) return EXIT.usage
   if (error instanceof MaxFilesExceeded || error instanceof ScanRootError) return EXIT.usage
   if (error instanceof AccountingError) return EXIT.accounting
@@ -49,6 +53,8 @@ function helpText(): string {
     `${PRODUCT_NAME} — local repository graph`,
     '',
     `Usage: ${CLI_BIN} scan [path]`,
+    `       ${CLI_BIN} query <graph.json> [--kind <kind>] [--type <type>] [--from <id|path>] [--to <id|path>] [--path <glob>] [--limit <n>] [--json]`,
+    `       ${CLI_BIN} explain <graph.json> <id|path> [--json]`,
     '',
     'Options:',
     '  --out <dir>           Directory for graph.json (default: <root>/' + OUT_DIR + ')',
@@ -66,6 +72,8 @@ function helpText(): string {
     '  --jobs <n>            Parser worker count',
     '  -h, --help            Show this help',
     '',
+    'Query reads an existing graph.json (nodes by default; edges when --type, --from, or --to is set).',
+    'Explain prints one node: kind, label, span, provenance, edges by type, and file coverage.',
     `Exit codes: 0 ok, 1 runtime, 2 usage or unsupported graph, 3 accounting failure, 4 --strict, 130 interrupted.`,
     `Repo config ${CONFIG_FILE} may only lower limits. graph.json is ${GRAPH_FILE}.`
   ].join('\n')
@@ -94,7 +102,9 @@ export async function run(argv: readonly string[], io: RunIo = {
       return EXIT.ok
     }
     const [command, ...rest] = argv
-    if (command !== 'scan') throw new UsageError(`unknown command "${command}". Expected: scan`)
+    if (command === 'query') return await runQuery(rest, io)
+    if (command === 'explain') return await runExplain(rest, io)
+    if (command !== 'scan') throw new UsageError(`unknown command "${command}". Expected: scan, query, explain`)
     let parsed
     try {
       parsed = parseArgs({
