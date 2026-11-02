@@ -131,7 +131,7 @@ async function loadScan(query: WorkspaceQuery, scanId: string): Promise<(Workspa
   )
   const row = result.rows[0]
   if (!row) return null
-  return row as WorkspaceScanRecord & { upload_payload?: string | null }
+  return row as unknown as WorkspaceScanRecord & { upload_payload?: string | null }
 }
 
 async function updateScan(

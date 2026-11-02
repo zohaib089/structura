@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import type { FastifyInstance } from 'fastify'
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import type { MultipartFile } from '@fastify/multipart'
 import {
   assertAllowlistedGitHttpsUrl,
@@ -50,6 +50,10 @@ function unauthenticated(reply: { code: (status: number) => { send: (payload: un
   return reply.code(401).send({ success: false, message: 'An active session is required.' })
 }
 
+type MultipartScanRequest = FastifyRequest & {
+  parts: () => AsyncIterableIterator<MultipartFile | { type: 'field'; fieldname: string; value: string }>
+}
+
 export function registerWorkspaceScanRoutes(app: FastifyInstance, database: WorkspaceDatabase) {
   const limits = limitsFromEnv()
   const worker = { query: database.query }
@@ -67,7 +71,7 @@ export function registerWorkspaceScanRoutes(app: FastifyInstance, database: Work
 
       const contentType = String(request.headers['content-type'] ?? '')
       if (contentType.includes('multipart/form-data')) {
-        return createUploadScan(request, reply, database, workspaceId, userId, limits, worker)
+        return createUploadScan(request as MultipartScanRequest, reply, database, workspaceId, userId, limits, worker)
       }
 
       const body = readRecord(request.body)
@@ -192,8 +196,8 @@ export function registerWorkspaceScanRoutes(app: FastifyInstance, database: Work
 }
 
 async function createUploadScan(
-  request: { headers: { authorization?: string }; parts: () => AsyncIterableIterator<MultipartFile | { type: 'field'; fieldname: string; value: string }> },
-  reply: { code: (status: number) => { send: (payload: unknown) => unknown } },
+  request: MultipartScanRequest,
+  reply: FastifyReply,
   database: WorkspaceDatabase,
   workspaceId: string,
   userId: string,
@@ -209,7 +213,7 @@ async function createUploadScan(
       continue
     }
     if (part.type === 'field' && part.fieldname === 'source') {
-      source = part.value
+      source = String(part.value)
     }
   }
 
