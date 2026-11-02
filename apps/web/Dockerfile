@@ -15,6 +15,7 @@ COPY apps/web/tsconfig.json apps/web/tsconfig.app.json apps/web/tsconfig.node.js
 COPY apps/web/index.html apps/web/viewer/index.html apps/web/
 COPY apps/web/vite.config.ts apps/web/vite.viewer.config.ts apps/web/vite-csp-hash.ts apps/web/
 COPY apps/web/public apps/web/public
+COPY apps/web/fixtures/sample-graph.json apps/web/fixtures/sample-graph.json
 COPY apps/web/src apps/web/src
 
 RUN npm run build:viewer -w web
