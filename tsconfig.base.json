@@ -13,5 +13,10 @@
     "declaration": true,
     "sourceMap": true,
     "types": ["node"]
-  }
+  },
+  "exclude": [
+    "packages/test-fixtures",
+    "test-fixtures",
+    "**/golden-corpus/**"
+  ]
 }

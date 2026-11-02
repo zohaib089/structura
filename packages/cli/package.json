@@ -19,7 +19,7 @@
   },
   "license": "ISC",
   "dependencies": {
-    "@atlasmith/engine": "0.1.0"
+    "@atlasmith/engine": "file:../engine"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
