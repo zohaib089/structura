@@ -5,9 +5,10 @@ import { viteSingleFile } from 'vite-plugin-singlefile'
 import { cspHashPlugin } from './vite-csp-hash.ts'
 
 const repoRoot = fileURLToPath(new URL('../..', import.meta.url))
+const base = process.env.VITE_BASE ?? './'
 
 export default defineConfig({
-  base: './',
+  base,
   plugins: [vue(), viteSingleFile({ outputFileName: 'index.html' }), cspHashPlugin()],
   build: {
     outDir: 'dist-viewer',

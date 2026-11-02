@@ -33,6 +33,16 @@ Do not commit those files. A small sample is `apps/web/fixtures/sample-graph.jso
 
 Login, signup, and the dashboard stay available by default so the current routes keep working. Set `VITE_HOSTED_APP=false` to hide those links and send `/auth` and `/dashboard` back to the landing page. That flag does not redesign either screen.
 
+## GitHub Pages preview
+
+On pushes to `main`, `.github/workflows/pages.yml` publishes the landing page and viewer to GitHub Pages. Run the same assembly locally with:
+
+```sh
+VITE_HOSTED_APP=false npm --prefix apps/web run build:pages
+```
+
+The artifact lands in `site/` at the repo root. Set `VITE_BASE` (via `PAGES_LANDING_BASE` / `PAGES_VIEWER_BASE` in the workflow) so assets resolve under `/structura/` and `/structura/viewer/`. The Pages viewer build sets `VITE_VIEWER_BOOT_SAMPLE=true` so the bundled sample graph opens on load.
+
 ## Tests
 
 ```sh
