@@ -16,6 +16,7 @@ import {
   type ScanOptions
 } from '@atlasmith/engine'
 import { graphCommandExitCode, runExplain, runQuery } from './graph-commands.js'
+import { resolveScanTarget } from './scan-target.js'
 
 export const EXIT = { ok: 0, runtime: 1, usage: 2, accounting: 3, strict: 4, interrupted: 130 } as const
 
@@ -52,7 +53,7 @@ function helpText(): string {
   return [
     `${PRODUCT_NAME} — local repository graph`,
     '',
-    `Usage: ${CLI_BIN} scan [path]`,
+    `Usage: ${CLI_BIN} scan [path|git-url]`,
     `       ${CLI_BIN} query <graph.json> [--kind <kind>] [--type <type>] [--from <id|path>] [--to <id|path>] [--path <glob>] [--limit <n>] [--json]`,
     `       ${CLI_BIN} explain <graph.json> <id|path> [--json]`,
     '',
@@ -70,6 +71,7 @@ function helpText(): string {
     '  --max-files <n>       Max discovered entries',
     '  --max-depth <n>       Max directory depth',
     '  --jobs <n>            Parser worker count',
+    '  --branch <name>       Git branch to clone when scanning an https GitHub/GitLab URL',
     '  -h, --help            Show this help',
     '',
     'Query reads an existing graph.json (nodes by default; edges when --type, --from, or --to is set).',
@@ -124,7 +126,8 @@ export async function run(argv: readonly string[], io: RunIo = {
         'parse-timeout': { type: 'string' },
         'max-files': { type: 'string' },
         'max-depth': { type: 'string' },
-        jobs: { type: 'string' }
+        jobs: { type: 'string' },
+        branch: { type: 'string' }
       }
     })
     } catch (error) {
@@ -150,7 +153,7 @@ export async function run(argv: readonly string[], io: RunIo = {
     if (maxFiles !== undefined) limits.maxFiles = maxFiles
     if (maxDepth !== undefined) limits.maxDepth = maxDepth
     if (jobs !== undefined) limits.jobs = jobs
-    const target = resolve(io.cwd, parsed.positionals[0] ?? '.')
+    const targetArg = parsed.positionals[0] ?? '.'
     let outDir: string | undefined
     let graphPath: string | undefined
     if (parsed.values.out) {
@@ -172,7 +175,23 @@ export async function run(argv: readonly string[], io: RunIo = {
       strict: parsed.values.strict,
       limits
     }
-    const output = await scanRepository(target, scanOptions)
+    const resolved = await resolveScanTarget(targetArg, {
+      branch: parsed.values.branch,
+      cwd: io.cwd
+    })
+    let cleanupClone = resolved.cleanup
+    const onInterrupt = () => {
+      void cleanupClone().finally(() => process.exit(EXIT.interrupted))
+    }
+    process.once('SIGINT', onInterrupt)
+    let output
+    try {
+      output = await scanRepository(resolved.path, scanOptions)
+    } finally {
+      process.off('SIGINT', onInterrupt)
+      await cleanupClone()
+      cleanupClone = async () => undefined
+    }
     const summary = output.run.redactions > 0 ? `${output.summary}\nredactions: ${output.run.redactions}` : output.summary
     if (parsed.values.json) {
       io.stdout(`${JSON.stringify({ ...output.run, coverage: output.graph.coverage })}\n`)

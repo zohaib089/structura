@@ -1,5 +1,6 @@
 import 'dotenv/config'
 import Fastify from 'fastify'
+import multipart from '@fastify/multipart'
 import {
   createHash,
   randomBytes,
@@ -24,10 +25,19 @@ import {
   registerWorkspaceRoutes,
   type WorkspaceDatabase
 } from './lib/workspace-routes.js'
+import { registerWorkspaceScanRoutes } from './lib/scan-routes.js'
 import { logger } from './logger.js'
+import { limitsFromEnv } from '@atlasmith/source-ingest'
 
 const app = Fastify({ logger: false })
 const scrypt = promisify(scryptCallback)
+const scanUploadLimits = limitsFromEnv()
+void app.register(multipart, {
+  limits: {
+    fileSize: scanUploadLimits.maxRepoBytes,
+    files: 1
+  }
+})
 const CODE_TTL_MINUTES = 15
 const OTP_TTL_MINUTES = 10
 const RESET_TTL_MINUTES = 30
@@ -153,6 +163,7 @@ app.get('/health', async () => {
 })
 
 registerWorkspaceRoutes(app, workspaceDatabase)
+registerWorkspaceScanRoutes(app, workspaceDatabase)
 registerWorkspaceInvitationRoutes(app, workspaceDatabase, {
   frontendUrl: config.frontendUrl,
   deliverInvitation: async (email, workspaceName, inviterName, acceptanceUrl) => {
