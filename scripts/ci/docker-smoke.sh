@@ -84,24 +84,27 @@ running() {
 }
 
 wait_http() {
-  local url=$1
+  local label=$1
   local container=$2
+  shift 2
   for attempt in $(seq 1 120); do
     if ! running "$container"; then
-      echo "container $container exited before $url responded"
+      echo "container $container exited before $label responded"
       return 1
     fi
-    if docker run --rm --network "$NET" "$CURL_IMAGE" -sf "$url" >/dev/null; then
+    if "$@" >/dev/null 2>&1; then
       return 0
     fi
     sleep 1
   done
-  echo "timed out waiting for $url"
+  echo "timed out waiting for $label"
   return 1
 }
 
-wait_http "http://api:4100/health" "$API"
-wait_http "http://web:5173/" "$WEB"
-wait_http "http://viewer/" "$VIEWER"
+wait_http "api /health" "$API" docker exec "$API" node -e \
+  "fetch('http://127.0.0.1:4100/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
+wait_http "web /" "$WEB" docker exec "$WEB" node -e \
+  "fetch('http://127.0.0.1:5173/').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
+wait_http "viewer /" "$VIEWER" docker exec "$VIEWER" wget -q --spider http://127.0.0.1/
 
 echo "docker smoke checks passed"
