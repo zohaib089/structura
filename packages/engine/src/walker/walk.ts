@@ -28,8 +28,11 @@ export interface WalkOptions {
   extraIgnorePatterns?: readonly string[]
   /** `--include` globs: override default/.gitignore/ignore-file rules, never hard excludes. */
   include?: readonly string[]
-  /** Absolute paths (output file/dir, cache dir) that are hard-excluded when inside the root. */
-  hardExcludePaths?: readonly string[]
+  /**
+   * Resolved absolute paths (default `--out`, `--cache-dir`, `--meta`) inside the scan root.
+   * Skipped before discovery and omitted from coverage entirely (unlike `hard:.git`).
+   */
+  omitPaths?: readonly string[]
   /** Called for diagnostics; never carries file contents. */
   onWarning?: (message: string) => void
 }
@@ -134,10 +137,10 @@ export async function walkRepository(root: string, options: WalkOptions = {}): P
     throw new ScanRootError(`Cannot read scan root "${root}": ${(error as NodeJS.ErrnoException).code ?? 'error'}`)
   }
 
-  const hardPaths = new Map<string, string>()
-  for (const absolute of options.hardExcludePaths ?? []) {
+  const omitPaths = new Set<string>()
+  for (const absolute of options.omitPaths ?? []) {
     const abs = resolve(absolute)
-    if (abs !== rootAbs && isInside(rootAbs, abs)) hardPaths.set(abs, relative(rootAbs, abs).split(sep).join('/'))
+    if (abs !== rootAbs && isInside(rootAbs, abs)) omitPaths.add(abs)
   }
 
   const files: WalkFile[] = []
@@ -201,21 +204,18 @@ export async function walkRepository(root: string, options: WalkOptions = {}): P
 
     const childDirs: Pending[] = []
     for (const name of names) {
-      discovered += 1
-      if (discovered > limits.maxFiles) throw new MaxFilesExceeded(limits.maxFiles)
-
       const fsRel = isRoot ? name : `${current.fsRel}/${name}`
       const abs = join(dirAbs, name)
       const idRel = `${current.idRel === '' ? '' : `${current.idRel}/`}${name.normalize('NFC')}`
 
-      // 1. Hard excludes by name or absolute path. Never overridable by config, ignore files or --include.
+      if (omitPaths.has(abs)) continue
+
+      discovered += 1
+      if (discovered > limits.maxFiles) throw new MaxFilesExceeded(limits.maxFiles)
+
+      // 1. Hard excludes by name. Never overridable by config, ignore files or --include.
       if (HARD_EXCLUDED_NAMES.includes(name)) {
         countIgnored(`hard:${name}`, idRel)
-        continue
-      }
-      const hardLabel = hardPaths.get(abs)
-      if (hardLabel !== undefined) {
-        countIgnored(`hard:${hardLabel.slice(0, 190)}`, idRel)
         continue
       }
 

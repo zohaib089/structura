@@ -1,9 +1,31 @@
 import { compareEdges, compareNodes } from './canonical.js'
 import { GRAPH_SCHEMA_VERSION, type Coverage, type Graph, type GraphEdge, type GraphNode } from './types.js'
 
+const IMPORT_KIND_RANK: Record<'static' | 'require' | 'dynamic', number> = { static: 0, require: 1, dynamic: 2 }
+
+function edgeKey(edge: GraphEdge): string {
+  const start = 'span' in edge ? edge.span.start : { line: 0, col: 0 }
+  return `${edge.source}\u0000${edge.type}\u0000${edge.target}\u0000${start.line}\u0000${start.col}`
+}
+
+function mergeRefFlags(existing: GraphEdge, incoming: GraphEdge): GraphEdge {
+  if (existing.type === 'contains') return existing
+  const merged: GraphEdge = { ...existing }
+  const existingKind = ('importKind' in existing && existing.importKind) ? existing.importKind : 'static'
+  const incomingKind = ('importKind' in incoming && incoming.importKind) ? incoming.importKind : 'static'
+  const kind = IMPORT_KIND_RANK[incomingKind] > IMPORT_KIND_RANK[existingKind] ? incomingKind : existingKind
+  if (kind === 'static') delete (merged as { importKind?: string }).importKind
+  else merged.importKind = kind
+  const existingTypeOnly = 'typeOnly' in existing && existing.typeOnly === true
+  const incomingTypeOnly = 'typeOnly' in incoming && incoming.typeOnly === true
+  if (existingTypeOnly && incomingTypeOnly) merged.typeOnly = true
+  else delete (merged as { typeOnly?: boolean }).typeOnly
+  return merged
+}
+
 /**
- * Collects nodes and edges, enforces uniqueness (first writer wins for nodes; an identical
- * edge key is ignored) and produces a sorted Graph with a correct `summary`.
+ * Collects nodes and edges, enforces uniqueness (first writer wins for nodes; colliding
+ * import/reexport keys merge `typeOnly` and `importKind`) and produces a sorted Graph with a correct `summary`.
  */
 export class GraphBuilder {
   private readonly nodes = new Map<string, GraphNode>()
@@ -24,13 +46,16 @@ export class GraphBuilder {
     return true
   }
 
-  /** @returns false when an edge with the same (source, type, target, start line, start col) exists. */
+  /** @returns false when an edge with the same key already exists (flags are merged onto the existing edge). */
   addEdge(edge: GraphEdge): boolean {
-    const start = 'span' in edge ? edge.span.start : { line: 0, col: 0 }
-    const key = `${edge.source}\u0000${edge.type}\u0000${edge.target}\u0000${start.line}\u0000${start.col}`
-    if (this.edges.has(key)) return false
-    this.edges.set(key, edge)
-    return true
+    const key = edgeKey(edge)
+    const existing = this.edges.get(key)
+    if (!existing) {
+      this.edges.set(key, edge)
+      return true
+    }
+    this.edges.set(key, mergeRefFlags(existing, edge))
+    return false
   }
 
   build(coverage: Coverage): Graph {

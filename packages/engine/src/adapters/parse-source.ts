@@ -13,14 +13,26 @@ export async function parseSource(
   grammar: GrammarId,
   content: string,
   limits: ExtractLimits,
-  timeoutMs: number
+  timeoutMs: number,
+  memoryLimitBytes = Number.MAX_SAFE_INTEGER
 ): Promise<AdapterParseOutcome> {
   const parser = await runtime.getParser(grammar)
   const started = Date.now()
   const tree = parser.parse(content, undefined, {
-    progressCallback: () => Date.now() - started >= timeoutMs
+    progressCallback: () => {
+      if (Date.now() - started >= timeoutMs) return true
+      if (process.memoryUsage().rss >= memoryLimitBytes) return true
+      return false
+    }
   })
-  if (!tree) return { ok: false, reason: 'timeout' }
+  if (!tree) {
+    if (process.memoryUsage().rss >= memoryLimitBytes) return { ok: false, reason: 'memory-limit' }
+    return { ok: false, reason: 'timeout' }
+  }
+  if (process.memoryUsage().rss >= memoryLimitBytes) {
+    tree.delete()
+    return { ok: false, reason: 'memory-limit' }
+  }
   try {
     return { ok: true, result: extractModuleFacts(tree.rootNode, content, limits) }
   } catch (error) {

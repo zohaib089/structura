@@ -21,6 +21,7 @@ Run metadata (time, tool version, absolute paths, memory) goes to `run.json` and
     "files": { "discovered": 1, "parsed": 1, "partial": 0, "failed": 0, "skipped": 0, "ignored": 0 },
     "byLanguage": [{ "language": "typescript", "parsed": 1, "partial": 0, "failed": 0, "skipped": 0 }],
     "skipped": [],
+    "failed": [],
     "ignored": [],
     "unresolved": [{ "reason": "not-found", "count": 1 }],
     "accounting": { "discovered": 1, "accounted": 1 }
@@ -97,9 +98,9 @@ Kinds: `directory`, `file`, `symbol`, `external`, `unresolved`.
 
 Skipped (`parse.status: skipped`, and the same strings in `coverage.skipped`):
 
-`binary`, `id-collision`, `locked`, `max-depth`, `not-regular-file`, `path-too-long`, `sensitive-file`, `symlink`, `symlink-outside-root`, `timeout`, `too-large`, `unrepresentable-path`, `unsupported-language`.
+`binary`, `id-collision`, `locked`, `max-depth`, `memory-limit`, `not-regular-file`, `path-too-long`, `sensitive-file`, `symlink`, `symlink-outside-root`, `timeout`, `too-large`, `unrepresentable-path`, `unsupported-language`.
 
-Failed:
+Failed (`parse.status: failed`, and the same strings in `coverage.failed`):
 
 `changed-during-scan`, `parser-error`, `permission-denied`, `read-error`, `vanished`.
 
@@ -129,9 +130,9 @@ Several files may be entry candidates. The schema stores one `entryCandidate` pe
 
 ### INFERRED edge reasons
 
-`build-output-mapping`, `conventional-entry`, `dynamic-pattern`, `src-root-guess`, `src-subpath`, `submodule-heuristic`.
+`build-output-mapping`, `conventional-entry`, `src-root-guess`, `src-subpath`, `submodule-heuristic`.
 
-`src-root-guess` and `submodule-heuristic` belong to the Python adapter (a later task). They are in the vocabulary so that adapter can emit them without a schema change. `dynamic-pattern` stays in the vocabulary. A non-literal import does not use it; that edge is `EXTRACTED`.
+`src-root-guess` and `submodule-heuristic` belong to the Python adapter (a later task). They are in the vocabulary so that adapter can emit them without a schema change. A non-literal import does not use an inferred reason; that edge is `EXTRACTED`.
 
 ## Edges
 
@@ -153,7 +154,7 @@ On `imports` and `reexports` only:
 
 ### Edge-key collision
 
-The key does not include `importKind` or `typeOnly`, and the key is unchanged. A static import and a type-only import of the same target that start at the same position collapse to one edge (the first one kept). The TypeScript/JavaScript adapter emits a single edge for a mixed statement, and value wins, so that statement does not collide with itself. `run.json` records `collapsedEdges` when a scan drops one.
+The key does not include `importKind` or `typeOnly`, and the key is unchanged. Colliding edges at the same span merge flags: `typeOnly` is written only when every colliding site is type-only (value wins); `importKind` keeps the least-static kind when any site is `require` or `dynamic`. The TypeScript/JavaScript adapter emits a single edge for a mixed statement, and value wins, so that statement does not collide with itself. `run.json` records `collapsedEdges` when a scan merges a collision.
 
 ## Coverage
 
@@ -163,7 +164,9 @@ discovered = parsed + partial + failed + skipped + ignored
 
 `accounting.discovered` equals `files.discovered` and `accounting.accounted`. Breaking the invariant is a silent drop: the engine throws and the CLI exits 3. The exit code is not overridable.
 
-`byLanguage` rows are sorted by language with `null` (reported as other languages) first. `skipped`, `ignored` and `unresolved` are sorted by their key. `skipped` counts every skipped **and** failed file, including entries that have no node (`unrepresentable-path`, `id-collision`, `max-depth`). Its counts sum to `files.skipped + files.failed`. `ignored` counts sum to `files.ignored`. Rules look like `default:node_modules`, `gitignore:/dist`, `hard:.git`.
+`byLanguage` rows are sorted by language with `null` (reported as other languages) first. `skipped`, `failed`, `ignored` and `unresolved` are sorted by their key. `skipped` counts every skipped file, including entries that have no node (`unrepresentable-path`, `id-collision`, `max-depth`). Its counts sum to `files.skipped`. `failed` counts sum to `files.failed`. `ignored` counts sum to `files.ignored`. Rules look like `default:node_modules`, `gitignore:/dist`, `hard:.git`.
+
+The configured `--out` directory (and in-root `--cache-dir` / `--meta` paths) are omitted before discovery and do not appear in coverage. Only `.git` is a name-based hard exclude (`hard:.git`). Another directory named like the product output folder elsewhere in the tree is scanned normally.
 
 `files.parsed` / `partial` match the file nodes exactly. `files.skipped` and `files.failed` are greater than or equal to the file nodes in that status, because some skipped entries have no node.
 

@@ -90,6 +90,7 @@ function orderedCoverage(coverage: Coverage): Record<string, unknown> {
       .sort((a, b) => compareStrings(a.language ?? '', b.language ?? ''))
       .map(item => ({ language: item.language, parsed: item.parsed, partial: item.partial, failed: item.failed, skipped: item.skipped })),
     skipped: reasons(coverage.skipped),
+    failed: reasons(coverage.failed),
     ignored: [...coverage.ignored].sort((a, b) => compareStrings(a.rule, b.rule)).map(item => ({ rule: item.rule, count: item.count })),
     unresolved: reasons(coverage.unresolved),
     accounting: { discovered: coverage.accounting.discovered, accounted: coverage.accounting.accounted }

@@ -38,6 +38,8 @@ export interface AdapterFileInput {
   limits: ExtractLimits
   /** Per-file parse budget. The worker is terminated if cancellation does not return in time. */
   timeoutMs?: number
+  /** RSS ceiling for the parser isolate; exceeding it yields `memory-limit`. */
+  memoryLimitBytes?: number
 }
 
 /** One import-like reference found in a file. */
@@ -85,6 +87,7 @@ export interface AdapterParseResult {
 export type AdapterParseOutcome =
   | { ok: true; result: AdapterParseResult }
   | { ok: false; reason: 'timeout' }
+  | { ok: false; reason: 'memory-limit' }
   | { ok: false; reason: 'parser-error'; message: string }
 
 /**

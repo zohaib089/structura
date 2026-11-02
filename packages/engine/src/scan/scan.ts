@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { constants as fsConstants } from 'node:fs'
 import { lstat, mkdir, open, readFile, realpath, rename, unlink } from 'node:fs/promises'
-import { isAbsolute, join, resolve } from 'node:path'
+import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { CONFIG_FILE, GRAPH_FILE, OUT_DIR, PRODUCT_NAME, RUN_FILE } from '../brand.js'
 import { ContentCache, contentHash, defaultCacheDir, isInsideRoot, limitsTag } from '../cache/content-cache.js'
@@ -57,6 +57,14 @@ export class InterruptedError extends Error {
     super('scan interrupted')
     this.name = 'InterruptedError'
   }
+}
+
+const pendingOutputTemps = new Set<string>()
+
+/** Removes incomplete graph/run temp files (for example after SIGINT). */
+export async function discardOutputTemps(): Promise<void> {
+  await Promise.all([...pendingOutputTemps].map(path => unlink(path).catch(() => undefined)))
+  pendingOutputTemps.clear()
 }
 
 export interface RunMeta {
@@ -272,14 +280,33 @@ function isPreviousRunMeta(value: unknown): boolean {
     && typeof memory.external === 'number'
 }
 
+async function assertWritablePathComponents(rootAbs: string, targetPath: string): Promise<void> {
+  const rel = relative(rootAbs, targetPath)
+  if (rel.startsWith('..') || rel === '') return
+  let acc = rootAbs
+  for (const segment of rel.split(sep)) {
+    acc = join(acc, segment)
+    let stats
+    try {
+      stats = await lstat(acc)
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
+      throw error
+    }
+    if (stats.isSymbolicLink()) throw new OutputRefusedError(`refusing to write through a symlink at ${acc}`)
+  }
+}
+
 async function writeExclusive(path: string, contents: string, temporaries: string[]): Promise<void> {
   await mkdir(resolve(path, '..'), { recursive: true })
   const temporary = `${path}.${process.pid}.tmp`
   temporaries.push(temporary)
+  pendingOutputTemps.add(temporary)
   let handle
   try {
-    handle = await open(temporary, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_TRUNC | O_NOFOLLOW, 0o644)
+    handle = await open(temporary, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | O_NOFOLLOW, 0o644)
     await handle.writeFile(contents, 'utf8')
+    await handle.sync()
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ELOOP') throw new OutputRefusedError(`refusing to write through a symlink at ${path}`)
     throw error
@@ -289,8 +316,10 @@ async function writeExclusive(path: string, contents: string, temporaries: strin
   try {
     await rename(temporary, path)
     temporaries.pop()
+    pendingOutputTemps.delete(temporary)
   } catch (error) {
     await unlink(temporary).catch(() => undefined)
+    pendingOutputTemps.delete(temporary)
     temporaries.pop()
     throw error
   }
@@ -367,16 +396,18 @@ async function analyseFile(
         maxSymbolsPerFile: limits.maxSymbolsPerFile,
         maxEdgesPerFile: limits.maxEdgesPerFile
       },
-      timeoutMs: limits.parseTimeoutMs
+      timeoutMs: limits.parseTimeoutMs,
+      memoryLimitBytes: limits.workerMaxMemoryBytes
     })
     if (!outcome.ok) {
+      const skipped = outcome.reason === 'timeout' || outcome.reason === 'memory-limit'
       return {
         redactions: 0,
         record: {
           path: file.path,
           language: file.language,
-          status: outcome.reason === 'timeout' ? 'skipped' : 'failed',
-          reason: outcome.reason === 'timeout' ? 'timeout' : 'parser-error',
+          status: skipped ? 'skipped' : 'failed',
+          reason: outcome.reason === 'timeout' ? 'timeout' : outcome.reason === 'memory-limit' ? 'memory-limit' : 'parser-error',
           lineCount: decoded.lineCount,
           lossy: decoded.lossy
         }
@@ -419,12 +450,16 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
   const outDir = resolve(options.outDir ?? join(rootAbs, OUT_DIR))
   if (outDir === rootAbs) throw new OutputRefusedError('--out cannot be the scan root')
   const graphPath = join(outDir, GRAPH_FILE)
-  const cacheDirectory = options.noCache ? undefined : resolve(options.cacheDir ?? defaultCacheDir(rootAbs))
-  const hardExcludePaths = [outDir]
-  if (cacheDirectory && isInsideRoot(rootAbs, cacheDirectory)) hardExcludePaths.push(cacheDirectory)
+  const resolvedCacheDir = options.noCache ? undefined : resolve(options.cacheDir ?? defaultCacheDir(rootAbs))
+  if (!options.noCache && !options.cacheDir && resolvedCacheDir && isInsideRoot(rootAbs, resolvedCacheDir)) {
+    throw new OutputRefusedError('default cache directory would be inside the scan root; pass --cache-dir explicitly')
+  }
+  const cacheDirectory = options.noCache ? undefined : resolvedCacheDir
+  const omitPaths = [outDir]
+  if (cacheDirectory && isInsideRoot(rootAbs, cacheDirectory)) omitPaths.push(cacheDirectory)
   if (options.metaPath) {
     const metaAbs = resolve(options.metaPath)
-    if (metaAbs !== rootAbs && isInsideRoot(rootAbs, metaAbs)) hardExcludePaths.push(metaAbs)
+    if (metaAbs !== rootAbs && isInsideRoot(rootAbs, metaAbs)) omitPaths.push(metaAbs)
   }
 
   let walk: WalkResult
@@ -436,7 +471,7 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
       respectToolIgnore: false,
       useDefaultIgnores: options.useDefaultIgnores,
       extraIgnorePatterns: options.extraIgnorePatterns,
-      hardExcludePaths
+      omitPaths
     })
   } catch (error) {
     if (error instanceof MaxFilesExceeded || error instanceof ScanRootError) throw error
@@ -615,10 +650,12 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
   }
   let runPath: string | undefined
   try {
+    await assertWritablePathComponents(rootAbs, graphPath)
     await assertReplaceable(graphPath, 'graph')
     await writeExclusive(graphPath, graphJson, temporaries)
     if (options.metaPath !== null) {
       runPath = options.metaPath ? resolve(options.metaPath) : join(outDir, RUN_FILE)
+      await assertWritablePathComponents(rootAbs, runPath)
       await assertReplaceable(runPath, 'meta')
       await writeExclusive(runPath, `${JSON.stringify(run, null, 2)}\n`, temporaries)
     }

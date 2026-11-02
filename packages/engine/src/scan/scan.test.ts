@@ -208,6 +208,32 @@ test('an already-aborted signal is exit 130 and run metadata stays out of the gr
   }
 })
 
+test('default in-repo --out is omitted; two scans are byte-identical', async () => {
+  const { root, cleanup } = fixture()
+  try {
+    const first = await scanRepository(root, { noCache: true, metaPath: null, limits: { jobs: 1 } })
+    const second = await scanRepository(root, { noCache: true, metaPath: null, limits: { jobs: 1 } })
+    assert.equal(readFileSync(first.graphPath, 'utf8'), second.graphJson)
+    assert.equal(first.graphJson, second.graphJson)
+    assert.equal(first.graph.nodes.some(node => node.kind === 'file' && node.path.startsWith(`${OUT_DIR}/`)), false)
+  } finally {
+    cleanup()
+  }
+})
+
+test('refuses a symlink component on the in-root graph path', async () => {
+  const { root, cleanup } = makeTree({ 'src/app.ts': 'export {}\n' })
+  try {
+    symlinkSync(join(root, 'src'), join(root, OUT_DIR))
+    await assert.rejects(
+      scanRepository(root, { noCache: true, metaPath: null, limits: { jobs: 1 } }),
+      OutputRefusedError
+    )
+  } finally {
+    cleanup()
+  }
+})
+
 test('the scan does not load process or network modules', async () => {
   const nodeModule = await import('node:module')
   const loader = nodeModule.Module as typeof nodeModule.Module & { _load?: (request: string, parent: unknown, isMain: boolean) => unknown }

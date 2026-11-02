@@ -41,7 +41,7 @@ test('walks deterministically, sorted by path, with language detection', async (
   }
 })
 
-test('applies defaults, nested gitignore and the tool ignore file; hard-excludes vcs and the out dir', async () => {
+test('applies defaults, nested gitignore and the tool ignore file; hard-excludes .git only', async () => {
   const { root, cleanup } = makeTree({
     'src/index.ts': 'x',
     'node_modules/dep/index.js': 'x',
@@ -55,20 +55,41 @@ test('applies defaults, nested gitignore and the tool ignore file; hard-excludes
     'b.tmp': 'kept at root',
     [IGNORE_FILE]: 'scratch.ts\n',
     'scratch.ts': 'x',
-    [`${OUT_DIR}/cache/scan-cache.json`]: '{}'
+    [`nested/${OUT_DIR}/secret.ts`]: 'export const secret = 1\n'
   })
   try {
     const result = await walkRepository(root)
-    assert.deepEqual(result.files.map(file => file.path), [IGNORE_FILE, '.gitignore', 'b.tmp', 'pkg/.gitignore', 'pkg/a.ts', 'src/index.ts'])
+    assert.deepEqual(result.files.map(file => file.path), [IGNORE_FILE, '.gitignore', 'b.tmp', `nested/${OUT_DIR}/secret.ts`, 'pkg/.gitignore', 'pkg/a.ts', 'src/index.ts'])
     assert.equal(result.ignored.get('default:node_modules'), 1)
     assert.equal(result.ignored.get('default:dist'), 1)
     assert.equal(result.ignored.get('hard:.git'), 1)
-    assert.equal(result.ignored.get(`hard:${OUT_DIR}`), 1)
+    assert.equal(result.ignored.get(`hard:${OUT_DIR}`), undefined)
     assert.equal(result.ignored.get('gitignore:generated/'), 1)
     assert.equal(result.ignored.get('gitignore:*.tmp'), 1)
     assert.equal(result.ignored.get('ignorefile:scratch.ts'), 1)
     assert.equal(result.ignoredPaths.includes('.git'), true)
     accounted(result)
+  } finally {
+    cleanup()
+  }
+})
+
+test('omitPaths skip configured out/cache/meta without coverage; nested output dirs are scanned', async () => {
+  const { root, cleanup } = makeTree({
+    'src/app.ts': 'export {}\n',
+    [`${OUT_DIR}/graph.json`]: '{}\n',
+    [`nested/${OUT_DIR}/inside.ts`]: 'export const x = 1\n'
+  })
+  const outDir = join(root, OUT_DIR)
+  try {
+    const omitted = await walkRepository(root, { omitPaths: [outDir] })
+    assert.equal(omitted.files.some(file => file.path.startsWith(`${OUT_DIR}/`)), false)
+    accounted(omitted)
+    assert.equal(omitted.files.some(file => file.path === `nested/${OUT_DIR}/inside.ts`), true)
+
+    const without = await walkRepository(root)
+    assert.equal(without.files.some(file => file.path === `nested/${OUT_DIR}/inside.ts`), true)
+    assert.equal(without.files.some(file => file.path === `${OUT_DIR}/graph.json`), true)
   } finally {
     cleanup()
   }
@@ -83,10 +104,10 @@ test('include globs resurrect ignored files and cannot resurrect hard excludes',
     'src/index.ts': 'export {}\n'
   })
   try {
-    const result = await walkRepository(root, { include: ['generated/a.ts', '.git/**', `${OUT_DIR}/**`] })
+    const result = await walkRepository(root, { include: ['generated/a.ts', '.git/**'] })
     assert.equal(result.files.some(file => file.path === 'generated/a.ts'), true)
     assert.equal(result.ignored.get('hard:.git'), 1)
-    assert.equal(result.ignored.get(`hard:${OUT_DIR}`), 1)
+    assert.equal(result.files.some(file => file.path === `${OUT_DIR}/graph.json`), true)
     assert.equal(result.files.some(file => file.path === '.git' || file.path.startsWith('.git/')), false)
   } finally {
     cleanup()

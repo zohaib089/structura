@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { mkdir, open, rename } from 'node:fs/promises'
+import { chmod, mkdir, open, rename } from 'node:fs/promises'
 import { constants as fsConstants } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join, sep } from 'node:path'
@@ -108,6 +108,11 @@ function matches(entry: StoredEntry, key: CacheKey): boolean {
     isParseResult(entry.result)
 }
 
+async function ensurePrivateDir(dir: string): Promise<void> {
+  await mkdir(dir, { recursive: true, mode: 0o700 })
+  await chmod(dir, 0o700)
+}
+
 /**
  * Content-addressed extraction cache. Entries are JSON parsed with `JSON.parse` only, then validated.
  * A mismatch, a symlink, a deep document or a bad shape is a miss.
@@ -166,7 +171,7 @@ export class ContentCache {
     const payload: StoredEntry = { ...key, result }
     const json = JSON.stringify(payload)
     if (Buffer.byteLength(json) > LIMITS.maxCacheEntryBytes.default) return
-    await mkdir(dirname(target), { recursive: true })
+    await ensurePrivateDir(dirname(target))
     const temporary = `${target}.${process.pid}.tmp`
     const handle = await open(temporary, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_TRUNC | O_NOFOLLOW, 0o644)
     try {

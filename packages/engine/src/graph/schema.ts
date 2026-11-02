@@ -7,7 +7,6 @@ import {
   IGNORE_RULE_PATTERN,
   INFERRED_REASONS,
   LANGUAGES,
-  NOT_PARSED_REASONS,
   PARTIAL_REASONS,
   IMPORT_KINDS,
   PROVENANCES,
@@ -188,12 +187,13 @@ export function buildGraphJsonSchema(): Schema {
               ['language', 'parsed', 'partial', 'failed', 'skipped']
             )
           },
-          skipped: { type: 'array', items: reasonCount(NOT_PARSED_REASONS) },
+          skipped: { type: 'array', items: reasonCount(SKIP_REASONS) },
+          failed: { type: 'array', items: reasonCount(FAIL_REASONS) },
           ignored: { type: 'array', items: closed({ rule: str({ pattern: IGNORE_RULE_PATTERN }), count }, ['rule', 'count']) },
           unresolved: { type: 'array', items: reasonCount(UNRESOLVED_REASONS) },
           accounting: closed({ discovered: count, accounted: count }, ['discovered', 'accounted'])
         },
-        ['files', 'byLanguage', 'skipped', 'ignored', 'unresolved', 'accounting']
+        ['files', 'byLanguage', 'skipped', 'failed', 'ignored', 'unresolved', 'accounting']
       )
     }
   }

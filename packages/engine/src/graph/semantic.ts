@@ -211,11 +211,13 @@ export function checkSemantics(graph: Graph, options: SemanticOptions = {}): Sch
   }
   sorted(coverage.byLanguage, item => item.language ?? '', '/coverage/byLanguage')
   sorted(coverage.skipped, item => item.reason, '/coverage/skipped')
+  sorted(coverage.failed, item => item.reason, '/coverage/failed')
   sorted(coverage.ignored, item => item.rule, '/coverage/ignored')
   sorted(coverage.unresolved, item => item.reason, '/coverage/unresolved')
 
   const sum = (items: { count: number }[]): number => items.reduce((total, item) => total + item.count, 0)
-  if (sum(coverage.skipped) !== f.skipped + f.failed) add('/coverage/skipped', `counts sum to ${sum(coverage.skipped)} but skipped + failed is ${f.skipped + f.failed}`)
+  if (sum(coverage.skipped) !== f.skipped) add('/coverage/skipped', `counts sum to ${sum(coverage.skipped)} but skipped is ${f.skipped}`)
+  if (sum(coverage.failed) !== f.failed) add('/coverage/failed', `counts sum to ${sum(coverage.failed)} but failed is ${f.failed}`)
   if (sum(coverage.ignored) !== f.ignored) add('/coverage/ignored', `counts sum to ${sum(coverage.ignored)} but ignored is ${f.ignored}`)
   // Every unresolved edge is counted; configuration problems add entries without edges.
   for (const [reason, edgeCount] of unresolvedByReason) {

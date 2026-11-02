@@ -40,6 +40,7 @@ export const SKIP_REASONS = [
   'symlink',
   'symlink-outside-root',
   'timeout',
+  'memory-limit',
   'too-large',
   'unrepresentable-path',
   'unsupported-language'
@@ -51,6 +52,9 @@ export const FAIL_REASONS = ['changed-during-scan', 'parser-error', 'permission-
 export type FailReason = typeof FAIL_REASONS[number]
 
 /** Everything allowed in `coverage.skipped[].reason`. */
+export const SKIPPED_COVERAGE_REASONS = [...SKIP_REASONS].sort() as unknown as readonly SkipReason[]
+
+/** @deprecated Use SKIPPED_COVERAGE_REASONS and FAIL_REASONS separately. */
 export const NOT_PARSED_REASONS = [...SKIP_REASONS, ...FAIL_REASONS].sort() as unknown as readonly (SkipReason | FailReason)[]
 export type NotParsedReason = SkipReason | FailReason
 
@@ -79,7 +83,6 @@ export type UnresolvedReason = typeof UNRESOLVED_REASONS[number]
 export const INFERRED_REASONS = [
   'build-output-mapping',
   'conventional-entry',
-  'dynamic-pattern',
   'src-root-guess',
   'src-subpath',
   'submodule-heuristic'
@@ -251,8 +254,10 @@ export interface Coverage {
   files: CoverageFiles
   /** Sorted by language (`null` first). */
   byLanguage: CoverageByLanguage[]
-  /** Reasons for every file that is `skipped` or `failed` (sum = files.skipped + files.failed). Sorted by reason. */
+  /** Reasons for every skipped file (sum = files.skipped). Sorted by reason. */
   skipped: CoverageReason[]
+  /** Reasons for every failed file (sum = files.failed). Sorted by reason. */
+  failed: CoverageReason[]
   /** Sorted by rule. */
   ignored: CoverageIgnored[]
   /**

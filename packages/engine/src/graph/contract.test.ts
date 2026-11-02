@@ -27,6 +27,7 @@ function emptyCoverage(discovered = 0, parsed = 0): Graph['coverage'] {
     files: { discovered, parsed, partial: 0, failed: 0, skipped: 0, ignored: discovered - parsed },
     byLanguage: parsed === 0 ? [] : [{ language: 'typescript', parsed, partial: 0, failed: 0, skipped: 0 }],
     skipped: [],
+    failed: [],
     ignored: [],
     unresolved: [],
     accounting: { discovered, accounted: discovered }

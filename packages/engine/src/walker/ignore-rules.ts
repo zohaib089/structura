@@ -1,11 +1,11 @@
 import ignore, { type Ignore } from 'ignore'
-import { IGNORE_FILE, OUT_DIR } from '../brand.js'
+import { IGNORE_FILE } from '../brand.js'
 
 /**
  * Hard excludes by directory entry name (any depth): never overridable by config, ignore files or `--include`.
- * `.git` and the product output directory (which also holds an in-root cache when one is explicitly requested).
+ * Tool output and cache paths are omitted only at their resolved configured paths (see `omitPaths` on the walk).
  */
-export const HARD_EXCLUDED_NAMES: readonly string[] = ['.git', OUT_DIR]
+export const HARD_EXCLUDED_NAMES: readonly string[] = ['.git']
 
 /** Built-in defaults (gitignore syntax). Lowest priority: a project ignore file can `!negate` them. */
 export const DEFAULT_IGNORE_PATTERNS: readonly string[] = [

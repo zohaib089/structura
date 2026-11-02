@@ -59,9 +59,10 @@ export function createTypeScriptJavaScriptAdapter(options: TypeScriptJavaScriptA
     },
     parse(input: AdapterFileInput): Promise<AdapterParseOutcome> {
       const timeoutMs = input.timeoutMs ?? LIMITS.parseTimeoutMs.default
+      const memoryLimitBytes = input.memoryLimitBytes ?? LIMITS.workerMaxMemoryBytes.default
       const grammar = grammarFor(input.path, input.language)
-      if (runtime) return parseSource(runtime, grammar, input.content, input.limits, timeoutMs)
-      return pool!.parse({ grammar, content: input.content, limits: input.limits, timeoutMs })
+      if (runtime) return parseSource(runtime, grammar, input.content, input.limits, timeoutMs, memoryLimitBytes)
+      return pool!.parse({ grammar, content: input.content, limits: input.limits, timeoutMs, memoryLimitBytes })
     }
   }
 }

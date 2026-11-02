@@ -213,6 +213,7 @@
                 "symlink",
                 "symlink-outside-root",
                 "timeout",
+                "memory-limit",
                 "too-large",
                 "unrepresentable-path",
                 "unsupported-language"
@@ -628,7 +629,6 @@
           "enum": [
             "build-output-mapping",
             "conventional-entry",
-            "dynamic-pattern",
             "src-root-guess",
             "src-subpath",
             "submodule-heuristic"
@@ -760,22 +760,45 @@
                 "type": "string",
                 "enum": [
                   "binary",
-                  "changed-during-scan",
                   "id-collision",
                   "locked",
                   "max-depth",
                   "not-regular-file",
-                  "parser-error",
                   "path-too-long",
-                  "permission-denied",
-                  "read-error",
                   "sensitive-file",
                   "symlink",
                   "symlink-outside-root",
                   "timeout",
+                  "memory-limit",
                   "too-large",
                   "unrepresentable-path",
-                  "unsupported-language",
+                  "unsupported-language"
+                ]
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "reason",
+              "count"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "failed": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "changed-during-scan",
+                  "parser-error",
+                  "permission-denied",
+                  "read-error",
                   "vanished"
                 ]
               },
@@ -864,6 +887,7 @@
         "files",
         "byLanguage",
         "skipped",
+        "failed",
         "ignored",
         "unresolved",
         "accounting"

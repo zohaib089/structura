@@ -1,5 +1,5 @@
 import { compareStrings } from '../graph/ids.js'
-import type { Coverage, CoverageByLanguage, CoverageIgnored, CoverageReason } from '../graph/types.js'
+import { FAIL_REASONS, type Coverage, type CoverageByLanguage, type CoverageIgnored, type CoverageReason } from '../graph/types.js'
 
 export class AccountingError extends Error {
   readonly code = 'SILENT_DROP' as const
@@ -41,7 +41,8 @@ interface LanguageBucket {
 export function buildCoverage(input: CoverageInput): Coverage {
   const files = { discovered: input.discovered, parsed: 0, partial: 0, failed: 0, skipped: 0, ignored: 0 }
   const byLanguage = new Map<string, LanguageBucket>()
-  const reasons = new Map<string, number>()
+  const skipReasons = new Map<string, number>()
+  const failReasons = new Map<string, number>()
 
   const bucket = (language: string | null): LanguageBucket => {
     const key = language ?? ''
@@ -51,19 +52,23 @@ export function buildCoverage(input: CoverageInput): Coverage {
     byLanguage.set(key, created)
     return created
   }
-  const countReason = (reason: string): void => {
-    reasons.set(reason, (reasons.get(reason) ?? 0) + 1)
+  const countSkipReason = (reason: string): void => {
+    skipReasons.set(reason, (skipReasons.get(reason) ?? 0) + 1)
+  }
+  const countFailReason = (reason: string): void => {
+    failReasons.set(reason, (failReasons.get(reason) ?? 0) + 1)
   }
 
   for (const file of input.files) {
     files[file.status] += 1
     bucket(file.language)[file.status] += 1
-    if ((file.status === 'skipped' || file.status === 'failed') && file.reason) countReason(file.reason)
+    if (file.status === 'skipped' && file.reason) countSkipReason(file.reason)
+    if (file.status === 'failed' && file.reason) countFailReason(file.reason)
   }
   for (const item of input.unnoded) {
     files.skipped += 1
     bucket(item.language).skipped += 1
-    countReason(item.reason)
+    countSkipReason(item.reason)
   }
   const ignored: CoverageIgnored[] = []
   for (const [rule, count] of input.ignored) {
@@ -77,8 +82,10 @@ export function buildCoverage(input: CoverageInput): Coverage {
     throw new AccountingError(`coverage accounting failed: discovered ${files.discovered} != accounted ${accounted} (parsed ${files.parsed}, partial ${files.partial}, failed ${files.failed}, skipped ${files.skipped}, ignored ${files.ignored})`)
   }
 
-  const skipped: CoverageReason[] = [...reasons.entries()].map(([reason, count]) => ({ reason, count }))
+  const skipped: CoverageReason[] = [...skipReasons.entries()].map(([reason, count]) => ({ reason, count }))
   skipped.sort((left, right) => compareStrings(left.reason, right.reason))
+  const failed: CoverageReason[] = [...failReasons.entries()].map(([reason, count]) => ({ reason, count }))
+  failed.sort((left, right) => compareStrings(left.reason, right.reason))
   ignored.sort((left, right) => compareStrings(left.rule, right.rule))
 
   const unresolvedCounts = new Map<string, number>()
@@ -95,6 +102,7 @@ export function buildCoverage(input: CoverageInput): Coverage {
     files,
     byLanguage: languages,
     skipped,
+    failed,
     ignored,
     unresolved,
     accounting: { discovered: files.discovered, accounted }
@@ -110,7 +118,8 @@ export function formatCoverageSummary(coverage: Coverage): string {
   if (coverage.byLanguage.length > 0) {
     lines.push(`by language: ${coverage.byLanguage.map(row => `${row.language ?? 'other'} parsed ${row.parsed} partial ${row.partial} failed ${row.failed} skipped ${row.skipped}`).join('; ')}`)
   }
-  if (coverage.skipped.length > 0) lines.push(`not parsed: ${coverage.skipped.map(item => `${item.reason} ${item.count}`).join(', ')}`)
+  if (coverage.skipped.length > 0) lines.push(`skipped: ${coverage.skipped.map(item => `${item.reason} ${item.count}`).join(', ')}`)
+  if (coverage.failed.length > 0) lines.push(`failed: ${coverage.failed.map(item => `${item.reason} ${item.count}`).join(', ')}`)
   if (coverage.ignored.length > 0) lines.push(`ignored: ${coverage.ignored.map(item => `${item.rule} ${item.count}`).join(', ')}`)
   if (coverage.unresolved.length > 0) lines.push(`unresolved: ${coverage.unresolved.map(item => `${item.reason} ${item.count}`).join(', ')}`)
   lines.push(`accounting: ${coverage.accounting.discovered} = ${coverage.accounting.accounted}`)

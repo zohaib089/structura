@@ -12,6 +12,7 @@ interface ParseInput {
   content: string
   limits: ExtractLimits
   timeoutMs: number
+  memoryLimitBytes?: number
 }
 
 interface WorkerMessage {
@@ -77,7 +78,7 @@ export class ParsePool {
         void this.drop(slot)
       }, input.timeoutMs + BACKSTOP_GRACE_MS)
       slot.inflight.set(id, { resolve, reject, timer })
-      slot.worker.postMessage({ id, ...input })
+      slot.worker.postMessage({ id, ...input, memoryLimitBytes: input.memoryLimitBytes ?? this.recycle.workerMaxMemoryBytes })
     })
   }
 

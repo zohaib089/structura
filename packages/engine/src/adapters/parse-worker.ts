@@ -9,6 +9,7 @@ interface ParseMessage {
   content: string
   limits: ExtractLimits
   timeoutMs: number
+  memoryLimitBytes: number
 }
 
 interface WorkerReply {
@@ -35,7 +36,7 @@ parentPort?.on('message', (message: ParseMessage) => {
       parentPort?.postMessage({ id: message.id, memory: process.memoryUsage().rss, files, ...partial } satisfies WorkerReply)
     }
     try {
-      const outcome = await parseSource(runtime, message.grammar, message.content, message.limits, message.timeoutMs)
+      const outcome = await parseSource(runtime, message.grammar, message.content, message.limits, message.timeoutMs, message.memoryLimitBytes)
       files += 1
       reply({ outcome })
     } catch (error) {

@@ -11,7 +11,7 @@ const DYNAMIC_IMPORT = /import\(\s*['"]([^'"]+)['"]\s*\)/g
 
 function forbiddenModule(specifier: string): boolean {
   const bare = specifier.startsWith('node:') ? specifier.slice(5) : specifier
-  return bare === 'child_process' || bare === 'cluster' || bare === 'net' || bare === 'http' || bare === 'https' || bare === 'dns' || bare === 'tls' || bare === 'dgram'
+  return bare === 'child_process' || bare === 'cluster' || bare === 'net' || bare === 'http' || bare === 'https' || bare === 'dns' || bare === 'tls' || bare === 'dgram' || bare === 'vm' || bare === 'zlib' || bare === 'undici' || bare === 'http2'
 }
 
 function walk(dir: string, out: string[]): void {

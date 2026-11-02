@@ -13,12 +13,22 @@ const forbidden = new Set([
   'node:http',
   'https',
   'node:https',
+  'http2',
+  'node:http2',
   'dns',
   'node:dns',
   'tls',
   'node:tls',
   'dgram',
-  'node:dgram'
+  'node:dgram',
+  'vm',
+  'node:vm',
+  'zlib',
+  'node:zlib',
+  'undici',
+  'node:undici',
+  'worker_threads',
+  'node:worker_threads'
 ])
 
 const trip = (name: string): never => {
