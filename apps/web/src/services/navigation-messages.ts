@@ -13,13 +13,15 @@ export interface NavigationMessages {
   logIn: string
   logOut: string
   launchApp: string
+  docs: string
+  github: string
 }
 
 /**
  * New landing labels are English in every locale until they are translated.
  * Existing labels stay in the locale that already had them.
  */
-const messages: Record<WebLocale, NavigationMessages> = {
+const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> = {
   en: {
     mainNavigation: 'Main navigation',
     home: 'Go back home',
@@ -163,5 +165,5 @@ const messages: Record<WebLocale, NavigationMessages> = {
 }
 
 export function navigationMessages(locale: WebLocale): NavigationMessages {
-  return messages[locale]
+  return { ...messages[locale], docs: 'Docs', github: 'GitHub' }
 }

@@ -6,7 +6,9 @@ test('landing page presents the product and its section navigation', async ({ pa
 
   await expect(page.getByRole('banner').getByRole('link', { name: 'Log in' })).toBeVisible()
   await expect(page.getByRole('banner').getByRole('link', { name: 'Launch app' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: BRAND.tagline })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'See your architecture. Prove it stays that way.' })).toBeVisible()
+  await expect(page.getByText('Star on GitHub')).toHaveCount(0)
+  await expect(page.getByText('Sample').first()).toBeVisible()
   await expect(page.getByText(quickstartCommand()).first()).toBeVisible()
   await expect(page.locator('[data-testid="graph-canvas"]')).toBeVisible()
   await expect(page.getByText('Sample data').first()).toBeVisible()

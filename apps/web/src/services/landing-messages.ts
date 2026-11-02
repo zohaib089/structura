@@ -7,9 +7,14 @@ export interface LandingCard {
 
 export interface LandingMessages {
   badge: string
+  headlineLead: string
+  headlineProve: string
+  headlineTail: string
   subtitle: string
   openViewer: string
   github: string
+  starGithub: string
+  commandSample: string
   imageAlt: string
   samplePill: string
   facts: {
@@ -31,6 +36,12 @@ export interface LandingMessages {
     extracted: LandingCard
     inferred: LandingCard
     unresolved: LandingCard
+    telemetry: LandingCard
+    compareTitle: string
+    compareClaim: string
+    compareAnswer: string
+    compareCaption: string
+    compareRows: LandingCard[]
   }
   coverage: {
     title: string
@@ -58,11 +69,16 @@ export interface LandingMessages {
 }
 
 const en: LandingMessages = {
-  badge: 'Local-first · open graph.json',
+  badge: 'Local-first · Open source',
+  headlineLead: 'See your architecture.',
+  headlineProve: 'Prove it',
+  headlineTail: ' stays that way.',
   subtitle:
-    '{name} scans a repository into one {graphFile} and opens it in a static viewer. No server, no upload. Every edge is marked EXTRACTED or INFERRED, and every skipped file is listed. TypeScript and JavaScript are read today. Python is coming soon.',
-  openViewer: 'Open the viewer',
+    '{name} scans your repository into a map you can explore. It runs on your machine. No account, no upload. TypeScript and JavaScript are read today. Python is coming soon.',
+  openViewer: 'Open the sample map',
   github: 'View on GitHub',
+  starGithub: 'Star on GitHub',
+  commandSample: 'Sample',
   imageAlt: 'Aggregated architecture graph with extracted, inferred and unresolved edges',
   samplePill: 'Sample data',
   facts: {
@@ -101,7 +117,22 @@ const en: LandingMessages = {
     unresolved: {
       title: 'UNRESOLVED',
       body: 'Dotted line and a hollow end. The target was not found.'
-    }
+    },
+    telemetry: {
+      title: 'No telemetry',
+      body: 'The static viewer does not send the graph anywhere. Nothing is uploaded.'
+    },
+    compareTitle: 'What you can verify',
+    compareClaim: 'Claim',
+    compareAnswer: 'Answer',
+    compareCaption: 'Sources reviewed on 2026-10-26.',
+    compareRows: [
+      { title: 'Where it runs', body: 'On your machine. Opening a graph does not upload it.' },
+      { title: 'Account', body: 'Not required to read a graph. A hosted account is optional.' },
+      { title: 'Languages', body: 'TypeScript and JavaScript today. Python is coming soon.' },
+      { title: 'Edges', body: 'Each edge is marked EXTRACTED or INFERRED. Unresolved targets stay visible.' },
+      { title: 'Coverage', body: 'Skipped files are listed, never hidden.' }
+    ]
   },
   coverage: {
     title: 'Nothing is skipped silently',
@@ -118,6 +149,7 @@ const en: LandingMessages = {
     title: 'How it works',
     steps: [
       { title: 'Scan', body: 'Run the scan command in the repository you already have. The page does not upload it.' },
+      { title: 'Read coverage', body: 'Parsed, partial, failed, and skipped files are listed. Skipped files stay in the report.' },
       { title: 'Open', body: 'Open the graph file in the static viewer and read each edge’s provenance.' }
     ]
   },

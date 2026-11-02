@@ -8,6 +8,7 @@ const props = defineProps<{
   copyLabel: string
   copiedLabel: string
   failedLabel: string
+  sampleLabel?: string
 }>()
 
 const copied = ref(false)
@@ -45,6 +46,7 @@ async function copy() {
 
 <template>
   <div class="quickstart">
+    <span v-if="sampleLabel" class="sample">{{ sampleLabel }}</span>
     <span class="prompt" aria-hidden="true">$</span>
     <code ref="codeEl" tabindex="0" :aria-label="label">{{ command }}</code>
     <button type="button" @click="copy">
@@ -66,6 +68,16 @@ async function copy() {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface-raised);
+}
+
+.sample {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
 }
 
 .prompt {

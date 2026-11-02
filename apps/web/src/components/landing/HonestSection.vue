@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { BRAND } from '../../../../../packages/brand/src/brand'
 import { EDGE_DASH, edgeStroke } from '../../viewer/edge-style'
 import { isSupportedWebLocale, readLocalePreference, resolvePreferredWebLocale } from '../../services/locale'
 import { landingMessages } from '../../services/landing-messages'
@@ -24,7 +25,7 @@ const rows = computed(() => [
     <div class="inner">
       <h2>{{ messages.honest.title }}</h2>
       <ul>
-        <li v-for="row in rows" :key="row.visual" class="card">
+        <li v-for="row in rows" :key="row.card.title" class="card">
           <svg aria-hidden="true" viewBox="0 0 72 24">
             <line
               x1="4"
@@ -49,7 +50,27 @@ const rows = computed(() => [
           <strong>{{ row.card.title }}</strong>
           <span>{{ row.card.body }}</span>
         </li>
+        <li class="card">
+          <strong>{{ messages.honest.telemetry.title }}</strong>
+          <span>{{ messages.honest.telemetry.body }}</span>
+        </li>
       </ul>
+      <h3>{{ messages.honest.compareTitle }}</h3>
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">{{ messages.honest.compareClaim }}</th>
+            <th scope="col">{{ messages.honest.compareAnswer }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in messages.honest.compareRows" :key="row.title">
+            <th scope="row">{{ row.title }}</th>
+            <td>{{ row.body }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="caption"><a :href="BRAND.repoUrl">{{ messages.honest.compareCaption }}</a></p>
     </div>
   </section>
 </template>
@@ -96,6 +117,17 @@ svg {
 span {
   color: var(--color-text-secondary);
 }
+
+h3 { margin: var(--space-8) 0 var(--space-4); }
+table { inline-size: 100%; border-collapse: collapse; }
+th, td {
+  padding: var(--space-3);
+  border-block-end: 1px solid var(--color-border);
+  text-align: start;
+  vertical-align: top;
+}
+.caption { color: var(--color-text-secondary); }
+.caption a { color: var(--color-accent-primary); }
 
 @media (max-width: 920px) {
   ul {

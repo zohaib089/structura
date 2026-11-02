@@ -5,6 +5,7 @@ import QuickstartCommand from '../../src/components/landing/QuickstartCommand.vu
 import { fillLanding, landingMessages } from '../../src/services/landing-messages'
 import { WEB_LOCALES } from '../../src/services/locale'
 import { hostedAppEnabledFrom } from '../../src/hosted-app'
+import { showGithubStar } from '../../src/landing-flags'
 
 describe('landing copy', () => {
   it('interpolates the product name and falls back to English', () => {
@@ -23,6 +24,11 @@ describe('landing copy', () => {
     expect(text).toContain('TypeScript')
     expect(text).toContain('JavaScript')
     expect(text).toContain('Python is coming soon')
+    expect(english.badge).toBe('Local-first · Open source')
+    expect(`${english.headlineLead} ${english.headlineProve}${english.headlineTail}`).toBe('See your architecture. Prove it stays that way.')
+    expect(english.commandSample).toBe('Sample')
+    expect(english.how.steps).toHaveLength(3)
+    expect(english.how.steps.map((step) => step.title)).not.toContain('Check')
   })
 
   it('copies the quickstart command from the brand module', async () => {
@@ -54,5 +60,9 @@ describe('hosted app flag', () => {
     expect(hostedAppEnabledFrom('')).toBe(true)
     expect(hostedAppEnabledFrom('true')).toBe(true)
     expect(hostedAppEnabledFrom('false')).toBe(false)
+  })
+
+  it('keeps the GitHub star control hidden', () => {
+    expect(showGithubStar).toBe(false)
   })
 })

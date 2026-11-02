@@ -29,6 +29,7 @@ const openStep = computed(() => fillLanding(messages.value.quickstart.openStep, 
             :copy-label="messages.quickstart.copy"
             :copied-label="messages.quickstart.copied"
             :failed-label="messages.quickstart.copyFailed"
+            :sample-label="messages.commandSample"
           />
         </li>
         <li>
@@ -38,6 +39,7 @@ const openStep = computed(() => fillLanding(messages.value.quickstart.openStep, 
             :copy-label="messages.quickstart.copy"
             :copied-label="messages.quickstart.copied"
             :failed-label="messages.quickstart.copyFailed"
+            :sample-label="messages.commandSample"
           />
         </li>
       </ol>

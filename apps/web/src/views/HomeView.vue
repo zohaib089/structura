@@ -51,10 +51,10 @@ onUnmounted(() => revealObserver?.disconnect())
 <style scoped>
 .landing-page.motion-ready > section:not(.hero) {
   opacity: 0;
-  transform: translateY(24px);
+  transform: translateY(16px);
   transition:
-    opacity 700ms var(--easing-emphasized),
-    transform 700ms var(--easing-emphasized);
+    opacity var(--duration-slow) var(--easing-emphasized),
+    transform var(--duration-slow) var(--easing-emphasized);
 }
 
 .landing-page.motion-ready > section:not(.hero).is-visible {
@@ -90,13 +90,24 @@ onUnmounted(() => revealObserver?.disconnect())
   }
 }
 
+.landing-page.motion-ready > #how:not(.is-visible) :deep(.draw-edge) {
+  stroke-dashoffset: 1;
+}
+
+.landing-page.motion-ready > #how.is-visible :deep(.draw-edge) {
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset var(--duration-slow) linear;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .landing-page.motion-ready > section:not(.hero),
-  .landing-page.motion-ready > section:not(.hero).is-visible :deep(.card) {
+  .landing-page.motion-ready > section:not(.hero).is-visible :deep(.card),
+  .landing-page.motion-ready > #how :deep(.draw-edge) {
     animation: none;
     opacity: 1;
     transform: none;
     transition: none;
+    stroke-dashoffset: 0;
   }
 }
 </style>

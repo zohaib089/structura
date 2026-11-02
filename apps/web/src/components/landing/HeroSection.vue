@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { FileJson } from '@lucide/vue'
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { BRAND, quickstartCommand } from '../../../../../packages/brand/src/brand'
+import { showGithubStar } from '../../landing-flags'
 import { isSupportedWebLocale, readLocalePreference, resolvePreferredWebLocale } from '../../services/locale'
 import { fillLanding, landingMessages } from '../../services/landing-messages'
 import QuickstartCommand from './QuickstartCommand.vue'
@@ -20,18 +20,26 @@ const subtitle = computed(() => fillLanding(messages.value.subtitle, {
   graphFile: BRAND.graphFile,
   config: BRAND.configFile
 }))
+const headline = computed(() => `${messages.value.headlineLead} ${messages.value.headlineProve}${messages.value.headlineTail}`)
 const command = quickstartCommand()
+const live = ref(false)
+
+onMounted(() => {
+  requestAnimationFrame(() => { live.value = true })
+})
 </script>
 
 <template>
   <section id="hero" class="hero">
     <div class="inner">
       <div class="copy">
-        <p class="badge">
-          <FileJson :size="14" aria-hidden="true" />
-          <span>{{ messages.badge }}</span>
-        </p>
-        <h1>{{ BRAND.tagline }}</h1>
+        <p class="badge">{{ messages.badge }}</p>
+        <h1>
+          <span class="sr-only">{{ headline }}</span>
+          <span aria-hidden="true">{{ messages.headlineLead }} </span>
+          <span class="prove" aria-hidden="true">{{ messages.headlineProve }}</span>
+          <span aria-hidden="true">{{ messages.headlineTail }}</span>
+        </h1>
         <p class="subtitle">{{ subtitle }}</p>
         <QuickstartCommand
           :command="command"
@@ -39,28 +47,21 @@ const command = quickstartCommand()
           :copy-label="messages.quickstart.copy"
           :copied-label="messages.quickstart.copied"
           :failed-label="messages.quickstart.copyFailed"
+          :sample-label="messages.commandSample"
         />
         <div class="actions">
           <a class="btn" href="#viewer">{{ messages.openViewer }}</a>
-          <a class="text-link" :href="BRAND.repoUrl">{{ messages.github }}</a>
+          <a v-if="showGithubStar" class="text-link" :href="BRAND.repoUrl">{{ messages.starGithub }}</a>
         </div>
-        <ul class="facts">
-          <li class="card">
-            <strong>{{ messages.facts.provenance.title }}</strong>
-            <span>{{ messages.facts.provenance.body }}</span>
-          </li>
-          <li class="card">
-            <strong>{{ messages.facts.coverage.title }}</strong>
-            <span>{{ messages.facts.coverage.body }}</span>
-          </li>
-          <li class="card">
-            <strong>{{ messages.facts.local.title }}</strong>
-            <span>{{ messages.facts.local.body }}</span>
-          </li>
-        </ul>
       </div>
       <div id="viewer">
-        <SampleViewer :alt="messages.imageAlt" :sample-pill="messages.samplePill" />
+        <div v-if="!live" class="poster" role="img" :aria-label="messages.imageAlt">
+          <span class="pill">{{ messages.samplePill }}</span>
+          <span class="cluster"></span>
+          <span class="cluster second"></span>
+          <span class="file"></span>
+        </div>
+        <SampleViewer v-else :alt="messages.imageAlt" :sample-pill="messages.samplePill" />
       </div>
     </div>
   </section>
@@ -77,23 +78,28 @@ const command = quickstartCommand()
   gap: var(--space-8);
   max-inline-size: var(--content-width);
   margin-inline: auto;
-  align-items: start;
+  align-items: center;
 }
 
 .badge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
   margin: 0 0 var(--space-4);
   color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
 }
 
 h1 {
   margin: 0 0 var(--space-4);
   color: var(--color-text-primary);
-  font-size: clamp(var(--font-size-5xl), 5vw, var(--font-size-6xl));
-  line-height: var(--line-height-tight);
+  font-size: var(--font-size-6xl);
+  font-weight: var(--font-weight-extrabold);
+  line-height: var(--line-height-display);
+  letter-spacing: var(--tracking-display);
 }
+
+.prove { color: var(--color-brand-amber-ui); }
 
 .subtitle {
   max-inline-size: var(--content-width-copy);
@@ -122,47 +128,60 @@ h1 {
   background: var(--color-brand-amber-ui);
   border: 0;
   color: var(--color-on-brand-amber);
-  font-weight: 650;
+  font-weight: var(--font-weight-semibold);
   text-decoration: none;
 }
 
-.text-link {
-  color: var(--color-accent-primary);
-}
+.text-link { color: var(--color-accent-primary); }
 
-.facts {
+.poster {
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-3);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-3);
+  align-content: center;
+  block-size: 28rem;
+  padding: var(--space-6);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
+  border-radius: var(--radius-2xl);
+  background: var(--color-canvas);
+  box-shadow: var(--shadow-lg);
 }
 
-.card span {
-  color: var(--color-text-secondary);
+.pill {
+  justify-self: start;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  font-size: var(--font-size-sm);
+}
+
+.cluster,
+.file {
+  display: block;
+  block-size: var(--graph-node-height);
+  border: var(--graph-node-border-width) solid var(--graph-node-border);
+  background: var(--surface-tint);
+}
+
+.cluster { inline-size: 9rem; border-radius: var(--radius-lg); border-inline-start: 3px solid var(--graph-layer-1); }
+.second { border-inline-start-color: var(--graph-layer-2); }
+.file { inline-size: 7rem; border-radius: var(--radius-full); background: var(--graph-node-fill); }
+
+.sr-only {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
 }
 
 @media (max-width: 920px) {
-  .inner,
-  .facts {
-    grid-template-columns: 1fr;
-  }
+  .inner { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 640px) {
-  .hero {
-    padding-top: var(--space-24);
-  }
+  .hero { padding-top: var(--space-24); }
+  h1 { font-size: var(--font-size-4xl); }
 }
 </style>
