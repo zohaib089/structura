@@ -1,0 +1,6 @@
+# QA golden-corpus repositories are vendored fixture inputs, not project source.
+# There is no ESLint config in this repo yet. When one is added (including ESLint
+# flat config, which does not read this file by default), keep these ignores.
+packages/test-fixtures/
+test-fixtures/
+**/golden-corpus/
