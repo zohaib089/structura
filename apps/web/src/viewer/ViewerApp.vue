@@ -30,6 +30,7 @@ import {
   type ViewState
 } from './overview'
 import { parseGraphFile, type ParseHandle } from './parse-client'
+import { consumeStagedViewerGraph } from '../services/viewer-graph-handoff'
 import { sampleGraph } from './sample-graph'
 import BudgetMeter from './components/BudgetMeter.vue'
 import CoachMark from './components/CoachMark.vue'
@@ -110,7 +111,10 @@ onMounted(() => {
   window.addEventListener('dragover', onDragOver)
   window.addEventListener('dragleave', onDragLeave)
   window.addEventListener('drop', onDrop)
-  if (import.meta.env.VITE_VIEWER_BOOT_SAMPLE === 'true') {
+  const staged = consumeStagedViewerGraph()
+  if (staged) {
+    void openStagedGraph(staged.label, staged.text)
+  } else if (import.meta.env.VITE_VIEWER_BOOT_SAMPLE === 'true') {
     void openSample()
   }
 })
@@ -174,6 +178,14 @@ async function openSample() {
   const blob = new Blob([JSON.stringify(sampleGraph)], { type: 'application/json' })
   const file = new File([blob], BRAND.graphFile, { type: 'application/json' })
   await openBlob(file, true)
+}
+
+async function openStagedGraph(label: string, text: string) {
+  const blob = new Blob([text], { type: 'application/json' })
+  const file = new File([blob], label.endsWith('.json') ? label : `${label}.json`, {
+    type: 'application/json'
+  })
+  await openBlob(file, false)
 }
 
 async function openBlob(file: File, asSample: boolean) {

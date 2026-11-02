@@ -1,15 +1,22 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { GraphDocument } from '../../viewer/graph-types'
 import { readGraph } from '../../viewer/read-graph'
-import { sampleGraph } from '../../viewer/sample-graph'
 import { computeDashboardGraphStats, type DashboardGraphStats } from '../../services/dashboard-graph-stats'
 import { dashboardGraphMessages } from '../../services/dashboard-graph-messages'
 import { viewerHref } from '../../services/viewer-link'
+import {
+  openViewerWithStagedGraph,
+  stageGraphForViewer
+} from '../../services/viewer-graph-handoff'
 import type { WebLocale } from '../../services/locale'
 
 const props = defineProps<{
   locale: WebLocale
+  graphDocument?: GraphDocument | null
+  graphLabel?: string
+  workspaceId?: string
+  scanId?: string | null
 }>()
 
 const messages = computed(() => dashboardGraphMessages(props.locale))
@@ -17,16 +24,19 @@ const loadState = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
 const parseError = ref('')
 const graphLabel = ref('')
 const stats = ref<DashboardGraphStats | null>(null)
+const stagedGraphText = ref<string | null>(null)
 const dropActive = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 const viewerUrl = viewerHref()
 
 const hasGraph = computed(() => loadState.value === 'ready' && stats.value !== null)
 const showEntryPoints = computed(() => (stats.value?.entryPoints.length ?? 0) > 0)
+const canOpenViewer = computed(() => hasGraph.value && stagedGraphText.value !== null)
 
-function applyGraph(document: GraphDocument, label: string) {
+function applyGraph(document: GraphDocument, label: string, text: string) {
   stats.value = computeDashboardGraphStats(document)
   graphLabel.value = label
+  stagedGraphText.value = text
   loadState.value = 'ready'
   parseError.value = ''
 }
@@ -39,9 +49,10 @@ async function loadText(text: string, label: string) {
     loadState.value = 'error'
     parseError.value = formatReadError(result.error, messages.value)
     stats.value = null
+    stagedGraphText.value = null
     return
   }
-  applyGraph(result.graph, label)
+  applyGraph(result.graph, label, text)
 }
 
 function formatReadError(error: { code: string }, msgs: ReturnType<typeof dashboardGraphMessages>): string {
@@ -50,10 +61,6 @@ function formatReadError(error: { code: string }, msgs: ReturnType<typeof dashbo
   if (error.code === 'unsupported-version') return msgs.parseUnsupportedVersion
   if (error.code === 'invalid-graph') return msgs.parseInvalidGraph
   return msgs.parseInvalidGraph
-}
-
-async function loadSample() {
-  await loadText(JSON.stringify(sampleGraph), messages.value.sampleLabel)
 }
 
 async function loadFile(file: File) {
@@ -94,9 +101,21 @@ function onDropKeydown(event: KeyboardEvent) {
   }
 }
 
-onMounted(() => {
-  void loadSample()
-})
+function openViewer() {
+  if (!stagedGraphText.value) return
+  stageGraphForViewer(graphLabel.value || 'Scan graph', stagedGraphText.value)
+  openViewerWithStagedGraph(viewerUrl)
+}
+
+watch(
+  () => props.graphDocument,
+  (document) => {
+    if (document) {
+      applyGraph(document, props.graphLabel || messages.value.loadedGraph, JSON.stringify(document))
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
@@ -107,12 +126,18 @@ onMounted(() => {
         <h2>{{ messages.panelTitle }}</h2>
         <p class="lede">{{ messages.panelDescription }}</p>
       </div>
-      <a class="primary-button" :href="viewerUrl" target="_blank" rel="noopener noreferrer">
+      <button
+        v-if="canOpenViewer"
+        type="button"
+        class="primary-button"
+        @click="openViewer"
+      >
         {{ messages.openViewer }}
-      </a>
+      </button>
     </div>
 
     <div
+      v-if="!graphDocument"
       class="drop-zone"
       :class="{ active: dropActive, loading: loadState === 'loading' }"
       role="button"
@@ -135,7 +160,6 @@ onMounted(() => {
       <template v-else>
         <p>{{ messages.dropHint }}</p>
         <button type="button" class="secondary-button" @click="openFilePicker">{{ messages.chooseFile }}</button>
-        <button type="button" class="text-button" @click="loadSample">{{ messages.loadSample }}</button>
       </template>
     </div>
 
@@ -215,7 +239,7 @@ onMounted(() => {
       </section>
     </div>
 
-    <div v-else-if="loadState === 'idle'" class="state-card muted-card" role="status">
+    <div v-else-if="loadState === 'idle' && !graphDocument" class="state-card muted-card" role="status">
       {{ messages.emptyGraph }}
     </div>
   </section>
@@ -372,14 +396,6 @@ onMounted(() => {
   border: 1px solid var(--color-border-strong);
   background: var(--color-surface);
   color: var(--color-text-primary);
-}
-
-.text-button {
-  border: none;
-  background: transparent;
-  color: var(--color-accent-primary);
-  font-weight: var(--font-weight-bold);
-  cursor: pointer;
 }
 
 .sr-only {

@@ -9,6 +9,10 @@ interface ImportMeta {
   readonly env: ImportMetaEnv
 }
 
+interface Window {
+  showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle>
+}
+
 declare module '*.vue' {
   import type { DefineComponent } from 'vue'
   const component: DefineComponent<{}, {}, any>

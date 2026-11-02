@@ -4,7 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import Navbar from '../components/layout/Navbar.vue'
 import DashboardToast from '../components/dashboard/DashboardToast.vue'
 import BrandMark from '../components/brand/BrandMark.vue'
-import DashboardGraphPanel from '../components/dashboard/DashboardGraphPanel.vue'
+import DashboardScansHub from '../components/dashboard/DashboardScansHub.vue'
+import { scanMessages } from '../services/scan-messages'
 import { BRAND } from '../../../../packages/brand/src/brand'
 import { getCurrentSession } from '../services/auth'
 import { isSupportedWebLocale, readLocalePreference, resolvePreferredWebLocale } from '../services/locale'
@@ -72,6 +73,7 @@ const recentProjects = computed(() =>
     .sort((first, second) => Date.parse(second.updated_at) - Date.parse(first.updated_at))
     .slice(0, 5)
 )
+const scanHubMessages = computed(() => scanMessages(locale.value))
 const filteredProjects = computed(() => {
   const search = projectSearch.value.trim().toLocaleLowerCase(locale.value)
   if (!search) return projects.value
@@ -361,17 +363,24 @@ onBeforeUnmount(() => {
                 </article>
               </div>
               <div class="overview-actions">
-                <button class="primary-button" type="button" @click="activeSection = 'projects'">
-                  {{ messages.openProjects }}
+                <button class="primary-button" type="button" @click="activeSection = 'architecture'">
+                  {{ scanHubMessages.hubTitle }}
                 </button>
-                <button class="secondary-button" type="button" @click="activeSection = 'architecture'">
-                  {{ messages.architecture }}
+                <button class="secondary-button" type="button" @click="activeSection = 'projects'">
+                  {{ messages.openProjects }}
                 </button>
                 <button class="secondary-button" type="button" @click="activeSection = 'team'">
                   {{ messages.team }}
                 </button>
               </div>
             </div>
+
+            <DashboardScansHub
+              v-if="selectedWorkspaceId"
+              compact
+              :workspace-id="selectedWorkspaceId"
+              :locale="locale"
+            />
 
             <section class="state-card recent-projects" :aria-label="messages.recentProjects">
               <div class="section-heading">
@@ -454,10 +463,11 @@ onBeforeUnmount(() => {
             </form>
           </section>
 
-          <section v-else-if="activeSection === 'architecture'" class="feature-state">
-            <p class="eyebrow">{{ selectedWorkspace?.name }}</p>
-            <p>{{ messages.architectureDescription }}</p>
-          </section>
+          <DashboardScansHub
+            v-else-if="activeSection === 'architecture' && selectedWorkspaceId"
+            :workspace-id="selectedWorkspaceId"
+            :locale="locale"
+          />
 
           <section v-else class="team-section">
             <p class="eyebrow">{{ selectedWorkspace?.name }}</p>
@@ -517,11 +527,6 @@ onBeforeUnmount(() => {
             </template>
           </section>
 
-          <DashboardGraphPanel
-            v-if="workspaces.length > 0"
-            v-show="activeSection === 'overview' || activeSection === 'architecture'"
-            :locale="locale"
-          />
         </template>
       </section>
     </main>
