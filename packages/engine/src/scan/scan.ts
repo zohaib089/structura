@@ -22,6 +22,7 @@ import { ROOT_DIR_ID, ROOT_PATH, baseName, dirId, externalId, fileId, parentPath
 import type {
   ContainsEdge,
   EntryCandidate,
+  EntryCandidateDetail,
   FailReason,
   FileNode,
   Graph,
@@ -122,6 +123,7 @@ interface FileRecord {
   lineCount: number | null
   lossy: boolean
   entry?: EntryCandidate
+  entryCandidates?: EntryCandidateDetail[]
 }
 
 function engineVersion(): string {
@@ -142,6 +144,17 @@ function applyFlags(edge: GraphEdge, reference: ExtractedReference): GraphEdge {
   if (reference.importKind !== 'static') edge.importKind = reference.importKind
   if (reference.typeOnly) edge.typeOnly = true
   return edge
+}
+
+function entrySummary(records: FileRecord[]): { files: number; candidates: number } | undefined {
+  let files = 0
+  let candidates = 0
+  for (const record of records) {
+    if (!record.entryCandidates || record.entryCandidates.length === 0) continue
+    files += 1
+    candidates += record.entryCandidates.length
+  }
+  return files === 0 ? undefined : { files, candidates }
 }
 
 function parseInfo(record: FileRecord): ParseInfo {
@@ -520,10 +533,17 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
   }
 
   await preloadConfigs(walk, texts, limits.maxConfigFileBytes)
-  const entries = findEntryCandidates(new Set(walk.files.map(file => file.path)), path => readJsonValue(texts.get(path)))
+  const entries = findEntryCandidates(
+    new Set(walk.files.map(file => file.path)),
+    path => texts.get(path),
+    path => readJsonValue(texts.get(path))
+  )
   for (const record of records) {
     const entry = entries.get(record.path)
-    if (entry) record.entry = entry
+    if (entry) {
+      record.entry = entry.primary
+      record.entryCandidates = entry.candidates
+    }
   }
 
   const builder = new GraphBuilder()
@@ -547,7 +567,8 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
       lineCount: record.lineCount,
       parse: parseInfo(record),
       ...(record.lossy ? { decoding: 'lossy' as const } : {}),
-      ...(record.entry ? { entryCandidate: record.entry } : {})
+      ...(record.entry ? { entryCandidate: record.entry } : {}),
+      ...(record.entryCandidates && record.entryCandidates.length > 0 ? { entryCandidates: record.entryCandidates } : {})
     }
     builder.addNode(node)
   }
@@ -637,7 +658,7 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
     unnoded: walk.unnodedSkips.map(item => ({ language: item.language, reason: item.reason })),
     unresolved: [...unresolvedCounts.entries()].map(([reason, count]) => ({ reason, count }))
   })
-  const graph = builder.build(coverage)
+  const graph = builder.build(coverage, entrySummary(records))
   const checked = validateStrict(graph)
   if (!checked.ok) {
     const first = checked.issues.slice(0, 8).map(issue => `${issue.path} ${issue.message}`).join('; ')
@@ -700,7 +721,7 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
     run,
     ...(runPath ? { runPath } : {}),
     strictFailures: failures,
-    summary: formatCoverageSummary(graph.coverage),
+    summary: formatCoverageSummary(graph.coverage, graph.summary.entryCandidates),
     elapsedMs: finished - started,
     root: rootAbs
   }

@@ -46,7 +46,12 @@ function canary(): Graph {
     language: 'typescript',
     lineCount: 2,
     parse: { status: 'parsed' },
-    entryCandidate: { reason: 'conventional-name', provenance: 'INFERRED' }
+    entryCandidate: { reason: 'conventional-name', provenance: 'INFERRED' },
+    entryCandidates: [{
+      reason: 'conventional-name',
+      evidence: { source: 'src/app.ts', pointer: 'src/app.ts#/conventional' },
+      confidence: 0.65
+    }]
   })
   builder.addNode({
     id: 'sym:src/app.ts#main',
@@ -73,7 +78,7 @@ function canary(): Graph {
   coverage.files.ignored = 0
   coverage.files.discovered = 1
   coverage.accounting = { discovered: 1, accounted: 1 }
-  return builder.build(coverage)
+  return builder.build(coverage, { files: 1, candidates: 1 })
 }
 
 test('checked-in schema and SCHEMA_HASH match the builder', () => {

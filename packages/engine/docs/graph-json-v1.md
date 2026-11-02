@@ -81,7 +81,7 @@ External names are package roots: `lodash/fp` is `lodash`, `fs/promises` and `no
 Kinds: `directory`, `file`, `symbol`, `external`, `unresolved`.
 
 - directory: `id`, `kind`, `path`, `label` (last segment, `.` for the root).
-- file: `id`, `kind`, `path`, `label`, `language`, `lineCount`, `parse`, optional `decoding`, optional `entryCandidate`.
+- file: `id`, `kind`, `path`, `label`, `language`, `lineCount`, `parse`, optional `decoding`, optional `entryCandidate`, optional `entryCandidates`.
 - symbol: `id`, `kind`, `file`, `label`, `symbolKind`, `exported`, `span`.
 - external: `id`, `kind`, `ecosystem`, `label`.
 - unresolved: `id`, `kind`, `label`, `reason`.
@@ -118,15 +118,45 @@ A non-literal `import()` or `require()` is an **EXTRACTED** edge. The import sit
 
 ### entryCandidate.reason
 
-`conventional-name`, `package-bin`, `package-exports`, `package-main`, `package-script`.
+`conventional-name`, `dockerfile-cmd`, `dockerfile-entrypoint`, `package-bin`, `package-exports`, `package-main`, `package-script`, `pyproject-gui-script`, `pyproject-script`, `python-name-main`, `setup-console-script`.
 
-Several files may be entry candidates. The schema stores one `entryCandidate` per file. When one file matches more than one reason, the highest precedence wins:
+Several files may be entry candidates. The schema keeps the legacy single `entryCandidate` (reason plus provenance) for consumers that expect one winner. When a file has `entryCandidates`, that object must agree with the first list item. Optional `entryCandidates` is a deterministic list of `{ reason, evidence, confidence }` sorted by descending precedence, then reason, then evidence.
+
+Each list item carries:
+
+- `evidence.source`: repo-relative path of the config or source file (never file contents).
+- `evidence.pointer`: optional location such as `package.json#/bin/cli` (JSON-pointer-like path after `#`).
+- `evidence.span`: optional 1-based span when the evidence is read from source (for example `if __name__ == "__main__"` or a Dockerfile `CMD` line).
+
+Exactly one of `pointer` or `span` must be present.
+
+Confidence is fixed per reason (not inferred at read time):
+
+| Reason | Confidence |
+| --- | ---: |
+| `package-exports`, `package-main`, `package-bin`, `pyproject-script` | 0.95 |
+| `pyproject-gui-script` | 0.90 |
+| `setup-console-script`, `python-name-main`, `dockerfile-entrypoint` | 0.85 |
+| `dockerfile-cmd` | 0.80 |
+| `package-script` | 0.75 |
+| `conventional-name` | 0.65 |
+
+Precedence when several reasons apply to one file (highest wins for `entryCandidate`):
 
 1. `package-exports` (`EXTRACTED`)
 2. `package-main` (`EXTRACTED`)
 3. `package-bin` (`EXTRACTED`)
-4. `package-script` (`INFERRED`)
-5. `conventional-name` (`INFERRED`)
+4. `pyproject-script`, `pyproject-gui-script`, `setup-console-script` (`EXTRACTED`)
+5. `dockerfile-entrypoint`, `dockerfile-cmd` (`INFERRED`)
+6. `package-script` (`INFERRED`; only literal `node`, `tsx`, or `ts-node` script commands)
+7. `python-name-main` (`INFERRED`; `if __name__ == "__main__"` guard, parsed as text only)
+8. `conventional-name` (`INFERRED`; `index`, `main`, `server`, `cli`, or `__main__.py` under a package directory)
+
+`summary.entryCandidates` optionally reports `{ files, candidates }` counts. The scan CLI coverage summary line `entry candidates: …` mirrors those fields.
+
+Package.json entry fields that point at build output are mapped to `src/` for entry detection only. Relative `./dist/...` import specifiers are **not** mapped (package export mapping is OK).
+
+Sources scanned without execution: `package.json`, `pyproject.toml` (`[project.scripts]`, `[project.gui-scripts]`), `setup.cfg` (`console_scripts`), Dockerfiles (`CMD` / `ENTRYPOINT` when they name an in-repo file), and Python module guards.
 
 ### INFERRED edge reasons
 
