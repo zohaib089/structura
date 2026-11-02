@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { Moon, Sun } from '@lucide/vue';
-import { computed } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { BRAND } from '../../../../../packages/brand/src/brand'
+import BrandMark from '../brand/BrandMark.vue'
+import { hostedAppEnabled } from '../../hosted-app'
 import { useThemeStore } from '../../stores/theme';
 import LocaleSwitcher from './LocaleSwitcher.vue'
 import { isSupportedWebLocale, readLocalePreference, resolvePreferredWebLocale } from '../../services/locale'
@@ -22,6 +25,24 @@ const showLandingLinks = computed(() => route.name === 'home' || route.name === 
 const isAuthenticated = computed(() =>
   Boolean(route.fullPath) && getCurrentSession() !== null
 )
+const scrolled = ref(false)
+
+function scrollOffset() {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue('--nav-scroll-offset').trim()
+  const parsed = Number.parseFloat(raw)
+  return Number.isFinite(parsed) ? parsed : 8
+}
+
+function onScroll() {
+  scrolled.value = window.scrollY > scrollOffset()
+}
+
+onMounted(() => {
+  onScroll()
+  window.addEventListener('scroll', onScroll, { passive: true })
+})
+
+onBeforeUnmount(() => window.removeEventListener('scroll', onScroll))
 
 async function handleLogout() {
   const result = await logoutUser()
@@ -33,23 +54,23 @@ async function handleLogout() {
 </script>
 
 <template>
-  <header class="navbar">
+  <header class="navbar" :class="{ 'is-scrolled': scrolled }">
     <div class="container">
       <div class="logo-wrap">
         <RouterLink :to="`/${locale}`" class="logo" :aria-label="messages.home">
-          <div class="logo-icon" aria-label="Structura logo">
-            <span class="logo-mark"></span>
-          </div>
-          <span class="logo-text">Structura</span>
+          <BrandMark :size="28" />
+          <span class="logo-text">{{ BRAND.name }}</span>
         </RouterLink>
       </div>
 
       <nav v-if="showLandingLinks" class="nav-links" :aria-label="messages.mainNavigation">
-        <a href="#what">{{ messages.whatIsIt }}</a>
+        <a href="#honest">{{ messages.honest }}</a>
+        <a href="#coverage">{{ messages.coverage }}</a>
+        <a href="#drift">{{ messages.drift }}</a>
         <a href="#how">{{ messages.howItWorks }}</a>
-        <a href="#services">{{ messages.services }}</a>
-        <a href="#reviews">{{ messages.reviews }}</a>
-        <a href="#contact">{{ messages.contact }}</a>
+        <a href="#quickstart">{{ messages.quickstart }}</a>
+        <a :href="`${BRAND.repoUrl}#readme`">{{ messages.docs }}</a>
+        <a :href="BRAND.repoUrl">{{ messages.github }}</a>
       </nav>
 
       <div class="right-side">
@@ -60,10 +81,10 @@ async function handleLogout() {
           <Moon v-else :size="18" />
         </button>
 
-        <button v-if="isAuthenticated" type="button" class="btn-signup" @click="handleLogout">
+        <button v-if="hostedAppEnabled && isAuthenticated" type="button" class="btn-signup" @click="handleLogout">
           {{ messages.logOut }}
         </button>
-        <template v-else>
+        <template v-else-if="hostedAppEnabled">
           <RouterLink :to="`/${locale}/auth/login`" class="btn-login">{{ messages.logIn }}</RouterLink>
           <RouterLink :to="`/${locale}/auth/signup?plan=enterprise`" class="btn-signup">
             {{ messages.launchApp }}
@@ -94,13 +115,20 @@ async function handleLogout() {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-6);
-  border: 1px solid color-mix(in srgb, var(--color-accent-primary) var(--alpha-16), transparent);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-2xl);
-  background: linear-gradient(135deg, color-mix(in srgb, var(--color-surface) var(--alpha-90), transparent), color-mix(in srgb, var(--color-surface) var(--alpha-70), transparent));
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
+  background: var(--color-surface);
   box-shadow: var(--shadow-md);
   pointer-events: auto;
+}
+
+.navbar.is-scrolled .container {
+  background: var(--color-surface-overlay);
+  backdrop-filter: blur(12px);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .navbar.is-scrolled .container { backdrop-filter: none; }
 }
 
 .logo-wrap {

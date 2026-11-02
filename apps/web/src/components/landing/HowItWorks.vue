@@ -1,135 +1,136 @@
+<script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+import { BRAND, quickstartCommand } from '../../../../../packages/brand/src/brand'
+import { EDGE_DASH, edgeStroke } from '../../viewer/edge-style'
+import { sampleGraph } from '../../viewer/sample-graph'
+import { isSupportedWebLocale, readLocalePreference, resolvePreferredWebLocale } from '../../services/locale'
+import { landingMessages } from '../../services/landing-messages'
+
+const route = useRoute()
+const locale = computed(() => {
+  const routeLocale = route.params.locale
+  if (typeof routeLocale === 'string' && isSupportedWebLocale(routeLocale)) return routeLocale
+  return resolvePreferredWebLocale(readLocalePreference(), navigator.languages)
+})
+const messages = computed(() => landingMessages(locale.value))
+const files = sampleGraph.coverage.files
+const sampleOutput = computed(() => [
+  `$ ${quickstartCommand()}`,
+  `discovered ${files.discovered}`,
+  `parsed ${files.parsed}`,
+  `partial ${files.partial}`,
+  `failed ${files.failed}`,
+  `skipped ${files.skipped}`,
+  `open ${BRAND.graphFile}`
+].join('\n'))
+const edges = [
+  { visual: 'extracted' as const, y: 16 },
+  { visual: 'inferred' as const, y: 40 },
+  { visual: 'unresolved' as const, y: 64 }
+]
+</script>
+
 <template>
   <section id="how" class="section">
-    <div class="container">
-      <div class="badge">How it works</div>
-      <h2>Simple workflow. Powerful outcomes.</h2>
-      <p class="desc">
-        Structura helps your team move from uncertainty to clarity without adding more ceremony.
-      </p>
-
-      <div class="steps">
-        <div class="step">
-          <div class="number">1</div>
-          <h3>Connect your project</h3>
-          <p>Bring in your repo or workspace and let Structura map your app structure across files, modules, and teams.</p>
-        </div>
-
-        <div class="step">
-          <div class="number">2</div>
-          <h3>Analyze the architecture</h3>
-          <p>It detects patterns, dependencies, key pathways, and risk points automatically so you can get context quickly.</p>
-        </div>
-
-        <div class="step">
-          <div class="number">3</div>
-          <h3>Act with confidence</h3>
-          <p>Explore a live, visual system map, trace impact before changes, and help everyone understand the codebase.</p>
-        </div>
-      </div>
+    <div class="inner">
+      <h2>{{ messages.how.title }}</h2>
+      <ol>
+        <li v-for="(step, index) in messages.how.steps" :key="step.title" class="card">
+          <span class="index">{{ index + 1 }}</span>
+          <strong>{{ step.title }}</strong>
+          <span>{{ step.body }}</span>
+        </li>
+      </ol>
+      <figure class="sample">
+        <figcaption><span class="pill">{{ messages.commandSample }}</span></figcaption>
+        <svg aria-hidden="true" viewBox="0 0 160 80">
+          <line
+            v-for="edge in edges"
+            :key="edge.visual"
+            class="draw-edge"
+            x1="8"
+            :y1="edge.y"
+            x2="120"
+            :y2="edge.y"
+            :stroke="edgeStroke(edge.visual)"
+            stroke-width="2"
+            pathLength="1"
+            stroke-dasharray="1"
+            :stroke-linecap="edge.visual === 'unresolved' ? 'round' : 'butt'"
+          />
+        </svg>
+        <pre>{{ sampleOutput }}</pre>
+        <p class="legend">
+          <span v-for="edge in edges" :key="edge.visual">
+            {{ edge.visual }}
+            <svg aria-hidden="true" viewBox="0 0 48 12">
+              <line
+                x1="2"
+                y1="6"
+                x2="46"
+                y2="6"
+                :stroke="edgeStroke(edge.visual)"
+                stroke-width="2"
+                :stroke-dasharray="EDGE_DASH[edge.visual] === 'none' ? undefined : EDGE_DASH[edge.visual]"
+              />
+            </svg>
+          </span>
+        </p>
+      </figure>
     </div>
   </section>
 </template>
 
 <style scoped>
-.section {
-  position: relative;
-  padding: var(--space-32) var(--space-6);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--color-surface) var(--alpha-60), transparent), color-mix(in srgb, var(--color-surface) var(--alpha-32), transparent));
-}
-
-.container {
-  position: relative;
-  z-index: 1;
-  max-width: var(--content-width);
-  margin: 0 auto;
-  text-align: center;
-}
-
-.badge {
-  display: inline-block;
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-full);
-  background: color-mix(in srgb, var(--color-accent-primary) var(--alpha-08), transparent);
-  border: 1px solid color-mix(in srgb, var(--color-accent-primary) var(--alpha-16), transparent);
-  color: var(--color-accent-primary);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: var(--tracking-widest);
-  text-transform: uppercase;
-  margin-bottom: var(--space-4);
-}
-
-h2 {
-  font-size: clamp(var(--font-size-4xl), 3vw, var(--font-size-6xl));
-  line-height: var(--line-height-display);
-  letter-spacing: var(--tracking-tighter);
-  margin-bottom: var(--space-3);
-}
-
-.desc {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-lg);
-  line-height: var(--line-height-relaxed);
-  margin-bottom: var(--space-14);
-}
-
-.steps {
+.section { padding: var(--space-16) var(--space-6); }
+.inner { max-inline-size: var(--content-width); margin-inline: auto; }
+h2 { margin: 0 0 var(--space-6); color: var(--color-text-primary); }
+ol {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: var(--space-6);
-  text-align: left;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
-
-.step {
-  position: relative;
-  padding: var(--space-8) var(--space-6) var(--space-6);
-  border-radius: var(--radius-xl);
-  border: 1px solid color-mix(in srgb, var(--color-accent-primary) var(--alpha-16), transparent);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--color-surface) var(--alpha-full), transparent), color-mix(in srgb, var(--color-surface) var(--alpha-90), transparent));
-  backdrop-filter: blur(16px);
-  box-shadow: var(--shadow-md);
-  transition: transform var(--duration-normal) ease, border-color var(--duration-normal) ease;
-}
-
-.step:hover {
-  transform: translateY(-4px);
-  border-color: color-mix(in srgb, var(--color-accent-primary) var(--alpha-24), transparent);
-}
-
-.number {
-  width: 46px;
-  height: 46px;
-  border-radius: var(--radius-md);
+.card {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: var(--space-4);
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-extrabold);
-  background: var(--color-accent-gradient);
-  color: var(--color-text-on-accent);
-  box-shadow: var(--shadow-accent-glow);
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
 }
-
-.step h3 {
-  margin-bottom: var(--space-2);
-  font-size: var(--font-size-xl);
-  letter-spacing: var(--tracking-tight);
+.index, .card span:last-child, .legend { color: var(--color-text-secondary); }
+.sample {
+  margin: var(--space-6) 0 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
 }
-
-.step p {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-md);
-  line-height: var(--line-height-relaxed);
+.pill {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
 }
-
-[data-theme='light'] .section {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--color-surface-raised) var(--alpha-50), transparent), color-mix(in srgb, var(--color-highlight) var(--alpha-32), transparent));
+pre {
+  margin: var(--space-3) 0 0;
+  font-family: var(--font-family-mono);
+  white-space: pre-wrap;
 }
-
-[data-theme='light'] .step {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--color-highlight) var(--alpha-90), transparent), color-mix(in srgb, var(--color-surface-raised) var(--alpha-90), transparent));
-  border-color: color-mix(in srgb, var(--color-accent-primary) var(--alpha-16), transparent);
-  box-shadow: var(--shadow-accent-glow);
+.sample > svg { inline-size: 10rem; block-size: 5rem; }
+.legend { display: flex; flex-wrap: wrap; gap: var(--space-4); }
+.legend svg { inline-size: 3rem; block-size: 0.75rem; }
+@media (max-width: 920px) {
+  ol { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .draw-edge { stroke-dashoffset: 0; }
 }
 </style>

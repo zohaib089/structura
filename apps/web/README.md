@@ -29,6 +29,10 @@ node apps/web/tools/make-fixture.mjs 50000 /tmp/graph-50k.json
 
 Do not commit those files. A small sample is `apps/web/fixtures/sample-graph.json`.
 
+## Hosted auth and dashboard
+
+Login, signup, and the dashboard stay available by default so the current routes keep working. Set `VITE_HOSTED_APP=false` to hide those links and send `/auth` and `/dashboard` back to the landing page. That flag does not redesign either screen.
+
 ## Tests
 
 ```sh
