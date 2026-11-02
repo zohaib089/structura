@@ -195,7 +195,15 @@ Comments, JSDoc `@example` blocks and commented-out code never create edges. Onl
 
 4. **Strict on recognised-but-unsupported:** With `--strict`, if the scan sees `typescript`, `javascript`, or `python` files and every one is skipped as `unsupported-language` (so `parsed + partial` is 0), the CLI exits 4 after writing the graph.
 
-Symbol `label` values are capped at 4096 Unicode code points in output (truncated without splitting surrogates). When a symbol id would exceed 8192 UTF-16 code units, the symbol is omitted and the file is `partial` with reason `limit-exceeded`.
+### Symbol labels and ids
+
+Symbol `label` values are capped at **4096 Unicode code points** in output (JSON Schema `maxLength: 4096`). Labels longer than that are truncated at a code-point boundary without splitting a surrogate pair.
+
+When a symbol node id would exceed **8192 UTF-16 code units** (including a `~n` overload suffix), the symbol is not emitted. Its file becomes `partial` with reason `limit-exceeded`, and `coverage.files.partial` reflects that.
+
+### CLI usage errors (exit 2)
+
+The CLI exits **2** for: an unknown option or command, `--cache-dir` combined with `--no-cache`, a scan root that does not exist or is unreadable, exceeding `--max-files`, and other usage or output-refusal errors documented above. Human-readable stdout/stderr (summaries, errors, paths) escapes bidi controls, zero-width/invisible characters, and C0/C1 controls as `\\u{...}` so terminals cannot be spoofed by malicious paths or specifiers.
 
 Python stdlib data pins CPython 3.14 module names; `_typeshed` is listed as typing-only (like stubs). `winreg` is platform-independent in the pinned list for documentation purposes.
 

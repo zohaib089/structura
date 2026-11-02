@@ -50,3 +50,18 @@ test('strict mode fails on failed files and timeouts only by default', () => {
   assert.equal(failures.some(item => item.includes('typescript')), false)
   assert.equal(strictFailures(coverage, { maxFailed: 0, maxTimeout: 1, maxPartial: 0, maxUnresolved: 0 }).join('\n').includes('partial'), true)
 })
+
+test('strict mode fails when a recognised language is only unsupported-language skips', () => {
+  const coverage = buildCoverage({
+    discovered: 2,
+    ignored: new Map(),
+    files: [
+      { language: 'python', status: 'skipped', reason: 'unsupported-language' },
+      { language: 'python', status: 'skipped', reason: 'unsupported-language' }
+    ],
+    unnoded: [],
+    unresolved: []
+  })
+  const failures = strictFailures(coverage)
+  assert.equal(failures.some(item => item.includes('python')), true)
+})

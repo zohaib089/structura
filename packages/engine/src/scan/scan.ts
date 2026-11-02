@@ -161,7 +161,7 @@ function linkDirectory(builder: GraphBuilder, filePath: string): void {
 const MAX_LABEL_CODE_POINTS = 4096
 const MAX_SYMBOL_ID_UNITS = 8192
 
-function addSymbols(builder: GraphBuilder, filePath: string, facts: AdapterParseResult): boolean {
+export function addSymbols(builder: GraphBuilder, filePath: string, facts: AdapterParseResult): boolean {
   const counts = new Map<string, number>()
   const firstId = new Map<string, string>()
   const created: Array<{ name: string; id: string }> = []
@@ -175,6 +175,10 @@ function addSymbols(builder: GraphBuilder, filePath: string, facts: AdapterParse
     const seen = (counts.get(base) ?? 0) + 1
     counts.set(base, seen)
     const id = seen === 1 ? base : `${base}~${seen}`
+    if (id.length > MAX_SYMBOL_ID_UNITS) {
+      limitExceeded = true
+      continue
+    }
     if (!firstId.has(symbol.qualifiedName)) firstId.set(symbol.qualifiedName, id)
     const node: SymbolNode = {
       id,
@@ -404,7 +408,12 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
   const started = Date.now()
   if (options.signal?.aborted) throw new InterruptedError()
   const rootInput = isAbsolute(root) ? root : resolve(root)
-  const rootAbs = await realpath(rootInput)
+  let rootAbs: string
+  try {
+    rootAbs = await realpath(rootInput)
+  } catch {
+    throw new ScanRootError(`Cannot read scan root "${rootInput}": no such file or directory`)
+  }
   const repoText = await readConfigText(join(rootAbs, CONFIG_FILE), resolveLimits().maxConfigFileBytes)
   const limits = resolveLimits(options.limits ?? {}, repoText ? parseRepoLimits(repoText) : {})
   const outDir = resolve(options.outDir ?? join(rootAbs, OUT_DIR))

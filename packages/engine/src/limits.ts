@@ -20,8 +20,8 @@ export const LIMITS = {
   maxPathLength: { default: 4_096, ceiling: 4_096 },
   /** Files discovered (everything the walker visits, including ignored entries). Exceeding it is a hard failure, never a silent truncation. */
   maxFiles: { default: 250_000, ceiling: 2_000_000 },
-  /** Identifier / id-segment length in UTF-16 units. Longer symbols are omitted and the file becomes `partial: name-too-long`. */
-  maxIdentifierLength: { default: 1_024, ceiling: 1_024 },
+  /** Identifier / id-segment length in UTF-16 units. Longer symbols are omitted and the file becomes `partial: name-too-long`. Ceiling matches graph label max (4096 code points). */
+  maxIdentifierLength: { default: 1_024, ceiling: 4_096 },
   /** Lines longer than this are not analysed further... recorded as `partial: name-too-long` only when an identifier is omitted. */
   maxLineLength: { default: 100_000, ceiling: 1_000_000 },
   /** Per-file symbol / edge caps; excess are dropped and the file becomes `partial` (`too-many-symbols` / `too-many-edges`). */

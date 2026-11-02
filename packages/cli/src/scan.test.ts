@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { GRAPH_FILE, RUN_FILE } from '@atlasmith/engine'
-import { AccountingError, StrictCoverageError } from '@atlasmith/engine'
+import { AccountingError, MaxFilesExceeded, ScanRootError, StrictCoverageError } from '@atlasmith/engine'
 import { EXIT, exitCodeFor, run } from './run.js'
 
 function capture(): { stdout: string; stderr: string; io: { stdout: (text: string) => void; stderr: (text: string) => void; cwd: string } } {
@@ -67,5 +67,38 @@ test('scan writes graph.json and json mode prints run metadata', async () => {
 test('exit codes for accounting, strict coverage and usage stay distinct', () => {
   assert.equal(exitCodeFor(new AccountingError('dropped')), EXIT.accounting)
   assert.equal(exitCodeFor(new StrictCoverageError(['failed'])), EXIT.strict)
+  assert.equal(exitCodeFor(new MaxFilesExceeded(10)), EXIT.usage)
+  assert.equal(exitCodeFor(new ScanRootError('missing')), EXIT.usage)
   assert.equal(EXIT.interrupted, 130)
+})
+
+test('scan exits 2 for a missing root and for max-files exceeded', async () => {
+  const missing = capture()
+  assert.equal(await run(['scan', '/nonexistent-path-7e31'], missing.io), EXIT.usage)
+  assert.match(missing.stderr, /scan root|nonexistent|ENOENT/i)
+  const root = mkdtempSync(join(tmpdir(), 'cli-max-'))
+  writeFileSync(join(root, 'a.ts'), 'export {}\n')
+  writeFileSync(join(root, 'b.ts'), 'export {}\n')
+  const out = mkdtempSync(join(tmpdir(), 'cli-out-'))
+  try {
+    const tooMany = capture()
+    assert.equal(await run(['scan', root, '--out', out, '--no-cache', '--max-files', '1', '--jobs', '1'], tooMany.io), EXIT.usage)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+    rmSync(out, { recursive: true, force: true })
+  }
+})
+
+test('human-readable CLI output escapes control characters in paths', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'cli-esc-'))
+  const out = join(root, `out\u202edir`)
+  mkdirSync(out, { recursive: true })
+  writeFileSync(join(root, 'main.ts'), 'export const x = 1\n')
+  const cap = capture()
+  try {
+    await run(['scan', root, '--out', out, '--no-cache', '--jobs', '1'], cap.io)
+    assert.match(cap.stdout, /\\u\{202e\}/)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
 })
