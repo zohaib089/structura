@@ -1,4 +1,5 @@
 import { scanRepository } from '@atlasmith/engine'
+import { runScanAnalysis } from '@atlasmith/scan-analysis'
 import {
   assertAllowlistedGitHttpsUrl,
   createTempWorkspace,
@@ -10,6 +11,7 @@ import {
   type SourceIngestLimits
 } from '@atlasmith/source-ingest'
 import { writeFile } from 'node:fs/promises'
+import { access } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { ScanStatus, WorkspaceScanRecord } from './scan-contracts.js'
 import type { WorkspaceQuery } from './workspace-routes.js'
@@ -19,6 +21,7 @@ export interface ScanWorkerDependencies {
   limits?: SourceIngestLimits
   now?: () => Date
   runScan?: typeof scanRepository
+  runAnalysis?: typeof runScanAnalysis
   cloneRepository?: typeof shallowCloneRepository
   extractArchive?: typeof extractArchiveToDirectory
 }
@@ -49,6 +52,7 @@ async function runWorkspaceScan(scanId: string, dependencies: ScanWorkerDependen
   const limits = dependencies.limits ?? limitsFromEnv()
   const now = dependencies.now ?? (() => new Date())
   const runScan = dependencies.runScan ?? scanRepository
+  const runAnalysis = dependencies.runAnalysis ?? runScanAnalysis
   const cloneRepository = dependencies.cloneRepository ?? shallowCloneRepository
   const extractArchive = dependencies.extractArchive ?? extractArchiveToDirectory
 
@@ -65,8 +69,10 @@ async function runWorkspaceScan(scanId: string, dependencies: ScanWorkerDependen
   let cleanupSource: (() => Promise<void>) | undefined
 
   try {
-    await Promise.race([
-      (async () => {
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('Scan timed out.')), limits.timeoutMs)
+      void (async () => {
+        try {
     let sourceRoot: string
     if (scan.source === 'git') {
       const parsed = assertAllowlistedGitHttpsUrl(String(scan.source_url))
@@ -91,24 +97,38 @@ async function runWorkspaceScan(scanId: string, dependencies: ScanWorkerDependen
 
     const output = await runScan(sourceRoot, { noCache: true, limits: { jobs: 1 } })
     const graph = JSON.parse(output.graphJson) as unknown
+    const hasGit =
+      scan.source === 'git' ||
+      (await access(join(sourceRoot, '.git')).then(() => true).catch(() => false))
+    const report = await runAnalysis({
+      rootDir: sourceRoot,
+      graph,
+      hasGit,
+      limits: { allowNetwork: Boolean(process.env.SCAN_ANALYSIS_ALLOW_NETWORK) }
+    })
     await updateScan(dependencies.query, scanId, {
       status: 'succeeded',
       graph_json: graph,
+      report_json: report,
       finished_at: now(),
       error_message: null
     })
-      })(),
-      new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Scan timed out.')), limits.timeoutMs)
-      })
-    ])
+          resolve()
+        } catch (error) {
+          reject(error)
+        } finally {
+          clearTimeout(timer)
+        }
+      })()
+    })
   } catch (error) {
     const message = redactFailureMessage(error)
     await updateScan(dependencies.query, scanId, {
       status: 'failed',
       finished_at: now(),
       error_message: message,
-      graph_json: null
+      graph_json: null,
+      report_json: null
     })
   } finally {
     await cleanupSource?.()
@@ -124,7 +144,7 @@ function redactFailureMessage(error: unknown): string {
 async function loadScan(query: WorkspaceQuery, scanId: string): Promise<(WorkspaceScanRecord & { upload_payload?: string | null }) | null> {
   const result = await query(
     `SELECT id, workspace_id, requested_by, source, source_url, source_branch, upload_payload, status, error_message,
-            graph_json, created_at, updated_at, started_at, finished_at
+            graph_json, report_json, created_at, updated_at, started_at, finished_at
      FROM workspace_scans
      WHERE id = $1`,
     [scanId]
@@ -141,6 +161,7 @@ async function updateScan(
     status: ScanStatus
     error_message: string | null
     graph_json: unknown
+    report_json: unknown
     started_at: Date
     finished_at: Date
     upload_payload: null
@@ -161,6 +182,10 @@ async function updateScan(
   if (patch.graph_json !== undefined) {
     fields.push(`graph_json = $${index++}`)
     params.push(patch.graph_json)
+  }
+  if (patch.report_json !== undefined) {
+    fields.push(`report_json = $${index++}`)
+    params.push(patch.report_json)
   }
   if (patch.started_at !== undefined) {
     fields.push(`started_at = $${index++}`)

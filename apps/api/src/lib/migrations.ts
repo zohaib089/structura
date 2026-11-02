@@ -180,6 +180,13 @@ const migrations: Migration[] = [
       CREATE INDEX IF NOT EXISTS workspace_scans_workspace_created_idx
         ON workspace_scans (workspace_id, created_at DESC, id);
     `
+  },
+  {
+    version: '006_scan_report_json',
+    sql: `
+      ALTER TABLE workspace_scans
+        ADD COLUMN IF NOT EXISTS report_json JSONB;
+    `
   }
 ]
 

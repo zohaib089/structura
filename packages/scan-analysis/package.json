@@ -1,0 +1,35 @@
+{
+  "name": "@atlasmith/scan-analysis",
+  "version": "0.1.0",
+  "description": "Offline scan analysis: report.json alongside graph.json.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./schema/report.v1.schema.json": "./schema/report.v1.schema.json"
+  },
+  "files": [
+    "dist",
+    "schema",
+    "configs"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "tsx --test \"src/**/*.test.ts\""
+  },
+  "license": "ISC",
+  "dependencies": {
+    "@atlasmith/source-ingest": "file:../source-ingest",
+    "ajv": "^8.20.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}

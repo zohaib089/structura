@@ -1,0 +1,4 @@
+select = ["E4", "E9", "F"]
+
+[lint]
+preview = false

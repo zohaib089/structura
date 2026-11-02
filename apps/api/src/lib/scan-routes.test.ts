@@ -43,6 +43,10 @@ function createScanApi() {
       const scan = scans.get(String(params[1]))
       return { rows: scan ? [{ status: scan.status, graph_json: scan.graph_json ?? null }] : [] }
     }
+    if (text.includes('WHERE workspace_id = $1 AND id = $2') && text.includes('report_json')) {
+      const scan = scans.get(String(params[1]))
+      return { rows: scan ? [{ status: scan.status, report_json: scan.report_json ?? null }] : [] }
+    }
     if (text.includes('WHERE workspace_id = $1 AND id = $2')) {
       const scan = scans.get(String(params[1]))
       return { rows: scan ? [scan] : [] }
@@ -122,6 +126,53 @@ test('graph route returns 409 until scan completes', async () => {
       headers: { authorization: 'Bearer valid-session' }
     })
     assert.equal(graph.statusCode, 409)
+  } finally {
+    await api.app.close()
+  }
+})
+
+test('report route returns 409 until scan completes', async () => {
+  const api = createScanApi()
+  try {
+    const created = await api.app.inject({
+      method: 'POST',
+      url: '/api/workspaces/workspace-1/scans',
+      headers: { authorization: 'Bearer valid-session' },
+      payload: { source: 'git', url: 'https://github.com/org/repo' }
+    })
+    const scanId = created.json().scan.id as string
+    const report = await api.app.inject({
+      method: 'GET',
+      url: `/api/workspaces/workspace-1/scans/${scanId}/report`,
+      headers: { authorization: 'Bearer valid-session' }
+    })
+    assert.equal(report.statusCode, 409)
+  } finally {
+    await api.app.close()
+  }
+})
+
+test('report route returns stored report when ready', async () => {
+  const api = createScanApi()
+  try {
+    const created = await api.app.inject({
+      method: 'POST',
+      url: '/api/workspaces/workspace-1/scans',
+      headers: { authorization: 'Bearer valid-session' },
+      payload: { source: 'git', url: 'https://github.com/org/repo' }
+    })
+    const scanId = created.json().scan.id as string
+    const scan = api.scans.get(scanId)!
+    scan.status = 'succeeded'
+    scan.report_json = { schemaVersion: '1.0.0', findings: [] }
+
+    const report = await api.app.inject({
+      method: 'GET',
+      url: `/api/workspaces/workspace-1/scans/${scanId}/report`,
+      headers: { authorization: 'Bearer valid-session' }
+    })
+    assert.equal(report.statusCode, 200)
+    assert.equal(report.json().report.schemaVersion, '1.0.0')
   } finally {
     await api.app.close()
   }

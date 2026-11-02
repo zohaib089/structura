@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:atlasmith:schema:scan-report:1",
+  "title": "report.json v1",
+  "description": "Offline scan analysis report produced next to graph.json.",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "generatedAt": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T"
+    },
+    "analysers": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/analyserStatus"
+      }
+    },
+    "history": {
+      "oneOf": [
+        { "$ref": "#/$defs/historyPayload" },
+        { "type": "null" }
+      ]
+    },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/finding" }
+    },
+    "improvements": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/improvement" }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "analysers",
+    "history",
+    "findings",
+    "improvements"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "analyserStatus": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["ran", "skipped", "failed", "timeout"]
+        },
+        "reason": { "type": "string" },
+        "durationMs": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": ["status", "durationMs"],
+      "additionalProperties": false
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["info", "low", "medium", "high", "critical"]
+    },
+    "provenance": {
+      "type": "string",
+      "enum": ["EXTRACTED", "INFERRED"]
+    },
+    "section": {
+      "type": "string",
+      "enum": ["history", "violations", "security", "badPractices", "improvements", "removals"]
+    },
+    "finding": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "section": { "$ref": "#/$defs/section" },
+        "severity": { "$ref": "#/$defs/severity" },
+        "file": { "type": "string" },
+        "line": { "type": "integer", "minimum": 1 },
+        "message": { "type": "string" },
+        "rule": { "type": "string" },
+        "tool": { "type": "string" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      },
+      "required": ["id", "section", "severity", "file", "message", "provenance"],
+      "additionalProperties": false
+    },
+    "improvement": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "message": { "type": "string" },
+        "severity": { "$ref": "#/$defs/severity" },
+        "relatedFindingIds": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
+      "required": ["id", "message", "relatedFindingIds"],
+      "additionalProperties": false
+    },
+    "historyPayload": {
+      "type": "object",
+      "properties": {
+        "limitedHistory": { "type": "boolean" },
+        "depthRequested": { "type": "integer", "minimum": 1 },
+        "depthAvailable": { "type": "integer", "minimum": 0 },
+        "commits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "hash": { "type": "string" },
+              "author": { "type": "string" },
+              "date": { "type": "string" },
+              "subject": { "type": "string" }
+            },
+            "required": ["hash", "author", "date", "subject"],
+            "additionalProperties": false
+          }
+        },
+        "authors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "email": { "type": "string" },
+              "commitCount": { "type": "integer", "minimum": 0 }
+            },
+            "required": ["name", "commitCount"],
+            "additionalProperties": false
+          }
+        },
+        "fileChurn": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": { "type": "string" },
+              "additions": { "type": "integer", "minimum": 0 },
+              "deletions": { "type": "integer", "minimum": 0 },
+              "commits": { "type": "integer", "minimum": 0 }
+            },
+            "required": ["path", "additions", "deletions", "commits"],
+            "additionalProperties": false
+          }
+        },
+        "hotspots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": { "type": "string" },
+              "score": { "type": "number", "minimum": 0 }
+            },
+            "required": ["path", "score"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["limitedHistory", "commits", "authors", "fileChurn", "hotspots"],
+      "additionalProperties": false
+    }
+  }
+}

@@ -11,6 +11,7 @@ export interface WorkspaceScanRecord {
   status: ScanStatus
   error_message: string | null
   graph_json: unknown
+  report_json: unknown
   created_at: string | Date
   updated_at: string | Date
   started_at: string | Date | null
