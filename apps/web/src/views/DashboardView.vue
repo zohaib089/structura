@@ -3,7 +3,9 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Navbar from '../components/layout/Navbar.vue'
 import DashboardToast from '../components/dashboard/DashboardToast.vue'
-import SyntheticArchitectureDemo from '../components/dashboard/SyntheticArchitectureDemo.vue'
+import BrandMark from '../components/brand/BrandMark.vue'
+import DashboardGraphPanel from '../components/dashboard/DashboardGraphPanel.vue'
+import { BRAND } from '../../../../packages/brand/src/brand'
 import { getCurrentSession } from '../services/auth'
 import { isSupportedWebLocale, readLocalePreference, resolvePreferredWebLocale } from '../services/locale'
 import { dashboardMessages } from '../services/dashboard-messages'
@@ -250,10 +252,10 @@ onBeforeUnmount(() => {
     <main class="dashboard-shell">
       <aside class="sidebar">
         <div class="brand-block">
-          <div class="brand-mark">S</div>
+          <BrandMark :size="42" />
           <div>
             <p class="eyebrow">{{ messages.workspace }}</p>
-            <h2>Structura</h2>
+            <h2>{{ BRAND.name }}</h2>
           </div>
         </div>
 
@@ -455,7 +457,6 @@ onBeforeUnmount(() => {
           <section v-else-if="activeSection === 'architecture'" class="feature-state">
             <p class="eyebrow">{{ selectedWorkspace?.name }}</p>
             <p>{{ messages.architectureDescription }}</p>
-            <SyntheticArchitectureDemo :messages="messages" />
           </section>
 
           <section v-else class="team-section">
@@ -515,6 +516,12 @@ onBeforeUnmount(() => {
               </section>
             </template>
           </section>
+
+          <DashboardGraphPanel
+            v-if="workspaces.length > 0"
+            v-show="activeSection === 'overview' || activeSection === 'architecture'"
+            :locale="locale"
+          />
         </template>
       </section>
     </main>
@@ -556,17 +563,6 @@ onBeforeUnmount(() => {
   gap: var(--space-3);
   padding: var(--space-2) var(--space-2) var(--space-5);
   border-bottom: 1px solid color-mix(in srgb, var(--color-accent-primary) var(--alpha-08), transparent);
-}
-
-.brand-mark {
-  width: 42px;
-  height: 42px;
-  border-radius: var(--radius-md);
-  display: grid;
-  place-items: center;
-  font-weight: var(--font-weight-extrabold);
-  background: var(--color-accent-gradient);
-  color: var(--color-text-on-accent);
 }
 
 .eyebrow {

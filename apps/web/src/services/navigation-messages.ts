@@ -13,6 +13,7 @@ export interface NavigationMessages {
   logIn: string
   logOut: string
   launchApp: string
+  dashboard: string
   docs: string
   github: string
 }
@@ -34,7 +35,8 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     toggleTheme: 'Toggle theme',
     logIn: 'Log in',
     logOut: 'Log out',
-    launchApp: 'Launch app'
+    launchApp: 'Launch app',
+    dashboard: 'Dashboard'
   },
   pt: {
     mainNavigation: 'Navegação principal',
@@ -48,7 +50,8 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     toggleTheme: 'Alternar tema',
     logIn: 'Entrar',
     logOut: 'Sair',
-    launchApp: 'Abrir aplicativo'
+    launchApp: 'Abrir aplicativo',
+    dashboard: 'Painel'
   },
   it: {
     mainNavigation: 'Navigazione principale',
@@ -62,7 +65,8 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     toggleTheme: 'Cambia tema',
     logIn: 'Accedi',
     logOut: 'Esci',
-    launchApp: 'Apri app'
+    launchApp: 'Apri app',
+    dashboard: 'Dashboard'
   },
   fr: {
     mainNavigation: 'Navigation principale',
@@ -76,7 +80,8 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     toggleTheme: 'Changer de thème',
     logIn: 'Connexion',
     logOut: 'Déconnexion',
-    launchApp: 'Ouvrir l’application'
+    launchApp: 'Ouvrir l’application',
+    dashboard: 'Tableau de bord'
   },
   nl: {
     mainNavigation: 'Hoofdnavigatie',
@@ -90,7 +95,8 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     toggleTheme: 'Thema wisselen',
     logIn: 'Inloggen',
     logOut: 'Uitloggen',
-    launchApp: 'App openen'
+    launchApp: 'App openen',
+    dashboard: 'Dashboard'
   },
   es: {
     mainNavigation: 'Navegación principal',
@@ -104,7 +110,8 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     toggleTheme: 'Cambiar tema',
     logIn: 'Iniciar sesión',
     logOut: 'Cerrar sesión',
-    launchApp: 'Abrir aplicación'
+    launchApp: 'Abrir aplicación',
+    dashboard: 'Panel'
   },
   ja: {
     mainNavigation: 'メインナビゲーション',
@@ -118,7 +125,8 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     toggleTheme: 'テーマを切り替え',
     logIn: 'ログイン',
     logOut: 'ログアウト',
-    launchApp: 'アプリを開く'
+    launchApp: 'アプリを開く',
+    dashboard: 'ダッシュボード'
   },
   'zh-Hans': {
     mainNavigation: '主导航',
@@ -132,7 +140,8 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     toggleTheme: '切换主题',
     logIn: '登录',
     logOut: '退出登录',
-    launchApp: '打开应用'
+    launchApp: '打开应用',
+    dashboard: '仪表盘'
   },
   hi: {
     mainNavigation: 'मुख्य नेविगेशन',
@@ -146,7 +155,8 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     toggleTheme: 'थीम बदलें',
     logIn: 'लॉग इन करें',
     logOut: 'लॉग आउट करें',
-    launchApp: 'ऐप खोलें'
+    launchApp: 'ऐप खोलें',
+    dashboard: 'डैशबोर्ड'
   },
   ur: {
     mainNavigation: 'مرکزی نیویگیشن',
@@ -160,7 +170,8 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     toggleTheme: 'تھیم تبدیل کریں',
     logIn: 'لاگ اِن',
     logOut: 'لاگ آؤٹ',
-    launchApp: 'ایپ کھولیں'
+    launchApp: 'ایپ کھولیں',
+    dashboard: 'ڈیش بورڈ'
   }
 }
 

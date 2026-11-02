@@ -333,11 +333,9 @@ const activeEyebrow = computed(() => activeView.value === 'login'
   <Navbar />
 
   <AuthShell
-    :account-type="accountType"
     :eyebrow="activeEyebrow"
     :title="activeTitle"
     :subtitle="activeSubtitle"
-    :promo-messages="coreMessages"
   >
     <template #top>
       <div class="mode-switcher" :aria-label="coreMessages.modeSelector">

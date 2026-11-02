@@ -57,7 +57,7 @@ test('signup route renders an improved authentication card', async ({ page }) =>
 
   await expect(page.getByRole('heading', { name: 'Create your account' })).toBeVisible()
   await expect(page.getByRole('checkbox', { name: 'I agree to the Terms and Privacy Policy.' })).not.toBeChecked()
-  await expect(page.getByText('Secure team onboarding')).toBeVisible()
+  await expect(page.getByText(BRAND.tagline)).toBeVisible()
   await expect(page.getByLabel('Full name')).toBeVisible()
   await expect(page.getByRole('button', { name: /create personal account/i })).toBeVisible()
 
