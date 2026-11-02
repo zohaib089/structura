@@ -12,7 +12,7 @@ import {
 
 const localePattern = WEB_LOCALES.map(locale => locale.tag).join('|')
 
-export function createAppRouter(history: RouterHistory = createWebHistory()) {
+export function createAppRouter(history: RouterHistory = createWebHistory(import.meta.env.BASE_URL)) {
   const localePath = `/:locale(${localePattern})`
   const appRouter = createRouter({
     history,

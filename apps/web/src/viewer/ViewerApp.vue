@@ -110,6 +110,9 @@ onMounted(() => {
   window.addEventListener('dragover', onDragOver)
   window.addEventListener('dragleave', onDragLeave)
   window.addEventListener('drop', onDrop)
+  if (import.meta.env.VITE_VIEWER_BOOT_SAMPLE === 'true') {
+    void openSample()
+  }
 })
 
 onBeforeUnmount(() => {

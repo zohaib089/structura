@@ -9,6 +9,7 @@
     "dev:viewer": "vite --config vite.viewer.config.ts",
     "build": "vue-tsc -b && vite build",
     "build:viewer": "vue-tsc -b && vite build --config vite.viewer.config.ts",
+    "build:pages": "VITE_BASE=${PAGES_LANDING_BASE:-/structura/} npm run build && VITE_BASE=${PAGES_VIEWER_BASE:-/structura/viewer/} VITE_VIEWER_BOOT_SAMPLE=true npm run build:viewer && node tools/assemble-pages-site.mjs",
     "typecheck": "vue-tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.tests.json",
     "preview": "vite preview",
     "test:unit": "vitest run",
