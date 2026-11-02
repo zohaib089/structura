@@ -1,5 +1,31 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { BRAND, quickstartCommand } from '../../../../packages/brand/src/brand'
+
+const sampleGraphJson = readFileSync(resolve('fixtures/sample-graph.json'), 'utf8')
+
+function fulfillScans(route: import('@playwright/test').Route, scans: unknown[]) {
+  return route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ success: true, scans })
+  })
+}
+
+function mockWorkspaceScans(page: import('@playwright/test').Page, scans: unknown[] = []) {
+  return page.route('**/api/workspaces/workspace-1/scans', route => fulfillScans(route, scans))
+}
+
+function mockScanGraph(page: import('@playwright/test').Page) {
+  return page.route('**/api/workspaces/workspace-1/scans/**/graph', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, graph: JSON.parse(sampleGraphJson) })
+    })
+  )
+}
 
 test('landing page presents the product and its section navigation', async ({ page }) => {
   await page.goto('/')
@@ -194,6 +220,8 @@ test('dashboard displays real workspace and project states instead of fabricated
     })
   })
 
+  await mockWorkspaceScans(page)
+
   await page.goto('/dashboard')
 
   const dashboardBounds = await page.locator('.dashboard-shell').evaluate(element => {
@@ -376,6 +404,19 @@ test('dashboard navigation opens graph insights and manages workspace invitation
     }
   })
 
+  const succeededScan = {
+    id: 'scan-1',
+    source: 'git',
+    url: 'https://github.com/acme/sample',
+    branch: 'main',
+    upload_name: null,
+    status: 'succeeded',
+    created_at: new Date().toISOString(),
+    error: null
+  }
+  await mockScanGraph(page)
+  await mockWorkspaceScans(page, [succeededScan])
+
   await page.goto('/en/dashboard')
 
   await expect(page.locator('html')).toHaveAttribute('lang', 'en')
@@ -385,12 +426,11 @@ test('dashboard navigation opens graph insights and manages workspace invitation
   await expect(page.getByRole('heading', { name: 'No projects yet' })).toBeVisible()
   await dashboardNavigation.getByRole('button', { name: 'Architecture' }).click()
   const graphPanel = page.getByRole('region', { name: 'Graph insights' })
+  await expect(page.getByRole('heading', { name: 'Open a project' })).toBeVisible()
   await expect(graphPanel.getByRole('heading', { name: 'Graph insights' })).toBeVisible()
-  await expect(graphPanel.getByRole('link', { name: 'Open viewer' })).toBeVisible()
-  await expect(graphPanel.getByText('Bundled sample graph')).toBeVisible()
+  await expect(graphPanel.getByText('https://github.com/acme/sample@main')).toBeVisible({ timeout: 15_000 })
   await expect(graphPanel.locator('.summary-card').filter({ hasText: 'Files' }).getByText('3', { exact: true })).toBeVisible()
-  await expect(page.getByText(/bundled demo data, not your project/i)).toHaveCount(0)
-  await expect(page.getByRole('heading', { name: 'Explore a sample architecture' })).toHaveCount(0)
+  await expect(graphPanel.getByRole('button', { name: 'Open viewer' })).toBeVisible()
 
   await dashboardNavigation.getByRole('button', { name: 'Team' }).click()
   await expect(page.getByText('Taylor Engineer')).toBeVisible()
@@ -515,6 +555,7 @@ test('dashboard accepts an invitation after authentication and removes its token
     contentType: 'application/json',
     body: JSON.stringify({ success: true, members: [] })
   }))
+  await mockWorkspaceScans(page)
 
   await page.goto('/en/dashboard?invitation=invite-token-for-test')
 
