@@ -6,11 +6,13 @@ import { fileURLToPath } from 'node:url'
 import { CONFIG_FILE, GRAPH_FILE, OUT_DIR, PRODUCT_NAME, RUN_FILE } from '../brand.js'
 import { ContentCache, contentHash, defaultCacheDir, isInsideRoot, limitsTag } from '../cache/content-cache.js'
 import { buildCoverage, formatCoverageSummary, strictFailures } from '../report/index.js'
-import type { AdapterParseResult, ExtractedReference, ResolveOutcome } from '../adapters/adapter.js'
+import type { AdapterParseResult, ExtractedReference, LanguageAdapter, ResolveOutcome } from '../adapters/adapter.js'
 import { ParsePool } from '../adapters/pool.js'
 import { grammarFingerprint } from '../adapters/tree-sitter-runtime.js'
 import { TS_JS_ADAPTER_ID, TS_JS_ADAPTER_VERSION, createTypeScriptJavaScriptAdapter } from '../adapters/ts-js/adapter.js'
 import { TsJsResolver } from '../adapters/ts-js/resolver.js'
+import { PYTHON_ADAPTER_ID, PYTHON_ADAPTER_VERSION, createPythonAdapter } from '../adapters/python/adapter.js'
+import { PythonResolver } from '../adapters/python/resolver.js'
 import { GraphBuilder } from '../graph/builder.js'
 import { GraphVersionUnsupported } from '../graph/errors.js'
 import { serializeGraph } from '../graph/canonical.js'
@@ -355,7 +357,9 @@ interface AnalyseOutcome {
 async function analyseFile(
   file: WalkFile,
   limits: ResolvedLimits,
-  adapter: ReturnType<typeof createTypeScriptJavaScriptAdapter>,
+  adapter: LanguageAdapter,
+  adapterId: string,
+  adapterVersion: string,
   cache: ContentCache,
   fingerprint: string,
   tag: string
@@ -380,8 +384,8 @@ async function analyseFile(
   const decoded = decodeSource(read.content)
   const key = {
     contentHash: contentHash(read.content),
-    adapterId: TS_JS_ADAPTER_ID,
-    adapterVersion: TS_JS_ADAPTER_VERSION,
+    adapterId,
+    adapterVersion,
     grammarFingerprint: fingerprint,
     limitsTag: tag
   }
@@ -479,7 +483,12 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
   }
 
   const pool = new ParsePool(limits.jobs, { workerMaxFiles: limits.workerMaxFiles, workerMaxMemoryBytes: limits.workerMaxMemoryBytes })
-  const adapter = createTypeScriptJavaScriptAdapter({ pool })
+  const tsAdapter = createTypeScriptJavaScriptAdapter({ pool })
+  const pyAdapter = createPythonAdapter({ pool })
+  const adapterFor = (language: string | null): { adapter: LanguageAdapter; id: string; version: string } => {
+    if (language === 'python') return { adapter: pyAdapter, id: PYTHON_ADAPTER_ID, version: PYTHON_ADAPTER_VERSION }
+    return { adapter: tsAdapter, id: TS_JS_ADAPTER_ID, version: TS_JS_ADAPTER_VERSION }
+  }
   const cache = new ContentCache(cacheDirectory ?? defaultCacheDir(rootAbs), cacheDirectory !== undefined)
   const fingerprint = grammarFingerprint()
   const tag = limitsTag(limits)
@@ -489,14 +498,19 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
   let redactions = 0
 
   try {
-    if (walk.files.some(file => file.disposition === 'analyse')) await adapter.load()
+    const analyseLanguages = new Set(walk.files.filter(item => item.disposition === 'analyse').map(item => item.language))
+    if (analyseLanguages.size > 0) {
+      if ([...analyseLanguages].some(lang => lang === 'typescript' || lang === 'javascript')) await tsAdapter.load()
+      if (analyseLanguages.has('python')) await pyAdapter.load()
+    }
     for (const file of walk.files) {
       if (options.signal?.aborted) throw new InterruptedError()
       if (file.disposition === 'skipped') {
         records.push({ path: file.path, language: file.language, status: 'skipped', reason: file.skipReason, lineCount: null, lossy: false })
         continue
       }
-      const outcome = await analyseFile(file, limits, adapter, cache, fingerprint, tag)
+      const picked = adapterFor(file.language)
+      const outcome = await analyseFile(file, limits, picked.adapter, picked.id, picked.version, cache, fingerprint, tag)
       redactions += outcome.redactions
       records.push(outcome.record)
       if (outcome.parsed) parsed.set(file.path, outcome.parsed)
@@ -554,6 +568,23 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
       return text
     }
   })
+  const pythonResolver = PythonResolver.create({
+    files: new Set(filesByPath.keys()),
+    ignoredPaths: walk.ignoredPaths
+  })
+
+  const resolveReference = (reference: ExtractedReference, file: WalkFile, literal: string | null): ResolveOutcome => {
+    if (literal === null) return { kind: 'unresolved', reason: 'non-literal-specifier' }
+    if (file.language === 'python') {
+      if (literal === '.' && reference.names?.length === 1) return pythonResolver.resolveFromDotImport(reference.names[0] as string, file.path)
+      const outcome = pythonResolver.resolve(literal, file.path)
+      if (outcome.kind === 'external' && pythonResolver.isTypeOnlyExternal(literal)) {
+        reference.typeOnly = true
+      }
+      return outcome
+    }
+    return resolver.resolve(literal, file.path)
+  }
   const unresolvedCounts = new Map<string, number>()
   const bump = (reason: string): void => {
     unresolvedCounts.set(reason, (unresolvedCounts.get(reason) ?? 0) + 1)
@@ -565,9 +596,7 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
     if (!facts) continue
     for (const reference of facts.references) {
       const literal = reference.specifier
-      const outcome: ResolveOutcome = literal === null
-        ? { kind: 'unresolved', reason: 'non-literal-specifier' }
-        : resolver.resolve(literal, file.path)
+      const outcome: ResolveOutcome = resolveReference(reference, file, literal)
       const edgeSpecifier = literal === null ? NON_LITERAL_SPECIFIER : literal
       const target = rememberTarget(builder, outcome, file.path, edgeSpecifier)
       // A non-literal import() is still an import site: EXTRACTED, importKind from the adapter, no confidence.
