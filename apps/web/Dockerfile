@@ -5,10 +5,12 @@ WORKDIR /repo
 
 COPY package.json package-lock.json ./
 COPY apps/web/package.json apps/web/
+COPY packages/brand/package.json packages/brand/
 
-RUN npm ci -w web --ignore-scripts
+RUN npm ci -w web --include=dev --ignore-scripts
 
 FROM deps AS build-viewer
+COPY packages/brand/src packages/brand/src
 COPY apps/web/tsconfig.json apps/web/tsconfig.app.json apps/web/tsconfig.node.json apps/web/
 COPY apps/web/index.html apps/web/viewer/index.html apps/web/
 COPY apps/web/vite.config.ts apps/web/vite.viewer.config.ts apps/web/vite-csp-hash.ts apps/web/
@@ -22,6 +24,7 @@ COPY --from=build-viewer /repo/apps/web/dist-viewer /usr/share/nginx/html
 EXPOSE 80
 
 FROM deps AS dev
+COPY packages/brand/src packages/brand/src
 COPY apps/web apps/web
 WORKDIR /repo
 EXPOSE 5173

@@ -3,7 +3,7 @@
 FROM node:22-alpine AS build
 WORKDIR /repo
 
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json tsconfig.base.json ./
 COPY apps/api/package.json apps/api/
 COPY packages/engine/package.json packages/engine/
 
@@ -16,7 +16,7 @@ COPY packages/engine/src packages/engine/src
 COPY apps/api/tsconfig.json apps/api/
 COPY apps/api/src apps/api/src
 
-RUN npm ci -w api --ignore-scripts
+RUN npm ci -w api -w @atlasmith/engine --include=dev --ignore-scripts
 RUN npm run build -w @atlasmith/engine
 RUN npm run build -w api
 

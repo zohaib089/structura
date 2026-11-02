@@ -184,3 +184,22 @@ jobs:
 
       - name: Golden-corpus exclusion check
         run: node scripts/ci/check-corpus-excludes.mjs
+
+  docker:
+    name: Docker image builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build API image
+        run: docker build -f apps/api/Dockerfile .
+
+      - name: Build web dev image
+        run: docker build -f apps/web/Dockerfile --target dev .
+
+      - name: Build viewer image
+        run: docker build -f apps/web/Dockerfile --target viewer .
