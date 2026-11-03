@@ -16,3 +16,5 @@
 *.yaml text eol=lf
 *.sh text eol=lf
 *.wasm binary
+# CRLF span fixture; must not be normalized to LF on checkout (see span-units tests).
+packages/engine/schema-fixtures/spans/crlf.ts text eol=crlf
