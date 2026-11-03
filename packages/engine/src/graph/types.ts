@@ -10,6 +10,21 @@
  *  - Nothing run-specific (time, tool version, absolute path, host, brand) is stored.
  */
 
+import type {
+  ArchitectureFinding,
+  ArchitectureModuleDecl,
+  ArchitecturePolicy,
+  ArchitectureSummary
+} from '../architecture/types.js'
+
+export type {
+  ArchitectureFinding,
+  ArchitectureModuleDecl,
+  ArchitecturePolicy,
+  ArchitectureSummary
+} from '../architecture/types.js'
+export { ARCHITECTURE_DRIFT_RULES, ARCHITECTURE_EDGE_KINDS, ARCHITECTURE_POLICIES } from '../architecture/types.js'
+
 export const GRAPH_SCHEMA_VERSION = '1.0.0'
 export const GRAPH_SCHEMA_MAJOR = 1
 export const GRAPH_SCHEMA_MINOR = 0
@@ -181,6 +196,8 @@ export interface FileNode {
   entryCandidate?: EntryCandidate
   /** Deterministic list of entry hypotheses; sorted by descending precedence then evidence. */
   entryCandidates?: EntryCandidateDetail[]
+  /** Declared architecture module (first matching glob wins). Written only when a config was loaded. */
+  module?: string
   extensions?: Extensions
 }
 
@@ -313,6 +330,15 @@ export interface Summary {
   entryCandidates?: SummaryEntryCandidates
 }
 
+export interface GraphArchitecture {
+  config: string
+  defaultPolicy?: ArchitecturePolicy
+  modules: ArchitectureModuleDecl[]
+  unassigned: string[]
+  findings?: ArchitectureFinding[]
+  summary: ArchitectureSummary
+}
+
 export interface Graph {
   schemaVersion: string
   summary: Summary
@@ -321,5 +347,6 @@ export interface Graph {
   nodes: GraphNode[]
   /** Sorted by (source, type, target, span.start.line, span.start.col). */
   edges: GraphEdge[]
+  architecture?: GraphArchitecture
   extensions?: Extensions
 }

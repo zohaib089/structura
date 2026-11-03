@@ -14,7 +14,7 @@ const sampleResult = {
   redactions: 0
 }
 
-const header = scanCacheHeader('0.1.0', 'abc', { maxIdentifierLength: 256, maxSymbolsPerFile: 10_000, maxEdgesPerFile: 10_000 }, 'fp')
+const header = scanCacheHeader('0.1.0', 'abc', { maxIdentifierLength: 256, maxSymbolsPerFile: 10_000, maxEdgesPerFile: 10_000 }, 'fp', 'none')
 
 test('incremental cache round-trips through disk and invalidates on header mismatch', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'scan-cache-manifest-'))
@@ -33,7 +33,7 @@ test('incremental cache round-trips through disk and invalidates on header misma
     assert.ok(loaded)
     assert.equal(loaded.lookup('src/a.ts', 'aa', 'ts-js', '1')?.symbols.length, 0)
     assert.equal(loaded.hits, 1)
-    const wrongHeader = scanCacheHeader('0.2.0', 'abc', { maxIdentifierLength: 256, maxSymbolsPerFile: 10_000, maxEdgesPerFile: 10_000 }, 'fp')
+    const wrongHeader = scanCacheHeader('0.2.0', 'abc', { maxIdentifierLength: 256, maxSymbolsPerFile: 10_000, maxEdgesPerFile: 10_000 }, 'fp', 'none')
     assert.equal(await IncrementalScanCache.load(path, wrongHeader), undefined)
     assert.equal(JSON.parse(readFileSync(path, 'utf8')).files.length, 1)
   } finally {

@@ -12,7 +12,10 @@ import {
   PROVENANCES,
   SKIP_REASONS,
   SYMBOL_KINDS,
-  UNRESOLVED_REASONS
+  UNRESOLVED_REASONS,
+  ARCHITECTURE_DRIFT_RULES,
+  ARCHITECTURE_EDGE_KINDS,
+  ARCHITECTURE_POLICIES
 } from './types.js'
 
 type Schema = Record<string, unknown>
@@ -61,6 +64,7 @@ export function buildGraphJsonSchema(): Schema {
       coverage: ref('coverage'),
       nodes: { type: 'array', items: ref('node') },
       edges: { type: 'array', items: ref('edge') },
+      architecture: ref('architecture'),
       extensions: ref('extensions')
     },
     required: ['schemaVersion', 'summary', 'coverage', 'nodes', 'edges'],
@@ -105,7 +109,8 @@ export function buildGraphJsonSchema(): Schema {
           parse: ref('parseInfo'),
           decoding: { const: 'lossy' },
           entryCandidate: ref('entryCandidate'),
-          entryCandidates: { type: 'array', items: ref('entryCandidateDetail') }
+          entryCandidates: { type: 'array', items: ref('entryCandidateDetail') },
+          module: { type: 'string', pattern: '^[a-z][a-z0-9-]*$' }
         }),
         ['id', 'kind', 'path', 'label', 'language', 'lineCount', 'parse']
       ),
@@ -205,6 +210,39 @@ export function buildGraphJsonSchema(): Schema {
           accounting: closed({ discovered: count, accounted: count }, ['discovered', 'accounted'])
         },
         ['files', 'byLanguage', 'skipped', 'failed', 'ignored', 'unresolved', 'accounting']
+      ),
+      architectureModule: closed(
+        {
+          name: { type: 'string', pattern: '^[a-z][a-z0-9-]*$' },
+          paths: { type: 'array', items: str({ minLength: 1, maxLength: 512 }), minItems: 1 },
+          allow: { type: 'array', items: { type: 'string', pattern: '^[a-z][a-z0-9-]*$' } },
+          deny: { type: 'array', items: { type: 'string', pattern: '^[a-z][a-z0-9-]*$' } },
+          policy: { type: 'string', enum: [...ARCHITECTURE_POLICIES] }
+        },
+        ['name', 'paths']
+      ),
+      architectureFinding: closed(
+        {
+          from: str({ minLength: 1 }),
+          to: str({ minLength: 1 }),
+          edgeKind: { type: 'string', enum: [...ARCHITECTURE_EDGE_KINDS] },
+          file: str({ minLength: 1 }),
+          line: { type: 'integer', minimum: 1 },
+          rule: str({ minLength: 1 }),
+          provenance: { const: 'EXTRACTED' }
+        },
+        ['from', 'to', 'edgeKind', 'file', 'line', 'rule', 'provenance']
+      ),
+      architecture: closed(
+        {
+          config: str({ minLength: 1 }),
+          defaultPolicy: { type: 'string', enum: [...ARCHITECTURE_POLICIES] },
+          modules: { type: 'array', items: ref('architectureModule'), minItems: 1 },
+          unassigned: { type: 'array', items: str({ minLength: 1 }) },
+          findings: { type: 'array', items: ref('architectureFinding') },
+          summary: closed({ violations: count, unassignedFiles: count }, ['violations', 'unassignedFiles'])
+        },
+        ['config', 'modules', 'unassigned', 'summary']
       )
     }
   }

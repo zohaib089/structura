@@ -6,13 +6,14 @@ import { LIMITS } from '../limits.js'
 import { O_NOFOLLOW } from '../walker/safe-fs.js'
 import { contentHash, limitsTag, type CacheKey } from './content-cache.js'
 
-export const SCAN_CACHE_FORMAT = 1
+export const SCAN_CACHE_FORMAT = 2
 
 export interface ScanCacheHeader {
   engineVersion: string
   schemaHash: string
   limitsTag: string
   grammarFingerprint: string
+  architectureConfigHash: string
 }
 
 interface StoredFileEntry {
@@ -29,6 +30,7 @@ interface StoredDocument {
   schemaHash: string
   limitsTag: string
   grammarFingerprint: string
+  architectureConfigHash: string
   files: StoredFileEntry[]
 }
 
@@ -87,7 +89,8 @@ function headerMatches(doc: StoredDocument, expected: ScanCacheHeader): boolean 
     doc.engineVersion === expected.engineVersion &&
     doc.schemaHash === expected.schemaHash &&
     doc.limitsTag === expected.limitsTag &&
-    doc.grammarFingerprint === expected.grammarFingerprint
+    doc.grammarFingerprint === expected.grammarFingerprint &&
+    doc.architectureConfigHash === expected.architectureConfigHash
 }
 
 function isStoredFileEntry(value: unknown): value is StoredFileEntry {
@@ -116,13 +119,15 @@ export function scanCacheHeader(
   engineVersion: string,
   schemaHash: string,
   limits: { maxIdentifierLength: number; maxSymbolsPerFile: number; maxEdgesPerFile: number },
-  grammarFingerprint: string
+  grammarFingerprint: string,
+  architectureConfigHash: string
 ): ScanCacheHeader {
   return {
     engineVersion,
     schemaHash,
     limitsTag: limitsTag(limits),
-    grammarFingerprint
+    grammarFingerprint,
+    architectureConfigHash
   }
 }
 

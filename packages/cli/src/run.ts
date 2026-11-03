@@ -5,6 +5,7 @@ import { CLI_BIN, CONFIG_FILE, GRAPH_FILE, OUT_DIR, PRODUCT_NAME, RUN_FILE } fro
 import { runScanAnalysis } from '@atlasmith/scan-analysis'
 import {
   AccountingError,
+  ArchitectureConfigError,
   GraphReadError,
   GraphVersionUnsupported,
   InterruptedError,
@@ -36,6 +37,7 @@ export function exitCodeFor(error: unknown): number {
   if (error instanceof GraphReadError || error instanceof GraphVersionUnsupported) return EXIT.usage
   if (error instanceof UsageError || error instanceof OutputRefusedError) return EXIT.usage
   if (error instanceof MaxFilesExceeded || error instanceof ScanRootError) return EXIT.usage
+  if (error instanceof ArchitectureConfigError) return EXIT.usage
   if (error instanceof AccountingError) return EXIT.accounting
   if (error instanceof StrictCoverageError) return EXIT.strict
   if (error instanceof InterruptedError) return EXIT.interrupted
@@ -65,6 +67,8 @@ function helpText(): string {
     '  --no-meta             Do not write ' + RUN_FILE,
     '  --json                Print run metadata to stdout',
     '  --strict              Exit ' + String(EXIT.strict) + ' when coverage thresholds fail',
+    '  --strict-architecture Exit ' + String(EXIT.strict) + ' when declared architecture rules fail',
+    '  --config <path>       Declared architecture config (default: <root>/' + CONFIG_FILE + ')',
     '  --include <glob>      Re-include files ignored by defaults or gitignore (repeatable)',
     '  --cache-dir <path>    Read and write the content cache here (default: OS cache, outside the root)',
     '  --cache <path>        Incremental rescan manifest (default: <out>/cache.json)',
@@ -124,6 +128,8 @@ export async function run(argv: readonly string[], io: RunIo = {
         'no-meta': { type: 'boolean', default: false },
         json: { type: 'boolean', default: false },
         strict: { type: 'boolean', default: false },
+        'strict-architecture': { type: 'boolean', default: false },
+        config: { type: 'string' },
         include: { type: 'string', multiple: true },
         'cache-dir': { type: 'string' },
         cache: { type: 'string' },
@@ -184,6 +190,8 @@ export async function run(argv: readonly string[], io: RunIo = {
       noCache: parsed.values['no-cache'],
       verbose: parsed.values.verbose,
       strict: parsed.values.strict,
+      strictArchitecture: parsed.values['strict-architecture'],
+      configPath: parsed.values.config,
       limits
     }
     const resolved = await resolveScanTarget(targetArg, {
