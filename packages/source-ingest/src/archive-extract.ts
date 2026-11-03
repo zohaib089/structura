@@ -1,4 +1,5 @@
 import { createWriteStream } from 'node:fs'
+import { open } from 'node:fs/promises'
 import { mkdir, rm, stat, writeFile } from 'node:fs/promises'
 import { lstat, readdir } from 'node:fs/promises'
 import { basename, dirname, extname, join } from 'node:path'
@@ -33,8 +34,9 @@ export async function extractArchiveToDirectory(
   await mkdir(destinationRoot, { recursive: true })
   const ext = extname(archivePath).toLowerCase()
   const lowerName = basename(archivePath).toLowerCase()
+  const zipByMagic = await looksLikeZipArchive(archivePath)
 
-  if (ext === '.zip' || lowerName.endsWith('.zip')) {
+  if (ext === '.zip' || lowerName.endsWith('.zip') || zipByMagic) {
     await extractZipArchive(archivePath, destinationRoot, options)
   } else if (ext === '.tar' || ext === '.gz' || ext === '.tgz' || lowerName.endsWith('.tar.gz')) {
     await extractTarArchive(archivePath, destinationRoot, options)
@@ -43,6 +45,17 @@ export async function extractArchiveToDirectory(
   }
 
   return measureTree(destinationRoot, options.limits)
+}
+
+async function looksLikeZipArchive(archivePath: string): Promise<boolean> {
+  const handle = await open(archivePath, 'r')
+  try {
+    const header = Buffer.alloc(4)
+    await handle.read(header, 0, 4, 0)
+    return header[0] === 0x50 && header[1] === 0x4b
+  } finally {
+    await handle.close()
+  }
 }
 
 async function extractTarArchive(

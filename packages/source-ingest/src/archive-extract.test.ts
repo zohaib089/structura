@@ -27,6 +27,20 @@ test('extracts a zip archive without zip-slip paths', async () => {
   assert.equal(result.totalBytes, Buffer.byteLength('export const app = 1\n'))
 })
 
+test('extracts zip bytes even when the temp path lacks a .zip extension', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'zip-magic-'))
+  const destination = join(root, 'out')
+  const archivePath = join(root, 'upload.archive')
+  writeFileSync(archivePath, buildStoreZip([
+    { path: 'src/app.ts', content: 'export const app = 1\n' }
+  ]))
+
+  const result = await extractArchiveToDirectory(archivePath, destination, {
+    limits: { ...DEFAULT_SOURCE_INGEST_LIMITS, maxFileCount: 10 }
+  })
+  assert.equal(result.fileCount, 1)
+})
+
 test('rejects zip entries that escape the destination root', async () => {
   const root = mkdtempSync(join(tmpdir(), 'zip-slip-'))
   const destination = join(root, 'out')

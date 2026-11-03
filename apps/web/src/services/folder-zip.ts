@@ -25,13 +25,37 @@ export function shouldSkipArchivePath(relativePath: string): boolean {
   return false
 }
 
-export async function zipBrowserFiles(files: Iterable<File>): Promise<Blob> {
-  const archive: Zippable = {}
-  let included = 0
+/** Drop the selected root folder segment from browser directory picks. */
+export function stripRootFolderPrefix(relativePath: string, rootFolderName: string): string {
+  const normalized = relativePath.replace(/\\/g, '/').replace(/^\/+/, '')
+  if (normalized === rootFolderName) return ''
+  const prefix = `${rootFolderName}/`
+  return normalized.startsWith(prefix) ? normalized.slice(prefix.length) : normalized
+}
 
+export function rootFolderNameFromBrowserFiles(files: Iterable<File>): string | null {
   for (const file of files) {
     const relativePath = file.webkitRelativePath || file.name
-    if (shouldSkipArchivePath(relativePath)) continue
+    const normalized = relativePath.replace(/\\/g, '/').replace(/^\/+/, '')
+    const slash = normalized.indexOf('/')
+    if (slash > 0) return normalized.slice(0, slash)
+  }
+  return null
+}
+
+function zipEntriesToFile(archive: Zippable, filename: string): File {
+  const zipped = zipSync(archive, { level: 6 })
+  return new File([zipped], filename, { type: 'application/zip' })
+}
+
+export async function zipBrowserFiles(files: Iterable<File>): Promise<File> {
+  const archive: Zippable = {}
+  let included = 0
+  const rootName = rootFolderNameFromBrowserFiles(files) ?? 'project'
+
+  for (const file of files) {
+    const relativePath = stripRootFolderPrefix(file.webkitRelativePath || file.name, rootName)
+    if (!relativePath || shouldSkipArchivePath(relativePath)) continue
     archive[relativePath] = new Uint8Array(await file.arrayBuffer())
     included += 1
   }
@@ -40,14 +64,13 @@ export async function zipBrowserFiles(files: Iterable<File>): Promise<Blob> {
     throw new Error('No files were included. Build folders like node_modules and .git are skipped.')
   }
 
-  const zipped = zipSync(archive, { level: 6 })
-  return new Blob([zipped], { type: 'application/zip' })
+  return zipEntriesToFile(archive, `${rootName}.zip`)
 }
 
 export async function zipDirectoryHandle(
   handle: FileSystemDirectoryHandle,
   rootLabel = 'project'
-): Promise<Blob> {
+): Promise<File> {
   const archive: Zippable = {}
   let included = 0
 
@@ -66,10 +89,9 @@ export async function zipDirectoryHandle(
     }
   }
 
-  await walk(handle, rootLabel)
+  await walk(handle, '')
   if (included === 0) {
     throw new Error('No files were included. Build folders like node_modules and .git are skipped.')
   }
-  const zipped = zipSync(archive, { level: 6 })
-  return new Blob([zipped], { type: 'application/zip' })
+  return zipEntriesToFile(archive, `${rootLabel}.zip`)
 }
