@@ -34,12 +34,29 @@ function validateQuestion(value: unknown, index: number, issues: { path: string;
   if (record.reference !== undefined && typeof record.reference !== 'string') {
     pushIssue(issues, `${base}.reference`, 'must be a string when present')
   }
+  let expectedFacts: string[] | undefined
+  if (record.expectedFacts !== undefined) {
+    if (!Array.isArray(record.expectedFacts)) {
+      pushIssue(issues, `${base}.expectedFacts`, 'must be an array of strings when present')
+    } else {
+      expectedFacts = []
+      for (let factIndex = 0; factIndex < record.expectedFacts.length; factIndex++) {
+        const fact = record.expectedFacts[factIndex]
+        if (typeof fact !== 'string' || fact.trim() === '') {
+          pushIssue(issues, `${base}.expectedFacts[${factIndex}]`, 'must be a non-empty string')
+        } else {
+          expectedFacts.push(fact.trim())
+        }
+      }
+    }
+  }
   if (issues.some(issue => issue.path.startsWith(base))) return undefined
   const id = (record.id as string).trim()
   return {
     id,
     question: record.question as string,
-    reference: typeof record.reference === 'string' ? record.reference : undefined
+    reference: typeof record.reference === 'string' ? record.reference : undefined,
+    expectedFacts: expectedFacts && expectedFacts.length > 0 ? expectedFacts : undefined
   }
 }
 

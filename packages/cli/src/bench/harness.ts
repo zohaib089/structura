@@ -5,13 +5,16 @@ import { buildPromptWithGraph, buildPromptWithoutGraph } from './prompts.js'
 import type { QuestionSetDocument } from './types.js'
 import {
   BENCH_RESULTS_SCHEMA_VERSION,
+  type ArmQuality,
+  type ArmResult,
   type BenchResultsDocument,
   type BenchTotals,
+  type QualityAggregate,
   type QuestionBenchResult,
   type TokenCounts
 } from './types.js'
 import { ApproxTokenCounter, type TokenCounter } from './token-counter.js'
-import { qualityScorerStub, type QualityScorer } from './quality.js'
+import { scoreArm, type BenchQualityOptions } from './quality.js'
 
 export interface RunBenchOptions {
   cwd: string
@@ -20,11 +23,12 @@ export interface RunBenchOptions {
   graphPath: string | null
   adapter: ModelAdapter
   dryRun: boolean
+  llmJudge?: boolean
   tokenCounter?: TokenCounter
-  qualityScorer?: QualityScorer
+  qualityOptions?: BenchQualityOptions
 }
 
-function sumTokens(results: QuestionBenchResult[]): BenchTotals {
+function sumTokens(results: QuestionBenchResult[]): Pick<BenchTotals, 'withGraph' | 'withoutGraph'> {
   const empty = (): TokenCounts => ({ promptTokens: 0, completionTokens: 0 })
   const totals = { withGraph: empty(), withoutGraph: empty() }
   for (const row of results) {
@@ -36,25 +40,52 @@ function sumTokens(results: QuestionBenchResult[]): BenchTotals {
   return totals
 }
 
+function aggregateQuality(arms: ArmResult[], pick: (row: ArmResult) => ArmQuality): QualityAggregate {
+  let sum = 0
+  let scoredCount = 0
+  for (const arm of arms) {
+    const quality = pick(arm)
+    if (quality.status === 'scored') {
+      sum += quality.score
+      scoredCount++
+    }
+  }
+  return {
+    meanScore: scoredCount > 0 ? sum / scoredCount : null,
+    scoredCount
+  }
+}
+
 async function runArm(
   adapter: ModelAdapter,
   counter: TokenCounter,
-  prompt: string
-): Promise<{ prompt: string; answer: string; tokens: TokenCounts }> {
+  prompt: string,
+  question: QuestionSetDocument['questions'][number],
+  qualityOptions: BenchQualityOptions
+): Promise<ArmResult> {
   const completion = await adapter.complete(prompt)
-  return {
+  const answer = completion.text
+  const scored = await scoreArm(question, answer, adapter, qualityOptions)
+  const arm: ArmResult = {
     prompt,
-    answer: completion.text,
+    answer,
     tokens: {
       promptTokens: counter.count(prompt),
-      completionTokens: counter.count(completion.text)
-    }
+      completionTokens: counter.count(answer)
+    },
+    quality: scored.quality
   }
+  if (qualityOptions.llmJudge) {
+    arm.llmJudge = scored.llmJudge ?? null
+  }
+  return arm
 }
 
 export async function runBenchHarness(options: RunBenchOptions): Promise<BenchResultsDocument> {
   const counter = options.tokenCounter ?? new ApproxTokenCounter()
-  const scorer = options.qualityScorer ?? qualityScorerStub
+  const qualityOptions: BenchQualityOptions = options.qualityOptions ?? {
+    llmJudge: options.llmJudge ?? false
+  }
   let graphText: string | null = null
   if (options.graphPath) {
     const absoluteGraph = resolve(options.cwd, options.graphPath)
@@ -67,25 +98,37 @@ export async function runBenchHarness(options: RunBenchOptions): Promise<BenchRe
     const withPrompt =
       graphText !== null ? buildPromptWithGraph(question, graphText) : withoutPrompt
 
-    const withoutGraph = await runArm(options.adapter, counter, withoutPrompt)
-    const withGraph = await runArm(options.adapter, counter, withPrompt)
-    const quality = await scorer.score(question, withGraph.answer, withoutGraph.answer)
+    const withoutGraph = await runArm(options.adapter, counter, withoutPrompt, question, qualityOptions)
+    const withGraph = await runArm(options.adapter, counter, withPrompt, question, qualityOptions)
 
     questionResults.push({
       id: question.id,
       withGraph,
-      withoutGraph,
-      quality
+      withoutGraph
     })
   }
 
+  const tokenTotals = sumTokens(questionResults)
   return {
     schemaVersion: BENCH_RESULTS_SCHEMA_VERSION,
     dryRun: options.dryRun,
+    llmJudge: qualityOptions.llmJudge,
     adapter: options.adapter.name,
     graphPath: options.graphPath,
     questionsPath: options.questionsPath,
     questions: questionResults,
-    totals: sumTokens(questionResults)
+    totals: {
+      ...tokenTotals,
+      quality: {
+        withGraph: aggregateQuality(
+          questionResults.map(row => row.withGraph),
+          arm => arm.quality
+        ),
+        withoutGraph: aggregateQuality(
+          questionResults.map(row => row.withoutGraph),
+          arm => arm.quality
+        )
+      }
+    }
   }
 }

@@ -4,7 +4,8 @@
     {
       "id": "entry-points",
       "question": "What files look like application entry points?",
-      "reference": "Mention main.ts or index files if present in the graph."
+      "reference": "Mention main.ts or index files if present in the graph.",
+      "expectedFacts": ["entry", "main"]
     }
   ]
 }
