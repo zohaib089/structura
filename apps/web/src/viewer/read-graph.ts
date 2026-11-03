@@ -8,10 +8,16 @@ import {
 import { guardJson, syntaxWhere } from './json-guard'
 import { pointer } from './json-pointer'
 import type {
+  ArchitectureEdgeKind,
+  ArchitectureFinding,
+  ArchitectureModuleDecl,
+  ArchitecturePolicy,
+  ArchitectureSummary,
   Coverage,
   EntryCandidate,
   EntryReason,
   FileNode,
+  GraphArchitecture,
   GraphDocument,
   GraphEdge,
   GraphNode,
@@ -24,6 +30,9 @@ const KNOWN_KINDS = new Set(['directory', 'file', 'symbol', 'external', 'unresol
 const PARSE_STATUS = new Set(['parsed', 'partial', 'failed', 'skipped'])
 const ENTRY_REASONS = new Set<EntryReason>(['conventional-name', 'package-bin', 'package-exports', 'package-main', 'package-script'])
 const EXTENSION_KEY = /^[a-z][a-z0-9-]*:[A-Za-z0-9._-]+$/
+const MODULE_NAME = /^[a-z][a-z0-9-]*$/
+const ARCHITECTURE_EDGE_KIND = new Set<ArchitectureEdgeKind>(['imports', 'reexports', 'calls'])
+const ARCHITECTURE_POLICY = new Set<ArchitecturePolicy>(['deny-undeclared', 'allow-undeclared'])
 
 export function textExceedsLimit(text: string, limit = GRAPH_BYTE_LIMIT): boolean {
   if (text.length > limit) return true
@@ -160,7 +169,12 @@ function readDocument(value: unknown, schemaVersion: string, paths: string[]): G
   if (containsCycle(children, nodes.map((node) => node.id))) push(paths, '/edges')
   if (paths.length > 0) return null
 
-  return { schemaVersion, summary, coverage, nodes, edges }
+  const architecture = Object.hasOwn(value, 'architecture')
+    ? readArchitecture(value.architecture, paths)
+    : undefined
+  if (Object.hasOwn(value, 'architecture') && !architecture) return null
+
+  return { schemaVersion, summary, coverage, nodes, edges, ...(architecture ? { architecture } : {}) }
 }
 
 function readSummary(value: unknown, paths: string[]): GraphDocument['summary'] | null {
@@ -266,6 +280,14 @@ function readFile(value: Record<string, unknown>, id: string, base: string, path
     const candidate = readEntryCandidate(value.entryCandidate, `${base}/entryCandidate`, paths)
     if (!candidate) return null
     node.entryCandidate = candidate
+  }
+  if (Object.hasOwn(value, 'module')) {
+    const moduleName = readBoundedString(value.module, `${base}/module`, paths)
+    if (!moduleName || !MODULE_NAME.test(moduleName)) {
+      push(paths, `${base}/module`)
+      return null
+    }
+    node.module = moduleName
   }
   return node
 }
@@ -652,6 +674,176 @@ function isConfidence(value: unknown): boolean {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function readArchitecture(value: unknown, paths: string[]): GraphArchitecture | null {
+  if (!isRecord(value)) {
+    push(paths, '/architecture')
+    return null
+  }
+  const config = readBoundedString(value.config, '/architecture/config', paths)
+  const modules = readArchitectureModules(value.modules, paths)
+  const unassigned = readStringArray(value.unassigned, '/architecture/unassigned', paths)
+  const summary = readArchitectureSummary(value.summary, paths)
+  if (!config || !modules || !unassigned || !summary) return null
+  let defaultPolicy: ArchitecturePolicy | undefined
+  if (Object.hasOwn(value, 'defaultPolicy')) {
+    if (typeof value.defaultPolicy !== 'string' || !ARCHITECTURE_POLICY.has(value.defaultPolicy as ArchitecturePolicy)) {
+      push(paths, '/architecture/defaultPolicy')
+      return null
+    }
+    defaultPolicy = value.defaultPolicy as ArchitecturePolicy
+  }
+  let findings: ArchitectureFinding[] | undefined
+  if (Object.hasOwn(value, 'findings')) {
+    const read = readArchitectureFindings(value.findings, paths)
+    if (!read) return null
+    findings = read.length > 0 ? read : undefined
+  }
+  return {
+    config,
+    ...(defaultPolicy ? { defaultPolicy } : {}),
+    modules,
+    unassigned,
+    ...(findings ? { findings } : {}),
+    summary
+  }
+}
+
+function readArchitectureModules(value: unknown, paths: string[]): ArchitectureModuleDecl[] | null {
+  if (!Array.isArray(value) || value.length === 0) {
+    push(paths, '/architecture/modules')
+    return null
+  }
+  const modules: ArchitectureModuleDecl[] = []
+  let failed = false
+  value.forEach((entry, index) => {
+    const base = `/architecture/modules/${index}`
+    if (!isRecord(entry)) {
+      push(paths, base)
+      failed = true
+      return
+    }
+    const name = readBoundedString(entry.name, `${base}/name`, paths)
+    const pathPatterns = readStringArray(entry.paths, `${base}/paths`, paths)
+    if (!name || !MODULE_NAME.test(name) || !pathPatterns || pathPatterns.length === 0) {
+      failed = true
+      return
+    }
+    const mod: ArchitectureModuleDecl = { name, paths: pathPatterns }
+    if (Object.hasOwn(entry, 'allow')) {
+      const allow = readModuleNameArray(entry.allow, `${base}/allow`, paths)
+      if (!allow) {
+        failed = true
+        return
+      }
+      mod.allow = allow
+    }
+    if (Object.hasOwn(entry, 'deny')) {
+      const deny = readModuleNameArray(entry.deny, `${base}/deny`, paths)
+      if (!deny) {
+        failed = true
+        return
+      }
+      mod.deny = deny
+    }
+    if (Object.hasOwn(entry, 'policy')) {
+      if (typeof entry.policy !== 'string' || !ARCHITECTURE_POLICY.has(entry.policy as ArchitecturePolicy)) {
+        push(paths, `${base}/policy`)
+        failed = true
+        return
+      }
+      mod.policy = entry.policy as ArchitecturePolicy
+    }
+    modules.push(mod)
+  })
+  return failed ? null : modules
+}
+
+function readArchitectureFindings(value: unknown, paths: string[]): ArchitectureFinding[] | null {
+  if (!Array.isArray(value)) {
+    push(paths, '/architecture/findings')
+    return null
+  }
+  const findings: ArchitectureFinding[] = []
+  let failed = false
+  value.forEach((entry, index) => {
+    const base = `/architecture/findings/${index}`
+    if (!isRecord(entry)) {
+      push(paths, base)
+      failed = true
+      return
+    }
+    const from = readBoundedString(entry.from, `${base}/from`, paths)
+    const to = readBoundedString(entry.to, `${base}/to`, paths)
+    const file = readBoundedString(entry.file, `${base}/file`, paths)
+    const rule = readBoundedString(entry.rule, `${base}/rule`, paths)
+    if (!from || !to || !file || !isRelPath(file, false) || !rule) {
+      failed = true
+      return
+    }
+    if (typeof entry.edgeKind !== 'string' || !ARCHITECTURE_EDGE_KIND.has(entry.edgeKind as ArchitectureEdgeKind)) {
+      push(paths, `${base}/edgeKind`)
+      failed = true
+      return
+    }
+    if (!isPosInt(entry.line)) {
+      push(paths, `${base}/line`)
+      failed = true
+      return
+    }
+    if (entry.provenance !== 'EXTRACTED') {
+      push(paths, `${base}/provenance`)
+      failed = true
+      return
+    }
+    findings.push({
+      from,
+      to,
+      edgeKind: entry.edgeKind as ArchitectureEdgeKind,
+      file,
+      line: entry.line,
+      rule,
+      provenance: 'EXTRACTED'
+    })
+  })
+  return failed ? null : findings
+}
+
+function readArchitectureSummary(value: unknown, paths: string[]): ArchitectureSummary | null {
+  if (!isRecord(value)) {
+    push(paths, '/architecture/summary')
+    return null
+  }
+  const violations = readCount(value.violations, '/architecture/summary/violations', paths)
+  const unassignedFiles = readCount(value.unassignedFiles, '/architecture/summary/unassignedFiles', paths)
+  if (violations === null || unassignedFiles === null) return null
+  return { violations, unassignedFiles }
+}
+
+function readStringArray(value: unknown, path: string, paths: string[]): string[] | null {
+  if (!Array.isArray(value)) {
+    push(paths, path)
+    return null
+  }
+  const rows: string[] = []
+  let failed = false
+  value.forEach((entry, index) => {
+    const read = readBoundedString(entry, `${path}/${index}`, paths)
+    if (!read) failed = true
+    else rows.push(read)
+  })
+  return failed ? null : rows
+}
+
+function readModuleNameArray(value: unknown, path: string, paths: string[]): string[] | null {
+  const rows = readStringArray(value, path, paths)
+  if (!rows) return null
+  if (rows.some(name => !MODULE_NAME.test(name))) {
+    push(paths, path)
+    return null
+  }
+  return rows
 }
 
 function push(paths: string[], path: string) {

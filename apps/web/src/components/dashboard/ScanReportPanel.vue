@@ -3,8 +3,11 @@ import { computed, ref, watch } from 'vue'
 import BrandMark from '../brand/BrandMark.vue'
 import ScanReportTree from './ScanReportTree.vue'
 import ScanReportHierarchyGraph from './ScanReportHierarchyGraph.vue'
+import ScanReportModuleGraph from './ScanReportModuleGraph.vue'
+import ScanReportArchitecturePanel from './ScanReportArchitecturePanel.vue'
 import ScanReportAnalysers from './ScanReportAnalysers.vue'
 import type { ScanReportV1 } from '../../api/scan-report-types'
+import type { GraphDocument } from '../../viewer/graph-types'
 import type { WebLocale } from '../../services/locale'
 import { scanReportMessages, type ReportTabId } from '../../services/scan-report-messages'
 import {
@@ -20,12 +23,17 @@ import {
 import { buildReportFileTree, type ReportTreeNode } from '../../services/scan-report-tree'
 import { exportFilteredReportJson, exportFilteredReportMarkdown } from '../../services/scan-report-export'
 import { severityCssVar } from '../../services/scan-report-severity'
+import {
+  architectureViolationCount,
+  graphHasArchitectureConfig
+} from '../../services/scan-report-architecture'
 import type { ReportFinding, ReportSection, ReportSeverity } from '../../api/scan-report-types'
 
 const props = defineProps<{
   locale: WebLocale
   report: ScanReportV1
   scanId: string
+  graph?: GraphDocument | null
 }>()
 
 const messages = computed(() => scanReportMessages(props.locale))
@@ -39,7 +47,8 @@ const pageByTab = ref<Record<ReportTabId, number>>({
   security: 1,
   badPractices: 1,
   improvements: 1,
-  removals: 1
+  removals: 1,
+  architecture: 1
 })
 
 const PAGE_SIZE = 50
@@ -54,8 +63,16 @@ const tabs: ReportTabId[] = [
   'security',
   'badPractices',
   'improvements',
-  'removals'
+  'removals',
+  'architecture'
 ]
+
+const architectureConfigured = computed(() => graphHasArchitectureConfig(props.graph))
+const architectureViolationTotal = computed(() =>
+  architectureConfigured.value
+    ? architectureViolationCount(props.graph!.architecture)
+    : 0
+)
 
 function tabLabel(tab: ReportTabId): string {
   return (
@@ -65,7 +82,8 @@ function tabLabel(tab: ReportTabId): string {
       security: messages.value.tabSecurity,
       badPractices: messages.value.tabBadPractices,
       improvements: messages.value.tabImprovements,
-      removals: messages.value.tabRemovals
+      removals: messages.value.tabRemovals,
+      architecture: messages.value.tabArchitecture(architectureViolationTotal.value)
     } satisfies Record<ReportTabId, string>
   )[tab]
 }
@@ -122,6 +140,9 @@ const tabItems = computed(() => {
   }
   if (activeTab.value === 'history') {
     return findingsForSection(filteredFindings.value, 'history')
+  }
+  if (activeTab.value === 'architecture') {
+    return []
   }
   return findingsForSection(filteredFindings.value, activeTab.value)
 })
@@ -276,12 +297,20 @@ const history = computed(() => props.report.history)
           :messages="messages"
           @select="selectNode"
         />
-        <ScanReportHierarchyGraph
-          v-else
-          :root="treeRoot"
-          :selected-path="selectedPath"
-          @select="selectNode"
-        />
+        <template v-else>
+          <p v-if="architectureConfigured" class="graph-hint muted">{{ messages.architectureGraphHint }}</p>
+          <ScanReportModuleGraph
+            v-if="architectureConfigured && graph?.architecture"
+            :graph="graph"
+            :architecture="graph.architecture"
+          />
+          <ScanReportHierarchyGraph
+            v-else
+            :root="treeRoot"
+            :selected-path="selectedPath"
+            @select="selectNode"
+          />
+        </template>
       </section>
 
       <section class="detail-panel" :aria-label="messages.detailTitle">
@@ -391,7 +420,11 @@ const history = computed(() => props.report.history)
         </ul>
       </template>
 
-      <template v-else-if="activeTab === 'improvements'">
+      <template v-else-if="tab === 'architecture'">
+        <ScanReportArchitecturePanel :graph="graph ?? null" :messages="messages" />
+      </template>
+
+      <template v-else-if="tab === 'improvements'">
         <p v-if="filteredImprovements.length === 0" class="muted">{{ messages.emptySection }}</p>
         <ul v-else class="finding-list">
           <li v-for="row in pagedImprovements" :key="row.id">
@@ -416,7 +449,7 @@ const history = computed(() => props.report.history)
         </ul>
       </template>
 
-      <div v-if="tabItems.length > PAGE_SIZE" class="pagination">
+      <div v-if="tab !== 'architecture' && tabItems.length > PAGE_SIZE" class="pagination">
         <button
           type="button"
           class="secondary-button"
@@ -538,6 +571,11 @@ legend {
   justify-content: space-between;
   gap: var(--space-3);
   margin-bottom: var(--space-2);
+}
+
+.graph-hint {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-sm);
 }
 
 .mode-toggle {
