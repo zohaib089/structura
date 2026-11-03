@@ -1,0 +1,139 @@
+{
+  "schemaVersion": "1.0.0",
+  "summary": {
+    "nodes": 4,
+    "edges": 4,
+    "files": 2,
+    "entryCandidates": {
+      "files": 1,
+      "candidates": 1
+    }
+  },
+  "coverage": {
+    "files": {
+      "discovered": 2,
+      "parsed": 2,
+      "partial": 0,
+      "failed": 0,
+      "skipped": 0,
+      "ignored": 0
+    },
+    "byLanguage": [
+      {
+        "language": "javascript",
+        "parsed": 2,
+        "partial": 0,
+        "failed": 0,
+        "skipped": 0
+      }
+    ],
+    "skipped": [],
+    "failed": [],
+    "ignored": [],
+    "unresolved": [],
+    "accounting": {
+      "discovered": 2,
+      "accounted": 2
+    }
+  },
+  "nodes": [
+    {
+      "id": "dir:.",
+      "kind": "directory",
+      "path": ".",
+      "label": "."
+    },
+    {
+      "id": "file:main.js",
+      "kind": "file",
+      "path": "main.js",
+      "label": "main.js",
+      "language": "javascript",
+      "lineCount": 4,
+      "parse": {
+        "status": "parsed"
+      },
+      "entryCandidate": {
+        "reason": "conventional-name",
+        "provenance": "INFERRED"
+      },
+      "entryCandidates": [
+        {
+          "reason": "conventional-name",
+          "evidence": {
+            "source": "main.js",
+            "pointer": "main.js#/conventional"
+          },
+          "confidence": 0.65
+        }
+      ]
+    },
+    {
+      "id": "file:util.js",
+      "kind": "file",
+      "path": "util.js",
+      "label": "util.js",
+      "language": "javascript",
+      "lineCount": 2,
+      "parse": {
+        "status": "parsed"
+      }
+    },
+    {
+      "id": "sym:main.js#util",
+      "kind": "symbol",
+      "file": "file:main.js",
+      "label": "util",
+      "symbolKind": "variable",
+      "exported": false,
+      "span": {
+        "start": {
+          "line": 1,
+          "col": 7
+        },
+        "end": {
+          "line": 1,
+          "col": 31
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source": "dir:.",
+      "type": "contains",
+      "target": "file:main.js",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:.",
+      "type": "contains",
+      "target": "file:util.js",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "file:main.js",
+      "type": "contains",
+      "target": "sym:main.js#util",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "file:main.js",
+      "type": "imports",
+      "target": "file:util.js",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 1,
+          "col": 14
+        },
+        "end": {
+          "line": 1,
+          "col": 31
+        }
+      },
+      "specifier": "./util",
+      "importKind": "require"
+    }
+  ]
+}
