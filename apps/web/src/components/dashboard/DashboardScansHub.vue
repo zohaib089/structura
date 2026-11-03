@@ -100,12 +100,21 @@ async function loadSelectedReport() {
   if (!scan || scan.status !== 'succeeded' || !props.workspaceId) return
   if (insightView.value !== 'report') return
   reportLoading.value = true
+  graphLoading.value = true
   try {
-    reportDocument.value = await getScanReport(props.workspaceId, scan.id)
+    const [report, graph] = await Promise.all([
+      getScanReport(props.workspaceId, scan.id),
+      getScanGraph(props.workspaceId, scan.id)
+    ])
+    reportDocument.value = report
+    graphDocument.value = graph
+    graphLabel.value = messages.value.scanSourceLabel(scan)
   } catch (cause) {
     reportError.value = cause instanceof Error ? cause.message : reportMessages.value.loadReportError
+    graphDocument.value = null
   } finally {
     reportLoading.value = false
+    graphLoading.value = false
   }
 }
 
@@ -115,7 +124,6 @@ function setInsightView(view: InsightView) {
     reportDocument.value = null
     void loadSelectedGraph()
   } else {
-    graphDocument.value = null
     void loadSelectedReport()
   }
 }
@@ -219,6 +227,7 @@ watch(selectedScanId, () => {
         :locale="locale"
         :report="reportDocument"
         :scan-id="selectedScanId"
+        :graph="graphDocument"
       />
     </template>
   </section>

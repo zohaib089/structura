@@ -8,6 +8,7 @@ export type ReportTabId =
   | 'badPractices'
   | 'improvements'
   | 'removals'
+  | 'architecture'
 
 export interface ScanReportMessages {
   panelEyebrow: string
@@ -59,6 +60,23 @@ export interface ScanReportMessages {
   analyserColumnDetails: string
   analyserSkippedNoReason: string
   analyserStatusLabel: (status: AnalyserRunStatus) => string
+  tabArchitecture: (violations: number) => string
+  architectureEmptyTitle: string
+  architectureEmptyBody: string
+  architectureSummary: (violations: number, unassignedFiles: number) => string
+  architectureModulesTitle: string
+  architectureModuleName: string
+  architectureModuleFiles: string
+  architectureModulePaths: string
+  architectureFindingsTitle: (violations: number) => string
+  architectureNoFindings: string
+  architectureColumnFrom: string
+  architectureColumnTo: string
+  architectureColumnEdge: string
+  architectureColumnLocation: string
+  architectureColumnRule: string
+  architectureColumnProvenance: string
+  architectureGraphHint: string
 }
 
 const en: ScanReportMessages = {
@@ -90,6 +108,32 @@ const en: ScanReportMessages = {
   tabBadPractices: 'Bad practices',
   tabImprovements: 'Improvements',
   tabRemovals: 'Removals',
+  tabArchitecture(violations) {
+    return violations > 0 ? `Architecture (${violations})` : 'Architecture'
+  },
+  architectureEmptyTitle: 'No architecture rules configured',
+  architectureEmptyBody:
+    'This scan graph does not include a declared architecture section. Add an architecture config to the repository to assign modules and detect drift.',
+  architectureSummary(violations, unassignedFiles) {
+    const parts = [`${violations} violation${violations === 1 ? '' : 's'}`]
+    if (unassignedFiles > 0) parts.push(`${unassignedFiles} unassigned file${unassignedFiles === 1 ? '' : 's'}`)
+    return parts.join(' · ')
+  },
+  architectureModulesTitle: 'Declared modules',
+  architectureModuleName: 'Module',
+  architectureModuleFiles: 'Files in scan',
+  architectureModulePaths: 'Path patterns',
+  architectureFindingsTitle(violations) {
+    return violations > 0 ? `Drift findings (${violations})` : 'Drift findings'
+  },
+  architectureNoFindings: 'No architecture drift violations were detected.',
+  architectureColumnFrom: 'From',
+  architectureColumnTo: 'To',
+  architectureColumnEdge: 'Edge kind',
+  architectureColumnLocation: 'Location',
+  architectureColumnRule: 'Rule',
+  architectureColumnProvenance: 'Provenance',
+  architectureGraphHint: 'Module dependencies; dashed red edges violate declared rules.',
   severityLabel(severity) {
     return (
       {
@@ -151,8 +195,9 @@ export function scanReportMessages(locale: WebLocale): ScanReportMessages {
   return en
 }
 
-export function tabSectionMap(tab: ReportTabId): ReportSection | 'improvements' | 'history-bundle' {
+export function tabSectionMap(tab: ReportTabId): ReportSection | 'improvements' | 'history-bundle' | 'architecture' {
   if (tab === 'improvements') return 'improvements'
   if (tab === 'history') return 'history-bundle'
+  if (tab === 'architecture') return 'architecture'
   return tab
 }
