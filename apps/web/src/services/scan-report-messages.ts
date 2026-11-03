@@ -1,0 +1,127 @@
+import type { WebLocale } from './locale'
+import type { ReportSection, ReportSeverity } from '../api/scan-report-types'
+
+export type ReportTabId =
+  | 'history'
+  | 'violations'
+  | 'security'
+  | 'badPractices'
+  | 'improvements'
+  | 'removals'
+
+export interface ScanReportMessages {
+  panelEyebrow: string
+  panelTitle: string
+  panelDescription: string
+  loadingReport: string
+  loadReportError: string
+  noReportSelected: string
+  viewGraph: string
+  viewReport: string
+  filtersTitle: string
+  filterSeverity: string
+  filterSection: string
+  filterPath: string
+  filterPathPlaceholder: string
+  exportJson: string
+  exportMarkdown: string
+  treeTitle: string
+  treeView: string
+  graphView: string
+  detailTitle: string
+  detailEmpty: string
+  emptySection: string
+  tabHistory: string
+  tabViolations: string
+  tabSecurity: string
+  tabBadPractices: string
+  tabImprovements: string
+  tabRemovals: string
+  severityLabel: (severity: ReportSeverity) => string
+  sectionLabel: (section: ReportSection) => string
+  paginationPrevious: string
+  paginationNext: string
+  paginationStatus: (page: number, totalPages: number, totalItems: number) => string
+  historyTimeline: string
+  historyHotspots: string
+  historyChurn: string
+  historyAuthors: string
+  historyLimited: string
+  openReport: string
+}
+
+const en: ScanReportMessages = {
+  panelEyebrow: 'Scan analysis',
+  panelTitle: 'Project report',
+  panelDescription:
+    'Browse findings by path, severity, and category. Filters apply to the tree, tabs, and exports.',
+  loadingReport: 'Loading scan report…',
+  loadReportError: 'Unable to load report for this scan.',
+  noReportSelected: 'Select a finished scan to review the project report.',
+  viewGraph: 'Graph insights',
+  viewReport: 'Project report',
+  filtersTitle: 'Filters',
+  filterSeverity: 'Severity',
+  filterSection: 'Category',
+  filterPath: 'Path contains',
+  filterPathPlaceholder: 'e.g. src/components',
+  exportJson: 'Export JSON',
+  exportMarkdown: 'Export Markdown',
+  treeTitle: 'Project tree',
+  treeView: 'Tree',
+  graphView: 'Graph',
+  detailTitle: 'Findings',
+  detailEmpty: 'Select a file or folder to inspect matching findings.',
+  emptySection: 'No items match the current filters in this section.',
+  tabHistory: 'History',
+  tabViolations: 'Code violations',
+  tabSecurity: 'Security',
+  tabBadPractices: 'Bad practices',
+  tabImprovements: 'Improvements',
+  tabRemovals: 'Removals',
+  severityLabel(severity) {
+    return (
+      {
+        info: 'Info',
+        low: 'Low',
+        medium: 'Medium',
+        high: 'High',
+        critical: 'Critical'
+      } satisfies Record<ReportSeverity, string>
+    )[severity]
+  },
+  sectionLabel(section) {
+    return (
+      {
+        history: 'History',
+        violations: 'Code violations',
+        security: 'Security',
+        badPractices: 'Bad practices',
+        improvements: 'Improvements',
+        removals: 'Removals'
+      } satisfies Record<ReportSection, string>
+    )[section]
+  },
+  paginationPrevious: 'Previous page',
+  paginationNext: 'Next page',
+  paginationStatus(page, totalPages, totalItems) {
+    return `Page ${page} of ${totalPages} · ${totalItems} items`
+  },
+  historyTimeline: 'Recent commits',
+  historyHotspots: 'Hotspots',
+  historyChurn: 'File churn',
+  historyAuthors: 'Authors',
+  historyLimited: 'History depth was limited for this repository.',
+  openReport: 'Open project report'
+}
+
+export function scanReportMessages(locale: WebLocale): ScanReportMessages {
+  void locale
+  return en
+}
+
+export function tabSectionMap(tab: ReportTabId): ReportSection | 'improvements' | 'history-bundle' {
+  if (tab === 'improvements') return 'improvements'
+  if (tab === 'history') return 'history-bundle'
+  return tab
+}

@@ -17,3 +17,4 @@ All scan calls live in `apps/web/src/api/scans.ts` behind the existing bearer-se
 
 - Backend endpoints and retention policy must land before production use.
 - Scan UI strings are English-only for now (`scan-messages.ts`).
+- Project report UI (`ScanReportPanel`) is stacked on the scan hub; requires report API from PR #18.
