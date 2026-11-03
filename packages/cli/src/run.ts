@@ -21,6 +21,7 @@ import {
 import { runBench } from './bench/command.js'
 import { exportCommandExitCode, runExport } from './export-commands.js'
 import { graphCommandExitCode, runExplain, runQuery } from './graph-commands.js'
+import { impactCommandExitCode, runImpact } from './impact-command.js'
 import { mcpCommandExitCode, runMcp } from './mcp-command.js'
 import { resolveScanTarget } from './scan-target.js'
 
@@ -37,7 +38,7 @@ export class UsageError extends Error {
 export function exitCodeFor(error: unknown): number {
   const exportCode = exportCommandExitCode(error)
   if (exportCode !== undefined) return exportCode
-  const graphCode = graphCommandExitCode(error) ?? mcpCommandExitCode(error)
+  const graphCode = graphCommandExitCode(error) ?? mcpCommandExitCode(error) ?? impactCommandExitCode(error)
   if (graphCode !== undefined) return graphCode
   if (error instanceof GraphReadError || error instanceof GraphVersionUnsupported) return EXIT.usage
   if (error instanceof UsageError || error instanceof OutputRefusedError) return EXIT.usage
@@ -66,6 +67,7 @@ function helpText(): string {
     `       ${CLI_BIN} query <graph.json> [--kind <kind>] [--type <type>] [--from <id|path>] [--to <id|path>] [--path <glob>] [--limit <n>] [--json]`,
     `       ${CLI_BIN} explain <graph.json> <id|path> [--json]`,
     `       ${CLI_BIN} export --format <mermaid|structurizr|likec4|obsidian|svg> [--graph <path>] [--out <path>]`,
+    `       ${CLI_BIN} impact <file|symbol> [--depth <n>] [--graph <path>] [--json]`,
     `       ${CLI_BIN} bench --questions <file.json> [--graph <graph.json>] [--dry-run]`,
     `       ${CLI_BIN} mcp [--graph <path>]`,
     '',
@@ -94,6 +96,7 @@ function helpText(): string {
     'Query reads an existing graph.json (nodes by default; edges when --type, --from, or --to is set).',
     'Explain prints one node: kind, label, span, provenance, edges by type, and file coverage.',
     'Export converts graph.json into mermaid, Structurizr DSL, LikeC4, Obsidian notes, or SVG.',
+    'Impact walks import/reexport paths upstream and downstream of a file or symbol (default graph: <cwd>/' + OUT_DIR + '/' + GRAPH_FILE + ').',
     `Default export graph path: <cwd>/${OUT_DIR}/${GRAPH_FILE}. Obsidian requires --out directory.`,
     'MCP runs a read-only Model Context Protocol server over graph.json on stdio (default graph: <cwd>/' + OUT_DIR + '/' + GRAPH_FILE + ').',
     `Exit codes: 0 ok, 1 runtime, 2 usage or unsupported graph, 3 accounting failure, 4 --strict, 130 interrupted.`,
@@ -127,10 +130,11 @@ export async function run(argv: readonly string[], io: RunIo = {
     if (command === 'query') return await runQuery(rest, io)
     if (command === 'explain') return await runExplain(rest, io)
     if (command === 'export') return await runExport(rest, io)
+    if (command === 'impact') return await runImpact(rest, io)
     if (command === 'bench') return await runBench(rest, io)
     if (command === 'mcp') return await runMcp(rest, io)
     if (command !== 'scan') {
-      throw new UsageError(`unknown command "${command}". Expected: scan, query, explain, export, bench, mcp`)
+      throw new UsageError(`unknown command "${command}". Expected: scan, query, explain, export, impact, bench, mcp`)
     }
     let parsed
     try {
