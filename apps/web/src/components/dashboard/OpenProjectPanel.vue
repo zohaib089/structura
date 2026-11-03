@@ -138,9 +138,7 @@ async function uploadDirectoryHandle(handle: FileSystemDirectoryHandle) {
   try {
     const archive = await zipDirectoryHandle(handle, handle.name || 'project')
     phase.value = 'uploading'
-    await runScan(async () =>
-      createUploadScan(props.workspaceId, archive, `${handle.name || 'project'}.zip`)
-    )
+    await runScan(async () => createUploadScan(props.workspaceId, archive, archive.name))
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : messages.value.scanFailed
     busy.value = false
@@ -155,7 +153,7 @@ async function uploadFiles(files: FileList) {
   try {
     const archive = await zipBrowserFiles(files)
     phase.value = 'uploading'
-    await runScan(async () => createUploadScan(props.workspaceId, archive, 'folder-upload.zip'))
+    await runScan(async () => createUploadScan(props.workspaceId, archive, archive.name))
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : messages.value.scanFailed
     busy.value = false
