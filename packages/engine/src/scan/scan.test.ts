@@ -54,7 +54,7 @@ test('two scans of one fixture are byte-identical and brand-free', async () => {
     assert.equal(nonLiteral && 'importKind' in nonLiteral && nonLiteral.importKind, 'dynamic')
     assert.equal(nonLiteral && 'confidence' in nonLiteral, false)
     assert.equal(nonLiteral && 'reason' in nonLiteral, false)
-    assert.equal(second.run.cache.hits > 0, true)
+    assert.equal(second.run.cache.extractionHits > 0, true)
     assert.equal(first.strictFailures.length, 0)
   } finally {
     cleanup()
@@ -246,6 +246,42 @@ test('refuses a symlink component on the in-root graph path', async () => {
     )
   } finally {
     cleanup()
+  }
+})
+
+test('incremental rescans match a full scan after add, modify, and delete', async () => {
+  const { root, cleanup } = makeTree({
+    'src/a.ts': "import { b } from './b'\nexport const a = b\n",
+    'src/b.ts': 'export const b = 1\n'
+  })
+  const out = mkdtempSync(join(tmpdir(), 'scan-inc-'))
+  const cachePath = join(out, 'cache.json')
+  try {
+    const baseline = await scanRepository(root, { outDir: out, noCache: true, metaPath: null, limits: { jobs: 1 } })
+    await scanRepository(root, { outDir: out, cachePath, metaPath: null, limits: { jobs: 1 } })
+    const warm = await scanRepository(root, { outDir: out, cachePath, metaPath: null, limits: { jobs: 1 } })
+    assert.equal(warm.graphJson, baseline.graphJson)
+    assert.ok(warm.run.cache.hits > 0)
+
+    writeFileSync(join(root, 'src', 'b.ts'), 'export const b = 2\n')
+    const afterModifyFull = await scanRepository(root, { outDir: out, noCache: true, metaPath: null, limits: { jobs: 1 } })
+    const afterModifyInc = await scanRepository(root, { outDir: out, cachePath, metaPath: null, limits: { jobs: 1 }, verbose: true })
+    assert.equal(afterModifyInc.graphJson, afterModifyFull.graphJson)
+    assert.match(afterModifyInc.summary, /cache: \d+ hits, \d+ misses, \d+ removed/)
+
+    writeFileSync(join(root, 'src', 'c.ts'), 'export const c = 3\n')
+    const afterAddFull = await scanRepository(root, { outDir: out, noCache: true, metaPath: null, limits: { jobs: 1 } })
+    const afterAddInc = await scanRepository(root, { outDir: out, cachePath, metaPath: null, limits: { jobs: 1 } })
+    assert.equal(afterAddInc.graphJson, afterAddFull.graphJson)
+
+    rmSync(join(root, 'src', 'c.ts'))
+    const afterDeleteFull = await scanRepository(root, { outDir: out, noCache: true, metaPath: null, limits: { jobs: 1 } })
+    const afterDeleteInc = await scanRepository(root, { outDir: out, cachePath, metaPath: null, limits: { jobs: 1 } })
+    assert.equal(afterDeleteInc.graphJson, afterDeleteFull.graphJson)
+    assert.ok(afterDeleteInc.run.cache.removed >= 1)
+  } finally {
+    cleanup()
+    rmSync(out, { recursive: true, force: true })
   }
 })
 
