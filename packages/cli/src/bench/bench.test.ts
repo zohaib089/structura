@@ -6,7 +6,7 @@ import test from 'node:test'
 import { CANARY_GRAPH_PATH } from '@atlasmith/engine'
 import { EchoModelAdapter } from './adapters/echo.js'
 import { OllamaModelAdapter } from './adapters/ollama.js'
-import { OpenAiCompatibleModelAdapter } from './adapters/openai-compatible.js'
+import { BENCH_API_KEY_ENV, OpenAiCompatibleModelAdapter } from './adapters/openai-compatible.js'
 import { runBenchHarness } from './harness.js'
 import {
   QuestionSetError,
@@ -141,12 +141,12 @@ test('Ollama adapter uses injected fetch without global network', async () => {
 })
 
 test('OpenAI-compatible adapter sends bearer token via injected fetch', async () => {
-  const previous = process.env.ATLASMITH_BENCH_API_KEY
-  process.env.ATLASMITH_BENCH_API_KEY = 'test-secret-key'
+  const previous = process.env[BENCH_API_KEY_ENV]
+  process.env[BENCH_API_KEY_ENV] = 'test-secret-key'
   try {
     let authHeader = ''
     const adapter = new OpenAiCompatibleModelAdapter({
-      apiKeyEnvVar: 'ATLASMITH_BENCH_API_KEY',
+      apiKeyEnvVar: BENCH_API_KEY_ENV,
       fetchImpl: async (_url, init) => {
         authHeader = String((init?.headers as Record<string, string>).authorization)
         return new Response(JSON.stringify({ choices: [{ message: { content: 'ok' } }] }), { status: 200 })
@@ -156,8 +156,8 @@ test('OpenAI-compatible adapter sends bearer token via injected fetch', async ()
     assert.equal(authHeader, 'Bearer test-secret-key')
     assert.equal(result.text, 'ok')
   } finally {
-    if (previous === undefined) delete process.env.ATLASMITH_BENCH_API_KEY
-    else process.env.ATLASMITH_BENCH_API_KEY = previous
+    if (previous === undefined) delete process.env[BENCH_API_KEY_ENV]
+    else process.env[BENCH_API_KEY_ENV] = previous
   }
 })
 

@@ -1,4 +1,7 @@
 import type { BenchFetch, ModelAdapter, ModelCompletion } from './types.js'
+import { ENV_PREFIX } from '@atlasmith/engine'
+
+export const BENCH_API_KEY_ENV = `${ENV_PREFIX}BENCH_API_KEY`
 
 export interface OpenAiCompatibleAdapterOptions {
   baseUrl?: string
@@ -26,7 +29,7 @@ export class OpenAiCompatibleModelAdapter implements ModelAdapter {
   constructor(options: OpenAiCompatibleAdapterOptions = {}) {
     this.baseUrl = (options.baseUrl ?? 'https://api.openai.com/v1').replace(/\/+$/, '')
     this.model = options.model ?? 'gpt-4o-mini'
-    this.apiKeyEnvVar = options.apiKeyEnvVar ?? 'ATLASMITH_BENCH_API_KEY'
+    this.apiKeyEnvVar = options.apiKeyEnvVar ?? BENCH_API_KEY_ENV
     this.fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis)
   }
 
@@ -58,8 +61,8 @@ export class OpenAiCompatibleModelAdapter implements ModelAdapter {
   }
 }
 
-/** Resolve API key env var: ATLASMITH_BENCH_API_KEY, then OPENAI_API_KEY. */
+/** Prefer the bench-specific key env var, then OPENAI_API_KEY. */
 export function defaultOpenAiKeyEnvVar(): string {
-  if (process.env.ATLASMITH_BENCH_API_KEY?.trim()) return 'ATLASMITH_BENCH_API_KEY'
+  if (process.env[BENCH_API_KEY_ENV]?.trim()) return BENCH_API_KEY_ENV
   return 'OPENAI_API_KEY'
 }
