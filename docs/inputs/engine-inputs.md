@@ -1,5 +1,8 @@
 # Binding inputs for the Atlasmith engine (from the Tech Lead, QA and Designer, 2026-10-25)
-The original box files are no longer available. This is the Backend Engineer's faithful summary. Commit it to the repo as docs/inputs/engine-inputs.md.
+
+Atlasmith is the product name (formerly Structura). The GitHub repository is still named `structura`; config and CLI use `atlasmith` / `atlasmith.yml` per `packages/engine/src/brand.ts`.
+
+The original box files are no longer available. This is the Backend Engineer's faithful summary.
 
 ## Brand (owner-confirmed)
 packages/engine/src/brand.ts is the ONLY place for: PRODUCT_NAME 'Atlasmith', CLI_BIN 'atlasmith', CONFIG_FILE 'atlasmith.yml', graph file 'graph.json', slug 'atlasmith', OUT_DIR/CACHE_DIR derived from the slug ('.atlasmith'), ENV_PREFIX 'ATLASMITH_'. Lint forbids the literals 'structura'/'atlasmith' outside brand.ts, docs and manifests. The schema $id is brand-free: urn:repo-graph:schema:graph:1.
