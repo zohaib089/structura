@@ -3,13 +3,15 @@ import { constants as fsConstants } from 'node:fs'
 import { lstat, mkdir, open, readFile, realpath, rename, unlink } from 'node:fs/promises'
 import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { CONFIG_FILE, GRAPH_FILE, OUT_DIR, PRODUCT_NAME, RUN_FILE } from '../brand.js'
+import { CONFIG_FILE, CACHE_FILE, GRAPH_FILE, OUT_DIR, PRODUCT_NAME, RUN_FILE } from '../brand.js'
 import {
   buildModuleMap,
   detectArchitectureDrift,
   loadArchitectureFromYaml
 } from '../architecture/index.js'
+import { architectureConfigHash } from '../architecture/config-hash.js'
 import { ContentCache, contentHash, defaultCacheDir, isInsideRoot, limitsTag } from '../cache/content-cache.js'
+import { IncrementalScanCache, scanCacheHeader } from '../cache/scan-cache.js'
 import { buildCoverage, formatCoverageSummary, strictFailures } from '../report/index.js'
 import type { AdapterParseResult, ExtractedReference, LanguageAdapter, ResolveOutcome } from '../adapters/adapter.js'
 import { ParsePool } from '../adapters/pool.js'
@@ -21,6 +23,7 @@ import { PythonResolver } from '../adapters/python/resolver.js'
 import { GraphBuilder } from '../graph/builder.js'
 import { GraphVersionUnsupported } from '../graph/errors.js'
 import { serializeGraph } from '../graph/canonical.js'
+import { readCheckedInSchemaHash } from '../graph/hash.js'
 import { readGraph } from '../graph/read.js'
 import { validateStrict } from '../graph/validate-strict.js'
 import { ROOT_DIR_ID, ROOT_PATH, baseName, dirId, externalId, fileId, parentPath, symbolId, unresolvedId } from '../graph/ids.js'
@@ -86,7 +89,16 @@ export interface RunMeta {
   finishedAt: string
   elapsedMs: number
   limits: ResolvedLimits
-  cache: { enabled: boolean; directory?: string; hits: number; misses: number }
+  cache: {
+    enabled: boolean
+    directory?: string
+    manifest?: string
+    hits: number
+    misses: number
+    removed: number
+    extractionHits: number
+    extractionMisses: number
+  }
   redactions: number
   /** Edges dropped because a static and a type-only (or other) edge shared the uniqueness key. */
   collapsedEdges: number
@@ -102,7 +114,10 @@ export interface ScanOptions {
   metaPath?: string | null
   include?: readonly string[]
   cacheDir?: string
+  /** Incremental rescan manifest path. Default: `<outDir>/cache.json`. */
+  cachePath?: string
   noCache?: boolean
+  verbose?: boolean
   strict?: boolean
   strictArchitecture?: boolean
   /** Repo-relative or absolute path to declared architecture config (default: `<root>/${CONFIG_FILE}`). */
@@ -300,6 +315,9 @@ function isPreviousRunMeta(value: unknown): boolean {
     && isRecord(cache)
     && typeof cache.hits === 'number'
     && typeof cache.misses === 'number'
+    && (cache.removed === undefined || typeof cache.removed === 'number')
+    && (cache.extractionHits === undefined || typeof cache.extractionHits === 'number')
+    && (cache.extractionMisses === undefined || typeof cache.extractionMisses === 'number')
     && isRecord(memory)
     && typeof memory.heapUsed === 'number'
     && typeof memory.rss === 'number'
@@ -386,7 +404,8 @@ async function analyseFile(
   adapterVersion: string,
   cache: ContentCache,
   fingerprint: string,
-  tag: string
+  tag: string,
+  incremental?: IncrementalScanCache
 ): Promise<AnalyseOutcome> {
   const read = await readWalkedFile(file, limits.maxFileSizeBytes)
   if (!read.ok) {
@@ -413,36 +432,40 @@ async function analyseFile(
     grammarFingerprint: fingerprint,
     limitsTag: tag
   }
-  let result = await cache.get(key)
+  let result = incremental?.lookup(file.path, key.contentHash, adapterId, adapterVersion)
   if (!result) {
-    const outcome = await adapter.parse({
-      path: file.path,
-      content: decoded.text,
-      language: file.language ?? 'typescript',
-      limits: {
-        maxIdentifierLength: limits.maxIdentifierLength,
-        maxSymbolsPerFile: limits.maxSymbolsPerFile,
-        maxEdgesPerFile: limits.maxEdgesPerFile
-      },
-      timeoutMs: limits.parseTimeoutMs,
-      memoryLimitBytes: limits.workerMaxMemoryBytes
-    })
-    if (!outcome.ok) {
-      const skipped = outcome.reason === 'timeout' || outcome.reason === 'memory-limit'
-      return {
-        redactions: 0,
-        record: {
-          path: file.path,
-          language: file.language,
-          status: skipped ? 'skipped' : 'failed',
-          reason: outcome.reason === 'timeout' ? 'timeout' : outcome.reason === 'memory-limit' ? 'memory-limit' : 'parser-error',
-          lineCount: decoded.lineCount,
-          lossy: decoded.lossy
+    result = await cache.get(key)
+    if (!result) {
+      const outcome = await adapter.parse({
+        path: file.path,
+        content: decoded.text,
+        language: file.language ?? 'typescript',
+        limits: {
+          maxIdentifierLength: limits.maxIdentifierLength,
+          maxSymbolsPerFile: limits.maxSymbolsPerFile,
+          maxEdgesPerFile: limits.maxEdgesPerFile
+        },
+        timeoutMs: limits.parseTimeoutMs,
+        memoryLimitBytes: limits.workerMaxMemoryBytes
+      })
+      if (!outcome.ok) {
+        const skipped = outcome.reason === 'timeout' || outcome.reason === 'memory-limit'
+        return {
+          redactions: 0,
+          record: {
+            path: file.path,
+            language: file.language,
+            status: skipped ? 'skipped' : 'failed',
+            reason: outcome.reason === 'timeout' ? 'timeout' : outcome.reason === 'memory-limit' ? 'memory-limit' : 'parser-error',
+            lineCount: decoded.lineCount,
+            lossy: decoded.lossy
+          }
         }
       }
+      result = outcome.result
+      await cache.set(key, result)
     }
-    result = outcome.result
-    await cache.set(key, result)
+    incremental?.remember(file.path, key, result)
   }
   const reason = partialReason(result)
   return {
@@ -497,11 +520,13 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
     throw new OutputRefusedError('default cache directory would be inside the scan root; pass --cache-dir explicitly')
   }
   const cacheDirectory = options.noCache ? undefined : resolvedCacheDir
+  const manifestPath = options.noCache ? undefined : resolve(options.cachePath ?? join(outDir, CACHE_FILE))
   const omitPaths: string[] = options.graphPath && outDir === rootAbs ? [graphPath] : [outDir]
   if (options.graphPath && outDir === rootAbs && options.metaPath !== null && options.metaPath === undefined) {
     omitPaths.push(join(outDir, RUN_FILE))
   }
   if (cacheDirectory && isInsideRoot(rootAbs, cacheDirectory)) omitPaths.push(cacheDirectory)
+  if (manifestPath && isInsideRoot(rootAbs, manifestPath)) omitPaths.push(manifestPath)
   if (options.metaPath) {
     const metaAbs = resolve(options.metaPath)
     if (metaAbs !== rootAbs && isInsideRoot(rootAbs, metaAbs)) omitPaths.push(metaAbs)
@@ -533,6 +558,17 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
   const cache = new ContentCache(cacheDirectory ?? defaultCacheDir(rootAbs), cacheDirectory !== undefined)
   const fingerprint = grammarFingerprint()
   const tag = limitsTag(limits)
+  const incrementalHeader = scanCacheHeader(
+    engineVersion(),
+    readCheckedInSchemaHash(),
+    limits,
+    fingerprint,
+    architectureConfigHash(configText)
+  )
+  let incremental: IncrementalScanCache | undefined
+  if (manifestPath) {
+    incremental = await IncrementalScanCache.load(manifestPath, incrementalHeader) ?? new IncrementalScanCache(incrementalHeader)
+  }
   const texts = new Map<string, string>()
   const records: FileRecord[] = []
   const parsed = new Map<string, AdapterParseResult>()
@@ -551,13 +587,17 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
         continue
       }
       const picked = adapterFor(file.language)
-      const outcome = await analyseFile(file, limits, picked.adapter, picked.id, picked.version, cache, fingerprint, tag)
+      const outcome = await analyseFile(file, limits, picked.adapter, picked.id, picked.version, cache, fingerprint, tag, incremental)
       redactions += outcome.redactions
       records.push(outcome.record)
       if (outcome.parsed) parsed.set(file.path, outcome.parsed)
     }
   } finally {
     await pool.shutdown()
+  }
+
+  if (incremental) {
+    incremental.dropRemoved(new Set(walk.files.map(file => file.path)))
   }
 
   await preloadConfigs(walk, texts, limits.maxConfigFileBytes)
@@ -736,10 +776,14 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
     elapsedMs: finished - started,
     limits,
     cache: {
-      enabled: cacheDirectory !== undefined,
+      enabled: cacheDirectory !== undefined || manifestPath !== undefined,
       ...(cacheDirectory ? { directory: cacheDirectory } : {}),
-      hits: cache.hits,
-      misses: cache.misses
+      ...(manifestPath ? { manifest: manifestPath } : {}),
+      hits: incremental?.hits ?? 0,
+      misses: incremental?.misses ?? 0,
+      removed: incremental?.removed ?? 0,
+      extractionHits: cache.hits,
+      extractionMisses: cache.misses
     },
     redactions,
     collapsedEdges,
@@ -766,10 +810,19 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
       await assertReplaceable(runPath, 'meta')
       await writeExclusive(runPath, `${JSON.stringify(run, null, 2)}\n`, temporaries)
     }
+    if (incremental && manifestPath) {
+      await assertWritablePathComponents(rootAbs, manifestPath)
+      await incremental.save(manifestPath)
+    }
   } catch (error) {
     await removeTemps()
     throw error
   }
+
+  const summaryBase = formatCoverageSummary(graph.coverage, graph.summary.entryCandidates)
+  const summary = options.verbose && manifestPath
+    ? `${summaryBase}\ncache: ${run.cache.hits} hits, ${run.cache.misses} misses, ${run.cache.removed} removed`
+    : summaryBase
 
   return {
     graph,
@@ -778,7 +831,7 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
     run,
     ...(runPath ? { runPath } : {}),
     strictFailures: failures,
-    summary: formatCoverageSummary(graph.coverage, graph.summary.entryCandidates),
+    summary,
     elapsedMs: finished - started,
     root: rootAbs
   }

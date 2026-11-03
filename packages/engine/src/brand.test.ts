@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import {
   BRAND,
   CACHE_DIR,
+  CACHE_FILE,
   CLI_BIN,
   CLI_PACKAGE_NAME,
   CONFIG_FILE,
@@ -25,6 +26,7 @@ test('derives every name from the brand slug', () => {
   assert.equal(IGNORE_FILE, `.${BRAND.PRODUCT_SLUG}ignore`)
   assert.equal(OUT_DIR, `.${BRAND.PRODUCT_SLUG}`)
   assert.equal(CACHE_DIR, `${OUT_DIR}/cache`)
+  assert.equal(CACHE_FILE, 'cache.json')
   assert.equal(ENV_PREFIX, `${BRAND.PRODUCT_SLUG.toUpperCase()}_`)
   assert.equal(BRAND.PRODUCT_NAME, 'Atlasmith')
   assert.equal(GRAPH_FILE, 'graph.json')

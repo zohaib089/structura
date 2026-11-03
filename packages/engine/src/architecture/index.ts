@@ -1,4 +1,5 @@
 export { assignModule, buildModuleMap } from './assign-modules.js'
+export { architectureConfigHash, NO_ARCHITECTURE_CONFIG_HASH } from './config-hash.js'
 export { buildArchitectureConfigSchema, buildArchitectureSectionSchema, ARCHITECTURE_CONFIG_SCHEMA_ID } from './config-schema.js'
 export { detectArchitectureDrift } from './drift.js'
 export { ArchitectureConfigError } from './errors.js'

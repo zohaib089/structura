@@ -71,7 +71,9 @@ function helpText(): string {
     '  --config <path>       Declared architecture config (default: <root>/' + CONFIG_FILE + ')',
     '  --include <glob>      Re-include files ignored by defaults or gitignore (repeatable)',
     '  --cache-dir <path>    Read and write the content cache here (default: OS cache, outside the root)',
-    '  --no-cache            Do not read or write the cache',
+    '  --cache <path>        Incremental rescan manifest (default: <out>/cache.json)',
+    '  --no-cache            Do not read or write caches',
+    '  --verbose             Include cache hit/miss/removed counts in the summary',
     '  --max-file-size <n>   Max file size in bytes',
     '  --parse-timeout <n>   Per-file parse timeout in milliseconds',
     '  --max-files <n>       Max discovered entries',
@@ -130,7 +132,9 @@ export async function run(argv: readonly string[], io: RunIo = {
         config: { type: 'string' },
         include: { type: 'string', multiple: true },
         'cache-dir': { type: 'string' },
+        cache: { type: 'string' },
         'no-cache': { type: 'boolean', default: false },
+        verbose: { type: 'boolean', default: false },
         'max-file-size': { type: 'string' },
         'parse-timeout': { type: 'string' },
         'max-files': { type: 'string' },
@@ -151,6 +155,7 @@ export async function run(argv: readonly string[], io: RunIo = {
     }
     if (parsed.values.meta !== undefined && parsed.values['no-meta']) throw new UsageError('--meta and --no-meta cannot be combined')
     if (parsed.values['cache-dir'] && parsed.values['no-cache']) throw new UsageError('--cache-dir and --no-cache cannot be combined')
+    if (parsed.values.cache && parsed.values['no-cache']) throw new UsageError('--cache and --no-cache cannot be combined')
     if (parsed.positionals.length > 1) throw new UsageError('scan accepts at most one path')
     const limits: LimitOverrides = {}
     const maxFileSizeBytes = integerFlag(parsed.values['max-file-size'], '--max-file-size')
@@ -181,7 +186,9 @@ export async function run(argv: readonly string[], io: RunIo = {
       metaPath: parsed.values['no-meta'] ? null : (parsed.values.meta ? resolve(io.cwd, parsed.values.meta) : undefined),
       include: parsed.values.include,
       cacheDir: parsed.values['cache-dir'] ? resolve(io.cwd, parsed.values['cache-dir']) : undefined,
+      cachePath: parsed.values.cache ? resolve(io.cwd, parsed.values.cache) : undefined,
       noCache: parsed.values['no-cache'],
+      verbose: parsed.values.verbose,
       strict: parsed.values.strict,
       strictArchitecture: parsed.values['strict-architecture'],
       configPath: parsed.values.config,

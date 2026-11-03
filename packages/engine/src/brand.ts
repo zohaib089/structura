@@ -41,6 +41,9 @@ export const LEGACY_SLUG = 'structura'
 export const GRAPH_FILE = 'graph.json'
 export const RUN_FILE = 'run.json'
 
+/** Incremental rescan manifest written next to graph.json by default. */
+export const CACHE_FILE = 'cache.json'
+
 /** Package names derived from the scope. */
 export const ENGINE_PACKAGE_NAME = `${PACKAGE_SCOPE}/engine`
 export const CLI_PACKAGE_NAME = `${PACKAGE_SCOPE}/cli`
