@@ -1,0 +1,227 @@
+{
+  "schemaVersion": "1.0.0",
+  "summary": {
+    "nodes": 6,
+    "edges": 8,
+    "files": 3,
+    "entryCandidates": {
+      "files": 2,
+      "candidates": 2
+    }
+  },
+  "coverage": {
+    "files": {
+      "discovered": 3,
+      "parsed": 3,
+      "partial": 0,
+      "failed": 0,
+      "skipped": 0,
+      "ignored": 0
+    },
+    "byLanguage": [
+      {
+        "language": "typescript",
+        "parsed": 3,
+        "partial": 0,
+        "failed": 0,
+        "skipped": 0
+      }
+    ],
+    "skipped": [],
+    "failed": [],
+    "ignored": [],
+    "unresolved": [],
+    "accounting": {
+      "discovered": 3,
+      "accounted": 3
+    }
+  },
+  "nodes": [
+    {
+      "id": "dir:.",
+      "kind": "directory",
+      "path": ".",
+      "label": "."
+    },
+    {
+      "id": "file:index.ts",
+      "kind": "file",
+      "path": "index.ts",
+      "label": "index.ts",
+      "language": "typescript",
+      "lineCount": 3,
+      "parse": {
+        "status": "parsed"
+      },
+      "entryCandidate": {
+        "reason": "conventional-name",
+        "provenance": "INFERRED"
+      },
+      "entryCandidates": [
+        {
+          "reason": "conventional-name",
+          "evidence": {
+            "source": "index.ts",
+            "pointer": "index.ts#/conventional"
+          },
+          "confidence": 0.65
+        }
+      ]
+    },
+    {
+      "id": "file:lib.ts",
+      "kind": "file",
+      "path": "lib.ts",
+      "label": "lib.ts",
+      "language": "typescript",
+      "lineCount": 2,
+      "parse": {
+        "status": "parsed"
+      }
+    },
+    {
+      "id": "file:main.ts",
+      "kind": "file",
+      "path": "main.ts",
+      "label": "main.ts",
+      "language": "typescript",
+      "lineCount": 4,
+      "parse": {
+        "status": "parsed"
+      },
+      "entryCandidate": {
+        "reason": "conventional-name",
+        "provenance": "INFERRED"
+      },
+      "entryCandidates": [
+        {
+          "reason": "conventional-name",
+          "evidence": {
+            "source": "main.ts",
+            "pointer": "main.ts#/conventional"
+          },
+          "confidence": 0.65
+        }
+      ]
+    },
+    {
+      "id": "sym:lib.ts#value",
+      "kind": "symbol",
+      "file": "file:lib.ts",
+      "label": "value",
+      "symbolKind": "variable",
+      "exported": true,
+      "span": {
+        "start": {
+          "line": 1,
+          "col": 14
+        },
+        "end": {
+          "line": 1,
+          "col": 23
+        }
+      }
+    },
+    {
+      "id": "sym:main.ts#total",
+      "kind": "symbol",
+      "file": "file:main.ts",
+      "label": "total",
+      "symbolKind": "variable",
+      "exported": true,
+      "span": {
+        "start": {
+          "line": 3,
+          "col": 14
+        },
+        "end": {
+          "line": 3,
+          "col": 37
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source": "dir:.",
+      "type": "contains",
+      "target": "file:index.ts",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:.",
+      "type": "contains",
+      "target": "file:lib.ts",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:.",
+      "type": "contains",
+      "target": "file:main.ts",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "file:index.ts",
+      "type": "reexports",
+      "target": "file:lib.ts",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 1,
+          "col": 1
+        },
+        "end": {
+          "line": 1,
+          "col": 30
+        }
+      },
+      "specifier": "./lib"
+    },
+    {
+      "source": "file:index.ts",
+      "type": "reexports",
+      "target": "file:lib.ts",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 2,
+          "col": 1
+        },
+        "end": {
+          "line": 2,
+          "col": 41
+        }
+      },
+      "specifier": "./lib"
+    },
+    {
+      "source": "file:lib.ts",
+      "type": "contains",
+      "target": "sym:lib.ts#value",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "file:main.ts",
+      "type": "contains",
+      "target": "sym:main.ts#total",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "file:main.ts",
+      "type": "imports",
+      "target": "file:index.ts",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 1,
+          "col": 1
+        },
+        "end": {
+          "line": 1,
+          "col": 41
+        }
+      },
+      "specifier": "./index"
+    }
+  ]
+}

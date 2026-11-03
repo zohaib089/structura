@@ -1,0 +1,149 @@
+{
+  "schemaVersion": "1.0.0",
+  "summary": {
+    "nodes": 6,
+    "edges": 6,
+    "files": 3
+  },
+  "coverage": {
+    "files": {
+      "discovered": 3,
+      "parsed": 3,
+      "partial": 0,
+      "failed": 0,
+      "skipped": 0,
+      "ignored": 0
+    },
+    "byLanguage": [
+      {
+        "language": "python",
+        "parsed": 3,
+        "partial": 0,
+        "failed": 0,
+        "skipped": 0
+      }
+    ],
+    "skipped": [],
+    "failed": [],
+    "ignored": [],
+    "unresolved": [],
+    "accounting": {
+      "discovered": 3,
+      "accounted": 3
+    }
+  },
+  "nodes": [
+    {
+      "id": "dir:.",
+      "kind": "directory",
+      "path": ".",
+      "label": "."
+    },
+    {
+      "id": "dir:pkg",
+      "kind": "directory",
+      "path": "pkg",
+      "label": "pkg"
+    },
+    {
+      "id": "file:pkg/__init__.py",
+      "kind": "file",
+      "path": "pkg/__init__.py",
+      "label": "__init__.py",
+      "language": "python",
+      "lineCount": 2,
+      "parse": {
+        "status": "parsed"
+      }
+    },
+    {
+      "id": "file:pkg/app.py",
+      "kind": "file",
+      "path": "pkg/app.py",
+      "label": "app.py",
+      "language": "python",
+      "lineCount": 6,
+      "parse": {
+        "status": "parsed"
+      }
+    },
+    {
+      "id": "file:pkg/util.py",
+      "kind": "file",
+      "path": "pkg/util.py",
+      "label": "util.py",
+      "language": "python",
+      "lineCount": 2,
+      "parse": {
+        "status": "parsed"
+      }
+    },
+    {
+      "id": "sym:pkg/app.py#run",
+      "kind": "symbol",
+      "file": "file:pkg/app.py",
+      "label": "run",
+      "symbolKind": "function",
+      "exported": true,
+      "span": {
+        "start": {
+          "line": 4,
+          "col": 1
+        },
+        "end": {
+          "line": 5,
+          "col": 17
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source": "dir:.",
+      "type": "contains",
+      "target": "dir:pkg",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:pkg",
+      "type": "contains",
+      "target": "file:pkg/__init__.py",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:pkg",
+      "type": "contains",
+      "target": "file:pkg/app.py",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:pkg",
+      "type": "contains",
+      "target": "file:pkg/util.py",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "file:pkg/app.py",
+      "type": "contains",
+      "target": "sym:pkg/app.py#run",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "file:pkg/app.py",
+      "type": "imports",
+      "target": "file:pkg/util.py",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 1,
+          "col": 1
+        },
+        "end": {
+          "line": 1,
+          "col": 24
+        }
+      },
+      "specifier": ".util"
+    }
+  ]
+}

@@ -19,6 +19,8 @@
     "typecheck": "npm run typecheck -w packages/engine && npm run build -w packages/engine && npm run typecheck -w packages/cli",
     "lint": "tsx packages/engine/scripts/lint-restrictions.ts && eslint packages/engine/src packages/cli/src",
     "test": "npm run build && npm test -w packages/engine -w packages/cli",
-    "test:all": "npm test && npm test -w apps/api -w packages/skills && npm run test:unit -w apps/web"
+    "test:all": "npm test && npm test -w apps/api -w packages/skills && npm run test:unit -w apps/web",
+    "corpus:update": "node scripts/corpus/update-corpus.mjs",
+    "corpus:check": "node scripts/corpus/check-corpus.mjs"
   }
 }
