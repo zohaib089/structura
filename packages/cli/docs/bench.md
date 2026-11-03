@@ -1,6 +1,6 @@
 # `atlasmith bench`
 
-Compare answers with and without `graph.json` as prompt context. This slice records token counts per arm; answer-quality scoring is reserved for a later task.
+Compare answers with and without `graph.json` as prompt context. Records token counts and answer-quality scores per arm.
 
 ## Quick start (offline)
 
@@ -15,7 +15,7 @@ node packages/cli/dist/bin.js bench \
   --out /tmp/bench-results.json
 ```
 
-`--dry-run` selects the echo adapter, makes no network calls, and still writes a full results JSON file with per-question and total token counts.
+`--dry-run` selects the echo adapter, makes no network calls, and still writes a full results JSON file with token counts and fact-based scores.
 
 ## Question set format
 
@@ -25,11 +25,12 @@ Question sets are JSON files with `schemaVersion` `"1.0.0"` and a `questions` ar
 | --- | --- | --- |
 | `id` | yes | Stable identifier (unique within the file) |
 | `question` | yes | Prompt text sent to the model |
-| `reference` | no | Notes for future quality scoring (not used yet) |
+| `reference` | no | Human notes; also passed to the LLM judge when `--llm-judge` is set |
+| `expectedFacts` | no | Strings that should appear in the answer (case-insensitive substring match). Omit or leave empty to mark the question unscored for fact coverage. |
 
 See `fixtures/bench/example-questions.json`.
 
-Validation errors include JSON paths, for example `questions[0].id: required non-empty string`.
+Validation errors include JSON paths, for example `questions[0].expectedFacts[1]: must be a non-empty string`.
 
 ## Options
 
@@ -42,11 +43,19 @@ Validation errors include JSON paths, for example `questions[0].id: required non
 | `--adapter ollama\|openai` | Live adapters (ignored when `--dry-run`) |
 | `--ollama-url`, `--ollama-model` | Ollama HTTP settings |
 | `--openai-url`, `--openai-model` | OpenAI-compatible API settings |
+| `--llm-judge` | Also ask the model adapter to grade each answer (off by default) |
 
 Live OpenAI-compatible calls read an API key from `ATLASMITH_BENCH_API_KEY` or `OPENAI_API_KEY`. Keys are never logged.
 
 ## Results file
 
-The output JSON includes `schemaVersion`, `dryRun`, `adapter`, per-question `withGraph` / `withoutGraph` arms (prompt, answer, token counts), and `totals`. The `quality` field is always `null` until scoring is implemented.
+Results use `schemaVersion` `1.1.0`. Each arm includes `quality`:
+
+- `{ "status": "unscored" }` when the question has no `expectedFacts`
+- `{ "status": "scored", "score": 0–1, "matched": [...], "missing": [...] }` otherwise
+
+When `--llm-judge` is set, each arm may also include `llmJudge: { "score", "rationale" }` (or `null` if the model response could not be parsed).
+
+`totals.quality` reports `meanScore` (mean over scored questions only) and `scoredCount` per arm, alongside token totals.
 
 Token counts use a lightweight character-based approximation by default (~4 characters per token).

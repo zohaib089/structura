@@ -15,9 +15,9 @@ import { escapeTerminal } from '@atlasmith/engine'
 export function benchHelpText(): string {
   return [
     `Usage: ${CLI_BIN} bench --questions <file.json> [--graph <graph.json>] [--out <results.json>]`,
-    '       [--dry-run] [--adapter echo|ollama|openai]',
+    '       [--dry-run] [--adapter echo|ollama|openai] [--llm-judge]',
     '',
-    'Runs each question twice: with graph.json context and without, recording token counts.',
+    'Runs each question twice: with graph.json context and without, recording token counts and answer quality.',
     'Use --dry-run for offline runs (echo adapter, no network).',
     '',
     'Options:',
@@ -30,6 +30,7 @@ export function benchHelpText(): string {
     '  --ollama-model <id>  Ollama model name',
     '  --openai-url <url>   OpenAI-compatible base URL',
     '  --openai-model <id>  Model name for openai adapter',
+    '  --llm-judge           Also score answers with an LLM judge via the model adapter',
     '  -h, --help           Show bench help'
   ].join('\n')
 }
@@ -86,7 +87,8 @@ export async function runBench(argv: readonly string[], io: RunIo): Promise<numb
         'ollama-url': { type: 'string' },
         'ollama-model': { type: 'string' },
         'openai-url': { type: 'string' },
-        'openai-model': { type: 'string' }
+        'openai-model': { type: 'string' },
+        'llm-judge': { type: 'boolean', default: false }
       }
     })
   } catch (error) {
@@ -105,6 +107,7 @@ export async function runBench(argv: readonly string[], io: RunIo): Promise<numb
   }
 
   const dryRun = parsed.values['dry-run'] ?? false
+  const llmJudge = parsed.values['llm-judge'] ?? false
   const outPath = resolve(io.cwd, parsed.values.out ?? 'bench-results.json')
   const questionsPath = parsed.values.questions
   const graphPath = parsed.values.graph ?? null
@@ -126,7 +129,8 @@ export async function runBench(argv: readonly string[], io: RunIo): Promise<numb
     questionsPath,
     graphPath,
     adapter,
-    dryRun
+    dryRun,
+    llmJudge
   })
 
   await writeFile(outPath, `${JSON.stringify(results, null, 2)}\n`, 'utf8')
