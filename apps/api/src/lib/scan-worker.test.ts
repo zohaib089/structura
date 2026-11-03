@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { runWorkspaceScan } from './scan-worker.js'
+import { runWorkspaceScan, recoverWorkspaceScansOnStartup } from './scan-worker.js'
 import type { WorkspaceQuery } from './workspace-routes.js'
 
 test('scan worker stores graph json after a mocked successful scan', async () => {
@@ -81,3 +81,34 @@ test('scan worker stores graph json after a mocked successful scan', async () =>
 function directoryPlaceholder(): string {
   return '/tmp'
 }
+
+test('recoverWorkspaceScansOnStartup fails interrupted running scans', async () => {
+  const scans = new Map<string, Record<string, unknown>>([
+    ['scan-running', {
+      id: 'scan-running',
+      source: 'upload',
+      source_url: null,
+      upload_payload: null,
+      status: 'running'
+    }]
+  ])
+
+  const query: WorkspaceQuery = async (text, params = []) => {
+    if (text.includes(`status IN ('queued', 'running')`)) {
+      return { rows: [...scans.values()] }
+    }
+    if (text.startsWith('UPDATE workspace_scans')) {
+      const scan = scans.get(String(params.at(-1)))
+      if (!scan) return { rows: [] }
+      if (text.includes('status =')) scan.status = String(params[0])
+      if (text.includes('error_message =')) scan.error_message = params[1]
+      return { rows: [] }
+    }
+    return { rows: [] }
+  }
+
+  await recoverWorkspaceScansOnStartup({ query, now: () => new Date('2026-11-03T00:00:00.000Z') })
+
+  assert.equal(scans.get('scan-running')?.status, 'failed')
+  assert.match(String(scans.get('scan-running')?.error_message), /interrupted/i)
+})

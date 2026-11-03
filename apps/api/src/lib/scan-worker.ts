@@ -31,7 +31,9 @@ let draining = false
 
 export function enqueueWorkspaceScan(scanId: string, dependencies: ScanWorkerDependencies): void {
   queue.add(scanId)
-  void drainScanQueue(dependencies)
+  void drainScanQueue(dependencies).catch(error => {
+    logScanWorkerError('scan queue drain failed', error)
+  })
 }
 
 async function drainScanQueue(dependencies: ScanWorkerDependencies): Promise<void> {
@@ -41,7 +43,11 @@ async function drainScanQueue(dependencies: ScanWorkerDependencies): Promise<voi
     while (queue.size > 0) {
       const scanId = queue.values().next().value as string
       queue.delete(scanId)
-      await runWorkspaceScan(scanId, dependencies)
+      try {
+        await runWorkspaceScan(scanId, dependencies)
+      } catch (error) {
+        logScanWorkerError(`scan ${scanId} failed unexpectedly`, error)
+      }
     }
   } finally {
     draining = false
@@ -59,12 +65,19 @@ async function runWorkspaceScan(scanId: string, dependencies: ScanWorkerDependen
   const scan = await loadScan(dependencies.query, scanId)
   if (!scan || scan.status !== 'queued') return
 
-  await updateScan(dependencies.query, scanId, {
-    status: 'running',
-    started_at: now(),
-    error_message: null,
-    upload_payload: null
-  })
+  const uploadPayload = scan.upload_payload
+
+  try {
+    await updateScan(dependencies.query, scanId, {
+      status: 'running',
+      started_at: now(),
+      error_message: null,
+      upload_payload: null
+    })
+  } catch (error) {
+    await failScanSafely(dependencies.query, scanId, error, now)
+    return
+  }
 
   let cleanupSource: (() => Promise<void>) | undefined
 
@@ -88,8 +101,8 @@ async function runWorkspaceScan(scanId: string, dependencies: ScanWorkerDependen
     } else {
       const workspace = await createTempWorkspace('structura-upload-')
       const archivePath = join(workspace.directory, 'upload.archive')
-      if (!scan.upload_payload) throw new Error('Upload scan is missing its payload.')
-      await writeFile(archivePath, Buffer.from(scan.upload_payload, 'base64'))
+      if (!uploadPayload) throw new Error('Upload scan is missing its payload.')
+      await writeFile(archivePath, Buffer.from(uploadPayload, 'base64'))
       const extracted = await extractArchive(archivePath, join(workspace.directory, 'root'), { limits })
       sourceRoot = extracted.rootDir
       cleanupSource = workspace.cleanup
@@ -122,23 +135,83 @@ async function runWorkspaceScan(scanId: string, dependencies: ScanWorkerDependen
       })()
     })
   } catch (error) {
-    const message = redactFailureMessage(error)
-    await updateScan(dependencies.query, scanId, {
+    await failScanSafely(dependencies.query, scanId, error, now)
+  } finally {
+    await cleanupSource?.()
+  }
+}
+
+async function failScanSafely(
+  query: WorkspaceQuery,
+  scanId: string,
+  error: unknown,
+  now: () => Date
+): Promise<void> {
+  const message = redactFailureMessage(error)
+  try {
+    await updateScan(query, scanId, {
       status: 'failed',
       finished_at: now(),
       error_message: message,
       graph_json: null,
       report_json: null
     })
-  } finally {
-    await cleanupSource?.()
+  } catch (updateError) {
+    logScanWorkerError(`could not mark scan ${scanId} as failed`, updateError)
   }
+}
+
+function logScanWorkerError(context: string, error: unknown): void {
+  console.error(`[scan-worker] ${context}: ${redactFailureMessage(error)}`)
 }
 
 function redactFailureMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error)
   return redactKnownToken(redactSecrets(message), process.env.GITHUB_TOKEN)
     .slice(0, 2000)
+}
+
+export async function recoverWorkspaceScansOnStartup(dependencies: ScanWorkerDependencies): Promise<void> {
+  const result = await dependencies.query(
+    `SELECT id, source, source_url, upload_payload, status
+     FROM workspace_scans
+     WHERE status IN ('queued', 'running')`
+  )
+
+  for (const row of result.rows) {
+    const id = String(row.id)
+    const source = String(row.source)
+    const status = String(row.status)
+    const sourceUrl = row.source_url
+    const uploadPayload = row.upload_payload
+
+    const queuedAndRunnable =
+      status === 'queued' &&
+      ((source === 'git' && typeof sourceUrl === 'string' && sourceUrl.length > 0) ||
+        (source === 'upload' && typeof uploadPayload === 'string' && uploadPayload.length > 0))
+
+    if (status === 'running') {
+      await failScanSafely(
+        dependencies.query,
+        id,
+        new Error('Scan was interrupted when the server restarted.'),
+        dependencies.now ?? (() => new Date())
+      )
+      continue
+    }
+
+    if (!queuedAndRunnable) {
+      await failScanSafely(
+        dependencies.query,
+        id,
+        new Error('Scan could not be resumed because required source data is missing.'),
+        dependencies.now ?? (() => new Date())
+      )
+      continue
+    }
+
+    enqueueWorkspaceScan(id, dependencies)
+  }
 }
 
 async function loadScan(query: WorkspaceQuery, scanId: string): Promise<(WorkspaceScanRecord & { upload_payload?: string | null }) | null> {

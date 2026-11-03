@@ -26,6 +26,7 @@ import {
   type WorkspaceDatabase
 } from './lib/workspace-routes.js'
 import { registerWorkspaceScanRoutes } from './lib/scan-routes.js'
+import { recoverWorkspaceScansOnStartup } from './lib/scan-worker.js'
 import { logger } from './logger.js'
 import { limitsFromEnv } from '@atlasmith/source-ingest'
 
@@ -144,6 +145,7 @@ app.addHook('onReady', async () => {
     ))
   )
   await testDatabaseConnection()
+  await recoverWorkspaceScansOnStartup({ query: workspaceDatabase.query })
 })
 
 app.get('/', async () => ({
@@ -469,5 +471,8 @@ const gracefulShutdown = async (signal: string) => {
 
 process.on('SIGINT', () => void gracefulShutdown('SIGINT'))
 process.on('SIGTERM', () => void gracefulShutdown('SIGTERM'))
+process.on('unhandledRejection', reason => {
+  logger.error({ reason: reason instanceof Error ? reason.message : String(reason) }, 'Unhandled promise rejection')
+})
 
 void start()

@@ -187,6 +187,23 @@ const migrations: Migration[] = [
       ALTER TABLE workspace_scans
         ADD COLUMN IF NOT EXISTS report_json JSONB;
     `
+  },
+  {
+    version: '007_workspace_scan_upload_running',
+    sql: `
+      ALTER TABLE workspace_scans DROP CONSTRAINT IF EXISTS workspace_scans_check;
+      ALTER TABLE workspace_scans ADD CONSTRAINT workspace_scans_check CHECK (
+        (source = 'git' AND source_url IS NOT NULL AND upload_payload IS NULL)
+        OR (
+          source = 'upload'
+          AND source_url IS NULL
+          AND (
+            upload_payload IS NOT NULL
+            OR status IN ('running', 'succeeded', 'failed')
+          )
+        )
+      );
+    `
   }
 ]
 
