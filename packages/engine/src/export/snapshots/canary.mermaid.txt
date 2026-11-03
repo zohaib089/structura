@@ -1,0 +1,8 @@
+flowchart LR
+  mod_external["external"]
+  subgraph mod_src["src"]
+    file_src_app_ts["app.ts"]
+  end
+  ext_npm_left_pad("npm:left-pad")
+  file_src_app_ts -->|imports| ext_npm_left_pad
+  mod_src -->|imports| mod_external

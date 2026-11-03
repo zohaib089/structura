@@ -19,6 +19,7 @@ import {
   type ScanOptions
 } from '@atlasmith/engine'
 import { runBench } from './bench/command.js'
+import { exportCommandExitCode, runExport } from './export-commands.js'
 import { graphCommandExitCode, runExplain, runQuery } from './graph-commands.js'
 import { mcpCommandExitCode, runMcp } from './mcp-command.js'
 import { resolveScanTarget } from './scan-target.js'
@@ -34,6 +35,8 @@ export class UsageError extends Error {
 }
 
 export function exitCodeFor(error: unknown): number {
+  const exportCode = exportCommandExitCode(error)
+  if (exportCode !== undefined) return exportCode
   const graphCode = graphCommandExitCode(error) ?? mcpCommandExitCode(error)
   if (graphCode !== undefined) return graphCode
   if (error instanceof GraphReadError || error instanceof GraphVersionUnsupported) return EXIT.usage
@@ -62,6 +65,7 @@ function helpText(): string {
     `Usage: ${CLI_BIN} scan [path|git-url]`,
     `       ${CLI_BIN} query <graph.json> [--kind <kind>] [--type <type>] [--from <id|path>] [--to <id|path>] [--path <glob>] [--limit <n>] [--json]`,
     `       ${CLI_BIN} explain <graph.json> <id|path> [--json]`,
+    `       ${CLI_BIN} export --format <mermaid|structurizr|likec4|obsidian|svg> [--graph <path>] [--out <path>]`,
     `       ${CLI_BIN} bench --questions <file.json> [--graph <graph.json>] [--dry-run]`,
     `       ${CLI_BIN} mcp [--graph <path>]`,
     '',
@@ -89,6 +93,8 @@ function helpText(): string {
     '',
     'Query reads an existing graph.json (nodes by default; edges when --type, --from, or --to is set).',
     'Explain prints one node: kind, label, span, provenance, edges by type, and file coverage.',
+    'Export converts graph.json into mermaid, Structurizr DSL, LikeC4, Obsidian notes, or SVG.',
+    `Default export graph path: <cwd>/${OUT_DIR}/${GRAPH_FILE}. Obsidian requires --out directory.`,
     'MCP runs a read-only Model Context Protocol server over graph.json on stdio (default graph: <cwd>/' + OUT_DIR + '/' + GRAPH_FILE + ').',
     `Exit codes: 0 ok, 1 runtime, 2 usage or unsupported graph, 3 accounting failure, 4 --strict, 130 interrupted.`,
     `Repo config ${CONFIG_FILE} may only lower limits. graph.json is ${GRAPH_FILE}.`
@@ -120,9 +126,12 @@ export async function run(argv: readonly string[], io: RunIo = {
     const [command, ...rest] = argv
     if (command === 'query') return await runQuery(rest, io)
     if (command === 'explain') return await runExplain(rest, io)
+    if (command === 'export') return await runExport(rest, io)
     if (command === 'bench') return await runBench(rest, io)
     if (command === 'mcp') return await runMcp(rest, io)
-    if (command !== 'scan') throw new UsageError(`unknown command "${command}". Expected: scan, query, explain, bench, mcp`)
+    if (command !== 'scan') {
+      throw new UsageError(`unknown command "${command}". Expected: scan, query, explain, export, bench, mcp`)
+    }
     let parsed
     try {
       parsed = parseArgs({

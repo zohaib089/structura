@@ -8,4 +8,15 @@ export * from './adapters/index.js'
 export * from './cache/index.js'
 export * from './report/index.js'
 export * from './scan/index.js'
+export {
+  EXPORT_FORMATS,
+  ExportFormatError,
+  exportGraph,
+  buildExportView,
+  isExportFormat,
+  type ExportFormat,
+  type ExportResult,
+  type ExportView,
+  type ObsidianNote
+} from './export/index.js'
 export { escapeTerminal } from './text/unicode.js'
