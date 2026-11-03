@@ -20,6 +20,7 @@ import {
 } from '@atlasmith/engine'
 import { runBench } from './bench/command.js'
 import { graphCommandExitCode, runExplain, runQuery } from './graph-commands.js'
+import { mcpCommandExitCode, runMcp } from './mcp-command.js'
 import { resolveScanTarget } from './scan-target.js'
 
 export const EXIT = { ok: 0, runtime: 1, usage: 2, accounting: 3, strict: 4, interrupted: 130 } as const
@@ -33,7 +34,7 @@ export class UsageError extends Error {
 }
 
 export function exitCodeFor(error: unknown): number {
-  const graphCode = graphCommandExitCode(error)
+  const graphCode = graphCommandExitCode(error) ?? mcpCommandExitCode(error)
   if (graphCode !== undefined) return graphCode
   if (error instanceof GraphReadError || error instanceof GraphVersionUnsupported) return EXIT.usage
   if (error instanceof UsageError || error instanceof OutputRefusedError) return EXIT.usage
@@ -62,6 +63,7 @@ function helpText(): string {
     `       ${CLI_BIN} query <graph.json> [--kind <kind>] [--type <type>] [--from <id|path>] [--to <id|path>] [--path <glob>] [--limit <n>] [--json]`,
     `       ${CLI_BIN} explain <graph.json> <id|path> [--json]`,
     `       ${CLI_BIN} bench --questions <file.json> [--graph <graph.json>] [--dry-run]`,
+    `       ${CLI_BIN} mcp [--graph <path>]`,
     '',
     'Options:',
     '  --out <path>          Output directory, or a .json file path (default: <root>/' + OUT_DIR + ')',
@@ -87,6 +89,7 @@ function helpText(): string {
     '',
     'Query reads an existing graph.json (nodes by default; edges when --type, --from, or --to is set).',
     'Explain prints one node: kind, label, span, provenance, edges by type, and file coverage.',
+    'MCP runs a read-only Model Context Protocol server over graph.json on stdio (default graph: <cwd>/' + OUT_DIR + '/' + GRAPH_FILE + ').',
     `Exit codes: 0 ok, 1 runtime, 2 usage or unsupported graph, 3 accounting failure, 4 --strict, 130 interrupted.`,
     `Repo config ${CONFIG_FILE} may only lower limits. graph.json is ${GRAPH_FILE}.`
   ].join('\n')
@@ -118,7 +121,8 @@ export async function run(argv: readonly string[], io: RunIo = {
     if (command === 'query') return await runQuery(rest, io)
     if (command === 'explain') return await runExplain(rest, io)
     if (command === 'bench') return await runBench(rest, io)
-    if (command !== 'scan') throw new UsageError(`unknown command "${command}". Expected: scan, query, explain, bench`)
+    if (command === 'mcp') return await runMcp(rest, io)
+    if (command !== 'scan') throw new UsageError(`unknown command "${command}". Expected: scan, query, explain, bench, mcp`)
     let parsed
     try {
       parsed = parseArgs({

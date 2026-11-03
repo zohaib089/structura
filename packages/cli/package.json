@@ -21,7 +21,8 @@
   "dependencies": {
     "@atlasmith/engine": "file:../engine",
     "@atlasmith/scan-analysis": "file:../scan-analysis",
-    "@atlasmith/source-ingest": "file:../source-ingest"
+    "@atlasmith/source-ingest": "file:../source-ingest",
+    "@modelcontextprotocol/sdk": "^1.32.2"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
