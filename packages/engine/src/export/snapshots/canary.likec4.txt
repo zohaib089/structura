@@ -1,0 +1,23 @@
+specification {
+  element module
+  element external
+}
+
+model {
+  repository = module 'Repository' {
+    module_external = module 'external' {
+    }
+    module_src = module 'src' {
+      #files src/app.ts
+    }
+  }
+
+  module_src -> module_external 'imports EXTRACTED'
+}
+
+views {
+  view module_index {
+    title 'Modules'
+    include repository.*
+  }
+}

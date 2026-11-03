@@ -1,0 +1,18 @@
+workspace {
+  model {
+    repository = softwareSystem "Repository" {
+      module_external = container "external" {
+      }
+      module_src = container "src" {
+        description "src/app.ts"
+      }
+      module_src -> module_external "imports (EXTRACTED)"
+    }
+  }
+  views {
+    container repository "Modules" {
+      include *
+      autoLayout lr
+    }
+  }
+}

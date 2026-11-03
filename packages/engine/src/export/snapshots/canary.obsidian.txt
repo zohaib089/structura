@@ -1,0 +1,37 @@
+## files/file-src-app.ts.md
+# src/app.ts
+
+## Module
+
+[[module-src]]
+
+## Dependencies
+
+- imports `npm:left-pad` (left-pad)
+
+## index.md
+# Repository graph
+
+## Modules
+
+- [[module-external]]
+- [[module-src]]
+
+## Files
+
+- [[file-src-app.ts]]
+
+## modules/module-external.md
+# Module external
+
+## Files
+
+- (none)
+
+## modules/module-src.md
+# Module src
+
+## Files
+
+- [[file-src-app.ts]] (`src/app.ts`)
+

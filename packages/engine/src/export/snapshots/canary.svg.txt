@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="432" height="220" viewBox="0 0 432 220">
+<style>text{font-family:ui-monospace,monospace;font-size:12px;fill:#111}.module{fill:#eef2ff;stroke:#4338ca}.file{fill:#f8fafc;stroke:#64748b}.external{fill:#fef3c7;stroke:#d97706}</style>
+<rect class="module" x="32" y="32" width="160" height="48" rx="4"/>
+<text x="40" y="50">external</text>
+<rect class="module" x="32" y="104" width="160" height="84" rx="4"/>
+<text x="40" y="122">src</text>
+<rect class="file" x="44" y="152" width="136" height="24" rx="4"/>
+<text x="52" y="170">src/app.ts</text>
+<rect class="external" x="240" y="32" width="160" height="48" rx="4"/>
+<text x="248" y="50">npm:left-pad</text>
+<line x1="180" y1="164" x2="240" y2="56" stroke="#334155"/>
+<line x1="192" y1="146" x2="32" y2="56" stroke="#4338ca" stroke-width="2"/>
+</svg>
