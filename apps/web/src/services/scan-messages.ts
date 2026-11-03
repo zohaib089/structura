@@ -11,6 +11,9 @@ export interface ScanMessages {
   sourceGitlab: string
   localHint: string
   chooseFolder: string
+  chooseZip: string
+  invalidZipUpload: string
+  zipUploadTooLarge: string
   githubUrlLabel: string
   gitlabUrlLabel: string
   branchLabel: string
@@ -47,6 +50,9 @@ const en: ScanMessages = {
   sourceGitlab: 'GitLab',
   localHint: 'We zip selected files in your browser and skip node_modules, .git, dist, and similar build output.',
   chooseFolder: 'Choose folder',
+  chooseZip: 'Upload .zip',
+  invalidZipUpload: 'Choose a single .zip archive.',
+  zipUploadTooLarge: 'This .zip exceeds the 200 MB upload limit.',
   githubUrlLabel: 'GitHub repository URL',
   gitlabUrlLabel: 'GitLab repository URL',
   branchLabel: 'Branch',

@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import type { Scan } from '../../api/scans'
 import { createGitScan, createUploadScan } from '../../api/scans'
 import { zipBrowserFiles, zipDirectoryHandle } from '../../services/folder-zip'
+import { validateZipUpload } from '../../services/upload-archive'
 import { parseGitRemoteUrl, validateGitRemoteUrl } from '../../services/git-remote-url'
 import { pollScanUntilTerminal } from '../../services/scan-poll'
 import { scanMessages } from '../../services/scan-messages'
@@ -29,6 +30,7 @@ const busy = ref(false)
 const phase = ref<'idle' | 'zipping' | 'uploading' | 'polling'>('idle')
 const error = ref('')
 const folderInput = ref<HTMLInputElement | null>(null)
+const zipInput = ref<HTMLInputElement | null>(null)
 
 const canSubmit = computed(() => !busy.value && !props.disabled && props.workspaceId.length > 0)
 
@@ -71,6 +73,33 @@ async function runScan(create: () => Promise<Scan>) {
 
 function openFolderPicker() {
   folderInput.value?.click()
+}
+
+function openZipPicker() {
+  zipInput.value?.click()
+}
+
+async function onZipInput(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+
+  const issue = validateZipUpload(file)
+  if (issue === 'invalid') {
+    error.value = messages.value.invalidZipUpload
+    return
+  }
+  if (issue === 'too-large') {
+    error.value = messages.value.zipUploadTooLarge
+    return
+  }
+
+  await uploadZipFile(file)
+}
+
+async function uploadZipFile(file: File) {
+  await runScan(async () => createUploadScan(props.workspaceId, file, file.name))
 }
 
 async function onFolderInput(event: Event) {
@@ -179,9 +208,22 @@ async function uploadFiles(files: FileList) {
         :disabled="!canSubmit"
         @change="onFolderInput"
       >
-      <button type="button" class="primary-button" :disabled="!canSubmit" @click="pickDirectoryHandle">
-        {{ messages.chooseFolder }}
-      </button>
+      <input
+        ref="zipInput"
+        class="sr-only"
+        type="file"
+        accept=".zip,application/zip"
+        :disabled="!canSubmit"
+        @change="onZipInput"
+      >
+      <div class="local-actions">
+        <button type="button" class="primary-button" :disabled="!canSubmit" @click="pickDirectoryHandle">
+          {{ messages.chooseFolder }}
+        </button>
+        <button type="button" class="primary-button" :disabled="!canSubmit" @click="openZipPicker">
+          {{ messages.chooseZip }}
+        </button>
+      </div>
     </div>
 
     <form v-else-if="tab === 'github'" class="source-panel" role="tabpanel" @submit.prevent="startGitScan('github')">
@@ -258,6 +300,12 @@ async function uploadFiles(files: FileList) {
 .source-panel {
   display: grid;
   gap: var(--space-3);
+}
+
+.local-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 .source-panel label {
