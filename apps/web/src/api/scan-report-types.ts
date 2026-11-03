@@ -45,6 +45,10 @@ export type ReportFileChurn =
   import('../../../../packages/scan-analysis/src/report.v1.types.ts').HistoryFileChurn
 export type ReportHotspot =
   import('../../../../packages/scan-analysis/src/report.v1.types.ts').HistoryHotspot
+export type ReportAnalyserStatus =
+  import('../../../../packages/scan-analysis/src/report.v1.types.ts').AnalyserStatus
+export type ReportAnalyserRunStatus =
+  import('../../../../packages/scan-analysis/src/report.v1.types.ts').AnalyserRunStatus
 
 /** Client-side export payload (not part of report.json v1). */
 export interface FilteredScanReportExport {

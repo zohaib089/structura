@@ -1,5 +1,5 @@
 import type { WebLocale } from './locale'
-import type { ReportSection, ReportSeverity } from '../api/scan-report-types'
+import type { AnalyserRunStatus, ReportSection, ReportSeverity } from '../api/scan-report-types'
 
 export type ReportTabId =
   | 'history'
@@ -48,6 +48,17 @@ export interface ScanReportMessages {
   historyAuthors: string
   historyLimited: string
   openReport: string
+  analysersTitle: string
+  analysersEmpty: string
+  analysersRanCaption: string
+  analysersSkippedHeading: string
+  analysersSkippedCaption: string
+  analyserColumnName: string
+  analyserColumnStatus: string
+  analyserColumnDuration: string
+  analyserColumnDetails: string
+  analyserSkippedNoReason: string
+  analyserStatusLabel: (status: AnalyserRunStatus) => string
 }
 
 const en: ScanReportMessages = {
@@ -112,7 +123,27 @@ const en: ScanReportMessages = {
   historyChurn: 'File churn',
   historyAuthors: 'Authors',
   historyLimited: 'History depth was limited for this repository.',
-  openReport: 'Open project report'
+  openReport: 'Open project report',
+  analysersTitle: 'Analysers',
+  analysersEmpty: 'No analyser run records were included in this report.',
+  analysersRanCaption: 'Analysers that ran or stopped with an error',
+  analysersSkippedHeading: 'Skipped analysers',
+  analysersSkippedCaption: 'Analysers that did not run for this scan',
+  analyserColumnName: 'Analyser',
+  analyserColumnStatus: 'Status',
+  analyserColumnDuration: 'Duration',
+  analyserColumnDetails: 'Details',
+  analyserSkippedNoReason: 'No reason recorded',
+  analyserStatusLabel(status) {
+    return (
+      {
+        ran: 'Ran',
+        skipped: 'Skipped',
+        failed: 'Failed',
+        timeout: 'Timed out'
+      } satisfies Record<AnalyserRunStatus, string>
+    )[status]
+  }
 }
 
 export function scanReportMessages(locale: WebLocale): ScanReportMessages {

@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import BrandMark from '../brand/BrandMark.vue'
 import ScanReportTree from './ScanReportTree.vue'
 import ScanReportHierarchyGraph from './ScanReportHierarchyGraph.vue'
+import ScanReportAnalysers from './ScanReportAnalysers.vue'
 import type { ScanReportV1 } from '../../api/scan-report-types'
 import type { WebLocale } from '../../services/locale'
 import { scanReportMessages, type ReportTabId } from '../../services/scan-report-messages'
@@ -240,6 +241,8 @@ const history = computed(() => props.report.history)
         >
       </label>
     </section>
+
+    <ScanReportAnalysers :report="report" :messages="messages" />
 
     <div class="layout-grid">
       <section class="tree-panel">
