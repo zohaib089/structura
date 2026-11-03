@@ -4,6 +4,7 @@ import {
   fileId,
   indexNodes,
   resolveNodeRef,
+  walkFileImpact,
   type ArchitectureFinding,
   type ArchitectureModuleDecl,
   type Graph,
@@ -203,41 +204,14 @@ export function impactLite(
   const depthMax = positiveInt(depthLimit, 'depth', 3)
   const resultLimit = positiveInt(limit, 'limit', 50)
   const nodesById = indexNodes(graph)
-  const importersOf = new Map<string, string[]>()
-  for (const edge of graph.edges) {
-    if (!IMPORT_TYPES.has(edge.type)) continue
-    const source = nodesById.get(edge.source)
-    const target = nodesById.get(edge.target)
-    if (source?.kind !== 'file' || target?.kind !== 'file') continue
-    const list = importersOf.get(edge.target) ?? []
-    list.push(edge.source)
-    importersOf.set(edge.target, list)
-  }
-  const seen = new Set<string>([id])
+  const walk = walkFileImpact(graph, id, 'downstream', { depthLimit: depthMax, resultLimit })
   const dependents: ImpactFile[] = []
-  let frontier = [id]
-  let truncated = false
-  for (let depth = 1; depth <= depthMax && frontier.length > 0; depth += 1) {
-    const next: string[] = []
-    const layer = [...frontier].sort(compareStrings)
-    for (const fileNodeId of layer) {
-      const sources = (importersOf.get(fileNodeId) ?? []).slice().sort(compareStrings)
-      for (const importerId of sources) {
-        if (seen.has(importerId)) continue
-        seen.add(importerId)
-        const node = nodesById.get(importerId)
-        if (node?.kind !== 'file') continue
-        dependents.push({ path: node.path, fileId: importerId, depth })
-        if (dependents.length >= resultLimit) {
-          truncated = true
-          break
-        }
-        next.push(importerId)
-      }
-      if (truncated) break
-    }
-    if (truncated) break
-    frontier = next
+  for (const entry of walk.paths) {
+    const leafId = entry.nodes.at(-1)
+    if (!leafId) continue
+    const node = nodesById.get(leafId)
+    if (node?.kind !== 'file') continue
+    dependents.push({ path: node.path, fileId: leafId, depth: entry.depth })
   }
   dependents.sort((left, right) =>
     left.depth - right.depth || compareStrings(left.path, right.path)
@@ -247,7 +221,7 @@ export function impactLite(
     fileId: id,
     depthLimit: depthMax,
     limit: resultLimit,
-    truncated,
+    truncated: walk.truncated,
     dependents
   }
 }

@@ -11,8 +11,11 @@ node packages/cli/dist/bin.js scan .
 node packages/cli/dist/bin.js query .atlasmith/graph.json --kind file
 node packages/cli/dist/bin.js explain .atlasmith/graph.json src/app.ts
 node packages/cli/dist/bin.js export --format mermaid --graph .atlasmith/graph.json
+node packages/cli/dist/bin.js impact src/app.ts --graph .atlasmith/graph.json
 node packages/cli/dist/bin.js export --format obsidian --graph .atlasmith/graph.json --out ./notes
 ```
+
+`impact` resolves a repo-relative file path or symbol name against `graph.json` v1 (default `./.atlasmith/graph.json`), prints upstream import dependencies and downstream importers up to `--depth` (default 3, max 16), and marks each path `EXTRACTED` or `INFERRED` when any edge on the path was inferred. Use `--json` for machine-readable output. Exit code `2` means the target was not found or ambiguous (candidates are listed on stderr).
 
 `export` reads `graph.json` v1 (default `./.atlasmith/graph.json`) and writes diagram or note formats to stdout, except Obsidian export which requires `--out` as a directory. Supported `--format` values: `mermaid`, `structurizr`, `likec4`, `obsidian`, `svg`. Exit code `2` indicates usage or an invalid format; `1` indicates a runtime error.
 
