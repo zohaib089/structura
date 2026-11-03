@@ -1,5 +1,5 @@
 import { compareStrings } from './ids.js'
-import type { Coverage, Graph, GraphEdge, GraphNode } from './types.js'
+import type { Coverage, Graph, GraphArchitecture, GraphEdge, GraphNode } from './types.js'
 
 /**
  * The canonical form is what makes graph.json byte-for-byte reproducible:
@@ -11,12 +11,15 @@ import type { Coverage, Graph, GraphEdge, GraphNode } from './types.js'
 
 const NODE_ORDER: Record<string, readonly string[]> = {
   directory: ['id', 'kind', 'path', 'label', 'extensions'],
-  file: ['id', 'kind', 'path', 'label', 'language', 'lineCount', 'parse', 'decoding', 'entryCandidate', 'entryCandidates', 'extensions'],
+  file: ['id', 'kind', 'path', 'label', 'language', 'lineCount', 'parse', 'decoding', 'entryCandidate', 'entryCandidates', 'module', 'extensions'],
   symbol: ['id', 'kind', 'file', 'label', 'symbolKind', 'exported', 'span', 'extensions'],
   external: ['id', 'kind', 'ecosystem', 'label', 'extensions'],
   unresolved: ['id', 'kind', 'label', 'reason', 'extensions']
 }
 const EDGE_ORDER = ['source', 'type', 'target', 'provenance', 'confidence', 'reason', 'span', 'specifier', 'importKind', 'typeOnly', 'extensions']
+const ARCHITECTURE_ORDER = ['config', 'defaultPolicy', 'modules', 'unassigned', 'findings', 'summary'] as const
+const ARCHITECTURE_MODULE_ORDER = ['name', 'paths', 'allow', 'deny', 'policy'] as const
+const ARCHITECTURE_FINDING_ORDER = ['from', 'to', 'edgeKind', 'file', 'line', 'rule', 'provenance'] as const
 const NESTED_ORDER: Record<string, readonly string[]> = {
   span: ['start', 'end'],
   start: ['line', 'col'],
@@ -108,6 +111,21 @@ function orderedCoverage(coverage: Coverage): Record<string, unknown> {
   }
 }
 
+function orderedArchitecture(architecture: GraphArchitecture): Record<string, unknown> {
+  const modules = architecture.modules.map(mod => ordered(mod as unknown as Record<string, unknown>, ARCHITECTURE_MODULE_ORDER))
+  const findings = architecture.findings?.map(item => ordered(item as unknown as Record<string, unknown>, ARCHITECTURE_FINDING_ORDER))
+  const unassigned = [...architecture.unassigned].sort(compareStrings)
+  return ordered(
+    {
+      ...architecture,
+      modules,
+      unassigned,
+      ...(findings ? { findings } : {})
+    } as unknown as Record<string, unknown>,
+    ARCHITECTURE_ORDER
+  )
+}
+
 /** Returns a sorted, property-ordered copy. Never mutates the input. */
 export function canonicalizeGraph(graph: Graph): Graph {
   const out: Record<string, unknown> = {
@@ -122,6 +140,7 @@ export function canonicalizeGraph(graph: Graph): Graph {
     nodes: [...graph.nodes].sort(compareNodes).map(orderedNode),
     edges: [...graph.edges].sort(compareEdges).map(edge => ordered(edge as unknown as Record<string, unknown>, EDGE_ORDER))
   }
+  if (graph.architecture !== undefined) out.architecture = orderedArchitecture(graph.architecture)
   if (graph.extensions !== undefined) out.extensions = sortedDeep(graph.extensions)
   return out as unknown as Graph
 }
@@ -138,7 +157,8 @@ export function* graphChunks(graph: Graph): Generator<string> {
   yield `  "schemaVersion": ${JSON.stringify(canonical.schemaVersion)},\n`
   yield `  "summary": ${indent(JSON.stringify(canonical.summary, null, 2), 2)},\n`
   yield `  "coverage": ${indent(JSON.stringify(canonical.coverage, null, 2), 2)},\n`
-  for (const key of ['nodes', 'edges'] as const) {
+  for (let ki = 0; ki < (['nodes', 'edges'] as const).length; ki += 1) {
+    const key = (['nodes', 'edges'] as const)[ki]
     const items = canonical[key] as unknown[]
     if (items.length === 0) {
       yield `  "${key}": []`
@@ -149,7 +169,12 @@ export function* graphChunks(graph: Graph): Generator<string> {
       }
       yield '  ]'
     }
-    yield canonical.extensions !== undefined || key === 'nodes' ? ',\n' : '\n'
+    const trailing = ki === 0 || graph.architecture !== undefined || canonical.extensions !== undefined
+    yield trailing ? ',\n' : '\n'
+  }
+  if (canonical.architecture !== undefined) {
+    yield `  "architecture": ${indent(JSON.stringify(canonical.architecture, null, 2), 2)}`
+    yield canonical.extensions !== undefined ? ',\n' : '\n'
   }
   if (canonical.extensions !== undefined) yield `  "extensions": ${indent(JSON.stringify(canonical.extensions, null, 2), 2)}\n`
   yield '}\n'

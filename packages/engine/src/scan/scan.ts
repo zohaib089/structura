@@ -4,6 +4,11 @@ import { lstat, mkdir, open, readFile, realpath, rename, unlink } from 'node:fs/
 import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { CONFIG_FILE, GRAPH_FILE, OUT_DIR, PRODUCT_NAME, RUN_FILE } from '../brand.js'
+import {
+  buildModuleMap,
+  detectArchitectureDrift,
+  loadArchitectureFromYaml
+} from '../architecture/index.js'
 import { ContentCache, contentHash, defaultCacheDir, isInsideRoot, limitsTag } from '../cache/content-cache.js'
 import { buildCoverage, formatCoverageSummary, strictFailures } from '../report/index.js'
 import type { AdapterParseResult, ExtractedReference, LanguageAdapter, ResolveOutcome } from '../adapters/adapter.js'
@@ -26,6 +31,7 @@ import type {
   FailReason,
   FileNode,
   Graph,
+  GraphArchitecture,
   GraphEdge,
   InferredReason,
   ParseInfo,
@@ -98,6 +104,9 @@ export interface ScanOptions {
   cacheDir?: string
   noCache?: boolean
   strict?: boolean
+  strictArchitecture?: boolean
+  /** Repo-relative or absolute path to declared architecture config (default: `<root>/${CONFIG_FILE}`). */
+  configPath?: string
   limits?: LimitOverrides
   respectGitignore?: boolean
   useDefaultIgnores?: boolean
@@ -466,6 +475,20 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
   }
   const repoText = await readConfigText(join(rootAbs, CONFIG_FILE), resolveLimits().maxConfigFileBytes)
   const limits = resolveLimits(options.limits ?? {}, repoText ? parseRepoLimits(repoText) : {})
+
+  const configRel = options.configPath ?? CONFIG_FILE
+  const configAbs = isAbsolute(configRel) ? resolve(configRel) : resolve(rootAbs, configRel)
+  if (!isInsideRoot(rootAbs, configAbs) && configAbs !== rootAbs) {
+    throw new OutputRefusedError('architecture config path must be inside the scan root')
+  }
+  const configText = await readConfigText(configAbs, limits.maxConfigFileBytes)
+  if (options.configPath && configText === undefined) {
+    throw new OutputRefusedError(`architecture config not found or unreadable: ${configRel}`)
+  }
+  const architectureConfig = configText !== undefined
+    ? loadArchitectureFromYaml(configText, relative(rootAbs, configAbs).split(sep).join('/'))
+    : undefined
+  const configRelPosix = relative(rootAbs, configAbs).split(sep).join('/')
   const outDir = resolve(options.outDir ?? join(rootAbs, OUT_DIR))
   const graphPath = options.graphPath ? resolve(options.graphPath) : join(outDir, GRAPH_FILE)
   if (outDir === rootAbs && !options.graphPath) throw new OutputRefusedError('--out cannot be the scan root')
@@ -551,6 +574,10 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
     }
   }
 
+  const moduleAssignment = architectureConfig
+    ? buildModuleMap(records.map(record => record.path), architectureConfig.modules)
+    : undefined
+
   const builder = new GraphBuilder()
   builder.addNode({ id: ROOT_DIR_ID, kind: 'directory', path: ROOT_PATH, label: ROOT_PATH })
   for (const record of records) {
@@ -563,6 +590,7 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
         record.reason = partialReason(facts, true)
       }
     }
+    const assignedModule = moduleAssignment?.byPath.get(record.path)
     const node: FileNode = {
       id: fileId(record.path),
       kind: 'file',
@@ -573,7 +601,8 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
       parse: parseInfo(record),
       ...(record.lossy ? { decoding: 'lossy' as const } : {}),
       ...(record.entry ? { entryCandidate: record.entry } : {}),
-      ...(record.entryCandidates && record.entryCandidates.length > 0 ? { entryCandidates: record.entryCandidates } : {})
+      ...(record.entryCandidates && record.entryCandidates.length > 0 ? { entryCandidates: record.entryCandidates } : {}),
+      ...(assignedModule ? { module: assignedModule } : {})
     }
     builder.addNode(node)
   }
@@ -663,14 +692,37 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
     unnoded: walk.unnodedSkips.map(item => ({ language: item.language, reason: item.reason })),
     unresolved: [...unresolvedCounts.entries()].map(([reason, count]) => ({ reason, count }))
   })
-  const graph = builder.build(coverage, entrySummary(records))
+  let graph = builder.build(coverage, entrySummary(records))
+  if (architectureConfig && moduleAssignment) {
+    const findings = detectArchitectureDrift(graph, architectureConfig, moduleAssignment.byPath)
+    const architecture: GraphArchitecture = {
+      config: configRelPosix,
+      ...(architectureConfig.defaultPolicy ? { defaultPolicy: architectureConfig.defaultPolicy } : {}),
+      modules: architectureConfig.modules.map(mod => ({
+        name: mod.name,
+        paths: [...mod.paths],
+        ...(mod.allow ? { allow: [...mod.allow] } : {}),
+        ...(mod.deny ? { deny: [...mod.deny] } : {}),
+        ...(mod.policy ? { policy: mod.policy } : {})
+      })),
+      unassigned: moduleAssignment.unassigned,
+      ...(findings.length > 0 ? { findings } : {}),
+      summary: { violations: findings.length, unassignedFiles: moduleAssignment.unassigned.length }
+    }
+    graph = { ...graph, architecture }
+  }
   const checked = validateStrict(graph)
   if (!checked.ok) {
     const first = checked.issues.slice(0, 8).map(issue => `${issue.path} ${issue.message}`).join('; ')
     throw new Error(`internal error: produced graph failed validation: ${first}`)
   }
   const graphJson = serializeGraph(graph)
-  const failures = options.strict ? strictFailures(graph.coverage) : []
+  const failures = [
+    ...(options.strict ? strictFailures(graph.coverage) : []),
+    ...(options.strictArchitecture && graph.architecture?.findings && graph.architecture.findings.length > 0
+      ? [`architecture drift: ${graph.architecture.findings.length} violation(s)`]
+      : [])
+  ]
   const finished = Date.now()
   const memory = process.memoryUsage()
   const run: RunMeta = {

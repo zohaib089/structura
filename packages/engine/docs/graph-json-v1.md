@@ -247,4 +247,45 @@ The CLI exits **2** for: an unknown option or command, `--cache-dir` combined wi
 
 Python stdlib data pins CPython 3.14 module names; `_typeshed` is listed as typing-only (like stubs). `winreg` is platform-independent in the pinned list for documentation purposes.
 
+## Declared architecture (optional)
+
+When the scan loads a repo config file with an `architecture` section (or top-level `layers` / `modules`), the engine validates it with a strict JSON Schema (Ajv), assigns each **file node** a `module` name (first matching glob wins), and adds a top-level `architecture` object to `graph.json`. Scans **without** architecture config are unchanged (no `module` fields, no `architecture` object).
+
+Repo config example:
+
+```yaml
+architecture:
+  defaultPolicy: deny-undeclared   # optional: deny-undeclared | allow-undeclared (default)
+  modules:
+    - name: api
+      paths:
+        - src/api/**
+      allow:
+        - core
+      deny:                            # optional
+        - legacy
+    - name: core
+      paths:
+        - src/core/**
+```
+
+Top-level `layers:` is accepted as an alias for `modules:` (merged in order). Each module name must match `^[a-z][a-z0-9-]*$`. Path globs use the same gitignore-style rules as `--path`. Invalid config makes the CLI exit **2** before writing output.
+
+`graph.json` fields (additive, same `schemaVersion`):
+
+- **`file.module`**: assigned module name (omitted when the file matches no glob).
+- **`architecture.config`**: repo-relative path of the config file used.
+- **`architecture.modules`**: declared modules (name, paths, optional allow/deny/policy).
+- **`architecture.unassigned`**: sorted repo-relative paths of file nodes with no module.
+- **`architecture.findings`**: optional drift violations (see below).
+- **`architecture.summary`**: `{ violations, unassignedFiles }`.
+
+Drift findings (when rules fail) are **EXTRACTED** `imports` / `reexports` edges only (no `calls` in v1). Each finding has:
+
+`from`, `to` (module names; unassigned files use `unassigned`), `edgeKind`, `file`, `line`, `rule` (`deny-list`, `allow-list`, `deny-undeclared`), `provenance` (`EXTRACTED`).
+
+`--strict-architecture` exits **4** after writing the graph when `architecture.findings` is non-empty (same exit code as `--strict` coverage failures).
+
+Pass `--config <path>` to use a config file other than the default at the scan root.
+
 `run.json` may be written outside `--out` with `--meta`. That path uses the same output safety as `graph.json`: a symlink is never followed, and an existing file is overwritten only when its JSON shape is a previous run (`command` `"scan"` plus the run counters). Any other file is refused.

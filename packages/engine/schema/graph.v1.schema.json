@@ -65,6 +65,9 @@
         "$ref": "#/$defs/edge"
       }
     },
+    "architecture": {
+      "$ref": "#/$defs/architecture"
+    },
     "extensions": {
       "$ref": "#/$defs/extensions"
     }
@@ -404,6 +407,10 @@
           "items": {
             "$ref": "#/$defs/entryCandidateDetail"
           }
+        },
+        "module": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
         },
         "extensions": {
           "$ref": "#/$defs/extensions"
@@ -975,6 +982,157 @@
         "ignored",
         "unresolved",
         "accounting"
+      ],
+      "additionalProperties": false
+    },
+    "architectureModule": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "paths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "minItems": 1
+        },
+        "allow": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          }
+        },
+        "deny": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          }
+        },
+        "policy": {
+          "type": "string",
+          "enum": [
+            "deny-undeclared",
+            "allow-undeclared"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "paths"
+      ],
+      "additionalProperties": false
+    },
+    "architectureFinding": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "type": "string",
+          "minLength": 1
+        },
+        "to": {
+          "type": "string",
+          "minLength": 1
+        },
+        "edgeKind": {
+          "type": "string",
+          "enum": [
+            "imports",
+            "reexports",
+            "calls"
+          ]
+        },
+        "file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "rule": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provenance": {
+          "const": "EXTRACTED"
+        }
+      },
+      "required": [
+        "from",
+        "to",
+        "edgeKind",
+        "file",
+        "line",
+        "rule",
+        "provenance"
+      ],
+      "additionalProperties": false
+    },
+    "architecture": {
+      "type": "object",
+      "properties": {
+        "config": {
+          "type": "string",
+          "minLength": 1
+        },
+        "defaultPolicy": {
+          "type": "string",
+          "enum": [
+            "deny-undeclared",
+            "allow-undeclared"
+          ]
+        },
+        "modules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/architectureModule"
+          },
+          "minItems": 1
+        },
+        "unassigned": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/architectureFinding"
+          }
+        },
+        "summary": {
+          "type": "object",
+          "properties": {
+            "violations": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "unassignedFiles": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "violations",
+            "unassignedFiles"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "config",
+        "modules",
+        "unassigned",
+        "summary"
       ],
       "additionalProperties": false
     }
