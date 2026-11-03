@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
-import { CLI_BIN, GRAPH_FILE, type Graph } from '@atlasmith/engine'
+import { CLI_BIN, GRAPH_FILE, PRODUCT_NAME, type Graph } from '@atlasmith/engine'
 import { z } from 'zod'
 import {
   architectureFindings,
@@ -27,12 +27,12 @@ function toolError(message: string) {
 
 const readOnly = { readOnlyHint: true as const, destructiveHint: false as const, openWorldHint: false as const }
 
-export function createAtlasmithMcpServer(graph: Graph): McpServer {
+export function createGraphMcpServer(graph: Graph): McpServer {
   const server = new McpServer(
     { name: `${CLI_BIN}-graph`, version: '0.1.0' },
     {
       instructions:
-        `Read-only access to an Atlasmith scan (${GRAPH_FILE} v1). ` +
+        `Read-only access to a ${PRODUCT_NAME} scan (${GRAPH_FILE} v1). ` +
         `Use these tools to inspect modules, imports, symbols, architecture drift, and lightweight impact. ` +
         `Edge provenance is EXTRACTED (from source) or INFERRED (heuristic).`
     }
@@ -120,7 +120,7 @@ export function createAtlasmithMcpServer(graph: Graph): McpServer {
 }
 
 export async function runMcpStdioServer(graph: Graph): Promise<void> {
-  const server = createAtlasmithMcpServer(graph)
+  const server = createGraphMcpServer(graph)
   const transport = new StdioServerTransport()
   await server.connect(transport)
 }

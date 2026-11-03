@@ -16,7 +16,7 @@ test('stdio initialize, tools/list, and tools/call list_modules', async () => {
     cwd: process.cwd(),
     stderr: 'pipe'
   })
-  const client = new Client({ name: 'atlasmith-mcp-test', version: '0.0.0' })
+  const client = new Client({ name: 'mcp-stdio-test', version: '0.0.0' })
   await client.connect(transport)
   try {
     const tools = await client.listTools()
