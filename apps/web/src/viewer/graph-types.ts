@@ -40,6 +40,8 @@ export interface FileNode {
   parse: { status: 'parsed' | 'partial' | 'failed' | 'skipped'; reason?: string }
   decoding?: 'lossy'
   entryCandidate?: EntryCandidate
+  /** Declared architecture module (first matching glob wins). Present when graph includes architecture. */
+  module?: string
 }
 
 export interface SymbolNode {
@@ -119,6 +121,47 @@ export interface GenericEdge {
 
 export type GraphEdge = ContainsEdge | ImportEdge | GenericEdge
 
+export const ARCHITECTURE_EDGE_KINDS = ['imports', 'reexports', 'calls'] as const
+export type ArchitectureEdgeKind = (typeof ARCHITECTURE_EDGE_KINDS)[number]
+
+export const ARCHITECTURE_DRIFT_RULES = ['deny-list', 'allow-list', 'deny-undeclared'] as const
+export type ArchitectureDriftRule = (typeof ARCHITECTURE_DRIFT_RULES)[number] | string
+
+export const ARCHITECTURE_POLICIES = ['deny-undeclared', 'allow-undeclared'] as const
+export type ArchitecturePolicy = (typeof ARCHITECTURE_POLICIES)[number]
+
+export interface ArchitectureModuleDecl {
+  name: string
+  paths: string[]
+  allow?: string[]
+  deny?: string[]
+  policy?: ArchitecturePolicy
+}
+
+export interface ArchitectureFinding {
+  from: string
+  to: string
+  edgeKind: ArchitectureEdgeKind
+  file: string
+  line: number
+  rule: ArchitectureDriftRule
+  provenance: 'EXTRACTED'
+}
+
+export interface ArchitectureSummary {
+  violations: number
+  unassignedFiles: number
+}
+
+export interface GraphArchitecture {
+  config: string
+  defaultPolicy?: ArchitecturePolicy
+  modules: ArchitectureModuleDecl[]
+  unassigned: string[]
+  findings?: ArchitectureFinding[]
+  summary: ArchitectureSummary
+}
+
 export interface Coverage {
   files: {
     discovered: number
@@ -147,6 +190,7 @@ export interface GraphDocument {
   coverage: Coverage
   nodes: GraphNode[]
   edges: GraphEdge[]
+  architecture?: GraphArchitecture
 }
 
 export type GraphError =
