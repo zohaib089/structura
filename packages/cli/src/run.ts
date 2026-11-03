@@ -18,6 +18,7 @@ import {
   type LimitOverrides,
   type ScanOptions
 } from '@atlasmith/engine'
+import { runBench } from './bench/command.js'
 import { graphCommandExitCode, runExplain, runQuery } from './graph-commands.js'
 import { resolveScanTarget } from './scan-target.js'
 
@@ -60,6 +61,7 @@ function helpText(): string {
     `Usage: ${CLI_BIN} scan [path|git-url]`,
     `       ${CLI_BIN} query <graph.json> [--kind <kind>] [--type <type>] [--from <id|path>] [--to <id|path>] [--path <glob>] [--limit <n>] [--json]`,
     `       ${CLI_BIN} explain <graph.json> <id|path> [--json]`,
+    `       ${CLI_BIN} bench --questions <file.json> [--graph <graph.json>] [--dry-run]`,
     '',
     'Options:',
     '  --out <path>          Output directory, or a .json file path (default: <root>/' + OUT_DIR + ')',
@@ -115,7 +117,8 @@ export async function run(argv: readonly string[], io: RunIo = {
     const [command, ...rest] = argv
     if (command === 'query') return await runQuery(rest, io)
     if (command === 'explain') return await runExplain(rest, io)
-    if (command !== 'scan') throw new UsageError(`unknown command "${command}". Expected: scan, query, explain`)
+    if (command === 'bench') return await runBench(rest, io)
+    if (command !== 'scan') throw new UsageError(`unknown command "${command}". Expected: scan, query, explain, bench`)
     let parsed
     try {
       parsed = parseArgs({
