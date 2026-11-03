@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import test from 'node:test'
@@ -7,13 +8,15 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { CANARY_GRAPH_PATH } from '@atlasmith/engine'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const bin = join(here, '../dist/bin.js')
+const require = createRequire(import.meta.url)
+const bin = join(here, '../src/bin.ts')
+const tsxCli = require.resolve('tsx/cli')
 
 test('stdio initialize, tools/list, and tools/call list_modules', async () => {
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: [bin, 'mcp', '--graph', CANARY_GRAPH_PATH],
-    cwd: process.cwd(),
+    args: [tsxCli, bin, 'mcp', '--graph', CANARY_GRAPH_PATH],
+    cwd: join(here, '..'),
     stderr: 'pipe'
   })
   const client = new Client({ name: 'mcp-stdio-test', version: '0.0.0' })
