@@ -10,7 +10,7 @@ import { scanReportMessages } from '../../services/scan-report-messages'
 import ScanReportPanel from './ScanReportPanel.vue'
 import { pollScanUntilTerminal } from '../../services/scan-poll'
 import { scanMessages } from '../../services/scan-messages'
-import { scanReportPath, scanGraphPath } from '../../services/dashboard-routes'
+import { scanReportPath } from '../../services/dashboard-routes'
 import type { WebLocale } from '../../services/locale'
 import OpenProjectPanel from './OpenProjectPanel.vue'
 import ScanListPanel from './ScanListPanel.vue'
@@ -114,12 +114,12 @@ function setInsightView(view: InsightView) {
   const locale = props.locale
   const workspaceId = props.workspaceId
   const projectId = props.projectId ?? 'default'
-  if (view === 'graph') {
-    void router.push(scanGraphPath(locale, workspaceId, projectId, scan.id))
-    return
-  }
   insightView.value = 'report'
-  void router.push(scanReportPath(locale, workspaceId, projectId, scan.id, 'violations'))
+  if (view === 'graph') {
+    void router.push(scanReportPath(locale, workspaceId, projectId, scan.id, 'graph'))
+  } else {
+    void router.push(scanReportPath(locale, workspaceId, projectId, scan.id, 'violations'))
+  }
   void loadSelectedReport()
 }
 
@@ -130,6 +130,7 @@ function onScanFinished(scan: Scan) {
 
 function selectScan(scanId: string) {
   selectedScanId.value = scanId
+  insightView.value = 'report'
   const locale = props.locale
   const workspaceId = props.workspaceId
   const projectId = props.projectId ?? 'default'
@@ -158,6 +159,14 @@ watch(
 watch(selectedScanId, () => {
   if (insightView.value === 'report') void loadSelectedReport()
 })
+
+watch(
+  () => props.initialInsightView,
+  view => {
+    if (view) insightView.value = view
+    if (view === 'report') void loadSelectedReport()
+  }
+)
 </script>
 
 <template>

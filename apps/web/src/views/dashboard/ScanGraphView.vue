@@ -5,6 +5,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getScanGraph, listScans } from '../../api/scans'
 import type { GraphDocument } from '../../viewer/graph-types'
+import type { SeverityCounts } from '../../services/scan-report-tree'
 import ViewerApp from '../../viewer/ViewerApp.vue'
 import { dashboardMessages } from '../../services/dashboard-messages'
 import { scanMessages } from '../../services/scan-messages'
@@ -16,6 +17,8 @@ const props = defineProps<{
   workspaceId: string
   projectId?: string | null
   scanId?: string | null
+  prefetchedGraph?: GraphDocument | null
+  pathSeverityCounts?: Map<string, SeverityCounts>
 }>()
 
 const route = useRoute()
@@ -43,6 +46,13 @@ async function resolveScanId(): Promise<string | null> {
 
 async function loadGraph() {
   if (!props.workspaceId) return
+  if (props.prefetchedGraph && props.scanId) {
+    graphDocument.value = props.prefetchedGraph
+    resolvedScanId.value = props.scanId
+    loadError.value = ''
+    loading.value = false
+    return
+  }
   loading.value = true
   loadError.value = ''
   graphDocument.value = null
@@ -63,7 +73,7 @@ async function loadGraph() {
 }
 
 watch(
-  () => [props.workspaceId, props.scanId] as const,
+  () => [props.workspaceId, props.scanId, props.prefetchedGraph] as const,
   () => {
     void loadGraph()
   },
@@ -84,6 +94,7 @@ watch(
       :locale="locale"
       :graph-document="graphDocument"
       :focus-path="focusPath"
+      :path-severity-counts="pathSeverityCounts"
     />
   </div>
 </template>

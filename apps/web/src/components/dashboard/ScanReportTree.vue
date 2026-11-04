@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, type RouteLocationRaw } from 'vue-router'
 import type { ReportTreeNode } from '../../services/scan-report-tree'
-import { highestSeverity } from '../../services/scan-report-tree'
-import { severityCssVar } from '../../services/scan-report-severity'
 import type { ScanReportMessages } from '../../services/scan-report-messages'
+import SeverityChip from '../ui/SeverityChip.vue'
+import { fileSeverityChips, folderSeverityChip } from '../../services/scan-report-tree-display'
 
 const props = defineProps<{
   root: ReportTreeNode
   selectedPath: string | null
   messages: ScanReportMessages
-  graphHref?: (path: string) => string
+  graphHref?: (path: string) => RouteLocationRaw
 }>()
 
 const emit = defineEmits<{
@@ -101,10 +101,12 @@ function onKeydown(event: KeyboardEvent) {
   }
 }
 
-function severityStyle(node: ReportTreeNode) {
-  const top = highestSeverity(node.counts)
-  if (!top) return undefined
-  return { '--node-severity': severityCssVar(top) } as Record<string, string>
+function fileChips(node: ReportTreeNode) {
+  return fileSeverityChips(node.counts)
+}
+
+function folderChip(node: ReportTreeNode) {
+  return folderSeverityChip(node.counts)
 }
 </script>
 
@@ -135,8 +137,27 @@ function severityStyle(node: ReportTreeNode) {
         </button>
         <span v-else class="expander spacer" aria-hidden="true" />
         <span class="node-label">{{ row.node.name }}</span>
-        <span v-if="row.node.counts.total > 0" class="count-badge" :style="severityStyle(row.node)">
-          {{ row.node.counts.total }}
+        <span v-if="row.node.kind === 'folder'" class="severity-chips">
+          <SeverityChip
+            v-if="folderChip(row.node)"
+            compact
+            :severity="folderChip(row.node)!.severity"
+            :label="messages.severityLabel(folderChip(row.node)!.severity)"
+            :count="folderChip(row.node)!.count"
+          />
+        </span>
+        <span v-else-if="row.node.counts.total > 0" class="severity-chips">
+          <SeverityChip
+            v-for="chip in fileChips(row.node).chips"
+            :key="`${row.node.path}-${chip.severity}`"
+            compact
+            :severity="chip.severity"
+            :label="messages.severityLabel(chip.severity)"
+            :count="chip.count"
+          />
+          <span v-if="fileChips(row.node).overflow > 0" class="severity-overflow">
+            +{{ fileChips(row.node).overflow }}
+          </span>
         </span>
         <RouterLink
           v-if="graphHref && row.node.path"
@@ -210,16 +231,18 @@ ul {
   font-size: var(--font-size-sm);
 }
 
-.count-badge {
+.severity-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
   flex: none;
-  min-width: 1.5rem;
-  padding: 0 var(--space-2);
-  border-radius: var(--radius-full);
-  background: color-mix(in srgb, var(--node-severity, var(--color-text-secondary)) var(--alpha-16), transparent);
-  color: var(--node-severity, var(--color-text-secondary));
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
-  text-align: center;
+}
+
+.severity-overflow {
+  font-size: var(--text-12);
+  line-height: var(--text-12-lh);
+  color: var(--color-text-muted);
 }
 
 .muted {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, type RouteLocationRaw } from 'vue-router'
 import type { GraphDocument } from '../../viewer/graph-types'
 import type { ScanReportMessages } from '../../services/scan-report-messages'
 import {
@@ -12,7 +12,7 @@ import {
 const props = defineProps<{
   graph: GraphDocument | null
   messages: ScanReportMessages
-  graphHref?: (path: string) => string
+  graphHref?: (path: string) => RouteLocationRaw
 }>()
 
 const configured = computed(() => graphHasArchitectureConfig(props.graph))

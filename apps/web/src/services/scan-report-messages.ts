@@ -9,6 +9,7 @@ export type ReportTabId =
   | 'improvements'
   | 'removals'
   | 'architecture'
+  | 'graph'
 
 export interface ScanReportMessages {
   panelEyebrow: string
@@ -39,6 +40,7 @@ export interface ScanReportMessages {
   tabBadPractices: string
   tabImprovements: string
   tabRemovals: string
+  tabGraph: string
   severityLabel: (severity: ReportSeverity) => string
   sectionLabel: (section: ReportSection) => string
   paginationPrevious: string
@@ -110,6 +112,7 @@ const en: ScanReportMessages = {
   tabBadPractices: 'Bad practices',
   tabImprovements: 'Improvements',
   tabRemovals: 'Removals',
+  tabGraph: 'Graph',
   tabArchitecture(violations) {
     return violations > 0 ? `Architecture (${violations})` : 'Architecture'
   },
@@ -197,7 +200,10 @@ export function scanReportMessages(locale: WebLocale): ScanReportMessages {
   return en
 }
 
-export function tabSectionMap(tab: ReportTabId): ReportSection | 'improvements' | 'history-bundle' | 'architecture' {
+export function tabSectionMap(
+  tab: ReportTabId
+): ReportSection | 'improvements' | 'history-bundle' | 'architecture' | 'graph' {
+  if (tab === 'graph') return 'graph'
   if (tab === 'improvements') return 'improvements'
   if (tab === 'history') return 'history-bundle'
   if (tab === 'architecture') return 'architecture'

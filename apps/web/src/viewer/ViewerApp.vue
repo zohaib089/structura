@@ -31,6 +31,7 @@ import {
 } from './overview'
 import { parseGraphFile, type ParseHandle } from './parse-client'
 import { resolveGraphNodeId } from '../services/graph-node-focus'
+import type { SeverityCounts } from '../services/scan-report-tree'
 import type { WebLocale } from '../services/locale'
 import { sampleGraph } from './sample-graph'
 import BudgetMeter from './components/BudgetMeter.vue'
@@ -54,12 +55,14 @@ const props = withDefaults(
     locale?: WebLocale
     graphDocument?: GraphDocument | null
     focusPath?: string | null
+    pathSeverityCounts?: Map<string, SeverityCounts>
   }>(),
   {
     embedded: false,
     bootSample: false,
     graphDocument: null,
-    focusPath: null
+    focusPath: null,
+    pathSeverityCounts: undefined
   }
 )
 
@@ -230,8 +233,9 @@ function applyFocusPath(path: string | null) {
 
 watch(
   () => props.graphDocument,
-  (document) => {
-    if (document) void loadGraphDocument(document)
+  (document, previous) => {
+    if (!document || document === previous) return
+    void loadGraphDocument(document)
   }
 )
 
@@ -737,6 +741,7 @@ const snippet = 'layers: []\nrules: []\n'
         :focus-ids="focusMembers ? [...focusMembers] : []"
         :fit-duration="cameraDuration"
         :fit-padding="cameraPadding"
+        :path-severity-counts="pathSeverityCounts"
         @select="selectNode($event, true)"
         @toggle="toggleNode"
         @select-edge="selectEdge"

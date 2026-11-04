@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { Handle, Position } from '@vue-flow/core'
 import { computed } from 'vue'
+import SeverityChip from '../../components/ui/SeverityChip.vue'
+import { SEVERITY_LABELS } from '../../services/severity-display'
+import type { SeverityCounts } from '../../services/scan-report-tree'
+import { fileSeverityChips, folderSeverityChip } from '../../services/scan-report-tree-display'
 
 const props = defineProps<{
   id: string
@@ -22,11 +26,19 @@ const props = defineProps<{
   language?: string
   entering?: boolean
   enterDelay?: number
+  severityCounts?: SeverityCounts | null
 }>()
 
 const emit = defineEmits<{ select: []; toggle: [] }>()
 
 const accessible = computed(() => (props.more ? props.moreLabel : props.label))
+
+const folderChip = computed(() =>
+  props.severityCounts && props.kind !== 'file' ? folderSeverityChip(props.severityCounts) : null
+)
+const fileChips = computed(() =>
+  props.severityCounts && props.kind === 'file' ? fileSeverityChips(props.severityCounts) : null
+)
 
 function onEnter(event: KeyboardEvent) {
   if (event.target !== event.currentTarget) return
@@ -78,6 +90,25 @@ function onSpace(event: KeyboardEvent) {
     <span v-else-if="kind === 'file'" class="kind-mark" aria-hidden="true">{{ (language || 'â¢').slice(0, 1) }}</span>
     <span v-else class="kind-mark" aria-hidden="true">â¢</span>
     <span class="label" dir="ltr">{{ more ? moreLabel : label }}</span>
+    <span v-if="folderChip" class="severity-chips">
+      <SeverityChip
+        compact
+        :severity="folderChip.severity"
+        :label="SEVERITY_LABELS[folderChip.severity]"
+        :count="folderChip.count"
+      />
+    </span>
+    <span v-else-if="fileChips && fileChips.chips.length > 0" class="severity-chips">
+      <SeverityChip
+        v-for="chip in fileChips.chips"
+        :key="`${id}-${chip.severity}`"
+        compact
+        :severity="chip.severity"
+        :label="SEVERITY_LABELS[chip.severity]"
+        :count="chip.count"
+      />
+      <span v-if="fileChips.overflow > 0" class="severity-overflow">+{{ fileChips.overflow }}</span>
+    </span>
     <span v-if="cluster" class="count tnum">{{ clusterSize }}</span>
     <button
       v-if="cluster || more"
@@ -176,6 +207,21 @@ function onSpace(event: KeyboardEvent) {
   white-space: nowrap;
   unicode-bidi: isolate;
 }
+
+.severity-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.severity-overflow {
+  font-size: var(--text-12);
+  line-height: var(--text-12-lh);
+  color: var(--color-text-muted);
+}
+
 .count, .kind-mark { color: var(--color-text-secondary); }
 </style>
 

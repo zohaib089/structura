@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { Background } from '@vue-flow/background'
 import { VueFlow, type Edge, type Node } from '@vue-flow/core'
-import { nextTick, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { FLOW_EDGE_TYPE, FLOW_NODE_TYPE } from '../caps'
 import { motionMs, prefersReducedMotion } from '../motion'
 import type { OverviewEdgeModel, OverviewNodeModel } from '../overview'
+import type { SeverityCounts } from '../../services/scan-report-tree'
+import { lookupPathSeverityCounts } from '../../services/scan-report-tree-display'
 import FitFrame from './FitFrame.vue'
 import OverviewEdge from './OverviewEdge.vue'
 import OverviewNode from './OverviewNode.vue'
@@ -30,6 +32,7 @@ const props = defineProps<{
   focusIds?: string[]
   fitDuration?: number
   fitPadding?: number
+  pathSeverityCounts?: Map<string, SeverityCounts>
 }>()
 
 const emit = defineEmits<{
@@ -43,8 +46,27 @@ const emit = defineEmits<{
 const root = ref<HTMLElement | null>(null)
 const entering = ref<Set<string>>(new Set())
 const delays = ref<Map<string, number>>(new Map())
+const canvasReady = ref(false)
+
+function markCanvasReady() {
+  if (canvasReady.value) return
+  canvasReady.value = true
+  emit('ready')
+}
+
+const displayReady = computed(
+  () => canvasReady.value || props.ready || props.nodes.length > 0
+)
+
+watch(
+  () => props.ready,
+  ready => {
+    if (ready) markCanvasReady()
+  }
+)
 
 watch(() => props.nodes.map((node) => node.id).join('\n'), (next, prev) => {
+  if (prev && next !== prev) canvasReady.value = false
   if (!prev || prefersReducedMotion()) {
     entering.value = new Set()
     return
@@ -57,6 +79,10 @@ watch(() => props.nodes.map((node) => node.id).join('\n'), (next, prev) => {
   entering.value = new Set(fresh)
   window.setTimeout(() => { entering.value = new Set() }, motionMs('--duration-slow', 400, false) + cap)
 })
+
+function severityCountsForPath(path: string): SeverityCounts | null {
+  return lookupPathSeverityCounts(props.pathSeverityCounts, path)
+}
 
 function flowing(edge: OverviewEdgeModel): boolean {
   if (!props.focusIds || edge.visual === 'unresolved') return false
@@ -112,8 +138,19 @@ function onEdgeClick(payload: { edge: { id: string } }) {
 
 async function onInit() {
   await nextTick()
-  emit('ready')
+  markCanvasReady()
 }
+
+watch(
+  () => props.nodes.length,
+  async count => {
+    if (count > 0) {
+      await nextTick()
+      markCanvasReady()
+    }
+  },
+  { immediate: true }
+)
 
 defineExpose({ root })
 </script>
@@ -128,7 +165,7 @@ defineExpose({ root })
     :aria-label="label"
     tabindex="-1"
     dir="ltr"
-    :data-ready="ready ? 'true' : 'false'"
+    :data-ready="displayReady ? 'true' : 'false'"
     :data-total-nodes="totalNodes"
     :data-total-edges="totalEdges"
     :data-visible-nodes="nodes.length"
@@ -171,6 +208,7 @@ defineExpose({ root })
           :more-label="moreLabel(nodeProps.data?.remainder ?? 0)"
           :expand-label="expandLabel"
           :collapse-label="collapseLabel"
+          :severity-counts="severityCountsForPath(nodeProps.data?.path ?? '')"
           @select="emit('select', nodeProps.id)"
           @toggle="emit('toggle', nodeProps.id)"
         />
