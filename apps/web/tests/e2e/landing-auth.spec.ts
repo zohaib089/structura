@@ -27,6 +27,26 @@ function mockScanGraph(page: import('@playwright/test').Page) {
   )
 }
 
+function mockScanReport(page: import('@playwright/test').Page) {
+  return page.route('**/api/workspaces/workspace-1/scans/**/report', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        report: {
+          schemaVersion: '1.0.0',
+          generatedAt: new Date().toISOString(),
+          analysers: {},
+          history: null,
+          findings: [],
+          improvements: []
+        }
+      })
+    })
+  )
+}
+
 test('landing page presents the product and its section navigation', async ({ page }) => {
   await page.goto('/')
 
@@ -411,6 +431,7 @@ test('dashboard navigation opens graph insights and manages workspace invitation
     finishedAt: new Date().toISOString()
   }
   await mockScanGraph(page)
+  await mockScanReport(page)
   await mockWorkspaceScans(page, [succeededScan])
 
   await page.goto('/en/w/workspace-1')
