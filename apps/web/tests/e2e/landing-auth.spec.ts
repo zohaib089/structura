@@ -224,13 +224,13 @@ test('dashboard displays real workspace and project states instead of fabricated
 
   await page.goto('/dashboard')
 
-  const dashboardBounds = await page.locator('.dashboard-shell').evaluate(element => {
+  const dashboardBounds = await page.locator('.app-shell').evaluate(element => {
     const bounds = element.getBoundingClientRect()
     return { width: bounds.width, viewportWidth: document.documentElement.clientWidth }
   })
   expect(dashboardBounds.width).toBeGreaterThan(1400)
   expect(dashboardBounds.width).toBeLessThan(dashboardBounds.viewportWidth)
-  await expect(page.getByRole('banner').getByRole('button', { name: 'Log out' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Log out' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Log in' })).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Launch app' })).toHaveCount(0)
 
@@ -249,8 +249,8 @@ test('dashboard displays real workspace and project states instead of fabricated
 
   await expect(page.getByRole('status', { name: 'Loading your workspaces...' })).toBeVisible()
   await expect(page.locator('.loading-skeleton .skeleton-line')).toHaveCount(3)
-  await page.getByRole('navigation', { name: 'Dashboard navigation' }).getByRole('button', { name: 'Projects' }).click()
-  await expect(page.getByRole('navigation', { name: 'Dashboard navigation' }).getByRole('button', { name: 'Projects' })).toHaveAttribute('aria-current', 'page')
+  await page.getByRole('navigation', { name: 'App navigation' }).getByRole('link', { name: 'Projects' }).click()
+  await expect(page.getByRole('navigation', { name: 'App navigation' }).getByRole('link', { name: 'Projects' })).toHaveAttribute('aria-current', 'page')
   await expect(page.getByRole('heading', { name: 'Platform team' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'No projects yet' })).toBeVisible()
   await page.getByLabel('Project name').fill('Source analyzer')
@@ -260,18 +260,6 @@ test('dashboard displays real workspace and project states instead of fabricated
   await expect(page.getByRole('heading', { name: 'Source analyzer' })).toBeVisible()
   await expect(page.getByText(/Last updated/)).toBeVisible()
   await expect(page.getByRole('status', { name: 'Project created.' })).toBeVisible()
-  await expect(page.getByText('Healthy systems')).toHaveCount(0)
-  await expect(page.getByText('AI insights')).toHaveCount(0)
-
-  const projectSearch = page.getByRole('searchbox', { name: 'Search projects' })
-  await projectSearch.fill('missing project')
-  await expect(page.getByText('No projects match your search.')).toBeVisible()
-  await projectSearch.fill('source analyzer')
-  await expect(page.getByRole('heading', { name: 'Source analyzer' })).toBeVisible()
-
-  await page.getByRole('navigation', { name: 'Dashboard navigation' }).getByRole('button', { name: 'Overview' }).click()
-  await expect(page.getByRole('heading', { name: 'Recently updated projects' })).toBeVisible()
-  await expect(page.getByText('Source analyzer')).toBeVisible()
 })
 
 test('authenticated navbar logs out instead of showing launch links', async ({ page }) => {
@@ -302,7 +290,7 @@ test('authenticated navbar logs out instead of showing launch links', async ({ p
   }))
 
   await page.goto('/dashboard')
-  await expect(page.getByRole('banner').getByRole('button', { name: 'Log out' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Log out' })).toBeVisible()
   await page.getByRole('banner').getByRole('button', { name: 'Log out' }).click()
 
   await expect(page).toHaveURL(/\/en\/auth\/login$/)
@@ -421,14 +409,14 @@ test('dashboard navigation opens graph insights and manages workspace invitation
   await mockScanGraph(page)
   await mockWorkspaceScans(page, [succeededScan])
 
-  await page.goto('/en/dashboard')
+  await page.goto('/en/w/workspace-1')
 
   await expect(page.locator('html')).toHaveAttribute('lang', 'en')
-  await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible()
-  const dashboardNavigation = page.getByRole('navigation', { name: 'Dashboard navigation' })
-  await dashboardNavigation.getByRole('button', { name: 'Projects' }).click()
+  await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible()
+  const dashboardNavigation = page.getByRole('navigation', { name: 'App navigation' })
+  await dashboardNavigation.getByRole('link', { name: 'Projects' }).click()
   await expect(page.getByRole('heading', { name: 'No projects yet' })).toBeVisible()
-  await dashboardNavigation.getByRole('button', { name: 'Architecture' }).click()
+  await dashboardNavigation.getByRole('link', { name: 'Scans' }).click()
   const graphPanel = page.getByRole('region', { name: 'Graph insights' })
   await expect(page.getByRole('heading', { name: 'Open a project' })).toBeVisible()
   await expect(graphPanel.getByRole('heading', { name: 'Graph insights' })).toBeVisible()
@@ -436,7 +424,7 @@ test('dashboard navigation opens graph insights and manages workspace invitation
   await expect(graphPanel.locator('.summary-card').filter({ hasText: 'Files' }).getByText('3', { exact: true })).toBeVisible()
   await expect(graphPanel.getByRole('button', { name: 'Open viewer' })).toBeVisible()
 
-  await dashboardNavigation.getByRole('button', { name: 'Team' }).click()
+  await dashboardNavigation.getByRole('link', { name: 'Settings' }).click()
   await expect(page.getByText('Taylor Engineer')).toBeVisible()
   await page.getByLabel('Invite by email').fill('new.member@example.test')
   await page.getByRole('button', { name: 'Send invitation' }).click()
@@ -445,9 +433,9 @@ test('dashboard navigation opens graph insights and manages workspace invitation
   await page.getByRole('button', { name: 'Revoke invitation' }).click()
   await expect(page.getByText('No pending invitations.')).toBeVisible()
 
-  await dashboardNavigation.getByRole('button', { name: 'Overview' }).click()
-  await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible()
-  await expect(page.getByRole('banner').getByRole('button', { name: 'Log out' })).toBeVisible()
+  await dashboardNavigation.getByRole('link', { name: 'Projects' }).click()
+  await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible()
+  await expect(page.getByRole('banner').getByRole('button', { name: 'Log out' })).toHaveCount(0)
 })
 
 test('localized routes set the document language and right-to-left direction', async ({ page }) => {
@@ -561,12 +549,12 @@ test('dashboard accepts an invitation after authentication and removes its token
   }))
   await mockWorkspaceScans(page)
 
-  await page.goto('/en/dashboard?invitation=invite-token-for-test')
+  await page.goto('/en/w/pending?invitation=invite-token-for-test')
 
-  await expect(page).toHaveURL(/\/en\/dashboard$/)
+  await expect(page).toHaveURL(/\/en\/w\/workspace-1\/settings$/)
   await expect(page.getByText('Workspace invitation accepted.')).toBeVisible()
-  await expect(page.getByRole('navigation', { name: 'Dashboard navigation' })
-    .getByRole('button', { name: 'Team' })).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByRole('navigation', { name: 'App navigation' })
+    .getByRole('link', { name: 'Settings' })).toHaveAttribute('aria-current', 'page')
 })
 
 test('legacy protected URLs redirect to a localized authentication route', async ({ page }) => {

@@ -12,4 +12,4 @@ app.use(router)
 
 app.mount('#app')
 
-consola.success('Structura Frontend started')
+consola.success('Atlasmith Frontend started')

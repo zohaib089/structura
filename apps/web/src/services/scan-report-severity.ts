@@ -5,8 +5,5 @@ export function severityRank(severity: ReportSeverity): number {
 }
 
 export function severityCssVar(severity: ReportSeverity): string {
-  if (severity === 'critical' || severity === 'high') return 'var(--color-danger)'
-  if (severity === 'medium') return 'var(--color-warning)'
-  if (severity === 'low') return 'var(--color-info, var(--color-accent-primary))'
-  return 'var(--color-text-secondary)'
+  return `var(--sev-${severity}-fg)`
 }

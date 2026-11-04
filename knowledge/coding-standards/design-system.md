@@ -9,10 +9,11 @@ Existing web screens have been migrated to the shared token system. Component-sp
 
 ## Visual direction
 
-- Product feel: precise, calm, technical, and polished.
-- Color identity: deep navy surfaces with cyan primary accents and violet secondary accents; light theme uses corresponding accessible light surfaces.
-- Use accent gradients sparingly for emphasis, primary actions, and branded highlights; never for long-form text.
-- Prefer clear hierarchy and restrained surfaces over decorative effects.
+- Product feel: precise, calm, technical, and dense — comparable to a professional dev tool (Linear, Vercel, Sentry).
+- Color identity: neutral grey surfaces with a single blue interactive accent (`--accent`) for links, focus, and secondary actions. Amber (`--color-brand-amber-ui`) is reserved for brand identity and selection (nav indicator, focus path) — never for primary buttons or status.
+- Severity always uses icon, label, and colour via `--sev-*` tokens; colour alone must not communicate severity.
+- Prefer clear hierarchy and restrained surfaces over decorative gradients and glow.
+- See `docs/design/dashboard-redesign.md` for the full migration plan.
 
 ## Foundations
 
@@ -23,7 +24,10 @@ Use semantic role tokens, not palette values:
 - Canvas and surfaces: `--color-canvas`, `--color-surface`, `--color-surface-raised`, `--color-surface-overlay`
 - Content: `--color-text-primary`, `--color-text-secondary`, `--color-text-muted`
 - Structure: `--color-border`, `--color-border-strong`
-- Brand: `--color-accent-primary`, `--color-accent-secondary`, `--color-accent-tertiary`
+- Brand: `--color-brand-amber-ui`, `--color-brand-mark`, `--color-brand-navy` (fill only)
+- Interactive: `--accent`, `--accent-hover`
+- Severity: `--sev-{critical|high|medium|low|info}-{fg|bg|border}`
+- Primary actions (buttons): `--button-primary-bg`, `--button-primary-fg` (neutral, high-contrast; not amber)
 - Status: `--color-success`, `--color-warning`, `--color-danger`, `--color-info`
 
 The theme is controlled by `data-theme="dark"` or `data-theme="light"` on the document root. Both themes must remain usable; do not hardcode a theme-specific color in a component.

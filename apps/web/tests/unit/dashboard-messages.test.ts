@@ -9,7 +9,12 @@ describe('dashboard message catalog', () => {
     for (const locale of WEB_LOCALES) {
       expect(Object.keys(dashboardMessages(locale.tag)).sort()).toEqual(expectedKeys)
       for (const key of expectedKeys) {
-        expect(dashboardMessages(locale.tag)[key as keyof ReturnType<typeof dashboardMessages>].trim()).not.toBe('')
+        const value = dashboardMessages(locale.tag)[key as keyof ReturnType<typeof dashboardMessages>]
+        if (typeof value === 'function') {
+          expect(value('scan-1').trim()).not.toBe('')
+        } else {
+          expect(value.trim()).not.toBe('')
+        }
       }
     }
   })

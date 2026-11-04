@@ -2,6 +2,15 @@ import type { WebLocale } from './locale'
 
 export interface DashboardMessages {
   dashboardNavigation: string
+  appShellNavigation: string
+  scansNav: string
+  settingsNav: string
+  skipToContent: string
+  commandPalette: string
+  commandPaletteHint: string
+  openProjectNav: string
+  projectBreadcrumb: string
+  scanBreadcrumb: (scanId: string) => string
   workspace: string
   overview: string
   projects: string
@@ -78,6 +87,15 @@ export interface DashboardMessages {
 const messages: Record<WebLocale, DashboardMessages> = {
   en: {
     dashboardNavigation: 'Dashboard navigation',
+    appShellNavigation: 'App navigation',
+    scansNav: 'Scans',
+    settingsNav: 'Settings',
+    skipToContent: 'Skip to content',
+    commandPalette: 'Search',
+    commandPaletteHint: '⌘K',
+    openProjectNav: 'Open project',
+    projectBreadcrumb: 'Project',
+    scanBreadcrumb: (scanId: string) => `Scan #${scanId}`,
     workspace: 'Workspace',
     overview: 'Overview',
     projects: 'Projects',
@@ -152,6 +170,15 @@ const messages: Record<WebLocale, DashboardMessages> = {
   },
   pt: {
     dashboardNavigation: 'Navegação do painel',
+    appShellNavigation: 'App navigation',
+    scansNav: 'Scans',
+    settingsNav: 'Settings',
+    skipToContent: 'Skip to content',
+    commandPalette: 'Search',
+    commandPaletteHint: '⌘K',
+    openProjectNav: 'Open project',
+    projectBreadcrumb: 'Project',
+    scanBreadcrumb: (scanId: string) => `Scan #${scanId}`,
     workspace: 'Espaço de trabalho',
     overview: 'Visão geral',
     projects: 'Projetos',
@@ -226,6 +253,15 @@ const messages: Record<WebLocale, DashboardMessages> = {
   },
   it: {
     dashboardNavigation: 'Navigazione dashboard',
+    appShellNavigation: 'App navigation',
+    scansNav: 'Scans',
+    settingsNav: 'Settings',
+    skipToContent: 'Skip to content',
+    commandPalette: 'Search',
+    commandPaletteHint: '⌘K',
+    openProjectNav: 'Open project',
+    projectBreadcrumb: 'Project',
+    scanBreadcrumb: (scanId: string) => `Scan #${scanId}`,
     workspace: 'Area di lavoro',
     overview: 'Panoramica',
     projects: 'Progetti',
@@ -300,6 +336,15 @@ const messages: Record<WebLocale, DashboardMessages> = {
   },
   fr: {
     dashboardNavigation: 'Navigation du tableau de bord',
+    appShellNavigation: 'App navigation',
+    scansNav: 'Scans',
+    settingsNav: 'Settings',
+    skipToContent: 'Skip to content',
+    commandPalette: 'Search',
+    commandPaletteHint: '⌘K',
+    openProjectNav: 'Open project',
+    projectBreadcrumb: 'Project',
+    scanBreadcrumb: (scanId: string) => `Scan #${scanId}`,
     workspace: 'Espace de travail',
     overview: 'Vue d’ensemble',
     projects: 'Projets',
@@ -374,6 +419,15 @@ const messages: Record<WebLocale, DashboardMessages> = {
   },
   nl: {
     dashboardNavigation: 'Dashboardnavigatie',
+    appShellNavigation: 'App navigation',
+    scansNav: 'Scans',
+    settingsNav: 'Settings',
+    skipToContent: 'Skip to content',
+    commandPalette: 'Search',
+    commandPaletteHint: '⌘K',
+    openProjectNav: 'Open project',
+    projectBreadcrumb: 'Project',
+    scanBreadcrumb: (scanId: string) => `Scan #${scanId}`,
     workspace: 'Werkruimte',
     overview: 'Overzicht',
     projects: 'Projecten',
@@ -448,6 +502,15 @@ const messages: Record<WebLocale, DashboardMessages> = {
   },
   es: {
     dashboardNavigation: 'Navegación del panel',
+    appShellNavigation: 'App navigation',
+    scansNav: 'Scans',
+    settingsNav: 'Settings',
+    skipToContent: 'Skip to content',
+    commandPalette: 'Search',
+    commandPaletteHint: '⌘K',
+    openProjectNav: 'Open project',
+    projectBreadcrumb: 'Project',
+    scanBreadcrumb: (scanId: string) => `Scan #${scanId}`,
     workspace: 'Espacio de trabajo',
     overview: 'Resumen',
     projects: 'Proyectos',
@@ -522,6 +585,15 @@ const messages: Record<WebLocale, DashboardMessages> = {
   },
   ja: {
     dashboardNavigation: 'ダッシュボードナビゲーション',
+    appShellNavigation: 'App navigation',
+    scansNav: 'Scans',
+    settingsNav: 'Settings',
+    skipToContent: 'Skip to content',
+    commandPalette: 'Search',
+    commandPaletteHint: '⌘K',
+    openProjectNav: 'Open project',
+    projectBreadcrumb: 'Project',
+    scanBreadcrumb: (scanId: string) => `Scan #${scanId}`,
     workspace: 'ワークスペース',
     overview: '概要',
     projects: 'プロジェクト',
@@ -596,6 +668,15 @@ const messages: Record<WebLocale, DashboardMessages> = {
   },
   'zh-Hans': {
     dashboardNavigation: '仪表板导航',
+    appShellNavigation: 'App navigation',
+    scansNav: 'Scans',
+    settingsNav: 'Settings',
+    skipToContent: 'Skip to content',
+    commandPalette: 'Search',
+    commandPaletteHint: '⌘K',
+    openProjectNav: 'Open project',
+    projectBreadcrumb: 'Project',
+    scanBreadcrumb: (scanId: string) => `Scan #${scanId}`,
     workspace: '工作区',
     overview: '概览',
     projects: '项目',
@@ -670,6 +751,15 @@ const messages: Record<WebLocale, DashboardMessages> = {
   },
   hi: {
     dashboardNavigation: 'डैशबोर्ड नेविगेशन',
+    appShellNavigation: 'App navigation',
+    scansNav: 'Scans',
+    settingsNav: 'Settings',
+    skipToContent: 'Skip to content',
+    commandPalette: 'Search',
+    commandPaletteHint: '⌘K',
+    openProjectNav: 'Open project',
+    projectBreadcrumb: 'Project',
+    scanBreadcrumb: (scanId: string) => `Scan #${scanId}`,
     workspace: 'वर्कस्पेस',
     overview: 'अवलोकन',
     projects: 'प्रोजेक्ट',
@@ -744,6 +834,15 @@ const messages: Record<WebLocale, DashboardMessages> = {
   },
   ur: {
     dashboardNavigation: 'ڈیش بورڈ نیویگیشن',
+    appShellNavigation: 'App navigation',
+    scansNav: 'Scans',
+    settingsNav: 'Settings',
+    skipToContent: 'Skip to content',
+    commandPalette: 'Search',
+    commandPaletteHint: '⌘K',
+    openProjectNav: 'Open project',
+    projectBreadcrumb: 'Project',
+    scanBreadcrumb: (scanId: string) => `Scan #${scanId}`,
     workspace: 'ورک اسپیس',
     overview: 'جائزہ',
     projects: 'پروجیکٹس',

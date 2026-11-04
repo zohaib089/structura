@@ -46,21 +46,31 @@ describe('localized routes', () => {
     expect(document.documentElement.lang).toBe('ja')
   })
 
-  it('redirects authenticated users from localized auth pages to the dashboard', async () => {
+  it('redirects authenticated users from localized auth pages to the workspace shell', async () => {
     getCurrentSession.mockReturnValue({ token: 'active-session' })
     const router = createAppRouter(createMemoryHistory())
 
     await router.push('/fr/auth/login')
 
-    expect(router.currentRoute.value.path).toBe('/fr/dashboard')
+    expect(router.currentRoute.value.path).toBe('/fr/w/pending')
   })
 
-  it('redirects authenticated users from the localized home route to the dashboard', async () => {
+  it('redirects authenticated users from the localized home route to the workspace shell', async () => {
     getCurrentSession.mockReturnValue({ token: 'active-session' })
     const router = createAppRouter(createMemoryHistory())
 
     await router.push('/fr')
 
-    expect(router.currentRoute.value.path).toBe('/fr/dashboard')
+    expect(router.currentRoute.value.path).toBe('/fr/w/pending')
+  })
+
+  it('redirects /dashboard to the localized workspace entry', async () => {
+    getCurrentSession.mockReturnValue({ token: 'active-session' })
+    localStorage.setItem(LOCALE_PREFERENCE_KEY, 'en')
+    const router = createAppRouter(createMemoryHistory())
+
+    await router.push('/dashboard')
+
+    expect(router.currentRoute.value.path).toBe('/en/w/pending')
   })
 })

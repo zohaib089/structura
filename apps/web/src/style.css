@@ -43,7 +43,7 @@ select {
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--color-accent-primary) var(--alpha-32), transparent);
+  background: color-mix(in srgb, var(--accent) var(--alpha-32), transparent);
   color: var(--color-text-primary);
 }
 
@@ -57,7 +57,52 @@ select {
 
 ::-webkit-scrollbar-thumb {
   border-radius: var(--radius-full);
-  background: linear-gradient(180deg, var(--color-accent-primary), var(--color-accent-secondary));
+  background: var(--color-border-strong);
+}
+
+.primary-button {
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--button-primary-border);
+  border-radius: var(--r-sm);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-fg);
+  font-size: var(--text-14);
+  line-height: var(--text-14-lh);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.primary-button:hover:not(:disabled) {
+  background: var(--button-primary-hover-bg);
+}
+
+.primary-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.secondary-button {
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font-size: var(--text-14);
+  cursor: pointer;
+}
+
+.secondary-button:hover:not(:disabled) {
+  background: var(--gray-3);
+}
+
+.link-accent {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.link-accent:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -65,8 +110,8 @@ select {
   *::before,
   *::after {
     scroll-behavior: auto !important;
-    transition-duration: var(--duration-fast) !important;
-    animation-duration: var(--duration-fast) !important;
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
     animation-iteration-count: 1 !important;
   }
 }
