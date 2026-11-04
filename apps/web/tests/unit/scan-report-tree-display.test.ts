@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import SeverityChip from '../../src/components/ui/SeverityChip.vue'
-import { fileSeverityChips, folderSeverityChip } from '../../src/services/scan-report-tree-display'
-import { emptySeverityCounts } from '../../src/services/scan-report-tree'
+import {
+  buildReportPathSeverityMap,
+  fileSeverityChips,
+  folderSeverityChip,
+  lookupPathSeverityCounts
+} from '../../src/services/scan-report-tree-display'
+import { buildReportFileTree, emptySeverityCounts, highestSeverity } from '../../src/services/scan-report-tree'
+import type { ReportFinding } from '../../src/api/scan-report-types'
 
 describe('report tree severity chips', () => {
   it('summarizes folder nodes with the highest severity and total count', () => {
@@ -24,6 +30,42 @@ describe('report tree severity chips', () => {
       { severity: 'high', count: 2 }
     ])
     expect(overflow).toBe(1)
+  })
+
+  it('indexes the same per-path severity totals as the report tree', () => {
+    const findings: ReportFinding[] = [
+      {
+        id: 'f1',
+        severity: 'critical',
+        section: 'violations',
+        message: 'x',
+        file: 'src/a.ts',
+        provenance: 'EXTRACTED'
+      },
+      {
+        id: 'f2',
+        severity: 'medium',
+        section: 'violations',
+        message: 'y',
+        file: 'src/a.ts',
+        provenance: 'EXTRACTED'
+      },
+      {
+        id: 'f3',
+        severity: 'high',
+        section: 'security',
+        message: 'z',
+        file: 'src/b.ts',
+        provenance: 'EXTRACTED'
+      }
+    ]
+    const map = buildReportPathSeverityMap(findings)
+    const root = buildReportFileTree(findings)
+    const srcFolder = root.children.find(child => child.path === 'src')
+    expect(srcFolder?.counts.total).toBe(3)
+    expect(lookupPathSeverityCounts(map, 'src')?.total).toBe(3)
+    expect(lookupPathSeverityCounts(map, 'src/a.ts')?.total).toBe(2)
+    expect(highestSeverity(lookupPathSeverityCounts(map, 'src/a.ts')!)).toBe('critical')
   })
 
   it('SeverityChip compact mode renders icon and numeric count', () => {

@@ -19,3 +19,11 @@ export const SEVERITY_ICONS: Record<ReportSeverity, Component> = {
 export function severityTokenPrefix(severity: ReportSeverity): string {
   return `--sev-${severity}`
 }
+
+export const SEVERITY_LABELS: Record<ReportSeverity, string> = {
+  critical: 'Critical',
+  high: 'High',
+  medium: 'Medium',
+  low: 'Low',
+  info: 'Info'
+}

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { buildReportPathSeverityMap } from '../../services/scan-report-tree-display'
 import { RouterLink, useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import BrandMark from '../brand/BrandMark.vue'
 import ScanReportTree from './ScanReportTree.vue'
@@ -71,6 +72,7 @@ const PAGE_SIZE = 50
 const filteredFindings = computed(() => filterFindings(props.report.findings, filters.value))
 const filteredImprovements = computed(() => filterImprovements(props.report, filteredFindings.value))
 const treeRoot = computed(() => buildReportFileTree(filteredFindings.value))
+const pathSeverityCounts = computed(() => buildReportPathSeverityMap(filteredFindings.value))
 
 const tabs: ReportTabId[] = [
   'history',
@@ -465,6 +467,7 @@ const history = computed(() => props.report.history)
           :project-id="projectId"
           :scan-id="scanId"
           :prefetched-graph="graph ?? null"
+          :path-severity-counts="pathSeverityCounts"
         />
       </template>
 

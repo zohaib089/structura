@@ -5,6 +5,8 @@ import { nextTick, ref, watch } from 'vue'
 import { FLOW_EDGE_TYPE, FLOW_NODE_TYPE } from '../caps'
 import { motionMs, prefersReducedMotion } from '../motion'
 import type { OverviewEdgeModel, OverviewNodeModel } from '../overview'
+import type { SeverityCounts } from '../../services/scan-report-tree'
+import { lookupPathSeverityCounts } from '../../services/scan-report-tree-display'
 import FitFrame from './FitFrame.vue'
 import OverviewEdge from './OverviewEdge.vue'
 import OverviewNode from './OverviewNode.vue'
@@ -30,6 +32,7 @@ const props = defineProps<{
   focusIds?: string[]
   fitDuration?: number
   fitPadding?: number
+  pathSeverityCounts?: Map<string, SeverityCounts>
 }>()
 
 const emit = defineEmits<{
@@ -57,6 +60,10 @@ watch(() => props.nodes.map((node) => node.id).join('\n'), (next, prev) => {
   entering.value = new Set(fresh)
   window.setTimeout(() => { entering.value = new Set() }, motionMs('--duration-slow', 400, false) + cap)
 })
+
+function severityCountsForPath(path: string): SeverityCounts | null {
+  return lookupPathSeverityCounts(props.pathSeverityCounts, path)
+}
 
 function flowing(edge: OverviewEdgeModel): boolean {
   if (!props.focusIds || edge.visual === 'unresolved') return false
@@ -171,6 +178,7 @@ defineExpose({ root })
           :more-label="moreLabel(nodeProps.data?.remainder ?? 0)"
           :expand-label="expandLabel"
           :collapse-label="collapseLabel"
+          :severity-counts="severityCountsForPath(nodeProps.data?.path ?? '')"
           @select="emit('select', nodeProps.id)"
           @toggle="emit('toggle', nodeProps.id)"
         />

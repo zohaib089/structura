@@ -5,6 +5,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getScanGraph, listScans } from '../../api/scans'
 import type { GraphDocument } from '../../viewer/graph-types'
+import type { SeverityCounts } from '../../services/scan-report-tree'
 import ViewerApp from '../../viewer/ViewerApp.vue'
 import { dashboardMessages } from '../../services/dashboard-messages'
 import { scanMessages } from '../../services/scan-messages'
@@ -17,6 +18,7 @@ const props = defineProps<{
   projectId?: string | null
   scanId?: string | null
   prefetchedGraph?: GraphDocument | null
+  pathSeverityCounts?: Map<string, SeverityCounts>
 }>()
 
 const route = useRoute()
@@ -92,6 +94,7 @@ watch(
       :locale="locale"
       :graph-document="graphDocument"
       :focus-path="focusPath"
+      :path-severity-counts="pathSeverityCounts"
     />
   </div>
 </template>
