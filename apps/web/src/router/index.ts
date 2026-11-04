@@ -12,8 +12,23 @@ import {
 
 const localePattern = WEB_LOCALES.map(locale => locale.tag).join('|')
 
+function localizedDashboardRedirect(
+  pathSuffix: string,
+  query: import('vue-router').LocationQueryRaw,
+  hash: string
+) {
+  const preferredLocale = resolvePreferredWebLocale(readLocalePreference(), navigator.languages)
+  return {
+    path: `/${preferredLocale}${pathSuffix}`,
+    query,
+    hash,
+    replace: true
+  }
+}
+
 export function createAppRouter(history: RouterHistory = createWebHistory(import.meta.env.BASE_URL)) {
   const localePath = `/:locale(${localePattern})`
+  const dashboardView = () => import('../views/DashboardView.vue')
   const appRouter = createRouter({
     history,
     routes: [
@@ -24,9 +39,8 @@ export function createAppRouter(history: RouterHistory = createWebHistory(import
       },
       {
         path: '/dashboard',
-        name: 'dashboard',
-        component: () => import('../views/DashboardView.vue'),
-        meta: { requiresAuth: true }
+        redirect: to =>
+          localizedDashboardRedirect('/w/pending', to.query, to.hash ?? '')
       },
       {
         path: '/auth/:view?',
@@ -41,9 +55,61 @@ export function createAppRouter(history: RouterHistory = createWebHistory(import
       },
       {
         path: `${localePath}/dashboard`,
-        name: 'localized-dashboard',
-        component: () => import('../views/DashboardView.vue'),
-        meta: { requiresAuth: true }
+        redirect: to => ({
+          path: `/${String(to.params.locale)}/w/pending`,
+          query: to.query,
+          hash: to.hash,
+          replace: true
+        })
+      },
+      {
+        path: `${localePath}/w/:workspace`,
+        component: () => import('../views/dashboard/DashboardLayout.vue'),
+        meta: { requiresAuth: true },
+        children: [
+          {
+            path: '',
+            name: 'workspace-projects',
+            component: dashboardView,
+            meta: { dashboardSection: 'projects' }
+          },
+          {
+            path: 'new',
+            name: 'open-project',
+            component: dashboardView,
+            meta: { dashboardSection: 'open-project' }
+          },
+          {
+            path: 'scans',
+            name: 'workspace-scans',
+            component: dashboardView,
+            meta: { dashboardSection: 'workspace-scans' }
+          },
+          {
+            path: 'settings',
+            name: 'workspace-settings',
+            component: dashboardView,
+            meta: { dashboardSection: 'settings' }
+          },
+          {
+            path: 'projects/:projectId',
+            name: 'workspace-project',
+            component: dashboardView,
+            meta: { dashboardSection: 'project' }
+          },
+          {
+            path: 'projects/:projectId/scans',
+            name: 'project-scans',
+            component: dashboardView,
+            meta: { dashboardSection: 'scans' }
+          },
+          {
+            path: 'projects/:projectId/scans/:scanId/:tab?',
+            name: 'scan-report',
+            component: dashboardView,
+            meta: { dashboardSection: 'scan-report' }
+          }
+        ]
       },
       {
         path: `${localePath}/auth/:view?`,
@@ -82,7 +148,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory(import
     }
 
     if (hostedAppEnabled && session && (to.meta.guestOnly || to.name === 'localized-home')) {
-      return { path: `/${routeLocale}/dashboard` }
+      return { path: `/${routeLocale}/w/pending`, replace: true }
     }
 
     return true

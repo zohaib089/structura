@@ -1,24 +1,100 @@
 :root {
   color-scheme: dark;
 
-  --color-canvas: #050b17;
-  --color-surface: #0c1425;
-  --color-surface-raised: #111929;
-  --color-surface-overlay: rgba(13, 22, 38, 0.7);
-  --color-text-primary: #edf6ff;
-  --color-text-secondary: #a1b9d8;
-  --color-text-muted: #7d94b2;
-  --color-border: rgba(135, 162, 200, 0.16);
-  --color-border-strong: rgba(135, 162, 200, 0.28);
-  --color-accent-primary: #69f0ff;
-  --color-accent-secondary: #8b5cf6;
-  --color-accent-tertiary: #22c55e;
-  --color-success: #4ade80;
-  --color-warning: #fbbf24;
-  --color-danger: #f87171;
-  --color-info: #69f0ff;
+  /* Product neutral ramp (dark defaults) */
+  --gray-0: #0b0d10;
+  --gray-1: #111317;
+  --gray-2: #181b20;
+  --gray-3: #1f2329;
+  --gray-4: #2a2f36;
+  --gray-5: #3a4049;
+  --gray-7: #7d838c;
+  --gray-8: #9ba1a9;
+  --gray-10: #e6e8eb;
+
+  --accent: #5b9dff;
+  --accent-hover: #7ab0ff;
+
+  --sev-critical-fg: #ff6b6b;
+  --sev-critical-bg: #2a1215;
+  --sev-critical-border: #5c2328;
+  --sev-high-fg: #ff9a5c;
+  --sev-high-bg: #2a1a10;
+  --sev-high-border: #5c3520;
+  --sev-medium-fg: #f5c84b;
+  --sev-medium-bg: #262010;
+  --sev-medium-border: #574a1f;
+  --sev-low-fg: #6cb6ff;
+  --sev-low-bg: #0f1d2e;
+  --sev-low-border: #21406a;
+  --sev-info-fg: #a1a8b3;
+  --sev-info-bg: #1a1d22;
+  --sev-info-border: #353a42;
+
+  --status-success: #3fb950;
+  --status-running: var(--accent);
+  --status-failed: var(--sev-critical-fg);
+  --status-queued: var(--gray-8);
+
+  --text-12: 0.75rem;
+  --text-12-lh: 1rem;
+  --text-13: 0.8125rem;
+  --text-13-lh: 1.25rem;
+  --text-14: 0.875rem;
+  --text-14-lh: 1.25rem;
+  --text-16: 1rem;
+  --text-16-lh: 1.5rem;
+  --text-20: 1.25rem;
+  --text-20-lh: 1.75rem;
+  --text-24: 1.5rem;
+  --text-24-lh: 2rem;
+  --text-32: 2rem;
+  --text-32-lh: 2.5rem;
+
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-full: 999px;
+
+  --elev-0: none;
+  --elev-1: 0 1px 2px rgb(0 0 0 / 0.2);
+  --elev-2: 0 4px 12px rgb(0 0 0 / 0.24);
+  --elev-3: 0 16px 48px rgb(0 0 0 / 0.4);
+
+  --dur-1: 100ms;
+  --dur-2: 160ms;
+  --dur-3: 240ms;
+  --easing-product: cubic-bezier(0.2, 0, 0, 1);
+
+  --shell-sidebar-width: 240px;
+  --shell-sidebar-collapsed: 56px;
+  --shell-topbar-height: 48px;
+  --shell-content-max: 1280px;
+
+  --button-primary-bg: var(--gray-10);
+  --button-primary-fg: var(--gray-0);
+  --button-primary-hover-bg: #ffffff;
+  --button-primary-border: transparent;
+
+  --color-canvas: var(--gray-0);
+  --color-surface: var(--gray-1);
+  --color-surface-raised: var(--gray-2);
+  --color-surface-overlay: color-mix(in srgb, var(--gray-2) 88%, transparent);
+  --color-text-primary: var(--gray-10);
+  --color-text-secondary: var(--gray-8);
+  --color-text-muted: var(--gray-7);
+  --color-border: var(--gray-4);
+  --color-border-strong: var(--gray-5);
+  --color-accent-primary: var(--accent);
+  --color-accent-secondary: var(--gray-8);
+  --color-accent-tertiary: var(--status-success);
+  --color-success: var(--status-success);
+  --color-warning: var(--sev-medium-fg);
+  --color-danger: var(--sev-critical-fg);
+  --color-info: var(--sev-low-fg);
   --color-highlight: #ffffff;
-  --color-text-on-accent: #031018;
+  --color-text-on-accent: #ffffff;
 
   --alpha-04: 4%;
   --alpha-08: 8%;
@@ -97,7 +173,7 @@
   --shadow-secondary-glow: 0 12px 32px color-mix(in srgb, var(--color-accent-secondary) var(--alpha-20), transparent);
   --shadow-success-glow: 0 0 0 4px color-mix(in srgb, var(--color-success) var(--alpha-12), transparent);
   --shadow-danger-glow: 0 0 0 4px color-mix(in srgb, var(--color-danger) var(--alpha-12), transparent);
-  --focus-ring: 0 0 0 3px rgba(105, 240, 255, 0.32);
+  --focus-ring: 0 0 0 2px var(--gray-0), 0 0 0 4px var(--accent);
   --duration-fast: 120ms;
   --duration-normal: 200ms;
   --duration-slow: 400ms;
@@ -123,10 +199,7 @@
   --content-width-copy: 590px;
   --content-width-reading: 720px;
 
-  --page-background:
-    radial-gradient(circle at top left, rgba(103, 232, 249, 0.14), transparent 22%),
-    radial-gradient(circle at top right, rgba(139, 92, 246, 0.12), transparent 26%),
-    var(--color-canvas);
+  --page-background: var(--color-canvas);
 
   --surface-tint: color-mix(in srgb, var(--color-surface) 76%, var(--color-canvas));
   --surface-tint-strong: color-mix(in srgb, var(--color-surface-raised) 90%, var(--color-canvas));
@@ -146,32 +219,67 @@
 [data-theme='light'] {
   color-scheme: light;
 
-  --color-canvas: #eef6ff;
-  --color-surface: #f7fbff;
-  --color-surface-raised: #ffffff;
-  --color-surface-overlay: rgba(226, 238, 255, 0.82);
-  --color-text-primary: #0f172a;
-  --color-text-secondary: #4f6783;
-  --color-text-muted: #64748b;
-  --color-border: rgba(15, 23, 42, 0.09);
-  --color-border-strong: rgba(15, 23, 42, 0.16);
-  --color-accent-primary: #0369a1;
-  --color-accent-secondary: #7c3aed;
-  --color-accent-tertiary: #16a34a;
-  --color-success: #15803d;
-  --color-warning: #a16207;
-  --color-danger: #b91c1c;
-  --color-info: #0369a1;
+  --gray-0: #ffffff;
+  --gray-1: #f7f8fa;
+  --gray-2: #ffffff;
+  --gray-3: #eef0f3;
+  --gray-4: #e2e5e9;
+  --gray-5: #c9ced5;
+  --gray-7: #6b717b;
+  --gray-8: #5b616b;
+  --gray-10: #16181c;
+
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+
+  --sev-critical-fg: #b4232c;
+  --sev-critical-bg: #fdecec;
+  --sev-critical-border: #f4b8bb;
+  --sev-high-fg: #b04a0c;
+  --sev-high-bg: #fdf0e6;
+  --sev-high-border: #f2c4a2;
+  --sev-medium-fg: #8a6300;
+  --sev-medium-bg: #fdf6e0;
+  --sev-medium-border: #ead491;
+  --sev-low-fg: #1f5fae;
+  --sev-low-bg: #e9f2fd;
+  --sev-low-border: #b4cff2;
+  --sev-info-fg: #555d68;
+  --sev-info-bg: #f1f3f5;
+  --sev-info-border: #d3d7dc;
+
+  --status-success: #1a7f37;
+  --status-running: var(--accent);
+  --status-failed: var(--sev-critical-fg);
+  --status-queued: var(--gray-8);
+
+  --button-primary-bg: var(--gray-10);
+  --button-primary-fg: var(--gray-0);
+  --button-primary-hover-bg: #000000;
+
+  --color-canvas: var(--gray-0);
+  --color-surface: var(--gray-1);
+  --color-surface-raised: var(--gray-2);
+  --color-surface-overlay: color-mix(in srgb, var(--gray-2) 92%, transparent);
+  --color-text-primary: var(--gray-10);
+  --color-text-secondary: var(--gray-8);
+  --color-text-muted: var(--gray-7);
+  --color-border: var(--gray-4);
+  --color-border-strong: var(--gray-5);
+  --color-accent-primary: var(--accent);
+  --color-accent-secondary: var(--gray-8);
+  --color-accent-tertiary: var(--status-success);
+  --color-success: var(--status-success);
+  --color-warning: var(--sev-medium-fg);
+  --color-danger: var(--sev-critical-fg);
+  --color-info: var(--sev-low-fg);
   --color-highlight: #ffffff;
   --color-text-on-accent: #ffffff;
-  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--color-accent-primary) var(--alpha-24), transparent);
+  --focus-ring: 0 0 0 2px var(--gray-0), 0 0 0 4px var(--accent);
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
   --shadow-md: 0 8px 32px rgba(15, 23, 42, 0.06);
   --shadow-lg: 0 30px 80px rgba(15, 23, 42, 0.08);
-  --page-background:
-    radial-gradient(circle at top left, rgba(14, 165, 233, 0.1), transparent 22%),
-    radial-gradient(circle at top right, rgba(124, 58, 237, 0.08), transparent 26%),
-    var(--color-canvas);
+  --page-background: var(--color-canvas);
 
 }
 
@@ -198,8 +306,8 @@
 
   /* ---- GRAPH EDGES ---- */
   --graph-edge-extracted: #8fa8c9; /* dark #8fa8c9 | 8.07 canvas, 7.21 raised | AA graphic >=3.0 | EXTRACTED: solid neutral. Largest population, so it is the quietest hue. */
-  --graph-edge-inferred: #69f0ff; /* dark #69f0ff | 14.54 canvas, 12.98 raised | AA graphic >=3.0 | INFERRED: dashed + "~" badge. Hue is a redundant cue only. */
-  --graph-edge-unresolved: #a78bfa; /* dark #a78bfa | 7.23 canvas, 6.46 raised | AA graphic >=3.0 | UNRESOLVED: dotted + hollow terminal + ghost node. */
+  --graph-edge-inferred: var(--accent); /* INFERRED: dashed + "~" badge. Hue is a redundant cue only. */
+  --graph-edge-unresolved: var(--gray-8); /* UNRESOLVED: dotted + hollow terminal + ghost node. */
   --graph-edge-violation: var(--color-danger); /* dark #f87171 | 7.12 canvas, 6.35 raised | AA graphic >=3.0 | Drift violation: thick + X badge. Aliases --color-danger so status colour stays single-sourced. */
   --graph-edge-undeclared: var(--color-warning); /* dark #fbbf24 | 11.79 canvas, 10.53 raised | AA graphic >=3.0 | Drift undeclared dep: thick + triangle badge. Aliases --color-warning. */
   --graph-edge-declared-missing: var(--color-text-secondary); /* dark #a1b9d8 | 9.79 canvas, 8.74 raised | AA graphic >=3.0 | Declared-but-missing: dash-dot + "0" badge, drift mode only. */
@@ -332,8 +440,8 @@
 
   /* ---- GRAPH EDGES ---- */
   --graph-edge-extracted: #4f6783; /* light #4f6783 | 5.35 canvas, 5.83 raised | AA graphic >=3.0 | EXTRACTED: solid neutral. Largest population, so it is the quietest hue. */
-  --graph-edge-inferred: #0369a1; /* light #0369a1 | 5.44 canvas, 5.93 raised | AA graphic >=3.0 | INFERRED: dashed + "~" badge. Hue is a redundant cue only. */
-  --graph-edge-unresolved: #6d28d9; /* light #6d28d9 | 6.52 canvas, 7.10 raised | AA graphic >=3.0 | UNRESOLVED: dotted + hollow terminal + ghost node. */
+  --graph-edge-inferred: var(--accent);
+  --graph-edge-unresolved: var(--gray-8);
   --graph-edge-violation: var(--color-danger); /* light #b91c1c | 5.93 canvas, 6.47 raised | AA graphic >=3.0 | Drift violation: thick + X badge. Aliases --color-danger so status colour stays single-sourced. */
   --graph-edge-undeclared: var(--color-warning); /* light #a16207 | 4.52 canvas, 4.92 raised | AA graphic >=3.0 | Drift undeclared dep: thick + triangle badge. Aliases --color-warning. */
   --graph-edge-declared-missing: var(--color-text-secondary); /* light #4f6783 | 5.35 canvas, 5.83 raised | AA graphic >=3.0 | Declared-but-missing: dash-dot + "0" badge, drift mode only. */
@@ -390,6 +498,17 @@
   --graph-dot: color-mix(in srgb, var(--color-text-muted) var(--alpha-12), transparent);
 }
 
-
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-1: 0ms;
+    --dur-2: 0ms;
+    --dur-3: 0ms;
+    --duration-fast: 0ms;
+    --duration-normal: 0ms;
+    --duration-slow: 0ms;
+    --duration-entrance: 0ms;
+    --duration-flow: 0ms;
+  }
+}
 
 

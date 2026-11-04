@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import type { Scan } from '../../api/scans'
 import type { GraphDocument } from '../../viewer/graph-types'
 import { getScanGraph, listScans } from '../../api/scans'
@@ -9,21 +10,28 @@ import { scanReportMessages } from '../../services/scan-report-messages'
 import ScanReportPanel from './ScanReportPanel.vue'
 import { pollScanUntilTerminal } from '../../services/scan-poll'
 import { scanMessages } from '../../services/scan-messages'
+import { scanReportPath } from '../../services/dashboard-routes'
 import type { WebLocale } from '../../services/locale'
 import OpenProjectPanel from './OpenProjectPanel.vue'
 import ScanListPanel from './ScanListPanel.vue'
 import DashboardGraphPanel from './DashboardGraphPanel.vue'
 
+type InsightView = 'graph' | 'report'
+
 const props = defineProps<{
   workspaceId: string
   locale: WebLocale
   compact?: boolean
+  initialScanId?: string | null
+  projectId?: string | null
+  initialInsightView?: InsightView
 }>()
+
+const router = useRouter()
 
 const messages = computed(() => scanMessages(props.locale))
 const reportMessages = computed(() => scanReportMessages(props.locale))
-type InsightView = 'graph' | 'report'
-const insightView = ref<InsightView>('graph')
+const insightView = ref<InsightView>(props.initialInsightView ?? 'graph')
 const scans = ref<Scan[]>([])
 const listLoading = ref(false)
 const listError = ref('')
@@ -50,8 +58,9 @@ async function loadScans() {
     scans.value = await listScans(props.workspaceId)
     trackInFlightScans()
     if (!selectedScanId.value) {
-      const latestSucceeded = scans.value.find(scan => scan.status === 'succeeded')
-      if (latestSucceeded) selectedScanId.value = latestSucceeded.id
+      const preferred = props.initialScanId
+        ?? scans.value.find(scan => scan.status === 'succeeded')?.id
+      if (preferred) selectedScanId.value = preferred
     }
   } catch (cause) {
     listError.value = cause instanceof Error ? cause.message : messages.value.loadScansError
@@ -135,7 +144,19 @@ function onScanFinished(scan: Scan) {
 
 function selectScan(scanId: string) {
   selectedScanId.value = scanId
+  const locale = props.locale
+  const workspaceId = props.workspaceId
+  const projectId = props.projectId ?? 'default'
+  void router.push(scanReportPath(locale, workspaceId, projectId, scanId))
 }
+
+watch(
+  () => props.initialScanId,
+  scanId => {
+    if (scanId) selectedScanId.value = scanId
+  },
+  { immediate: true }
+)
 
 watch(
   () => props.workspaceId,
@@ -245,10 +266,9 @@ watch(selectedScanId, () => {
 
 .eyebrow {
   margin: 0;
-  font-size: var(--font-size-xs);
-  letter-spacing: var(--tracking-caps);
-  text-transform: uppercase;
-  color: var(--color-accent-primary);
+  font-size: var(--text-12);
+  line-height: var(--text-12-lh);
+  color: var(--color-text-muted);
 }
 
 .muted {
@@ -275,8 +295,8 @@ watch(selectedScanId, () => {
 }
 
 .insight-tab.active {
-  border-color: color-mix(in srgb, var(--color-accent-primary) var(--alpha-40), var(--color-border));
-  background: color-mix(in srgb, var(--color-accent-primary) var(--alpha-08), transparent);
+  border-color: var(--color-brand-amber-ui);
+  background: var(--gray-3);
 }
 
 .insight-tab:focus-visible {

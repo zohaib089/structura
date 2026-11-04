@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import Navbar from '../components/layout/Navbar.vue'
 import DashboardToast from '../components/dashboard/DashboardToast.vue'
-import BrandMark from '../components/brand/BrandMark.vue'
 import DashboardScansHub from '../components/dashboard/DashboardScansHub.vue'
-import { scanMessages } from '../services/scan-messages'
-import { BRAND } from '../../../../packages/brand/src/brand'
-import { getCurrentSession } from '../services/auth'
+import OpenProjectPanel from '../components/dashboard/OpenProjectPanel.vue'
 import { isSupportedWebLocale, readLocalePreference, resolvePreferredWebLocale } from '../services/locale'
 import { dashboardMessages } from '../services/dashboard-messages'
+import {
+  workspaceRootPath,
+  workspaceSettingsPath
+} from '../services/dashboard-routes'
 import {
   createProject,
   createWorkspace,
@@ -34,16 +34,36 @@ const locale = computed(() => {
   return resolvePreferredWebLocale(readLocalePreference(), navigator.languages)
 })
 const messages = computed(() => dashboardMessages(locale.value))
-type DashboardSection = 'overview' | 'projects' | 'architecture' | 'team'
-const activeSection = ref<DashboardSection>('overview')
+type DashboardSection =
+  | 'projects'
+  | 'open-project'
+  | 'project'
+  | 'scans'
+  | 'scan-report'
+  | 'workspace-scans'
+  | 'settings'
+
+const activeSection = computed<DashboardSection>(() => {
+  const section = route.meta.dashboardSection
+  if (typeof section === 'string') return section as DashboardSection
+  return 'projects'
+})
+
+const routeProjectId = computed(() =>
+  typeof route.params.projectId === 'string' ? route.params.projectId : ''
+)
+
+const routeScanId = computed(() => (typeof route.params.scanId === 'string' ? route.params.scanId : ''))
+
 const sectionTitle = computed(() => ({
-  overview: messages.value.overview,
   projects: messages.value.projects,
-  architecture: messages.value.architecture,
-  team: messages.value.team
+  'open-project': messages.value.openProjectNav,
+  project: messages.value.projects,
+  scans: messages.value.scansNav,
+  'scan-report': messages.value.scansNav,
+  'workspace-scans': messages.value.scansNav,
+  settings: messages.value.settingsNav
 }[activeSection.value]))
-const session = getCurrentSession()
-const user = session?.user
 const workspaces = ref<Workspace[]>([])
 const projects = ref<Project[]>([])
 const projectSearch = ref('')
@@ -68,12 +88,6 @@ let toastTimeout: ReturnType<typeof setTimeout> | undefined
 const selectedWorkspace = computed(() =>
   workspaces.value.find(workspace => workspace.id === selectedWorkspaceId.value) ?? null
 )
-const recentProjects = computed(() =>
-  [...projects.value]
-    .sort((first, second) => Date.parse(second.updated_at) - Date.parse(first.updated_at))
-    .slice(0, 5)
-)
-const scanHubMessages = computed(() => scanMessages(locale.value))
 const filteredProjects = computed(() => {
   const search = projectSearch.value.trim().toLocaleLowerCase(locale.value)
   if (!search) return projects.value
@@ -105,7 +119,7 @@ async function loadProjects(workspaceId: string) {
   projects.value = await listProjects(workspaceId)
 }
 
-async function selectWorkspace() {
+async function reloadProjectsForWorkspace() {
   projectsError.value = ''
   projectSearch.value = ''
   projects.value = []
@@ -117,6 +131,13 @@ async function selectWorkspace() {
     projectsError.value = cause instanceof Error ? cause.message : messages.value.loadProjectsError
   } finally {
     projectsLoading.value = false
+  }
+}
+
+async function onWorkspacePickerChange() {
+  await reloadProjectsForWorkspace()
+  if (selectedWorkspaceId.value) {
+    await router.push(workspaceRootPath(locale.value, selectedWorkspaceId.value))
   }
 }
 
@@ -207,23 +228,34 @@ async function loadDashboard() {
   dashboardLoadError.value = ''
   try {
     const invitationToken = typeof route.query.invitation === 'string' ? route.query.invitation : ''
+    workspaces.value = await listWorkspaces()
+    const routeWorkspaceId =
+      typeof route.params.workspace === 'string' ? route.params.workspace : ''
+    if (routeWorkspaceId && routeWorkspaceId !== 'pending') {
+      selectedWorkspaceId.value = routeWorkspaceId
+    } else if (!workspaces.value.some(workspace => workspace.id === selectedWorkspaceId.value)) {
+      selectedWorkspaceId.value = workspaces.value[0]?.id ?? ''
+    }
+
     if (invitationToken) {
-      activeSection.value = 'team'
-      await acceptWorkspaceInvitation(invitationToken)
+      const { workspaceId } = await acceptWorkspaceInvitation(invitationToken)
       showToast(messages.value.invitationAccepted)
       const query = { ...route.query }
       delete query.invitation
-      await router.replace({ path: route.path, query, hash: route.hash })
+      selectedWorkspaceId.value = workspaceId
+      await router.replace({
+        path: workspaceSettingsPath(locale.value, workspaceId),
+        query,
+        hash: route.hash
+      })
+      await loadTeam()
+      return
     }
 
-    workspaces.value = await listWorkspaces()
-    if (!workspaces.value.some(workspace => workspace.id === selectedWorkspaceId.value)) {
-      selectedWorkspaceId.value = workspaces.value[0]?.id ?? ''
-    }
     projects.value = selectedWorkspaceId.value
       ? await listProjects(selectedWorkspaceId.value)
       : []
-    if (activeSection.value === 'team') await loadTeam()
+    if (activeSection.value === 'settings') await loadTeam()
   } catch (cause) {
     dashboardLoadError.value = cause instanceof Error ? cause.message : messages.value.loadWorkspaceError
   } finally {
@@ -232,8 +264,18 @@ async function loadDashboard() {
 }
 
 watch([activeSection, selectedWorkspaceId], ([section]) => {
-  if (section === 'team' && !loading.value) void loadTeam()
+  if (section === 'settings' && !loading.value) void loadTeam()
 })
+
+watch(
+  () => route.params.workspace,
+  workspaceId => {
+    if (typeof workspaceId === 'string' && workspaceId !== 'pending') {
+      selectedWorkspaceId.value = workspaceId
+      if (!loading.value) void reloadProjectsForWorkspace()
+    }
+  }
+)
 
 onMounted(loadDashboard)
 onBeforeUnmount(() => {
@@ -243,7 +285,6 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="dashboard-page">
-    <Navbar />
     <DashboardToast
       v-if="toastMessage"
       :message="toastMessage"
@@ -251,63 +292,25 @@ onBeforeUnmount(() => {
       @dismiss="dismissToast"
     />
 
-    <main class="dashboard-shell">
-      <aside class="sidebar">
-        <div class="brand-block">
-          <BrandMark :size="42" />
-          <div>
-            <p class="eyebrow">{{ messages.workspace }}</p>
-            <h2>{{ BRAND.name }}</h2>
-          </div>
+    <section class="content-panel">
+      <div class="top-row">
+        <div>
+          <p class="eyebrow muted">{{ messages.workspaceOverview }}</p>
+          <h1>{{ sectionTitle }}</h1>
         </div>
-
-        <nav class="sidebar-nav" :aria-label="messages.dashboardNavigation">
-          <button
-            type="button"
-            class="nav-item"
-            :class="{ active: activeSection === 'overview' }"
-            :aria-current="activeSection === 'overview' ? 'page' : undefined"
-            @click="activeSection = 'overview'"
-          >{{ messages.overview }}</button>
-          <button
-            type="button"
-            class="nav-item"
-            :class="{ active: activeSection === 'projects' }"
-            :aria-current="activeSection === 'projects' ? 'page' : undefined"
-            @click="activeSection = 'projects'"
-          >{{ messages.projects }}</button>
-          <button
-            type="button"
-            class="nav-item"
-            :class="{ active: activeSection === 'architecture' }"
-            :aria-current="activeSection === 'architecture' ? 'page' : undefined"
-            @click="activeSection = 'architecture'"
-          >{{ messages.architecture }}</button>
-          <button
-            type="button"
-            class="nav-item"
-            :class="{ active: activeSection === 'team' }"
-            :aria-current="activeSection === 'team' ? 'page' : undefined"
-            @click="activeSection = 'team'"
-          >{{ messages.team }}</button>
-        </nav>
-      </aside>
-
-      <section class="content-panel">
-        <div class="top-row">
-          <div>
-            <p class="eyebrow muted">{{ messages.workspaceOverview }}</p>
-            <h1>{{ sectionTitle }}</h1>
-          </div>
-          <label v-if="workspaces.length > 1" class="workspace-picker">
-            <span class="sr-only">{{ messages.selectWorkspace }}</span>
-            <select v-model="selectedWorkspaceId" :disabled="projectsLoading" @change="selectWorkspace">
-              <option v-for="workspace in workspaces" :key="workspace.id" :value="workspace.id">
-                {{ workspace.name }}
-              </option>
-            </select>
-          </label>
-        </div>
+        <label v-if="workspaces.length > 1" class="workspace-picker">
+          <span class="sr-only">{{ messages.selectWorkspace }}</span>
+          <select
+            v-model="selectedWorkspaceId"
+            :disabled="projectsLoading"
+            @change="onWorkspacePickerChange"
+          >
+            <option v-for="workspace in workspaces" :key="workspace.id" :value="workspace.id">
+              {{ workspace.name }}
+            </option>
+          </select>
+        </label>
+      </div>
 
         <p v-if="error" class="feedback error" role="alert">{{ error }}</p>
         <div v-if="loading" class="loading-skeleton state-card" role="status" :aria-label="messages.loadingWorkspaces">
@@ -343,65 +346,12 @@ onBeforeUnmount(() => {
             </form>
           </section>
 
-          <section v-else-if="activeSection === 'overview'" class="overview-section">
-            <div class="state-card">
-              <p class="eyebrow">{{ selectedWorkspace?.name }}</p>
-              <h2>{{ user?.fullName || messages.operator }}</h2>
-              <p>{{ messages.overviewDescription }}</p>
-              <div class="overview-stats">
-                <article class="overview-stat">
-                  <span>{{ messages.projectCount }}</span>
-                  <strong>{{ projects.length }}</strong>
-                </article>
-                <article class="overview-stat">
-                  <span>{{ messages.workspaceRole }}</span>
-                  <strong>{{ selectedWorkspace?.role === 'owner' ? messages.roleOwner : selectedWorkspace?.role === 'admin' ? messages.roleAdmin : messages.roleMember }}</strong>
-                </article>
-                <article class="overview-stat">
-                  <span>{{ messages.workspaceCount }}</span>
-                  <strong>{{ workspaces.length }}</strong>
-                </article>
-              </div>
-              <div class="overview-actions">
-                <button class="primary-button" type="button" @click="activeSection = 'architecture'">
-                  {{ scanHubMessages.hubTitle }}
-                </button>
-                <button class="secondary-button" type="button" @click="activeSection = 'projects'">
-                  {{ messages.openProjects }}
-                </button>
-                <button class="secondary-button" type="button" @click="activeSection = 'team'">
-                  {{ messages.team }}
-                </button>
-              </div>
-            </div>
-
-            <DashboardScansHub
-              v-if="selectedWorkspaceId"
-              compact
+          <section v-else-if="activeSection === 'open-project' && selectedWorkspaceId" class="open-project-section">
+            <OpenProjectPanel
               :workspace-id="selectedWorkspaceId"
               :locale="locale"
+              @scan-finished="showToast(messages.projectCreated)"
             />
-
-            <section class="state-card recent-projects" :aria-label="messages.recentProjects">
-              <div class="section-heading">
-                <h2>{{ messages.recentProjects }}</h2>
-                <button class="secondary-button" type="button" @click="activeSection = 'projects'">
-                  {{ messages.openProjects }}
-                </button>
-              </div>
-              <p v-if="projectsError" class="feedback error" role="alert">{{ projectsError }}</p>
-              <p v-else-if="projectsLoading" role="status">{{ messages.loadingWorkspaces }}</p>
-              <p v-else-if="recentProjects.length === 0">{{ messages.noProjects }}</p>
-              <ul v-else class="project-list">
-                <li v-for="project in recentProjects" :key="project.id" class="project-item">
-                  <div class="project-item-heading">
-                    <h3>{{ project.name }}</h3>
-                    <time :datetime="project.updated_at">{{ messages.lastUpdated }} · {{ formatDate(project.updated_at) }}</time>
-                  </div>
-                  <p>{{ project.description || messages.noDescription }}</p>
-                </li>
-              </ul>
-            </section>
           </section>
 
           <section v-else-if="activeSection === 'projects'" class="projects-section">
@@ -419,7 +369,7 @@ onBeforeUnmount(() => {
 
             <div v-if="projectsError" class="state-card error-state" role="alert">
               <p>{{ projectsError }}</p>
-              <button class="primary-button" type="button" @click="selectWorkspace">{{ messages.retry }}</button>
+              <button class="primary-button" type="button" @click="reloadProjectsForWorkspace">{{ messages.retry }}</button>
             </div>
             <div v-else-if="projectsLoading" class="project-skeleton" role="status" :aria-label="messages.loadingWorkspaces">
               <span class="sr-only">{{ messages.loadingWorkspaces }}</span>
@@ -464,12 +414,28 @@ onBeforeUnmount(() => {
           </section>
 
           <DashboardScansHub
-            v-else-if="activeSection === 'architecture' && selectedWorkspaceId"
+            v-else-if="
+              (activeSection === 'workspace-scans'
+                || activeSection === 'scans'
+                || activeSection === 'scan-report'
+                || activeSection === 'project')
+              && selectedWorkspaceId
+            "
             :workspace-id="selectedWorkspaceId"
             :locale="locale"
+            :compact="activeSection === 'project'"
+            :initial-scan-id="routeScanId || null"
+            :project-id="routeProjectId || null"
+            :initial-insight-view="
+              route.params.tab === 'graph'
+                ? 'graph'
+                : typeof route.params.tab === 'string' && route.params.tab.length > 0
+                  ? 'report'
+                  : 'graph'
+            "
           />
 
-          <section v-else class="team-section">
+          <section v-else-if="activeSection === 'settings'" class="team-section">
             <p class="eyebrow">{{ selectedWorkspace?.name }}</p>
             <p v-if="selectedWorkspace" class="role-summary">
               <strong>{{ messages.workspaceRole }}:</strong>
@@ -529,16 +495,11 @@ onBeforeUnmount(() => {
 
         </template>
       </section>
-    </main>
   </div>
 </template>
 
 <style scoped>
 .dashboard-page {
-  min-height: 100vh;
-  background:
-    radial-gradient(circle at top left, color-mix(in srgb, var(--color-accent-primary) var(--alpha-12), transparent), transparent 28%),
-    linear-gradient(180deg, color-mix(in srgb, var(--color-surface) var(--alpha-full), transparent), var(--color-surface));
   color: var(--color-text-primary);
 }
 
