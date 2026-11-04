@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
 import type { ReportTreeNode } from '../../services/scan-report-tree'
 import { highestSeverity } from '../../services/scan-report-tree'
 import { severityCssVar } from '../../services/scan-report-severity'
@@ -9,6 +10,7 @@ const props = defineProps<{
   root: ReportTreeNode
   selectedPath: string | null
   messages: ScanReportMessages
+  graphHref?: (path: string) => string
 }>()
 
 const emit = defineEmits<{
@@ -136,6 +138,15 @@ function severityStyle(node: ReportTreeNode) {
         <span v-if="row.node.counts.total > 0" class="count-badge" :style="severityStyle(row.node)">
           {{ row.node.counts.total }}
         </span>
+        <RouterLink
+          v-if="graphHref && row.node.path"
+          class="tree-graph-link"
+          :to="graphHref(row.node.path)"
+          :title="messages.showInGraph"
+          @click.stop
+        >
+          {{ messages.showInGraph }}
+        </RouterLink>
       </li>
     </ul>
     <p v-if="visibleRows.length === 0" class="muted">{{ messages.emptySection }}</p>

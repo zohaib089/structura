@@ -38,6 +38,11 @@ export function createAppRouter(history: RouterHistory = createWebHistory(import
         component: () => import('../views/HomeView.vue')
       },
       {
+        path: '/viewer',
+        name: 'viewer',
+        component: () => import('../views/ViewerRouteView.vue')
+      },
+      {
         path: '/dashboard',
         redirect: to =>
           localizedDashboardRedirect('/w/pending', to.query, to.hash ?? '')
@@ -52,6 +57,11 @@ export function createAppRouter(history: RouterHistory = createWebHistory(import
         path: localePath,
         name: 'localized-home',
         component: () => import('../views/HomeView.vue')
+      },
+      {
+        path: `${localePath}/viewer`,
+        name: 'localized-viewer',
+        component: () => import('../views/ViewerRouteView.vue')
       },
       {
         path: `${localePath}/dashboard`,
@@ -102,6 +112,28 @@ export function createAppRouter(history: RouterHistory = createWebHistory(import
             name: 'project-scans',
             component: dashboardView,
             meta: { dashboardSection: 'scans' }
+          },
+          {
+            path: 'projects/:projectId/graph',
+            name: 'project-graph',
+            component: () => import('../views/dashboard/ScanGraphView.vue'),
+            meta: { dashboardSection: 'project-graph' },
+            props: route => ({
+              workspaceId: String(route.params.workspace),
+              projectId: String(route.params.projectId),
+              scanId: null
+            })
+          },
+          {
+            path: 'projects/:projectId/scans/:scanId/graph',
+            name: 'scan-graph',
+            component: () => import('../views/dashboard/ScanGraphView.vue'),
+            meta: { dashboardSection: 'scan-graph' },
+            props: route => ({
+              workspaceId: String(route.params.workspace),
+              projectId: String(route.params.projectId),
+              scanId: String(route.params.scanId)
+            })
           },
           {
             path: 'projects/:projectId/scans/:scanId/:tab?',

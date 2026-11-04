@@ -7,7 +7,8 @@ The hosted dashboard now drives workspace scans from the Architecture section an
 - Open project flow (local folder zip, direct `.zip` upload, GitHub URL, GitLab URL, optional branch)
 - Per-workspace scan list with status and errors
 - Graph insights loaded from `GET /workspaces/:id/scans/:scanId/graph`
-- Open viewer handoff via sessionStorage (static viewer drag-and-drop unchanged)
+- Scan graphs open in the dashboard shell at `…/scans/:scanId/graph` (loaded from the scan API).
+- Static viewer drag-and-drop remains available via `npm run dev:viewer` and the `/viewer` marketing route.
 
 ## API client
 

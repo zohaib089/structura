@@ -87,8 +87,10 @@ const navItems = computed<SidebarNavItem[]>(() => {
       to: workspaceScansPath(base, ws),
       active:
         route.name === 'workspace-scans'
-        || route.name === 'project-scans'
+        ||         route.name === 'project-scans'
         || route.name === 'scan-report'
+        || route.name === 'scan-graph'
+        || route.name === 'project-graph'
         || route.name === 'open-project'
     },
     {
@@ -121,7 +123,9 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => {
       to: scanReportPath(locale.value, workspaceParam.value, projectId.value || 'default', scanId.value)
     })
   }
-  if (scanTab.value) {
+  if (route.name === 'scan-graph' || route.name === 'project-graph' || scanTab.value === 'graph') {
+    items.push({ label: messages.value.graphTabBreadcrumb })
+  } else if (scanTab.value) {
     items.push({ label: scanTab.value })
   } else if (route.name === 'open-project') {
     items.push({ label: messages.value.openProjectNav })

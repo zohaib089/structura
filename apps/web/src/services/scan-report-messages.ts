@@ -31,6 +31,7 @@ export interface ScanReportMessages {
   graphView: string
   detailTitle: string
   detailEmpty: string
+  showInGraph: string
   emptySection: string
   tabHistory: string
   tabViolations: string
@@ -101,6 +102,7 @@ const en: ScanReportMessages = {
   graphView: 'Graph',
   detailTitle: 'Findings',
   detailEmpty: 'Select a file or folder to inspect matching findings.',
+  showInGraph: 'Show in graph',
   emptySection: 'No items match the current filters in this section.',
   tabHistory: 'History',
   tabViolations: 'Code violations',

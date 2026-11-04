@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { RouterLink } from 'vue-router'
 import type { GraphDocument } from '../../viewer/graph-types'
 import type { ScanReportMessages } from '../../services/scan-report-messages'
 import {
@@ -11,6 +12,7 @@ import {
 const props = defineProps<{
   graph: GraphDocument | null
   messages: ScanReportMessages
+  graphHref?: (path: string) => string
 }>()
 
 const configured = computed(() => graphHasArchitectureConfig(props.graph))
@@ -76,7 +78,16 @@ const findings = computed(() => architecture.value?.findings ?? [])
             <td>{{ finding.from }}</td>
             <td>{{ finding.to }}</td>
             <td>{{ finding.edgeKind }}</td>
-            <td><code>{{ finding.file }}:{{ finding.line }}</code></td>
+            <td>
+              <code>{{ finding.file }}:{{ finding.line }}</code>
+              <RouterLink
+                v-if="graphHref"
+                class="finding-graph-link"
+                :to="graphHref(finding.file)"
+              >
+                {{ messages.showInGraph }}
+              </RouterLink>
+            </td>
             <td>{{ finding.rule }}</td>
             <td>{{ finding.provenance }}</td>
           </tr>
@@ -121,7 +132,9 @@ const findings = computed(() => architecture.value?.findings ?? [])
   vertical-align: top;
 }
 
-.data-table thead th {
-  background: color-mix(in srgb, var(--color-surface-raised) var(--alpha-80), transparent);
+.finding-graph-link {
+  display: inline-block;
+  margin-inline-start: var(--space-2);
+  font-size: var(--text-12);
 }
 </style>

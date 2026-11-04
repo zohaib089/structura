@@ -75,13 +75,5 @@ services:
       api:
         condition: service_healthy
 
-  viewer:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-      target: viewer
-    ports:
-      - '8080:80'
-
 volumes:
   postgres_data:
