@@ -25,6 +25,7 @@ function createScanApi() {
         source_url: text.includes("'git'") ? params[3] : null,
         source_branch: text.includes("'git'") ? params[4] : null,
         status: 'queued',
+        step: null,
         error_message: null,
         created_at: '2026-11-02T00:00:00.000Z',
         updated_at: '2026-11-02T00:00:00.000Z',
@@ -50,6 +51,16 @@ function createScanApi() {
     if (text.includes('WHERE workspace_id = $1 AND id = $2')) {
       const scan = scans.get(String(params[1]))
       return { rows: scan ? [scan] : [] }
+    }
+    if (text.startsWith('UPDATE workspace_scans') && text.includes(`status = 'cancelled'`)) {
+      const scan = scans.get(String(params[2]))
+      if (!scan) return { rows: [] }
+      if (text.includes(`status = 'queued'`) && scan.status !== 'queued') return { rows: [] }
+      if (text.includes(`status = 'running'`) && scan.status !== 'running') return { rows: [] }
+      scan.status = 'cancelled'
+      scan.step = null
+      scan.finished_at = params[0]
+      return { rows: [scan] }
     }
     return { rows: [] }
   }
@@ -147,6 +158,80 @@ test('report route returns 409 until scan completes', async () => {
       headers: { authorization: 'Bearer valid-session' }
     })
     assert.equal(report.statusCode, 409)
+  } finally {
+    await api.app.close()
+  }
+})
+
+test('cancel route cancels a queued scan', async () => {
+  const api = createScanApi()
+  try {
+    const created = await api.app.inject({
+      method: 'POST',
+      url: '/api/workspaces/workspace-1/scans',
+      headers: { authorization: 'Bearer valid-session' },
+      payload: { source: 'git', url: 'https://github.com/org/repo' }
+    })
+    const scanId = created.json().scan.id as string
+    const cancelled = await api.app.inject({
+      method: 'POST',
+      url: `/api/workspaces/workspace-1/scans/${scanId}/cancel`,
+      headers: { authorization: 'Bearer valid-session' }
+    })
+    assert.equal(cancelled.statusCode, 200)
+    assert.equal(cancelled.json().scan.status, 'cancelled')
+    assert.equal(cancelled.json().scan.step, null)
+    assert.ok(cancelled.json().scan.finishedAt)
+  } finally {
+    await api.app.close()
+  }
+})
+
+test('cancel route cancels a running scan', async () => {
+  const api = createScanApi()
+  try {
+    const created = await api.app.inject({
+      method: 'POST',
+      url: '/api/workspaces/workspace-1/scans',
+      headers: { authorization: 'Bearer valid-session' },
+      payload: { source: 'git', url: 'https://github.com/org/repo' }
+    })
+    const scanId = created.json().scan.id as string
+    const scan = api.scans.get(scanId)!
+    scan.status = 'running'
+    scan.step = 'scanning'
+
+    const cancelled = await api.app.inject({
+      method: 'POST',
+      url: `/api/workspaces/workspace-1/scans/${scanId}/cancel`,
+      headers: { authorization: 'Bearer valid-session' }
+    })
+    assert.equal(cancelled.statusCode, 200)
+    assert.equal(cancelled.json().scan.status, 'cancelled')
+  } finally {
+    await api.app.close()
+  }
+})
+
+test('cancel route returns 409 when scan already finished', async () => {
+  const api = createScanApi()
+  try {
+    const created = await api.app.inject({
+      method: 'POST',
+      url: '/api/workspaces/workspace-1/scans',
+      headers: { authorization: 'Bearer valid-session' },
+      payload: { source: 'git', url: 'https://github.com/org/repo' }
+    })
+    const scanId = created.json().scan.id as string
+    api.scans.get(scanId)!.status = 'succeeded'
+
+    const cancelled = await api.app.inject({
+      method: 'POST',
+      url: `/api/workspaces/workspace-1/scans/${scanId}/cancel`,
+      headers: { authorization: 'Bearer valid-session' }
+    })
+    assert.equal(cancelled.statusCode, 409)
+    assert.equal(cancelled.json().success, false)
   } finally {
     await api.app.close()
   }

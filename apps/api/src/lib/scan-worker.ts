@@ -13,7 +13,7 @@ import {
 import { writeFile } from 'node:fs/promises'
 import { access } from 'node:fs/promises'
 import { join } from 'node:path'
-import type { ScanStatus, WorkspaceScanRecord } from './scan-contracts.js'
+import type { ScanStatus, ScanStep, WorkspaceScanRecord } from './scan-contracts.js'
 import type { WorkspaceQuery } from './workspace-routes.js'
 
 export interface ScanWorkerDependencies {
@@ -27,13 +27,26 @@ export interface ScanWorkerDependencies {
 }
 
 const queue = new Set<string>()
+const runningAbortControllers = new Map<string, AbortController>()
 let draining = false
 
+/** Terminal scan rows clear `step`; in-flight running scans expose the current phase. */
 export function enqueueWorkspaceScan(scanId: string, dependencies: ScanWorkerDependencies): void {
   queue.add(scanId)
   void drainScanQueue(dependencies).catch(error => {
     logScanWorkerError('scan queue drain failed', error)
   })
+}
+
+export function removeQueuedWorkspaceScan(scanId: string): boolean {
+  return queue.delete(scanId)
+}
+
+export function abortRunningWorkspaceScan(scanId: string): boolean {
+  const controller = runningAbortControllers.get(scanId)
+  if (!controller) return false
+  controller.abort()
+  return true
 }
 
 async function drainScanQueue(dependencies: ScanWorkerDependencies): Promise<void> {
@@ -66,10 +79,14 @@ async function runWorkspaceScan(scanId: string, dependencies: ScanWorkerDependen
   if (!scan || scan.status !== 'queued') return
 
   const uploadPayload = scan.upload_payload
+  const abortController = new AbortController()
+  runningAbortControllers.set(scanId, abortController)
+  const { signal } = abortController
 
   try {
     await updateScan(dependencies.query, scanId, {
       status: 'running',
+      step: 'fetching',
       started_at: now(),
       error_message: null,
       upload_payload: null
@@ -86,46 +103,58 @@ async function runWorkspaceScan(scanId: string, dependencies: ScanWorkerDependen
       const timer = setTimeout(() => reject(new Error('Scan timed out.')), limits.timeoutMs)
       void (async () => {
         try {
-    let sourceRoot: string
-    if (scan.source === 'git') {
-      const parsed = assertAllowlistedGitHttpsUrl(String(scan.source_url))
-      const clone = await cloneRepository({
-        url: parsed,
-        branch: scan.source_branch ?? undefined,
-        limits,
-        githubToken: process.env.GITHUB_TOKEN,
-        gitlabToken: process.env.GITLAB_TOKEN
-      })
-      sourceRoot = clone.directory
-      cleanupSource = clone.cleanup
-    } else {
-      const workspace = await createTempWorkspace('structura-upload-')
-      const archivePath = join(workspace.directory, 'upload.archive')
-      if (!uploadPayload) throw new Error('Upload scan is missing its payload.')
-      await writeFile(archivePath, Buffer.from(uploadPayload, 'base64'))
-      const extracted = await extractArchive(archivePath, join(workspace.directory, 'root'), { limits })
-      sourceRoot = extracted.rootDir
-      cleanupSource = workspace.cleanup
-    }
+          let sourceRoot: string
+          checkAbort(signal)
+          if (scan.source === 'git') {
+            const parsed = assertAllowlistedGitHttpsUrl(String(scan.source_url))
+            const clone = await cloneRepository({
+              url: parsed,
+              branch: scan.source_branch ?? undefined,
+              limits,
+              githubToken: process.env.GITHUB_TOKEN,
+              gitlabToken: process.env.GITLAB_TOKEN
+            })
+            sourceRoot = clone.directory
+            cleanupSource = clone.cleanup
+          } else {
+            const workspace = await createTempWorkspace('structura-upload-')
+            const archivePath = join(workspace.directory, 'upload.archive')
+            if (!uploadPayload) throw new Error('Upload scan is missing its payload.')
+            await writeFile(archivePath, Buffer.from(uploadPayload, 'base64'))
+            const extracted = await extractArchive(archivePath, join(workspace.directory, 'root'), { limits })
+            sourceRoot = extracted.rootDir
+            cleanupSource = workspace.cleanup
+          }
 
-    const output = await runScan(sourceRoot, { noCache: true, limits: { jobs: 1 } })
-    const graph = JSON.parse(output.graphJson) as unknown
-    const hasGit =
-      scan.source === 'git' ||
-      (await access(join(sourceRoot, '.git')).then(() => true).catch(() => false))
-    const report = await runAnalysis({
-      rootDir: sourceRoot,
-      graph,
-      hasGit,
-      limits: { allowNetwork: Boolean(process.env.SCAN_ANALYSIS_ALLOW_NETWORK) }
-    })
-    await updateScan(dependencies.query, scanId, {
-      status: 'succeeded',
-      graph_json: graph,
-      report_json: report,
-      finished_at: now(),
-      error_message: null
-    })
+          await setScanStep(dependencies.query, scanId, 'scanning', signal)
+          const output = await runScan(sourceRoot, { noCache: true, limits: { jobs: 1 } })
+          const graph = JSON.parse(output.graphJson) as unknown
+
+          await setScanStep(dependencies.query, scanId, 'analysing', signal)
+          const hasGit =
+            scan.source === 'git' ||
+            (await access(join(sourceRoot, '.git')).then(() => true).catch(() => false))
+          const report = await runAnalysis({
+            rootDir: sourceRoot,
+            graph,
+            hasGit,
+            limits: { allowNetwork: Boolean(process.env.SCAN_ANALYSIS_ALLOW_NETWORK) }
+          })
+
+          await setScanStep(dependencies.query, scanId, 'saving', signal)
+          await updateScan(
+            dependencies.query,
+            scanId,
+            {
+              status: 'succeeded',
+              step: null,
+              graph_json: graph,
+              report_json: report,
+              finished_at: now(),
+              error_message: null
+            },
+            { onlyIfRunning: true }
+          )
           resolve()
         } catch (error) {
           reject(error)
@@ -137,8 +166,25 @@ async function runWorkspaceScan(scanId: string, dependencies: ScanWorkerDependen
   } catch (error) {
     await failScanSafely(dependencies.query, scanId, error, now)
   } finally {
+    runningAbortControllers.delete(scanId)
     await cleanupSource?.()
   }
+}
+
+function checkAbort(signal: AbortSignal): void {
+  if (signal.aborted) {
+    throw new Error('Scan cancelled.')
+  }
+}
+
+async function setScanStep(
+  query: WorkspaceQuery,
+  scanId: string,
+  step: ScanStep,
+  signal: AbortSignal
+): Promise<void> {
+  checkAbort(signal)
+  await updateScan(query, scanId, { step }, { onlyIfRunning: true })
 }
 
 async function failScanSafely(
@@ -149,13 +195,19 @@ async function failScanSafely(
 ): Promise<void> {
   const message = redactFailureMessage(error)
   try {
-    await updateScan(query, scanId, {
-      status: 'failed',
-      finished_at: now(),
-      error_message: message,
-      graph_json: null,
-      report_json: null
-    })
+    await updateScan(
+      query,
+      scanId,
+      {
+        status: 'failed',
+        step: null,
+        finished_at: now(),
+        error_message: message,
+        graph_json: null,
+        report_json: null
+      },
+      { onlyIfRunning: true }
+    )
   } catch (updateError) {
     logScanWorkerError(`could not mark scan ${scanId} as failed`, updateError)
   }
@@ -216,7 +268,7 @@ export async function recoverWorkspaceScansOnStartup(dependencies: ScanWorkerDep
 
 async function loadScan(query: WorkspaceQuery, scanId: string): Promise<(WorkspaceScanRecord & { upload_payload?: string | null }) | null> {
   const result = await query(
-    `SELECT id, workspace_id, requested_by, source, source_url, source_branch, upload_payload, status, error_message,
+    `SELECT id, workspace_id, requested_by, source, source_url, source_branch, upload_payload, status, step, error_message,
             graph_json, report_json, created_at, updated_at, started_at, finished_at
      FROM workspace_scans
      WHERE id = $1`,
@@ -232,13 +284,15 @@ async function updateScan(
   scanId: string,
   patch: Partial<{
     status: ScanStatus
+    step: ScanStep | null
     error_message: string | null
     graph_json: unknown
     report_json: unknown
     started_at: Date
     finished_at: Date
     upload_payload: null
-  }>
+  }>,
+  options?: { onlyIfRunning?: boolean }
 ): Promise<void> {
   const fields: string[] = ['updated_at = NOW()']
   const params: unknown[] = []
@@ -247,6 +301,10 @@ async function updateScan(
   if (patch.status !== undefined) {
     fields.push(`status = $${index++}`)
     params.push(patch.status)
+  }
+  if (patch.step !== undefined) {
+    fields.push(`step = $${index++}`)
+    params.push(patch.step)
   }
   if (patch.error_message !== undefined) {
     fields.push(`error_message = $${index++}`)
@@ -273,7 +331,14 @@ async function updateScan(
   }
 
   params.push(scanId)
-  await query(`UPDATE workspace_scans SET ${fields.join(', ')} WHERE id = $${index}`, params)
+  let where = `WHERE id = $${index}`
+  if (options?.onlyIfRunning) {
+    index++
+    params.push('running')
+    where += ` AND status = $${index}`
+  }
+
+  await query(`UPDATE workspace_scans SET ${fields.join(', ')} ${where}`, params)
 }
 
 export function encodeUploadPayload(payload: Buffer): string {

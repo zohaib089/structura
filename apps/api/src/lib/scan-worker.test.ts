@@ -3,45 +3,77 @@ import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { runWorkspaceScan, recoverWorkspaceScansOnStartup } from './scan-worker.js'
+import {
+  abortRunningWorkspaceScan,
+  runWorkspaceScan,
+  recoverWorkspaceScansOnStartup
+} from './scan-worker.js'
 import type { WorkspaceQuery } from './workspace-routes.js'
 
-test('scan worker stores graph json after a mocked successful scan', async () => {
-  const scans = new Map<string, Record<string, unknown>>([
-    ['scan-1', {
-      id: 'scan-1',
-      workspace_id: 'workspace-1',
-      requested_by: 'user-1',
-      source: 'git',
-      source_url: 'https://github.com/org/repo',
-      source_branch: null,
-      upload_payload: null,
-      status: 'queued',
-      error_message: null,
-      graph_json: null,
-      created_at: '2026-11-02T00:00:00.000Z',
-      updated_at: '2026-11-02T00:00:00.000Z',
-      started_at: null,
-      finished_at: null
-    }]
-  ])
+function createScanStore(entries: Array<[string, Record<string, unknown>]>) {
+  const scans = new Map<string, Record<string, unknown>>(entries)
+
+  const applyUpdate = (scan: Record<string, unknown>, text: string, params: unknown[]) => {
+    const setPart = text.match(/SET (.+?) WHERE/s)?.[1] ?? ''
+    for (const assignment of setPart.split(',').map(part => part.trim())) {
+      if (assignment === 'updated_at = NOW()') continue
+      if (assignment === 'upload_payload = NULL') {
+        scan.upload_payload = null
+        continue
+      }
+      const match = assignment.match(/^(\w+) = \$(\d+)$/)
+      if (!match) continue
+      const field = match[1]
+      const value = params[Number(match[2]) - 1]
+      scan[field] = value
+    }
+  }
 
   const query: WorkspaceQuery = async (text, params = []) => {
     if (text.startsWith('SELECT id, workspace_id')) {
       return { rows: scans.get(String(params[0])) ? [scans.get(String(params[0]))!] : [] }
     }
     if (text.startsWith('UPDATE workspace_scans')) {
-      const scan = scans.get(String(params.at(-1)))
+      const onlyIfRunning = text.includes(' AND status =')
+      const scanId = String(params.at(onlyIfRunning ? -2 : -1))
+      const scan = scans.get(scanId)
       if (!scan) return { rows: [] }
-      const statusIndex = text.indexOf('status = $1')
-      if (statusIndex >= 0) scan.status = String(params[0])
-      if (text.includes('graph_json =')) scan.graph_json = { schema: 'graph.v1' }
-      if (text.includes('report_json =')) scan.report_json = params.find(value => typeof value === 'object' && value !== null && 'schemaVersion' in (value as object)) ?? { schemaVersion: '1.0.0' }
-      if (text.includes('error_message =')) scan.error_message = params[1]
+      if (onlyIfRunning && scan.status !== 'running') return { rows: [] }
+      applyUpdate(scan, text, params)
       return { rows: [] }
+    }
+    if (text.includes(`status IN ('queued', 'running')`)) {
+      return { rows: [...scans.values()] }
     }
     return { rows: [] }
   }
+
+  return { scans, query }
+}
+
+test('scan worker stores graph json after a mocked successful scan', async () => {
+  const { scans, query } = createScanStore([
+    [
+      'scan-1',
+      {
+        id: 'scan-1',
+        workspace_id: 'workspace-1',
+        requested_by: 'user-1',
+        source: 'git',
+        source_url: 'https://github.com/org/repo',
+        source_branch: null,
+        upload_payload: null,
+        status: 'queued',
+        step: null,
+        error_message: null,
+        graph_json: null,
+        created_at: '2026-11-02T00:00:00.000Z',
+        updated_at: '2026-11-02T00:00:00.000Z',
+        started_at: null,
+        finished_at: null
+      }
+    ]
+  ])
 
   await runWorkspaceScan('scan-1', {
     query,
@@ -61,7 +93,7 @@ test('scan worker stores graph json after a mocked successful scan', async () =>
       strictFailures: [],
       summary: 'ok',
       elapsedMs: 1,
-      root: directoryPlaceholder()
+      root: '/tmp'
     }),
     runAnalysis: async () => ({
       schemaVersion: '1.0.0',
@@ -74,41 +106,187 @@ test('scan worker stores graph json after a mocked successful scan', async () =>
   })
 
   assert.equal(scans.get('scan-1')?.status, 'succeeded')
+  assert.equal(scans.get('scan-1')?.step, null)
   assert.deepEqual(scans.get('scan-1')?.graph_json, { schema: 'graph.v1' })
   assert.equal((scans.get('scan-1')?.report_json as { schemaVersion?: string })?.schemaVersion, '1.0.0')
 })
 
-function directoryPlaceholder(): string {
-  return '/tmp'
-}
-
-test('recoverWorkspaceScansOnStartup fails interrupted running scans', async () => {
-  const scans = new Map<string, Record<string, unknown>>([
-    ['scan-running', {
-      id: 'scan-running',
-      source: 'upload',
-      source_url: null,
-      upload_payload: null,
-      status: 'running'
-    }]
+test('scan worker updates step through scan phases', async () => {
+  const { scans, query } = createScanStore([
+    [
+      'scan-1',
+      {
+        id: 'scan-1',
+        workspace_id: 'workspace-1',
+        requested_by: 'user-1',
+        source: 'git',
+        source_url: 'https://github.com/org/repo',
+        source_branch: null,
+        upload_payload: null,
+        status: 'queued',
+        step: null,
+        error_message: null,
+        graph_json: null,
+        report_json: null,
+        created_at: '2026-11-02T00:00:00.000Z',
+        updated_at: '2026-11-02T00:00:00.000Z',
+        started_at: null,
+        finished_at: null
+      }
+    ]
   ])
 
-  const query: WorkspaceQuery = async (text, params = []) => {
-    if (text.includes(`status IN ('queued', 'running')`)) {
-      return { rows: [...scans.values()] }
-    }
-    if (text.startsWith('UPDATE workspace_scans')) {
-      const scan = scans.get(String(params.at(-1)))
-      if (!scan) return { rows: [] }
-      if (text.includes('status =')) scan.status = String(params[0])
-      if (text.includes('error_message =')) scan.error_message = params[1]
-      return { rows: [] }
-    }
-    return { rows: [] }
+  const stepsSeen: string[] = []
+  const originalApply = query
+  const trackingQuery: WorkspaceQuery = async (text, params) => {
+    const result = await originalApply(text, params)
+    const scan = scans.get('scan-1')
+    if (scan?.step) stepsSeen.push(String(scan.step))
+    return result
   }
+
+  let releaseScan!: () => void
+  const scanGate = new Promise<void>(resolve => {
+    releaseScan = resolve
+  })
+
+  const runPromise = runWorkspaceScan('scan-1', {
+    query: trackingQuery,
+    now: () => new Date('2026-11-02T00:00:01.000Z'),
+    cloneRepository: async () => {
+      const directory = await mkdtemp(join(tmpdir(), 'mock-clone-'))
+      await mkdir(join(directory, '.git'), { recursive: true })
+      return { directory, cleanup: async () => undefined }
+    },
+    runScan: async () => {
+      await scanGate
+      return {
+        graphJson: '{"schema":"graph.v1"}',
+        graph: {} as never,
+        graphPath: '/tmp/graph.json',
+        run: {} as never,
+        strictFailures: [],
+        summary: 'ok',
+        elapsedMs: 1,
+        root: '/tmp'
+      }
+    },
+    runAnalysis: async () => ({
+      schemaVersion: '1.0.0',
+      generatedAt: '2026-11-02T00:00:01.000Z',
+      analysers: {},
+      history: null,
+      findings: [],
+      improvements: []
+    })
+  })
+
+  await waitUntil(() => scans.get('scan-1')?.step === 'scanning')
+  releaseScan()
+  await runPromise
+
+  assert.deepEqual([...new Set(stepsSeen)], ['fetching', 'scanning', 'analysing', 'saving'])
+})
+
+test('running scan stops cooperatively when aborted after cancel', async () => {
+  const { scans, query } = createScanStore([
+    [
+      'scan-1',
+      {
+        id: 'scan-1',
+        workspace_id: 'workspace-1',
+        requested_by: 'user-1',
+        source: 'git',
+        source_url: 'https://github.com/org/repo',
+        source_branch: null,
+        upload_payload: null,
+        status: 'queued',
+        step: null,
+        error_message: null,
+        graph_json: null,
+        report_json: null,
+        created_at: '2026-11-02T00:00:00.000Z',
+        updated_at: '2026-11-02T00:00:00.000Z',
+        started_at: null,
+        finished_at: null
+      }
+    ]
+  ])
+
+  let releaseScan!: () => void
+  const scanGate = new Promise<void>(resolve => {
+    releaseScan = resolve
+  })
+
+  const runPromise = runWorkspaceScan('scan-1', {
+    query,
+    now: () => new Date('2026-11-02T00:00:02.000Z'),
+    cloneRepository: async () => {
+      const directory = await mkdtemp(join(tmpdir(), 'mock-clone-'))
+      await mkdir(join(directory, '.git'), { recursive: true })
+      return { directory, cleanup: async () => undefined }
+    },
+    runScan: async () => {
+      await scanGate
+      return {
+        graphJson: '{}',
+        graph: {} as never,
+        graphPath: '/tmp/graph.json',
+        run: {} as never,
+        strictFailures: [],
+        summary: 'ok',
+        elapsedMs: 1,
+        root: '/tmp'
+      }
+    },
+    runAnalysis: async () => ({
+      schemaVersion: '1.0.0',
+      generatedAt: '2026-11-02T00:00:02.000Z',
+      analysers: {},
+      history: null,
+      findings: [],
+      improvements: []
+    })
+  })
+
+  await waitUntil(() => scans.get('scan-1')?.step === 'scanning')
+  scans.get('scan-1')!.status = 'cancelled'
+  scans.get('scan-1')!.step = null
+  abortRunningWorkspaceScan('scan-1')
+  releaseScan()
+  await runPromise
+
+  assert.equal(scans.get('scan-1')?.status, 'cancelled')
+  assert.equal(scans.get('scan-1')?.step, null)
+})
+
+test('recoverWorkspaceScansOnStartup fails interrupted running scans', async () => {
+  const { scans, query } = createScanStore([
+    [
+      'scan-running',
+      {
+        id: 'scan-running',
+        source: 'upload',
+        source_url: null,
+        upload_payload: null,
+        status: 'running',
+        step: 'scanning'
+      }
+    ]
+  ])
 
   await recoverWorkspaceScansOnStartup({ query, now: () => new Date('2026-11-03T00:00:00.000Z') })
 
   assert.equal(scans.get('scan-running')?.status, 'failed')
   assert.match(String(scans.get('scan-running')?.error_message), /interrupted/i)
 })
+
+async function waitUntil(predicate: () => boolean, timeoutMs = 5000): Promise<void> {
+  const started = Date.now()
+  while (!predicate()) {
+    if (Date.now() - started > timeoutMs) {
+      throw new Error('Timed out waiting for condition.')
+    }
+    await new Promise(resolve => setTimeout(resolve, 10))
+  }
+}
