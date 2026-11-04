@@ -427,11 +427,9 @@ onBeforeUnmount(() => {
             :initial-scan-id="routeScanId || null"
             :project-id="routeProjectId || null"
             :initial-insight-view="
-              route.params.tab === 'graph'
-                ? 'graph'
-                : typeof route.params.tab === 'string' && route.params.tab.length > 0
-                  ? 'report'
-                  : 'graph'
+              typeof route.params.tab === 'string' && route.params.tab.length > 0
+                ? 'report'
+                : 'graph'
             "
           />
 

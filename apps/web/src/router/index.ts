@@ -125,17 +125,6 @@ export function createAppRouter(history: RouterHistory = createWebHistory(import
             })
           },
           {
-            path: 'projects/:projectId/scans/:scanId/graph',
-            name: 'scan-graph',
-            component: () => import('../views/dashboard/ScanGraphView.vue'),
-            meta: { dashboardSection: 'scan-graph' },
-            props: route => ({
-              workspaceId: String(route.params.workspace),
-              projectId: String(route.params.projectId),
-              scanId: String(route.params.scanId)
-            })
-          },
-          {
             path: 'projects/:projectId/scans/:scanId/:tab?',
             name: 'scan-report',
             component: dashboardView,

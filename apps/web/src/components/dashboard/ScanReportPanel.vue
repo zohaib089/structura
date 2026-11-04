@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import BrandMark from '../brand/BrandMark.vue'
 import ScanReportTree from './ScanReportTree.vue'
-import ScanReportHierarchyGraph from './ScanReportHierarchyGraph.vue'
-import ScanReportModuleGraph from './ScanReportModuleGraph.vue'
 import ScanReportArchitecturePanel from './ScanReportArchitecturePanel.vue'
 import ScanReportAnalysers from './ScanReportAnalysers.vue'
+import ScanGraphView from '../../views/dashboard/ScanGraphView.vue'
 import type { ScanReportV1 } from '../../api/scan-report-types'
 import type { GraphDocument } from '../../viewer/graph-types'
 import type { WebLocale } from '../../services/locale'
@@ -28,7 +27,14 @@ import {
   graphHasArchitectureConfig
 } from '../../services/scan-report-architecture'
 import type { ReportFinding, ReportSection, ReportSeverity } from '../../api/scan-report-types'
-import { scanGraphPath } from '../../services/dashboard-routes'
+import { scanReportPath } from '../../services/dashboard-routes'
+import {
+  mergeReportLocationQuery,
+  parseReportFiltersFromQuery,
+  parseReportNodeQuery,
+  parseReportTabParam,
+  reportTabPathSegment
+} from '../../services/scan-report-url-state'
 import Tabs from '../ui/Tabs.vue'
 import SeverityChip from '../ui/SeverityChip.vue'
 
@@ -41,11 +47,14 @@ const props = defineProps<{
   graph?: GraphDocument | null
 }>()
 
+const route = useRoute()
+const router = useRouter()
+
 const messages = computed(() => scanReportMessages(props.locale))
 const filters = ref<ReportViewFilters>(defaultReportFilters())
 const activeTab = ref<ReportTabId>('violations')
-const hierarchyMode = ref<'tree' | 'graph'>('tree')
 const selectedPath = ref<string | null>(null)
+const syncingFromRoute = ref(false)
 const pageByTab = ref<Record<ReportTabId, number>>({
   history: 1,
   violations: 1,
@@ -53,7 +62,8 @@ const pageByTab = ref<Record<ReportTabId, number>>({
   badPractices: 1,
   improvements: 1,
   removals: 1,
-  architecture: 1
+  architecture: 1,
+  graph: 1
 })
 
 const PAGE_SIZE = 50
@@ -69,7 +79,8 @@ const tabs: ReportTabId[] = [
   'badPractices',
   'improvements',
   'removals',
-  'architecture'
+  'architecture',
+  'graph'
 ]
 
 const architectureConfigured = computed(() => graphHasArchitectureConfig(props.graph))
@@ -88,10 +99,60 @@ function tabLabel(tab: ReportTabId): string {
       badPractices: messages.value.tabBadPractices,
       improvements: messages.value.tabImprovements,
       removals: messages.value.tabRemovals,
-      architecture: messages.value.tabArchitecture(architectureViolationTotal.value)
+      architecture: messages.value.tabArchitecture(architectureViolationTotal.value),
+      graph: messages.value.tabGraph
     } satisfies Record<ReportTabId, string>
   )[tab]
 }
+
+function reportLocation(tab: ReportTabId, replace: boolean) {
+  const path = scanReportPath(
+    props.locale,
+    props.workspaceId,
+    props.projectId,
+    props.scanId,
+    reportTabPathSegment(tab)
+  )
+  const nodePath =
+    tab === 'graph' ? parseReportNodeQuery(route.query) ?? selectedPath.value : null
+  const query = mergeReportLocationQuery(filters.value, nodePath, route.query)
+  const target = { path, query }
+  if (replace) void router.replace(target)
+  else void router.push(target)
+}
+
+function applyRouteState() {
+  syncingFromRoute.value = true
+  const tabParam = typeof route.params.tab === 'string' ? route.params.tab : undefined
+  activeTab.value = parseReportTabParam(tabParam)
+  filters.value = parseReportFiltersFromQuery(route.query)
+  const node = parseReportNodeQuery(route.query)
+  if (node) {
+    selectedPath.value = node
+    activeTab.value = 'graph'
+  }
+  syncingFromRoute.value = false
+}
+
+watch(
+  () => [route.params.tab, route.query.sev, route.query.sec, route.query.path, route.query.node, route.query.focus],
+  () => applyRouteState(),
+  { immediate: true }
+)
+
+watch(activeTab, (tab, previous) => {
+  if (syncingFromRoute.value || tab === previous) return
+  reportLocation(tab, false)
+})
+
+watch(
+  filters,
+  () => {
+    if (syncingFromRoute.value) return
+    reportLocation(activeTab.value, true)
+  },
+  { deep: true }
+)
 
 const reportTabItems = computed(() =>
   tabs.map(tab => ({
@@ -125,8 +186,16 @@ function selectNode(path: string) {
   selectedPath.value = path
 }
 
-function graphHref(path: string) {
-  return scanGraphPath(props.locale, props.workspaceId, props.projectId, props.scanId, path)
+function graphHref(path: string): RouteLocationRaw {
+  const locationPath = scanReportPath(
+    props.locale,
+    props.workspaceId,
+    props.projectId,
+    props.scanId,
+    'graph'
+  )
+  const query = mergeReportLocationQuery(filters.value, path, route.query)
+  return { path: locationPath, query }
 }
 
 function collectNodeFindings(node: ReportTreeNode | null, path: string | null): ReportFinding[] {
@@ -159,7 +228,7 @@ const tabItems = computed(() => {
   if (activeTab.value === 'history') {
     return findingsForSection(filteredFindings.value, 'history')
   }
-  if (activeTab.value === 'architecture') {
+  if (activeTab.value === 'architecture' || activeTab.value === 'graph') {
     return []
   }
   return findingsForSection(filteredFindings.value, activeTab.value)
@@ -199,9 +268,11 @@ watch(filters, () => {
 watch(
   () => props.report,
   () => {
+    if (syncingFromRoute.value) return
     filters.value = defaultReportFilters()
     selectedPath.value = null
     activeTab.value = 'violations'
+    reportLocation('violations', true)
   }
 )
 
@@ -273,53 +344,18 @@ const history = computed(() => props.report.history)
 
     <ScanReportAnalysers :report="report" :messages="messages" />
 
-    <div class="layout-grid">
+    <div v-if="activeTab !== 'graph'" class="layout-grid">
       <section class="tree-panel">
         <div class="subheading">
           <h3>{{ messages.treeTitle }}</h3>
-          <div class="mode-toggle" role="tablist" :aria-label="messages.treeTitle">
-            <button
-              type="button"
-              role="tab"
-              :aria-selected="hierarchyMode === 'tree'"
-              :class="{ active: hierarchyMode === 'tree' }"
-              @click="hierarchyMode = 'tree'"
-            >
-              {{ messages.treeView }}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              :aria-selected="hierarchyMode === 'graph'"
-              :class="{ active: hierarchyMode === 'graph' }"
-              @click="hierarchyMode = 'graph'"
-            >
-              {{ messages.graphView }}
-            </button>
-          </div>
         </div>
         <ScanReportTree
-          v-if="hierarchyMode === 'tree'"
           :root="treeRoot"
           :selected-path="selectedPath"
           :messages="messages"
           :graph-href="graphHref"
           @select="selectNode"
         />
-        <template v-else>
-          <p v-if="architectureConfigured" class="graph-hint muted">{{ messages.architectureGraphHint }}</p>
-          <ScanReportModuleGraph
-            v-if="architectureConfigured && graph?.architecture"
-            :graph="graph"
-            :architecture="graph.architecture"
-          />
-          <ScanReportHierarchyGraph
-            v-else
-            :root="treeRoot"
-            :selected-path="selectedPath"
-            @select="selectNode"
-          />
-        </template>
       </section>
 
       <section class="detail-panel" :aria-label="messages.detailTitle">
@@ -422,6 +458,16 @@ const history = computed(() => props.report.history)
         />
       </template>
 
+      <template v-else-if="tab === 'graph'">
+        <ScanGraphView
+          class="report-graph-embed"
+          :workspace-id="workspaceId"
+          :project-id="projectId"
+          :scan-id="scanId"
+          :prefetched-graph="graph ?? null"
+        />
+      </template>
+
       <template v-else-if="tab === 'improvements'">
         <p v-if="filteredImprovements.length === 0" class="muted">{{ messages.emptySection }}</p>
         <ul v-else class="finding-list">
@@ -445,7 +491,7 @@ const history = computed(() => props.report.history)
         </ul>
       </template>
 
-      <div v-if="tab !== 'architecture' && tabItems.length > PAGE_SIZE" class="pagination">
+      <div v-if="tab !== 'architecture' && tab !== 'graph' && tabItems.length > PAGE_SIZE" class="pagination">
         <button
           type="button"
           class="secondary-button"
@@ -650,5 +696,9 @@ legend {
   .history-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.report-graph-embed {
+  min-block-size: 28rem;
 }
 </style>

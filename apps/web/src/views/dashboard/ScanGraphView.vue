@@ -16,6 +16,7 @@ const props = defineProps<{
   workspaceId: string
   projectId?: string | null
   scanId?: string | null
+  prefetchedGraph?: GraphDocument | null
 }>()
 
 const route = useRoute()
@@ -43,6 +44,13 @@ async function resolveScanId(): Promise<string | null> {
 
 async function loadGraph() {
   if (!props.workspaceId) return
+  if (props.prefetchedGraph && props.scanId) {
+    graphDocument.value = props.prefetchedGraph
+    resolvedScanId.value = props.scanId
+    loadError.value = ''
+    loading.value = false
+    return
+  }
   loading.value = true
   loadError.value = ''
   graphDocument.value = null
@@ -63,7 +71,7 @@ async function loadGraph() {
 }
 
 watch(
-  () => [props.workspaceId, props.scanId] as const,
+  () => [props.workspaceId, props.scanId, props.prefetchedGraph] as const,
   () => {
     void loadGraph()
   },
