@@ -14,6 +14,9 @@ import { scanReportPath, scanGraphPath } from '../../services/dashboard-routes'
 import type { WebLocale } from '../../services/locale'
 import OpenProjectPanel from './OpenProjectPanel.vue'
 import ScanListPanel from './ScanListPanel.vue'
+import ErrorState from '../ui/ErrorState.vue'
+import Skeleton from '../ui/Skeleton.vue'
+import { dashboardMessages } from '../../services/dashboard-messages'
 
 type InsightView = 'graph' | 'report'
 
@@ -29,6 +32,7 @@ const props = defineProps<{
 const router = useRouter()
 
 const messages = computed(() => scanMessages(props.locale))
+const sharedMessages = computed(() => dashboardMessages(props.locale))
 const reportMessages = computed(() => scanReportMessages(props.locale))
 const insightView = ref<InsightView>(props.initialInsightView ?? 'graph')
 const scans = ref<Scan[]>([])
@@ -204,8 +208,13 @@ watch(selectedScanId, () => {
     </div>
 
     <template v-if="insightView === 'report'">
-      <p v-if="reportLoading" role="status">{{ reportMessages.loadingReport }}</p>
-      <p v-else-if="reportError" class="feedback error" role="alert">{{ reportError }}</p>
+      <Skeleton v-if="reportLoading" :rows="6" :label="reportMessages.loadingReport" />
+      <ErrorState
+        v-else-if="reportError"
+        :message="reportError"
+        :retry-label="sharedMessages.retry"
+        @retry="loadSelectedReport"
+      />
       <p v-else-if="!compact && selectedScan?.status !== 'succeeded'" class="muted">{{ reportMessages.noReportSelected }}</p>
 
       <ScanReportPanel
@@ -240,10 +249,6 @@ watch(selectedScanId, () => {
 
 .muted {
   color: var(--color-text-secondary);
-}
-
-.feedback.error {
-  color: var(--color-danger);
 }
 
 .insight-toggle {
