@@ -23,13 +23,14 @@ import {
 } from '../../services/scan-report-filters'
 import { buildReportFileTree, type ReportTreeNode } from '../../services/scan-report-tree'
 import { exportFilteredReportJson, exportFilteredReportMarkdown } from '../../services/scan-report-export'
-import { severityCssVar } from '../../services/scan-report-severity'
 import {
   architectureViolationCount,
   graphHasArchitectureConfig
 } from '../../services/scan-report-architecture'
 import type { ReportFinding, ReportSection, ReportSeverity } from '../../api/scan-report-types'
 import { scanGraphPath } from '../../services/dashboard-routes'
+import Tabs from '../ui/Tabs.vue'
+import SeverityChip from '../ui/SeverityChip.vue'
 
 const props = defineProps<{
   locale: WebLocale
@@ -91,6 +92,15 @@ function tabLabel(tab: ReportTabId): string {
     } satisfies Record<ReportTabId, string>
   )[tab]
 }
+
+const reportTabItems = computed(() =>
+  tabs.map(tab => ({
+    id: tab,
+    label: tabLabel(tab),
+    tabId: `report-tab-${tab}`,
+    panelId: `report-panel-${tab}`
+  }))
+)
 
 function toggleSeverity(severity: ReportSeverity) {
   const next = new Set(filters.value.severities)
@@ -181,16 +191,6 @@ function setPage(tab: ReportTabId, page: number) {
   pageByTab.value = { ...pageByTab.value, [tab]: page }
 }
 
-function onTabKeydown(event: KeyboardEvent, index: number) {
-  if (event.key === 'ArrowRight') {
-    event.preventDefault()
-    activeTab.value = tabs[(index + 1) % tabs.length] ?? 'violations'
-  } else if (event.key === 'ArrowLeft') {
-    event.preventDefault()
-    activeTab.value = tabs[(index - 1 + tabs.length) % tabs.length] ?? 'violations'
-  }
-}
-
 watch(filters, () => {
   for (const tab of tabs) setPage(tab, 1)
   selectedPath.value = null
@@ -243,7 +243,7 @@ const history = computed(() => props.report.history)
               :checked="filters.severities.has(severity)"
               @change="toggleSeverity(severity)"
             >
-            <span :style="{ color: severityCssVar(severity) }">{{ messages.severityLabel(severity) }}</span>
+            <SeverityChip :severity="severity" :label="messages.severityLabel(severity)" />
           </label>
         </div>
       </fieldset>
@@ -330,9 +330,7 @@ const history = computed(() => props.report.history)
         <p v-if="detailFindings.length === 0" class="muted">{{ messages.detailEmpty }}</p>
         <ul v-else class="finding-list">
           <li v-for="finding in detailFindings.slice(0, PAGE_SIZE)" :key="finding.id">
-            <span class="severity" :style="{ color: severityCssVar(finding.severity) }">
-              {{ messages.severityLabel(finding.severity) }}
-            </span>
+            <SeverityChip :severity="finding.severity" :label="messages.severityLabel(finding.severity)" />
             <span>{{ messages.sectionLabel(finding.section) }}</span>
             <p>{{ finding.message }}</p>
             <p class="meta">
@@ -347,24 +345,7 @@ const history = computed(() => props.report.history)
       </section>
     </div>
 
-    <div class="tabs" role="tablist" :aria-label="messages.panelTitle">
-      <button
-        v-for="(tab, index) in tabs"
-        :id="`report-tab-${tab}`"
-        :key="tab"
-        type="button"
-        role="tab"
-        :aria-selected="activeTab === tab"
-        :aria-controls="`report-panel-${tab}`"
-        :tabindex="activeTab === tab ? 0 : -1"
-        class="tab-button"
-        :class="{ active: activeTab === tab }"
-        @click="activeTab = tab"
-        @keydown="onTabKeydown($event, index)"
-      >
-        {{ tabLabel(tab) }}
-      </button>
-    </div>
+    <Tabs v-model="activeTab" :items="reportTabItems" :ariaLabel="messages.panelTitle" />
 
     <section
       v-for="tab in tabs"
@@ -426,9 +407,7 @@ const history = computed(() => props.report.history)
         <p v-if="historyFindings.length > 0" class="section-findings-heading">History findings</p>
         <ul v-if="historyFindings.length > 0" class="finding-list">
           <li v-for="finding in pagedHistoryFindings" :key="finding.id">
-            <span class="severity" :style="{ color: severityCssVar(finding.severity) }">
-              {{ messages.severityLabel(finding.severity) }}
-            </span>
+            <SeverityChip :severity="finding.severity" :label="messages.severityLabel(finding.severity)" />
             <p>{{ finding.message }}</p>
             <p class="meta"><code>{{ finding.file }}</code></p>
           </li>
@@ -457,9 +436,7 @@ const history = computed(() => props.report.history)
         <p v-if="tabItems.length === 0" class="muted">{{ messages.emptySection }}</p>
         <ul v-else class="finding-list">
           <li v-for="finding in pagedSectionFindings" :key="finding.id">
-            <span class="severity" :style="{ color: severityCssVar(finding.severity) }">
-              {{ messages.severityLabel(finding.severity) }}
-            </span>
+            <SeverityChip :severity="finding.severity" :label="messages.severityLabel(finding.severity)" />
             <p>{{ finding.message }}</p>
             <p class="meta">
               <code>{{ finding.file }}<template v-if="finding.line">:{{ finding.line }}</template></code>
@@ -638,36 +615,6 @@ legend {
   padding: var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-}
-
-.severity {
-  font-weight: var(--font-weight-bold);
-  margin-inline-end: var(--space-2);
-}
-
-.tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.tab-button {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  padding: var(--space-2) var(--space-3);
-  cursor: pointer;
-  font: inherit;
-}
-
-.tab-button.active,
-.tab-button:focus-visible {
-  outline: 2px solid var(--color-accent-primary);
-  outline-offset: 1px;
-}
-
-.tab-button.active {
-  background: color-mix(in srgb, var(--color-accent-primary) var(--alpha-08), transparent);
 }
 
 .history-grid {

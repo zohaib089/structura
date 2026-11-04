@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Scan } from '../../api/scans'
+import Button from '../ui/Button.vue'
+import EmptyState from '../ui/EmptyState.vue'
+import ErrorState from '../ui/ErrorState.vue'
+import Skeleton from '../ui/Skeleton.vue'
+import { dashboardMessages } from '../../services/dashboard-messages'
 import { scanMessages } from '../../services/scan-messages'
 import type { WebLocale } from '../../services/locale'
 
@@ -18,6 +23,7 @@ const emit = defineEmits<{
 }>()
 
 const messages = computed(() => scanMessages(props.locale))
+const sharedMessages = computed(() => dashboardMessages(props.locale))
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat(props.locale, { dateStyle: 'medium', timeStyle: 'short' }).format(
@@ -30,14 +36,19 @@ function formatDate(value: string) {
   <section class="scan-list" :aria-label="messages.scanListTitle">
     <div class="list-heading">
       <h2>{{ messages.scanListTitle }}</h2>
-      <button type="button" class="secondary-button" :disabled="loading" @click="emit('refresh')">
+      <Button variant="secondary" size="sm" :loading="loading" :disabled="loading" @click="emit('refresh')">
         {{ messages.refreshScans }}
-      </button>
+      </Button>
     </div>
 
-    <p v-if="error" class="feedback error" role="alert">{{ error }}</p>
-    <p v-else-if="loading" role="status">{{ messages.refreshScans }}…</p>
-    <p v-else-if="scans.length === 0">{{ messages.scanListEmpty }}</p>
+    <ErrorState
+      v-if="error"
+      :message="error"
+      :retry-label="sharedMessages.retry"
+      @retry="emit('refresh')"
+    />
+    <Skeleton v-else-if="loading" :rows="4" :label="messages.refreshScans" />
+    <EmptyState v-else-if="scans.length === 0" :title="messages.scanListEmpty" />
 
     <ul v-else class="rows">
       <li v-for="scan in scans" :key="scan.id">
@@ -129,17 +140,4 @@ function formatDate(value: string) {
   font-size: var(--font-size-sm);
 }
 
-.secondary-button {
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  padding: var(--space-2) var(--space-3);
-  background: var(--color-surface);
-  cursor: pointer;
-  font: inherit;
-}
-
-.feedback.error {
-  margin: 0;
-  color: var(--color-danger);
-}
 </style>

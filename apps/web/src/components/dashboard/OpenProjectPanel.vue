@@ -7,6 +7,8 @@ import { validateZipUpload } from '../../services/upload-archive'
 import { parseGitRemoteUrl, validateGitRemoteUrl } from '../../services/git-remote-url'
 import { pollScanUntilTerminal } from '../../services/scan-poll'
 import { scanMessages } from '../../services/scan-messages'
+import { dashboardMessages } from '../../services/dashboard-messages'
+import ErrorState from '../ui/ErrorState.vue'
 import type { WebLocale } from '../../services/locale'
 
 const props = defineProps<{
@@ -22,6 +24,7 @@ const emit = defineEmits<{
 type SourceTab = 'local' | 'github' | 'gitlab'
 
 const messages = computed(() => scanMessages(props.locale))
+const sharedMessages = computed(() => dashboardMessages(props.locale))
 const tab = ref<SourceTab>('local')
 const githubUrl = ref('')
 const gitlabUrl = ref('')
@@ -257,7 +260,12 @@ async function uploadFiles(files: FileList) {
     <p v-if="busy" class="progress" role="status">
       {{ phase === 'zipping' ? messages.uploadProgress : messages.scanning }}
     </p>
-    <p v-if="error" class="feedback error" role="alert">{{ error }}</p>
+    <ErrorState
+      v-if="error"
+      :message="error"
+      :retry-label="sharedMessages.retry"
+      @retry="error = ''"
+    />
   </section>
 </template>
 
@@ -344,14 +352,6 @@ async function uploadFiles(files: FileList) {
 .progress {
   margin: 0;
   color: var(--color-text-secondary);
-}
-
-.feedback.error {
-  margin: 0;
-  padding: var(--space-3);
-  border-radius: var(--radius-md);
-  border: 1px solid color-mix(in srgb, var(--color-danger) var(--alpha-40), var(--color-border));
-  color: var(--color-danger);
 }
 
 .sr-only {
