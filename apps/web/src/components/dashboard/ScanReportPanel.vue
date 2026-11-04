@@ -268,13 +268,17 @@ watch(filters, () => {
 })
 
 watch(
-  () => props.report,
-  () => {
+  () => props.scanId,
+  (scanId, previousScanId) => {
+    if (!previousScanId || scanId === previousScanId) return
     if (syncingFromRoute.value) return
     filters.value = defaultReportFilters()
     selectedPath.value = null
-    activeTab.value = 'violations'
-    reportLocation('violations', true)
+    const tabFromRoute = parseReportTabParam(
+      typeof route.params.tab === 'string' ? route.params.tab : undefined
+    )
+    activeTab.value = tabFromRoute
+    reportLocation(tabFromRoute, true)
   }
 )
 

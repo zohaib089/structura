@@ -233,8 +233,9 @@ function applyFocusPath(path: string | null) {
 
 watch(
   () => props.graphDocument,
-  (document) => {
-    if (document) void loadGraphDocument(document)
+  (document, previous) => {
+    if (!document || document === previous) return
+    void loadGraphDocument(document)
   }
 )
 

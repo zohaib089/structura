@@ -46,8 +46,16 @@ const emit = defineEmits<{
 const root = ref<HTMLElement | null>(null)
 const entering = ref<Set<string>>(new Set())
 const delays = ref<Map<string, number>>(new Map())
+const canvasReady = ref(false)
+
+function markCanvasReady() {
+  if (canvasReady.value) return
+  canvasReady.value = true
+  emit('ready')
+}
 
 watch(() => props.nodes.map((node) => node.id).join('\n'), (next, prev) => {
+  if (prev && next !== prev) canvasReady.value = false
   if (!prev || prefersReducedMotion()) {
     entering.value = new Set()
     return
@@ -119,8 +127,18 @@ function onEdgeClick(payload: { edge: { id: string } }) {
 
 async function onInit() {
   await nextTick()
-  emit('ready')
+  markCanvasReady()
 }
+
+watch(
+  () => props.nodes.length,
+  async (count) => {
+    if (count > 0) {
+      await nextTick()
+      markCanvasReady()
+    }
+  }
+)
 
 defineExpose({ root })
 </script>
@@ -135,7 +153,7 @@ defineExpose({ root })
     :aria-label="label"
     tabindex="-1"
     dir="ltr"
-    :data-ready="ready ? 'true' : 'false'"
+    :data-ready="canvasReady ? 'true' : 'false'"
     :data-total-nodes="totalNodes"
     :data-total-edges="totalEdges"
     :data-visible-nodes="nodes.length"
