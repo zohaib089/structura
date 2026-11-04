@@ -5,6 +5,7 @@ import Button from '../ui/Button.vue'
 import EmptyState from '../ui/EmptyState.vue'
 import ErrorState from '../ui/ErrorState.vue'
 import Skeleton from '../ui/Skeleton.vue'
+import StatusPill from '../ui/StatusPill.vue'
 import { dashboardMessages } from '../../services/dashboard-messages'
 import { scanMessages } from '../../services/scan-messages'
 import type { WebLocale } from '../../services/locale'
@@ -60,7 +61,7 @@ function formatDate(value: string) {
         >
           <span class="scan-source">{{ messages.scanSourceLabel(scan) }}</span>
           <span class="scan-meta">
-            <span class="status" :data-status="scan.status">{{ messages.scanStatus(scan.status) }}</span>
+            <StatusPill :status="scan.status" :label="messages.scanStatus(scan.status)" />
             <time :datetime="scan.createdAt">{{ formatDate(scan.createdAt) }}</time>
           </span>
           <span v-if="scan.status === 'failed' && scan.errorMessage" class="scan-error">{{ scan.errorMessage }}</span>

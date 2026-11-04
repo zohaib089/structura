@@ -2,8 +2,11 @@ import { getCurrentSession } from '../services/auth'
 import type { GraphDocument } from '../viewer/graph-types'
 import { readGraph } from '../viewer/read-graph'
 
-export type ScanStatus = 'queued' | 'running' | 'succeeded' | 'failed'
+export type ScanStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled'
+export type ScanStep = 'fetching' | 'scanning' | 'analysing' | 'saving'
 export type ScanSource = 'git' | 'upload'
+
+const SCAN_STEPS: ScanStep[] = ['fetching', 'scanning', 'analysing', 'saving']
 
 /** Scan job as returned by the workspace scans API (PR #16 contract). */
 export interface Scan {
@@ -14,6 +17,7 @@ export interface Scan {
   url: string | null
   branch: string | null
   status: ScanStatus
+  step: ScanStep | null
   errorMessage: string | null
   createdAt: string
   updatedAt: string
@@ -37,6 +41,10 @@ function isNullableTimestamp(value: unknown): value is string | null {
   return value === null || isTimestamp(value)
 }
 
+function isScanStep(value: unknown): value is ScanStep | null {
+  return value === null || (typeof value === 'string' && SCAN_STEPS.includes(value as ScanStep))
+}
+
 function parseScan(value: unknown): Scan {
   if (
     !isRecord(value) ||
@@ -50,7 +58,9 @@ function parseScan(value: unknown): Scan {
     (value.status !== 'queued' &&
       value.status !== 'running' &&
       value.status !== 'succeeded' &&
-      value.status !== 'failed') ||
+      value.status !== 'failed' &&
+      value.status !== 'cancelled') ||
+    !isScanStep(value.step) ||
     (value.errorMessage !== null && typeof value.errorMessage !== 'string') ||
     !isTimestamp(value.createdAt) ||
     !isTimestamp(value.updatedAt) ||
@@ -67,6 +77,7 @@ function parseScan(value: unknown): Scan {
     url: value.url,
     branch: value.branch,
     status: value.status,
+    step: value.step,
     errorMessage: value.errorMessage,
     createdAt: value.createdAt,
     updatedAt: value.updatedAt,
@@ -179,6 +190,28 @@ export async function getScan(workspaceId: string, scanId: string): Promise<Scan
   const result = await requestJson(
     `${workspacePath(workspaceId)}/${encodeURIComponent(scanId)}`
   )
+  return parseScan(result.scan)
+}
+
+export async function cancelScan(workspaceId: string, scanId: string): Promise<Scan> {
+  const session = getCurrentSession()
+  if (!session) throw new Error('Your session has expired. Please sign in again.')
+
+  const response = await fetch(
+    `/api${workspacePath(workspaceId)}/${encodeURIComponent(scanId)}/cancel`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session.token}` }
+    }
+  )
+  const result = await readJsonResponse(response)
+
+  if (response.status === 409) {
+    return getScan(workspaceId, scanId)
+  }
+  if (!response.ok || result.success !== true) {
+    throw new Error(apiFailureMessage(result, response.status))
+  }
   return parseScan(result.scan)
 }
 

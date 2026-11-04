@@ -1,6 +1,6 @@
 import { getScan, type Scan, type ScanStatus } from '../api/scans'
 
-const TERMINAL: ScanStatus[] = ['succeeded', 'failed']
+const TERMINAL: ScanStatus[] = ['succeeded', 'failed', 'cancelled']
 
 export interface PollScanOptions {
   initialDelayMs?: number
