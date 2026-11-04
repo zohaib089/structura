@@ -238,21 +238,17 @@ async function loadDashboard() {
     }
 
     if (invitationToken) {
-      await acceptWorkspaceInvitation(invitationToken)
+      const { workspaceId } = await acceptWorkspaceInvitation(invitationToken)
       showToast(messages.value.invitationAccepted)
       const query = { ...route.query }
       delete query.invitation
-      const workspaceId = selectedWorkspaceId.value || workspaces.value[0]?.id
-      if (workspaceId) {
-        selectedWorkspaceId.value = workspaceId
-        await router.replace({
-          path: workspaceSettingsPath(locale.value, workspaceId),
-          query,
-          hash: route.hash
-        })
-      } else {
-        await router.replace({ path: route.path, query, hash: route.hash })
-      }
+      selectedWorkspaceId.value = workspaceId
+      await router.replace({
+        path: workspaceSettingsPath(locale.value, workspaceId),
+        query,
+        hash: route.hash
+      })
+      await loadTeam()
       return
     }
 
@@ -430,7 +426,13 @@ onBeforeUnmount(() => {
             :compact="activeSection === 'project'"
             :initial-scan-id="routeScanId || null"
             :project-id="routeProjectId || null"
-            :initial-insight-view="route.params.tab === 'graph' ? 'graph' : 'report'"
+            :initial-insight-view="
+              route.params.tab === 'graph'
+                ? 'graph'
+                : typeof route.params.tab === 'string' && route.params.tab.length > 0
+                  ? 'report'
+                  : 'graph'
+            "
           />
 
           <section v-else-if="activeSection === 'settings'" class="team-section">

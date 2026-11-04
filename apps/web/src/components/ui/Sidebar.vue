@@ -22,7 +22,7 @@ defineEmits<{
 </script>
 
 <template>
-  <aside class="sidebar" :aria-label="appNavigationLabel">
+  <aside class="sidebar">
     <div class="brand-row">
       <BrandMark :size="20" />
       <div class="brand-copy">
@@ -34,7 +34,7 @@ defineEmits<{
       </div>
     </div>
 
-    <nav class="sidebar-nav">
+    <nav class="sidebar-nav" :aria-label="appNavigationLabel">
       <RouterLink
         v-for="item in navItems"
         :key="item.id"

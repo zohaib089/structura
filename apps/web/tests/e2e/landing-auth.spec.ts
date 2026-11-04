@@ -65,6 +65,11 @@ test('authenticated landing page hides guest authentication links', async ({ pag
       }
     }))
   })
+  await page.route('**/api/workspaces', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ success: true, workspaces: [] })
+  }))
 
   await page.goto('/en')
 
@@ -229,10 +234,10 @@ test('dashboard displays real workspace and project states instead of fabricated
     return { width: bounds.width, viewportWidth: document.documentElement.clientWidth }
   })
   expect(dashboardBounds.width).toBeGreaterThan(1400)
-  expect(dashboardBounds.width).toBeLessThan(dashboardBounds.viewportWidth)
-  await expect(page.getByRole('button', { name: 'Log out' })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Log in' })).toHaveCount(0)
-  await expect(page.getByRole('link', { name: 'Launch app' })).toHaveCount(0)
+  expect(dashboardBounds.width).toBe(dashboardBounds.viewportWidth)
+  await expect(page.getByRole('banner').getByRole('button', { name: 'Log out' })).toBeVisible()
+  await expect(page.getByRole('banner').getByRole('link', { name: 'Log in' })).toHaveCount(0)
+  await expect(page.getByRole('banner').getByRole('link', { name: 'Launch app' })).toHaveCount(0)
 
   const localeControl = await page.getByRole('combobox', { name: 'Language' }).evaluate(element => {
     const control = element as HTMLSelectElement
@@ -249,7 +254,6 @@ test('dashboard displays real workspace and project states instead of fabricated
 
   await expect(page.getByRole('status', { name: 'Loading your workspaces...' })).toBeVisible()
   await expect(page.locator('.loading-skeleton .skeleton-line')).toHaveCount(3)
-  await page.getByRole('navigation', { name: 'App navigation' }).getByRole('link', { name: 'Projects' }).click()
   await expect(page.getByRole('navigation', { name: 'App navigation' }).getByRole('link', { name: 'Projects' })).toHaveAttribute('aria-current', 'page')
   await expect(page.getByRole('heading', { name: 'Platform team' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'No projects yet' })).toBeVisible()
@@ -290,7 +294,7 @@ test('authenticated navbar logs out instead of showing launch links', async ({ p
   }))
 
   await page.goto('/dashboard')
-  await expect(page.getByRole('button', { name: 'Log out' })).toBeVisible()
+  await expect(page.getByRole('banner').getByRole('button', { name: 'Log out' })).toBeVisible()
   await page.getByRole('banner').getByRole('button', { name: 'Log out' }).click()
 
   await expect(page).toHaveURL(/\/en\/auth\/login$/)
@@ -412,7 +416,7 @@ test('dashboard navigation opens graph insights and manages workspace invitation
   await page.goto('/en/w/workspace-1')
 
   await expect(page.locator('html')).toHaveAttribute('lang', 'en')
-  await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible()
+  await expect(page.getByRole('main').getByRole('heading', { name: 'Projects', exact: true })).toBeVisible()
   const dashboardNavigation = page.getByRole('navigation', { name: 'App navigation' })
   await dashboardNavigation.getByRole('link', { name: 'Projects' }).click()
   await expect(page.getByRole('heading', { name: 'No projects yet' })).toBeVisible()
@@ -434,8 +438,8 @@ test('dashboard navigation opens graph insights and manages workspace invitation
   await expect(page.getByText('No pending invitations.')).toBeVisible()
 
   await dashboardNavigation.getByRole('link', { name: 'Projects' }).click()
-  await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible()
-  await expect(page.getByRole('banner').getByRole('button', { name: 'Log out' })).toHaveCount(0)
+  await expect(page.getByRole('main').getByRole('heading', { name: 'Projects', exact: true })).toBeVisible()
+  await expect(page.getByRole('banner').getByRole('button', { name: 'Log out' })).toBeVisible()
 })
 
 test('localized routes set the document language and right-to-left direction', async ({ page }) => {

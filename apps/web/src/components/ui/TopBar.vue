@@ -9,7 +9,7 @@ defineProps<{
 </script>
 
 <template>
-  <header class="topbar">
+  <header class="topbar" role="banner">
     <Breadcrumbs :items="breadcrumbs" />
     <div class="topbar-actions">
       <button type="button" class="command-button" :aria-label="commandPaletteLabel" disabled>

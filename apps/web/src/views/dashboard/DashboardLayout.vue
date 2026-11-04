@@ -127,8 +127,6 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => {
     items.push({ label: messages.value.openProjectNav })
   } else if (route.name === 'workspace-settings') {
     items.push({ label: messages.value.settingsNav })
-  } else if (route.name === 'workspace-projects') {
-    items.push({ label: messages.value.projects })
   }
   return items
 })
@@ -139,7 +137,11 @@ async function loadWorkspaces() {
   try {
     workspaces.value = await listWorkspaces()
     if (workspaceParam.value === 'pending' && workspaces.value[0]) {
-      await router.replace(workspaceRootPath(locale.value, workspaces.value[0].id))
+      await router.replace({
+        path: workspaceRootPath(locale.value, workspaces.value[0].id),
+        query: route.query,
+        hash: route.hash
+      })
       return
     }
     if (
@@ -180,13 +182,16 @@ onMounted(loadWorkspaces)
     :command-palette-label="messages.commandPalette"
     :command-palette-hint="messages.commandPaletteHint"
   >
+    <template #top-actions>
+      <button v-if="session" type="button" class="ghost-button" @click="handleLogout">
+        {{ messages.logOut }}
+      </button>
+    </template>
+
     <template #sidebar-footer>
       <LocaleSwitcher />
       <button type="button" class="ghost-button" @click="themeStore.toggleTheme()">
         {{ navMessages.toggleTheme }}
-      </button>
-      <button v-if="session" type="button" class="ghost-button" @click="handleLogout">
-        {{ messages.logOut }}
       </button>
       <p v-if="session?.user" class="user-meta">{{ session.user.fullName }}</p>
     </template>
