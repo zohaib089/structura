@@ -7,6 +7,7 @@ import {
   getScan,
   getScanGraph,
   listScans,
+  cancelScan,
   type Scan
 } from '../../src/api/scans'
 
@@ -20,6 +21,7 @@ function sampleScan(overrides: Partial<Scan> = {}): Scan {
     url: 'https://github.com/acme/app',
     branch: 'main',
     status: 'queued',
+    step: null,
     errorMessage: null,
     createdAt: now,
     updatedAt: now,
@@ -147,6 +149,7 @@ describe('scans API client', () => {
           url: 'https://gitlab.com/acme/app',
           branch: null,
           status: 'running',
+          step: 'fetching',
           startedAt: new Date().toISOString()
         })
       })
@@ -154,5 +157,67 @@ describe('scans API client', () => {
 
     const scan = await getScan('workspace-1', 'scan-4')
     expect(scan.status).toBe('running')
+    expect(scan.step).toBe('fetching')
+  })
+
+  it('parses scan step values from the API', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        scan: sampleScan({
+          status: 'running',
+          step: 'analysing',
+          startedAt: new Date().toISOString()
+        })
+      })
+    } as Response)
+
+    const scan = await getScan('workspace-1', 'scan-1')
+    expect(scan.step).toBe('analysing')
+  })
+
+  it('cancels scans and reloads on 409 already finished', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 409,
+        json: async () => ({ success: false, message: 'Scan has already finished.' })
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          scan: sampleScan({ status: 'succeeded', finishedAt: new Date().toISOString() })
+        })
+      } as Response)
+
+    const scan = await cancelScan('workspace-1', 'scan-1')
+    expect(scan.status).toBe('succeeded')
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('returns cancelled scans from cancel POST', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        scan: sampleScan({
+          status: 'cancelled',
+          step: null,
+          finishedAt: new Date().toISOString()
+        })
+      })
+    } as Response)
+
+    const scan = await cancelScan('workspace-1', 'scan-1')
+    expect(scan.status).toBe('cancelled')
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/workspaces/workspace-1/scans/scan-1/cancel',
+      expect.objectContaining({ method: 'POST' })
+    )
   })
 })

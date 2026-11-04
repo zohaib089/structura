@@ -424,6 +424,7 @@ test('dashboard navigation opens graph insights and manages workspace invitation
     url: 'https://github.com/acme/sample',
     branch: 'main',
     status: 'succeeded',
+    step: null,
     errorMessage: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

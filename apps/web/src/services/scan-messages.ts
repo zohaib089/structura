@@ -30,6 +30,18 @@ export interface ScanMessages {
   scanStatus: (status: ScanStatus) => string
   scanSourceLabel: (scan: Scan) => string
   scanFailed: string
+  scanStepFetching: string
+  scanStepScanning: string
+  scanStepAnalysing: string
+  scanStepSaving: string
+  scanStepQueued: string
+  scanStepSucceeded: string
+  scanStepFailed: string
+  scanStepCancelled: string
+  scanCancel: string
+  scanCancelling: string
+  scanStepLabels: () => Record<'fetching' | 'scanning' | 'analysing' | 'saving', string>
+  scanStepTerminalLabels: () => Record<'succeeded' | 'failed' | 'cancelled', string>
   selectScan: string
   openInViewer: string
   recentScansTitle: string
@@ -71,7 +83,8 @@ const en: ScanMessages = {
       queued: 'Queued',
       running: 'Running',
       succeeded: 'Succeeded',
-      failed: 'Failed'
+      failed: 'Failed',
+      cancelled: 'Cancelled'
     })[status]
   },
   scanSourceLabel(scan) {
@@ -80,6 +93,31 @@ const en: ScanMessages = {
     return `${scan.url ?? 'Git remote'}${branch}`
   },
   scanFailed: 'Scan failed',
+  scanStepFetching: 'Fetching source',
+  scanStepScanning: 'Scanning files',
+  scanStepAnalysing: 'Analysing project',
+  scanStepSaving: 'Saving results',
+  scanStepQueued: 'Scan queued',
+  scanStepSucceeded: 'Scan complete',
+  scanStepFailed: 'Scan failed',
+  scanStepCancelled: 'Scan cancelled',
+  scanCancel: 'Cancel scan',
+  scanCancelling: 'Cancelling…',
+  scanStepLabels() {
+    return {
+      fetching: this.scanStepFetching,
+      scanning: this.scanStepScanning,
+      analysing: this.scanStepAnalysing,
+      saving: this.scanStepSaving
+    }
+  },
+  scanStepTerminalLabels() {
+    return {
+      succeeded: this.scanStepSucceeded,
+      failed: this.scanStepFailed,
+      cancelled: this.scanStepCancelled
+    }
+  },
   selectScan: 'View insights',
   openInViewer: 'Open in viewer',
   recentScansTitle: 'Recent scans',

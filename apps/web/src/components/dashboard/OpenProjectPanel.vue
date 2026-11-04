@@ -1,14 +1,17 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, toRef } from 'vue'
 import type { Scan } from '../../api/scans'
 import { createGitScan, createUploadScan } from '../../api/scans'
 import { zipBrowserFiles, zipDirectoryHandle } from '../../services/folder-zip'
 import { validateZipUpload } from '../../services/upload-archive'
 import { parseGitRemoteUrl, validateGitRemoteUrl } from '../../services/git-remote-url'
-import { pollScanUntilTerminal } from '../../services/scan-poll'
 import { scanMessages } from '../../services/scan-messages'
 import { dashboardMessages } from '../../services/dashboard-messages'
+import { useScanRun } from '../../composables/useScanRun'
+import { isScanInFlight } from '../../services/scan-step-display'
 import ErrorState from '../ui/ErrorState.vue'
+import ScanStepper from '../ui/ScanStepper.vue'
+import Button from '../ui/Button.vue'
 import type { WebLocale } from '../../services/locale'
 
 const props = defineProps<{
@@ -29,11 +32,33 @@ const tab = ref<SourceTab>('local')
 const githubUrl = ref('')
 const gitlabUrl = ref('')
 const branch = ref('')
-const busy = ref(false)
-const phase = ref<'idle' | 'zipping' | 'uploading' | 'polling'>('idle')
-const error = ref('')
 const folderInput = ref<HTMLInputElement | null>(null)
 const zipInput = ref<HTMLInputElement | null>(null)
+
+const {
+  activeScan,
+  preparing,
+  cancelling,
+  error,
+  lastFailedStep,
+  runAfterCreate,
+  runWithPrepare,
+  cancelActiveScan,
+  retryLastRun
+} = useScanRun({
+  workspaceId: toRef(props, 'workspaceId'),
+  scanFailedMessage: messages.value.scanFailed,
+  onFinished(scan) {
+    emit('scanFinished', scan)
+  }
+})
+
+const busy = computed(
+  () =>
+    preparing.value ||
+    cancelling.value ||
+    (activeScan.value !== null && isScanInFlight(activeScan.value.status))
+)
 
 const canSubmit = computed(() => !busy.value && !props.disabled && props.workspaceId.length > 0)
 
@@ -49,29 +74,9 @@ async function startGitScan(kind: 'github' | 'gitlab') {
     error.value = kind === 'github' ? messages.value.invalidGithubUrl : messages.value.invalidGitlabUrl
     return
   }
-  await runScan(async () =>
+  await runAfterCreate(async () =>
     createGitScan(props.workspaceId, parsed.url, branch.value.trim() || undefined)
   )
-}
-
-async function runScan(create: () => Promise<Scan>) {
-  error.value = ''
-  busy.value = true
-  phase.value = 'uploading'
-  try {
-    const scan = await create()
-    phase.value = 'polling'
-    const finished = await pollScanUntilTerminal(props.workspaceId, scan.id)
-    if (finished.status === 'failed') {
-      error.value = finished.errorMessage ?? messages.value.scanFailed
-    }
-    emit('scanFinished', finished)
-  } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : messages.value.scanFailed
-  } finally {
-    busy.value = false
-    phase.value = 'idle'
-  }
 }
 
 function openFolderPicker() {
@@ -98,11 +103,7 @@ async function onZipInput(event: Event) {
     return
   }
 
-  await uploadZipFile(file)
-}
-
-async function uploadZipFile(file: File) {
-  await runScan(async () => createUploadScan(props.workspaceId, file, file.name))
+  await runAfterCreate(async () => createUploadScan(props.workspaceId, file, file.name))
 }
 
 async function onFolderInput(event: Event) {
@@ -110,7 +111,13 @@ async function onFolderInput(event: Event) {
   const files = input.files
   input.value = ''
   if (!files?.length) return
-  await uploadFiles(files)
+  let archive: File | undefined
+  await runWithPrepare(
+    async () => {
+      archive = await zipBrowserFiles(files)
+    },
+    async () => createUploadScan(props.workspaceId, archive!, archive!.name)
+  )
 }
 
 async function pickDirectoryHandle() {
@@ -125,43 +132,22 @@ async function pickDirectoryHandle() {
       return
     }
     const handle = await picker.call(window)
-    await uploadDirectoryHandle(handle)
+    let archive: File | undefined
+    await runWithPrepare(
+      async () => {
+        archive = await zipDirectoryHandle(handle, handle.name || 'project')
+      },
+      async () => createUploadScan(props.workspaceId, archive!, archive!.name)
+    )
   } catch (cause) {
     if (cause instanceof Error && cause.name === 'AbortError') return
     error.value = cause instanceof Error ? cause.message : messages.value.scanFailed
-    busy.value = false
-    phase.value = 'idle'
   }
 }
 
-async function uploadDirectoryHandle(handle: FileSystemDirectoryHandle) {
+function onRetry() {
   error.value = ''
-  busy.value = true
-  phase.value = 'zipping'
-  try {
-    const archive = await zipDirectoryHandle(handle, handle.name || 'project')
-    phase.value = 'uploading'
-    await runScan(async () => createUploadScan(props.workspaceId, archive, archive.name))
-  } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : messages.value.scanFailed
-    busy.value = false
-    phase.value = 'idle'
-  }
-}
-
-async function uploadFiles(files: FileList) {
-  error.value = ''
-  busy.value = true
-  phase.value = 'zipping'
-  try {
-    const archive = await zipBrowserFiles(files)
-    phase.value = 'uploading'
-    await runScan(async () => createUploadScan(props.workspaceId, archive, archive.name))
-  } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : messages.value.scanFailed
-    busy.value = false
-    phase.value = 'idle'
-  }
+  retryLastRun()
 }
 </script>
 
@@ -174,6 +160,7 @@ async function uploadFiles(files: FileList) {
         role="tab"
         class="source-tab"
         :aria-selected="tab === 'local'"
+        :disabled="busy"
         @click="tab = 'local'"
       >
         {{ messages.sourceLocal }}
@@ -183,6 +170,7 @@ async function uploadFiles(files: FileList) {
         role="tab"
         class="source-tab"
         :aria-selected="tab === 'github'"
+        :disabled="busy"
         @click="tab = 'github'"
       >
         {{ messages.sourceGithub }}
@@ -192,6 +180,7 @@ async function uploadFiles(files: FileList) {
         role="tab"
         class="source-tab"
         :aria-selected="tab === 'gitlab'"
+        :disabled="busy"
         @click="tab = 'gitlab'"
       >
         {{ messages.sourceGitlab }}
@@ -218,12 +207,12 @@ async function uploadFiles(files: FileList) {
         @change="onZipInput"
       >
       <div class="local-actions">
-        <button type="button" class="primary-button" :disabled="!canSubmit" @click="pickDirectoryHandle">
+        <Button variant="primary" size="md" :disabled="!canSubmit" @click="pickDirectoryHandle">
           {{ messages.chooseFolder }}
-        </button>
-        <button type="button" class="primary-button" :disabled="!canSubmit" @click="openZipPicker">
+        </Button>
+        <Button variant="primary" size="md" :disabled="!canSubmit" @click="openZipPicker">
           {{ messages.chooseZip }}
-        </button>
+        </Button>
       </div>
     </div>
 
@@ -237,9 +226,9 @@ async function uploadFiles(files: FileList) {
         <span class="optional">{{ messages.branchOptional }}</span>
         <input v-model="branch" maxlength="200" :disabled="!canSubmit">
       </label>
-      <button class="primary-button" type="submit" :disabled="!canSubmit">
+      <Button variant="primary" size="md" type="submit" :loading="busy" :disabled="!canSubmit">
         {{ busy ? messages.scanning : messages.startScan }}
-      </button>
+      </Button>
     </form>
 
     <form v-else class="source-panel" role="tabpanel" @submit.prevent="startGitScan('gitlab')">
@@ -252,19 +241,32 @@ async function uploadFiles(files: FileList) {
         <span class="optional">{{ messages.branchOptional }}</span>
         <input v-model="branch" maxlength="200" :disabled="!canSubmit">
       </label>
-      <button class="primary-button" type="submit" :disabled="!canSubmit">
+      <Button variant="primary" size="md" type="submit" :loading="busy" :disabled="!canSubmit">
         {{ busy ? messages.scanning : messages.startScan }}
-      </button>
+      </Button>
     </form>
 
-    <p v-if="busy" class="progress" role="status">
-      {{ phase === 'zipping' ? messages.uploadProgress : messages.scanning }}
-    </p>
+    <p v-if="preparing" class="progress" role="status">{{ messages.uploadProgress }}</p>
+
+    <ScanStepper
+      v-if="activeScan"
+      :scan="activeScan"
+      :step-labels="messages.scanStepLabels()"
+      :queued-label="messages.scanStepQueued"
+      :terminal-labels="messages.scanStepTerminalLabels()"
+      :failed-step="lastFailedStep"
+      :cancelling="cancelling"
+      :cancel-label="messages.scanCancel"
+      :cancelling-label="messages.scanCancelling"
+      show-cancel
+      @cancel="cancelActiveScan"
+    />
+
     <ErrorState
       v-if="error"
       :message="error"
       :retry-label="sharedMessages.retry"
-      @retry="error = ''"
+      @retry="onRetry"
     />
   </section>
 </template>
@@ -296,6 +298,11 @@ async function uploadFiles(files: FileList) {
   padding: var(--space-2) var(--space-3);
   font: inherit;
   cursor: pointer;
+}
+
+.source-tab:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .source-tab[aria-selected='true'] {
@@ -331,22 +338,6 @@ async function uploadFiles(files: FileList) {
   background: var(--color-surface);
   color: var(--color-text-primary);
   font: inherit;
-}
-
-.primary-button {
-  justify-self: start;
-  border: none;
-  border-radius: var(--radius-md);
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-accent-gradient-soft);
-  color: var(--color-text-on-accent);
-  font-weight: var(--font-weight-bold);
-  cursor: pointer;
-}
-
-.primary-button:disabled {
-  opacity: 0.7;
-  cursor: wait;
 }
 
 .progress {

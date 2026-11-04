@@ -9,7 +9,7 @@ import { getScan } from '../../src/api/scans'
 
 const now = new Date().toISOString()
 
-function mockScan(status: 'queued' | 'running' | 'succeeded') {
+function mockScan(status: 'queued' | 'running' | 'succeeded' | 'cancelled') {
   return {
     id: 'scan-1',
     workspaceId: 'workspace-1',
@@ -18,11 +18,12 @@ function mockScan(status: 'queued' | 'running' | 'succeeded') {
     url: 'https://github.com/acme/app',
     branch: null,
     status,
+    step: status === 'running' ? ('scanning' as const) : null,
     errorMessage: null,
     createdAt: now,
     updatedAt: now,
     startedAt: status === 'queued' ? null : now,
-    finishedAt: status === 'succeeded' ? now : null
+    finishedAt: status === 'succeeded' || status === 'cancelled' ? now : null
   }
 }
 
@@ -52,5 +53,16 @@ describe('pollScanUntilTerminal', () => {
     const scan = await promise
     expect(scan.status).toBe('succeeded')
     expect(updates).toEqual(['queued', 'running', 'succeeded'])
+  })
+
+  it('stops polling when the scan is cancelled', async () => {
+    vi.mocked(getScan)
+      .mockResolvedValueOnce(mockScan('running'))
+      .mockResolvedValueOnce(mockScan('cancelled'))
+
+    const promise = pollScanUntilTerminal('workspace-1', 'scan-1', { initialDelayMs: 100 })
+    await vi.runAllTimersAsync()
+    const scan = await promise
+    expect(scan.status).toBe('cancelled')
   })
 })
