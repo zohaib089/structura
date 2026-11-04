@@ -3,18 +3,9 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { expect, test } from '@playwright/test'
-import { execFileSync } from 'node:child_process'
 
 const root = resolve(fileURLToPath(new URL('.', import.meta.url)), '../..')
 const builtHtml = resolve(root, 'dist-viewer/index.html')
-
-test.beforeAll(() => {
-  execFileSync('npx', ['vite', 'build', '--config', 'vite.viewer.config.ts'], {
-    cwd: root,
-    stdio: 'inherit',
-    timeout: 180_000
-  })
-})
 
 test('loads a fixture from file://, selects, and expands', async ({ page }) => {
   const errors: string[] = []
