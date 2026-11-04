@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Background } from '@vue-flow/background'
 import { VueFlow, type Edge, type Node } from '@vue-flow/core'
-import { nextTick, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { FLOW_EDGE_TYPE, FLOW_NODE_TYPE } from '../caps'
 import { motionMs, prefersReducedMotion } from '../motion'
 import type { OverviewEdgeModel, OverviewNodeModel } from '../overview'
@@ -53,6 +53,17 @@ function markCanvasReady() {
   canvasReady.value = true
   emit('ready')
 }
+
+const displayReady = computed(
+  () => canvasReady.value || props.ready || props.nodes.length > 0
+)
+
+watch(
+  () => props.ready,
+  ready => {
+    if (ready) markCanvasReady()
+  }
+)
 
 watch(() => props.nodes.map((node) => node.id).join('\n'), (next, prev) => {
   if (prev && next !== prev) canvasReady.value = false
@@ -132,12 +143,13 @@ async function onInit() {
 
 watch(
   () => props.nodes.length,
-  async (count) => {
+  async count => {
     if (count > 0) {
       await nextTick()
       markCanvasReady()
     }
-  }
+  },
+  { immediate: true }
 )
 
 defineExpose({ root })
@@ -153,7 +165,7 @@ defineExpose({ root })
     :aria-label="label"
     tabindex="-1"
     dir="ltr"
-    :data-ready="canvasReady ? 'true' : 'false'"
+    :data-ready="displayReady ? 'true' : 'false'"
     :data-total-nodes="totalNodes"
     :data-total-edges="totalEdges"
     :data-visible-nodes="nodes.length"
