@@ -9,24 +9,6 @@ COPY packages/brand/package.json packages/brand/
 
 RUN npm ci -w web --include=dev --ignore-scripts
 
-FROM deps AS build-viewer
-COPY packages/brand/src packages/brand/src
-COPY packages/scan-analysis/schema packages/scan-analysis/schema
-COPY packages/scan-analysis/src/report.v1.types.ts packages/scan-analysis/src/report.v1.types.ts
-COPY apps/web/tsconfig.json apps/web/tsconfig.app.json apps/web/tsconfig.node.json apps/web/
-COPY apps/web/index.html apps/web/
-COPY apps/web/viewer/index.html apps/web/viewer/
-COPY apps/web/vite.config.ts apps/web/vite.viewer.config.ts apps/web/vite-csp-hash.ts apps/web/
-COPY apps/web/public apps/web/public
-COPY apps/web/fixtures/sample-graph.json apps/web/fixtures/sample-graph.json
-COPY apps/web/src apps/web/src
-
-RUN npm run build:viewer -w web
-
-FROM nginx:1.27-alpine AS viewer
-COPY --from=build-viewer /repo/apps/web/dist-viewer /usr/share/nginx/html
-EXPOSE 80
-
 FROM deps AS dev
 COPY packages/brand/src packages/brand/src
 COPY packages/scan-analysis/schema packages/scan-analysis/schema

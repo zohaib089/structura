@@ -7,8 +7,10 @@ export type DashboardShellSection =
   | 'projects'
   | 'open-project'
   | 'project'
+  | 'project-graph'
   | 'scans'
   | 'scan-report'
+  | 'scan-graph'
   | 'workspace-scans'
   | 'settings'
 
@@ -46,6 +48,26 @@ export function scanReportPath(
 ) {
   const base = `${projectPath(locale, workspaceId, projectId)}/scans/${encodeURIComponent(scanId)}`
   return tab ? `${base}/${encodeURIComponent(tab)}` : base
+}
+
+export function scanGraphPath(
+  locale: WebLocale,
+  workspaceId: string,
+  projectId: string,
+  scanId: string,
+  nodePath?: string
+) {
+  const path = scanReportPath(locale, workspaceId, projectId, scanId, 'graph')
+  if (!nodePath?.trim()) return path
+  const query = new URLSearchParams({ node: nodePath.replace(/^\/+/, '') })
+  return `${path}?${query.toString()}`
+}
+
+export function projectGraphPath(locale: WebLocale, workspaceId: string, projectId: string, nodePath?: string) {
+  const path = `${projectPath(locale, workspaceId, projectId)}/graph`
+  if (!nodePath?.trim()) return path
+  const query = new URLSearchParams({ node: nodePath.replace(/^\/+/, '') })
+  return `${path}?${query.toString()}`
 }
 
 export function workspaceScansPath(locale: WebLocale, workspaceId: string) {

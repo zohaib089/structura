@@ -5,6 +5,7 @@ import {
   readLastWorkspaceId,
   rememberLastWorkspaceId,
   resolveDashboardEntryPath,
+  scanGraphPath,
   scanReportPath,
   workspaceRootPath
 } from '../../src/services/dashboard-routes'
@@ -16,6 +17,12 @@ describe('dashboard routes', () => {
     expect(projectScansPath('en', 'ws-1', 'proj-1')).toBe('/en/w/ws-1/projects/proj-1/scans')
     expect(scanReportPath('en', 'ws-1', 'proj-1', 'scan-9', 'violations')).toBe(
       '/en/w/ws-1/projects/proj-1/scans/scan-9/violations'
+    )
+    expect(scanGraphPath('en', 'ws-1', 'proj-1', 'scan-9')).toBe(
+      '/en/w/ws-1/projects/proj-1/scans/scan-9/graph'
+    )
+    expect(scanGraphPath('en', 'ws-1', 'proj-1', 'scan-9', 'src/app.ts')).toBe(
+      '/en/w/ws-1/projects/proj-1/scans/scan-9/graph?node=src%2Fapp.ts'
     )
   })
 

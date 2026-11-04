@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
 import BrandMark from '../brand/BrandMark.vue'
 import ScanReportTree from './ScanReportTree.vue'
 import ScanReportHierarchyGraph from './ScanReportHierarchyGraph.vue'
@@ -28,11 +29,14 @@ import {
   graphHasArchitectureConfig
 } from '../../services/scan-report-architecture'
 import type { ReportFinding, ReportSection, ReportSeverity } from '../../api/scan-report-types'
+import { scanGraphPath } from '../../services/dashboard-routes'
 
 const props = defineProps<{
   locale: WebLocale
   report: ScanReportV1
   scanId: string
+  workspaceId: string
+  projectId: string
   graph?: GraphDocument | null
 }>()
 
@@ -109,6 +113,10 @@ function onPathQueryInput(event: Event) {
 
 function selectNode(path: string) {
   selectedPath.value = path
+}
+
+function graphHref(path: string) {
+  return scanGraphPath(props.locale, props.workspaceId, props.projectId, props.scanId, path)
 }
 
 function collectNodeFindings(node: ReportTreeNode | null, path: string | null): ReportFinding[] {
@@ -295,6 +303,7 @@ const history = computed(() => props.report.history)
           :root="treeRoot"
           :selected-path="selectedPath"
           :messages="messages"
+          :graph-href="graphHref"
           @select="selectNode"
         />
         <template v-else>
@@ -315,6 +324,9 @@ const history = computed(() => props.report.history)
 
       <section class="detail-panel" :aria-label="messages.detailTitle">
         <h3>{{ messages.detailTitle }}</h3>
+        <p v-if="selectedPath" class="graph-link-row">
+          <RouterLink :to="graphHref(selectedPath)">{{ messages.showInGraph }}</RouterLink>
+        </p>
         <p v-if="detailFindings.length === 0" class="muted">{{ messages.detailEmpty }}</p>
         <ul v-else class="finding-list">
           <li v-for="finding in detailFindings.slice(0, PAGE_SIZE)" :key="finding.id">
@@ -326,6 +338,9 @@ const history = computed(() => props.report.history)
             <p class="meta">
               <code>{{ finding.file }}<template v-if="finding.line">:{{ finding.line }}</template></code>
               <span v-if="finding.tool"> · {{ finding.tool }}</span>
+              <RouterLink class="finding-graph-link" :to="graphHref(finding.file)">
+                {{ messages.showInGraph }}
+              </RouterLink>
             </p>
           </li>
         </ul>
@@ -421,7 +436,11 @@ const history = computed(() => props.report.history)
       </template>
 
       <template v-else-if="tab === 'architecture'">
-        <ScanReportArchitecturePanel :graph="graph ?? null" :messages="messages" />
+        <ScanReportArchitecturePanel
+          :graph="graph ?? null"
+          :messages="messages"
+          :graph-href="path => graphHref(path)"
+        />
       </template>
 
       <template v-else-if="tab === 'improvements'">

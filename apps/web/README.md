@@ -3,7 +3,7 @@
 `apps/web` hosts two front ends:
 
 - The existing hosted UI (`npm run dev`, `npm run build`) keeps landing, auth, and workspace routes.
-- A separate static graph viewer (`npm run dev:viewer`, `npm run build:viewer`) opens a local `graph.json` in the browser. It does not call `/api` or `/health`, does not read `?graph=`, and does not persist anything.
+- A separate static graph viewer (`npm run dev:viewer`, `npm run build:viewer`) opens a local `graph.json` in the browser. The hosted app also exposes `/viewer` (and `/:locale/viewer`) with the bundled sample graph. The viewer does not call `/api` or `/health`, does not read `?graph=`, and does not persist anything.
 
 ## Graph viewer
 
@@ -14,7 +14,7 @@ npm --prefix apps/web run build:viewer
 
 The production viewer is one file, `apps/web/dist-viewer/index.html`. Open that file with a `file://` URL. Load a graph with the file picker or by dropping a file on the window. The picker does not filter by extension, and a dropped file is parsed either way. `?graph=` and automatic `./graph.json` loading are unsupported: the shipped page sets `connect-src 'none'`.
 
-The viewer entry is `viewer/index.html` and `src/viewer/`. The product name, wordmark, and config filename live only in `packages/brand/src/brand.ts` (`atlasmith.yml`; the older `structura.yml` name is superseded). The hosted app migrates legacy `structura-*` localStorage keys when it reads theme, locale, or the auth session. The viewer never touches storage.
+The dashboard loads scan graphs in-app at `…/projects/:projectId/scans/:scanId/graph` (API fetch, no browser storage handoff). Scan reports link to the same route with a `node` query parameter to focus a file or folder.
 
 Click a node to select it. Enter or a double-click expands or collapses a cluster. The shell follows the viewer spec: search, filters, focus, a coverage panel, a drift panel that stays "not configured" when the file has no findings, a legend, and a budget meter. Tokens live at the end of `src/styles/variables.css`. The shell shows `BrandMark` plus the live wordmark. Logo files are in `public/brand/`. Render caps live in `src/viewer/caps.ts`: 300 nodes on the first view, 50 per expansion, 1000 visible nodes and edges. `COMFORT_NODE_BUDGET` (150) and `COMFORT_EDGE_BUDGET` (300) are a recommended comfort setting, not the limit. The overview uses a "+N more" node and the budget meter uses the hard cap, warning at 80%.
 

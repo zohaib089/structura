@@ -11,6 +11,7 @@ export interface DashboardMessages {
   openProjectNav: string
   projectBreadcrumb: string
   scanBreadcrumb: (scanId: string) => string
+  graphTabBreadcrumb: string
   workspace: string
   overview: string
   projects: string
@@ -96,6 +97,7 @@ const messages: Record<WebLocale, DashboardMessages> = {
     openProjectNav: 'Open project',
     projectBreadcrumb: 'Project',
     scanBreadcrumb: (scanId: string) => `Scan #${scanId}`,
+    graphTabBreadcrumb: 'Graph',
     workspace: 'Workspace',
     overview: 'Overview',
     projects: 'Projects',
@@ -179,6 +181,7 @@ const messages: Record<WebLocale, DashboardMessages> = {
     openProjectNav: 'Open project',
     projectBreadcrumb: 'Project',
     scanBreadcrumb: (scanId: string) => `Scan #${scanId}`,
+    graphTabBreadcrumb: 'Graph',
     workspace: 'Espaço de trabalho',
     overview: 'Visão geral',
     projects: 'Projetos',
@@ -262,6 +265,7 @@ const messages: Record<WebLocale, DashboardMessages> = {
     openProjectNav: 'Open project',
     projectBreadcrumb: 'Project',
     scanBreadcrumb: (scanId: string) => `Scan #${scanId}`,
+    graphTabBreadcrumb: 'Graph',
     workspace: 'Area di lavoro',
     overview: 'Panoramica',
     projects: 'Progetti',
@@ -345,6 +349,7 @@ const messages: Record<WebLocale, DashboardMessages> = {
     openProjectNav: 'Open project',
     projectBreadcrumb: 'Project',
     scanBreadcrumb: (scanId: string) => `Scan #${scanId}`,
+    graphTabBreadcrumb: 'Graph',
     workspace: 'Espace de travail',
     overview: 'Vue d’ensemble',
     projects: 'Projets',
@@ -428,6 +433,7 @@ const messages: Record<WebLocale, DashboardMessages> = {
     openProjectNav: 'Open project',
     projectBreadcrumb: 'Project',
     scanBreadcrumb: (scanId: string) => `Scan #${scanId}`,
+    graphTabBreadcrumb: 'Graph',
     workspace: 'Werkruimte',
     overview: 'Overzicht',
     projects: 'Projecten',
@@ -511,6 +517,7 @@ const messages: Record<WebLocale, DashboardMessages> = {
     openProjectNav: 'Open project',
     projectBreadcrumb: 'Project',
     scanBreadcrumb: (scanId: string) => `Scan #${scanId}`,
+    graphTabBreadcrumb: 'Graph',
     workspace: 'Espacio de trabajo',
     overview: 'Resumen',
     projects: 'Proyectos',
@@ -594,6 +601,7 @@ const messages: Record<WebLocale, DashboardMessages> = {
     openProjectNav: 'Open project',
     projectBreadcrumb: 'Project',
     scanBreadcrumb: (scanId: string) => `Scan #${scanId}`,
+    graphTabBreadcrumb: 'Graph',
     workspace: 'ワークスペース',
     overview: '概要',
     projects: 'プロジェクト',
@@ -677,6 +685,7 @@ const messages: Record<WebLocale, DashboardMessages> = {
     openProjectNav: 'Open project',
     projectBreadcrumb: 'Project',
     scanBreadcrumb: (scanId: string) => `Scan #${scanId}`,
+    graphTabBreadcrumb: 'Graph',
     workspace: '工作区',
     overview: '概览',
     projects: '项目',
@@ -760,6 +769,7 @@ const messages: Record<WebLocale, DashboardMessages> = {
     openProjectNav: 'Open project',
     projectBreadcrumb: 'Project',
     scanBreadcrumb: (scanId: string) => `Scan #${scanId}`,
+    graphTabBreadcrumb: 'Graph',
     workspace: 'वर्कस्पेस',
     overview: 'अवलोकन',
     projects: 'प्रोजेक्ट',
@@ -843,6 +853,7 @@ const messages: Record<WebLocale, DashboardMessages> = {
     openProjectNav: 'Open project',
     projectBreadcrumb: 'Project',
     scanBreadcrumb: (scanId: string) => `Scan #${scanId}`,
+    graphTabBreadcrumb: 'Graph',
     workspace: 'ورک اسپیس',
     overview: 'جائزہ',
     projects: 'پروجیکٹس',

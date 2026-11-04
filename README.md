@@ -29,7 +29,7 @@ Open the graph in the static viewer (no account, no upload):
 npm --prefix apps/web run dev:viewer
 ```
 
-Build the viewer and open `apps/web/dist-viewer/index.html` via `file://`, or use the Compose service below.
+Build the viewer and open `apps/web/dist-viewer/index.html` via `file://`, or open `/viewer` in the hosted dev app (sample graph). GitHub Pages still ships the single-file viewer under `/structura/viewer/`.
 
 ### Docker Compose (hosted dashboard)
 
@@ -41,9 +41,8 @@ docker compose up --build
 
 | Service | URL | Notes |
 | --- | --- | --- |
-| web | http://localhost:5173 | Vite dev server; proxies API |
+| web | http://localhost:5173 | Vite dev server, dashboard, marketing app, `/viewer` sample |
 | api | http://localhost:4100 | Fastify API (Postgres + Mailpit) |
-| viewer | http://localhost:8080 | Built static graph viewer (`nginx`) |
 | Mailpit | http://localhost:8025 | Dev SMTP inbox (verification, OTP, password reset) |
 | Postgres | localhost:5432 | DB `structuradb`, user `structura` |
 

@@ -10,11 +10,10 @@ import { scanReportMessages } from '../../services/scan-report-messages'
 import ScanReportPanel from './ScanReportPanel.vue'
 import { pollScanUntilTerminal } from '../../services/scan-poll'
 import { scanMessages } from '../../services/scan-messages'
-import { scanReportPath } from '../../services/dashboard-routes'
+import { scanReportPath, scanGraphPath } from '../../services/dashboard-routes'
 import type { WebLocale } from '../../services/locale'
 import OpenProjectPanel from './OpenProjectPanel.vue'
 import ScanListPanel from './ScanListPanel.vue'
-import DashboardGraphPanel from './DashboardGraphPanel.vue'
 
 type InsightView = 'graph' | 'report'
 
@@ -37,8 +36,6 @@ const listLoading = ref(false)
 const listError = ref('')
 const selectedScanId = ref<string | null>(null)
 const graphLoading = ref(false)
-const graphError = ref('')
-const graphLabel = ref('')
 const graphDocument = ref<GraphDocument | null>(null)
 const reportLoading = ref(false)
 const reportError = ref('')
@@ -83,25 +80,6 @@ function trackInFlightScans() {
   }
 }
 
-async function loadSelectedGraph() {
-  graphDocument.value = null
-  graphLabel.value = ''
-  graphError.value = ''
-  const scan = selectedScan.value
-  if (!scan || scan.status !== 'succeeded' || !props.workspaceId) return
-  if (insightView.value !== 'graph') return
-  graphLoading.value = true
-  try {
-    const graph = await getScanGraph(props.workspaceId, scan.id)
-    graphLabel.value = messages.value.scanSourceLabel(scan)
-    graphDocument.value = graph
-  } catch (cause) {
-    graphError.value = cause instanceof Error ? cause.message : messages.value.loadScanGraphError
-  } finally {
-    graphLoading.value = false
-  }
-}
-
 async function loadSelectedReport() {
   reportDocument.value = null
   reportError.value = ''
@@ -117,7 +95,6 @@ async function loadSelectedReport() {
     ])
     reportDocument.value = report
     graphDocument.value = graph
-    graphLabel.value = messages.value.scanSourceLabel(scan)
   } catch (cause) {
     reportError.value = cause instanceof Error ? cause.message : reportMessages.value.loadReportError
     graphDocument.value = null
@@ -128,13 +105,18 @@ async function loadSelectedReport() {
 }
 
 function setInsightView(view: InsightView) {
-  insightView.value = view
+  const scan = selectedScan.value
+  if (!scan) return
+  const locale = props.locale
+  const workspaceId = props.workspaceId
+  const projectId = props.projectId ?? 'default'
   if (view === 'graph') {
-    reportDocument.value = null
-    void loadSelectedGraph()
-  } else {
-    void loadSelectedReport()
+    void router.push(scanGraphPath(locale, workspaceId, projectId, scan.id))
+    return
   }
+  insightView.value = 'report'
+  void router.push(scanReportPath(locale, workspaceId, projectId, scan.id, 'violations'))
+  void loadSelectedReport()
 }
 
 function onScanFinished(scan: Scan) {
@@ -170,8 +152,7 @@ watch(
 )
 
 watch(selectedScanId, () => {
-  if (insightView.value === 'graph') void loadSelectedGraph()
-  else void loadSelectedReport()
+  if (insightView.value === 'report') void loadSelectedReport()
 })
 </script>
 
@@ -204,9 +185,8 @@ watch(selectedScanId, () => {
       <button
         type="button"
         role="tab"
-        :aria-selected="insightView === 'graph'"
+        :aria-selected="false"
         class="insight-tab"
-        :class="{ active: insightView === 'graph' }"
         @click="setInsightView('graph')"
       >
         {{ reportMessages.viewGraph }}
@@ -223,22 +203,7 @@ watch(selectedScanId, () => {
       </button>
     </div>
 
-    <template v-if="insightView === 'graph'">
-      <p v-if="graphLoading" role="status">{{ messages.loadingScanGraph }}</p>
-      <p v-else-if="graphError" class="feedback error" role="alert">{{ graphError }}</p>
-      <p v-else-if="!compact && selectedScan?.status !== 'succeeded'" class="muted">{{ messages.noScanSelected }}</p>
-
-      <DashboardGraphPanel
-        v-if="graphDocument"
-        :locale="locale"
-        :graph-document="graphDocument"
-        :graph-label="graphLabel"
-        :scan-id="selectedScanId"
-        :workspace-id="workspaceId"
-      />
-    </template>
-
-    <template v-else>
+    <template v-if="insightView === 'report'">
       <p v-if="reportLoading" role="status">{{ reportMessages.loadingReport }}</p>
       <p v-else-if="reportError" class="feedback error" role="alert">{{ reportError }}</p>
       <p v-else-if="!compact && selectedScan?.status !== 'succeeded'" class="muted">{{ reportMessages.noReportSelected }}</p>
@@ -248,6 +213,8 @@ watch(selectedScanId, () => {
         :locale="locale"
         :report="reportDocument"
         :scan-id="selectedScanId"
+        :workspace-id="workspaceId"
+        :project-id="projectId ?? 'default'"
         :graph="graphDocument"
       />
     </template>

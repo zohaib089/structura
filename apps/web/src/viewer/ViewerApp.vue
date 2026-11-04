@@ -30,7 +30,8 @@ import {
   type ViewState
 } from './overview'
 import { parseGraphFile, type ParseHandle } from './parse-client'
-import { consumeStagedViewerGraph } from '../services/viewer-graph-handoff'
+import { resolveGraphNodeId } from '../services/graph-node-focus'
+import type { WebLocale } from '../services/locale'
 import { sampleGraph } from './sample-graph'
 import BudgetMeter from './components/BudgetMeter.vue'
 import CoachMark from './components/CoachMark.vue'
@@ -46,7 +47,23 @@ import GraphSourcePicker from './components/GraphSourcePicker.vue'
 import NodeDetail from './components/NodeDetail.vue'
 import SearchPalette from './components/SearchPalette.vue'
 
-const locale = resolvePreferredWebLocale(null, navigator.languages)
+const props = withDefaults(
+  defineProps<{
+    embedded?: boolean
+    bootSample?: boolean
+    locale?: WebLocale
+    graphDocument?: GraphDocument | null
+    focusPath?: string | null
+  }>(),
+  {
+    embedded: false,
+    bootSample: false,
+    graphDocument: null,
+    focusPath: null
+  }
+)
+
+const locale = props.locale ?? resolvePreferredWebLocale(null, navigator.languages)
 const messages = viewerMessages(locale)
 const direction = webLocaleDirection(locale)
 const numbers = new Intl.NumberFormat(locale)
@@ -102,29 +119,34 @@ const ratio = computed(() => Math.max(nodeRatio.value, edgeRatio.value))
 const atCap = computed(() => (overview.value?.nodes.length ?? 0) >= HARD_NODE_CAP || (overview.value?.edges.length ?? 0) >= HARD_EDGE_CAP)
 
 onMounted(() => {
-  document.documentElement.lang = locale
-  document.documentElement.dir = direction
-  document.documentElement.dataset.theme = theme.value
-  document.title = pageTitle(messages.title)
+  if (!props.embedded) {
+    document.documentElement.lang = locale
+    document.documentElement.dir = direction
+    document.documentElement.dataset.theme = theme.value
+    document.title = pageTitle(messages.title)
+  }
   window.addEventListener('keydown', onKeydown)
-  window.addEventListener('dragenter', onDragEnter)
-  window.addEventListener('dragover', onDragOver)
-  window.addEventListener('dragleave', onDragLeave)
-  window.addEventListener('drop', onDrop)
-  const staged = consumeStagedViewerGraph()
-  if (staged) {
-    void openStagedGraph(staged.label, staged.text)
-  } else if (import.meta.env.VITE_VIEWER_BOOT_SAMPLE === 'true') {
+  if (!props.embedded) {
+    window.addEventListener('dragenter', onDragEnter)
+    window.addEventListener('dragover', onDragOver)
+    window.addEventListener('dragleave', onDragLeave)
+    window.addEventListener('drop', onDrop)
+  }
+  if (props.graphDocument) {
+    void loadGraphDocument(props.graphDocument)
+  } else if (props.bootSample || import.meta.env.VITE_VIEWER_BOOT_SAMPLE === 'true') {
     void openSample()
   }
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown)
-  window.removeEventListener('dragenter', onDragEnter)
-  window.removeEventListener('dragover', onDragOver)
-  window.removeEventListener('dragleave', onDragLeave)
-  window.removeEventListener('drop', onDrop)
+  if (!props.embedded) {
+    window.removeEventListener('dragenter', onDragEnter)
+    window.removeEventListener('dragover', onDragOver)
+    window.removeEventListener('dragleave', onDragLeave)
+    window.removeEventListener('drop', onDrop)
+  }
   handle?.cancel()
 })
 
@@ -180,13 +202,46 @@ async function openSample() {
   await openBlob(file, true)
 }
 
-async function openStagedGraph(label: string, text: string) {
-  const blob = new Blob([text], { type: 'application/json' })
-  const file = new File([blob], label.endsWith('.json') ? label : `${label}.json`, {
-    type: 'application/json'
-  })
-  await openBlob(file, false)
+async function loadGraphDocument(document: GraphDocument) {
+  handle?.cancel()
+  graph.value = document
+  error.value = null
+  loading.value = false
+  loadingVisible.value = false
+  ready.value = false
+  selection.value = null
+  focus.value = null
+  viewState.value = emptyViewState()
+  filters.value = defaultFilters()
+  sample.value = false
+  fileName.value = 'scan-graph.json'
+  if (document.nodes.length === 0) ready.value = true
+  applyFocusPath(props.focusPath)
 }
+
+function applyFocusPath(path: string | null) {
+  if (!path || !index.value) return
+  const id = resolveGraphNodeId(index.value, path)
+  if (!id) return
+  viewState.value = pinPath(index.value, viewState.value, id)
+  selectNode(id, true)
+  activeId.value = id
+}
+
+watch(
+  () => props.graphDocument,
+  (document) => {
+    if (document) void loadGraphDocument(document)
+  }
+)
+
+watch(
+  () => [props.focusPath, index.value] as const,
+  ([path, idx]) => {
+    if (!idx) return
+    applyFocusPath(path)
+  }
+)
 
 async function openBlob(file: File, asSample: boolean) {
   const token = ++requestId
@@ -220,6 +275,7 @@ async function openBlob(file: File, asSample: boolean) {
   }
   graph.value = result.graph
   if (result.graph.nodes.length === 0) ready.value = true
+  applyFocusPath(props.focusPath)
 }
 
 function closeGraph() {
@@ -546,9 +602,9 @@ const snippet = 'layers: []\nrules: []\n'
 </script>
 
 <template>
-  <div class="viewer" :dir="direction">
-    <a class="skip" href="#graph-canvas">{{ messages.skip }}</a>
-    <header class="topbar" role="banner">
+  <div class="viewer" :class="{ 'viewer-embedded': embedded }" :dir="direction">
+    <a v-if="!embedded" class="skip" href="#graph-canvas">{{ messages.skip }}</a>
+    <header v-if="!embedded" class="topbar" role="banner">
       <BrandMark :size="24" />
       <span class="wordmark">{{ BRAND.wordmark }}</span>
       <span v-if="sample" class="pill">{{ messages.samplePill }}</span>
@@ -559,6 +615,11 @@ const snippet = 'layers: []\nrules: []\n'
       <button type="button" :aria-label="theme === 'dark' ? messages.themeToLight : messages.themeToDark" @click="theme = theme === 'dark' ? 'light' : 'dark'">
         {{ theme === 'dark' ? messages.themeToLight : messages.themeToDark }}
       </button>
+      <button type="button" class="drawer-toggle" :aria-label="messages.railToggle" @click="railOpen = !railOpen">{{ messages.filters }}</button>
+      <button type="button" class="drawer-toggle" :aria-label="messages.inspectorToggle" @click="inspectorOpen = !inspectorOpen">{{ messages.inspector }}</button>
+    </header>
+    <header v-else class="topbar topbar-embedded" role="toolbar" :aria-label="messages.graphLabel">
+      <button type="button" class="search" aria-keyshortcuts="Control+K Meta+K /" @click="palette = true">{{ messages.search }}</button>
       <button type="button" class="drawer-toggle" :aria-label="messages.railToggle" @click="railOpen = !railOpen">{{ messages.filters }}</button>
       <button type="button" class="drawer-toggle" :aria-label="messages.inspectorToggle" @click="inspectorOpen = !inspectorOpen">{{ messages.inspector }}</button>
     </header>
@@ -604,7 +665,7 @@ const snippet = 'layers: []\nrules: []\n'
       />
       <div v-if="dragging" class="drop-overlay">{{ messages.dropOverlay }}</div>
       <GraphSourcePicker
-        v-if="!graph && !error && !loading"
+        v-if="!embedded && !graph && !error && !loading"
         :title="messages.emptyTitle"
         :body="format(messages.emptyBody, { graphFile: BRAND.graphFile })"
         :drop-hint="messages.emptyDrop"
@@ -803,6 +864,13 @@ const snippet = 'layers: []\nrules: []\n'
   block-size: 100vh;
   background: var(--color-canvas);
   color: var(--color-text-primary);
+}
+.viewer.viewer-embedded {
+  block-size: 100%;
+  min-block-size: 0;
+}
+.topbar-embedded {
+  grid-column: 1 / -1;
 }
 .topbar {
   grid-column: 1 / -1;
