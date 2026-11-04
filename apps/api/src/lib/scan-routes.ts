@@ -6,7 +6,12 @@ import {
   limitsFromEnv
 } from '@atlasmith/source-ingest'
 import { serializeScan } from './scan-contracts.js'
-import { encodeUploadPayload, enqueueWorkspaceScan } from './scan-worker.js'
+import {
+  abortRunningWorkspaceScan,
+  encodeUploadPayload,
+  enqueueWorkspaceScan,
+  removeQueuedWorkspaceScan
+} from './scan-worker.js'
 import type { WorkspaceDatabase } from './workspace-routes.js'
 
 function readRecord(value: unknown): Record<string, unknown> | null {
@@ -103,7 +108,7 @@ export function registerWorkspaceScanRoutes(app: FastifyInstance, database: Work
         `INSERT INTO workspace_scans (
            id, workspace_id, requested_by, source, source_url, source_branch, status
          ) VALUES ($1, $2, $3, 'git', $4, $5, 'queued')
-         RETURNING id, workspace_id, requested_by, source, source_url, source_branch, status,
+         RETURNING id, workspace_id, requested_by, source, source_url, source_branch, status, step,
                    error_message, created_at, updated_at, started_at, finished_at`,
         [id, workspaceId, userId, url, branch]
       )
@@ -122,7 +127,7 @@ export function registerWorkspaceScanRoutes(app: FastifyInstance, database: Work
       }
 
       const result = await database.query(
-        `SELECT id, workspace_id, requested_by, source, source_url, source_branch, status, error_message,
+        `SELECT id, workspace_id, requested_by, source, source_url, source_branch, status, step, error_message,
                 created_at, updated_at, started_at, finished_at
          FROM workspace_scans
          WHERE workspace_id = $1
@@ -146,7 +151,7 @@ export function registerWorkspaceScanRoutes(app: FastifyInstance, database: Work
       }
 
       const result = await database.query(
-        `SELECT id, workspace_id, requested_by, source, source_url, source_branch, status, error_message,
+        `SELECT id, workspace_id, requested_by, source, source_url, source_branch, status, step, error_message,
                 created_at, updated_at, started_at, finished_at
          FROM workspace_scans
          WHERE workspace_id = $1 AND id = $2`,
@@ -157,6 +162,69 @@ export function registerWorkspaceScanRoutes(app: FastifyInstance, database: Work
         return reply.code(404).send({ success: false, message: 'Scan not found.' })
       }
       return { success: true, scan: serializeScan(scan as never) }
+    }
+  )
+
+  app.post<{ Params: { workspaceId: string; scanId: string } }>(
+    '/api/workspaces/:workspaceId/scans/:scanId/cancel',
+    async (request, reply) => {
+      const userId = await authenticatedUserId(request.headers.authorization, database)
+      if (!userId) return unauthenticated(reply)
+      if (!(await requireWorkspaceMember(database, request.params.workspaceId, userId))) {
+        return reply.code(404).send({ success: false, message: 'Workspace not found.' })
+      }
+
+      const existing = await database.query(
+        `SELECT id, workspace_id, requested_by, source, source_url, source_branch, status, step, error_message,
+                created_at, updated_at, started_at, finished_at
+         FROM workspace_scans
+         WHERE workspace_id = $1 AND id = $2`,
+        [request.params.workspaceId, request.params.scanId]
+      )
+      const scan = existing.rows[0]
+      if (!scan) {
+        return reply.code(404).send({ success: false, message: 'Scan not found.' })
+      }
+
+      const status = String(scan.status)
+      if (status === 'succeeded' || status === 'failed' || status === 'cancelled') {
+        return reply.code(409).send({
+          success: false,
+          message: 'Scan has already finished.'
+        })
+      }
+
+      const finishedAt = new Date()
+      if (status === 'queued') {
+        removeQueuedWorkspaceScan(request.params.scanId)
+        const updated = await database.query(
+          `UPDATE workspace_scans
+           SET status = 'cancelled', step = NULL, finished_at = $1, updated_at = NOW()
+           WHERE workspace_id = $2 AND id = $3 AND status = 'queued'
+           RETURNING id, workspace_id, requested_by, source, source_url, source_branch, status, step,
+                     error_message, created_at, updated_at, started_at, finished_at`,
+          [finishedAt, request.params.workspaceId, request.params.scanId]
+        )
+        return { success: true, scan: serializeScan(updated.rows[0] as never) }
+      }
+
+      const updated = await database.query(
+        `UPDATE workspace_scans
+         SET status = 'cancelled', step = NULL, finished_at = $1, updated_at = NOW()
+         WHERE workspace_id = $2 AND id = $3 AND status = 'running'
+         RETURNING id, workspace_id, requested_by, source, source_url, source_branch, status, step,
+                   error_message, created_at, updated_at, started_at, finished_at`,
+        [finishedAt, request.params.workspaceId, request.params.scanId]
+      )
+      if (updated.rows.length === 0) {
+        return reply.code(409).send({
+          success: false,
+          message: 'Scan has already finished.'
+        })
+      }
+
+      abortRunningWorkspaceScan(request.params.scanId)
+      return { success: true, scan: serializeScan(updated.rows[0] as never) }
     }
   )
 
@@ -263,7 +331,7 @@ async function createUploadScan(
     `INSERT INTO workspace_scans (
        id, workspace_id, requested_by, source, upload_payload, status
      ) VALUES ($1, $2, $3, 'upload', $4, 'queued')
-     RETURNING id, workspace_id, requested_by, source, source_url, source_branch, status,
+     RETURNING id, workspace_id, requested_by, source, source_url, source_branch, status, step,
                error_message, created_at, updated_at, started_at, finished_at`,
     [id, workspaceId, userId, encodeUploadPayload(uploadBuffer)]
   )

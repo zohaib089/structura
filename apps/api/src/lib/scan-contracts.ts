@@ -1,5 +1,8 @@
-export const SCAN_STATUSES = ['queued', 'running', 'succeeded', 'failed'] as const
+export const SCAN_STATUSES = ['queued', 'running', 'succeeded', 'failed', 'cancelled'] as const
 export type ScanStatus = typeof SCAN_STATUSES[number]
+
+export const SCAN_STEPS = ['fetching', 'scanning', 'analysing', 'saving'] as const
+export type ScanStep = typeof SCAN_STEPS[number]
 
 export interface WorkspaceScanRecord {
   id: string
@@ -9,6 +12,7 @@ export interface WorkspaceScanRecord {
   source_url: string | null
   source_branch: string | null
   status: ScanStatus
+  step: ScanStep | null
   error_message: string | null
   graph_json: unknown
   report_json: unknown
@@ -27,6 +31,7 @@ export function serializeScan(record: WorkspaceScanRecord) {
     url: record.source_url,
     branch: record.source_branch,
     status: record.status,
+    step: record.step ?? null,
     errorMessage: record.error_message,
     createdAt: toIso(record.created_at),
     updatedAt: toIso(record.updated_at),
