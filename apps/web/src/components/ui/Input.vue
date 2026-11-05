@@ -21,7 +21,7 @@ const props = withDefaults(
   }
 )
 
-const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: string]; blur: [event: FocusEvent] }>()
 
 const autoId = useId()
 const inputId = computed(() => props.id ?? `ui-input-${autoId}`)
@@ -31,6 +31,10 @@ const describedBy = computed(() => [hintId.value, errorId.value].filter(Boolean)
 
 function onInput(event: Event) {
   emit('update:modelValue', (event.target as HTMLInputElement).value)
+}
+
+function onBlur(event: FocusEvent) {
+  emit('blur', event)
 }
 </script>
 
@@ -47,7 +51,9 @@ function onInput(event: Event) {
       :required="required"
       :aria-invalid="error ? 'true' : undefined"
       :aria-describedby="describedBy"
+      autocomplete="off"
       @input="onInput"
+      @blur="onBlur"
     >
     <p v-if="hint && !error" :id="hintId" class="ui-input-field__hint">{{ hint }}</p>
     <p v-if="error" :id="errorId" class="ui-input-field__error" role="alert">{{ error }}</p>

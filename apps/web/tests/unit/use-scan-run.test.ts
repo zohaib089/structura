@@ -59,6 +59,31 @@ describe('useScanRun', () => {
     await run.runAfterCreate(async () => scan({ status: 'queued', step: null }))
     expect(pollScanUntilTerminal).toHaveBeenCalledWith('ws-1', 'scan-1', expect.any(Object))
     expect(finished[0]?.status).toBe('succeeded')
+    expect(run.localPhase.value).toBe('idle')
+  })
+
+  it('tracks prepare then upload for folder zips', async () => {
+    vi.mocked(pollScanUntilTerminal).mockResolvedValue(
+      scan({ status: 'succeeded', step: null, finishedAt: now })
+    )
+    const run = useScanRun({
+      workspaceId: ref('ws-1'),
+      scanFailedMessage: 'Scan failed'
+    })
+    const phases: string[] = []
+    const original = run.localPhase
+    // Observe phase transitions via the prepare callback ordering
+    await run.runWithPrepare(
+      async () => {
+        phases.push(run.localPhase.value)
+      },
+      async () => {
+        phases.push(run.localPhase.value)
+        return scan({ status: 'queued', step: null })
+      }
+    )
+    expect(phases).toEqual(['prepare', 'upload'])
+    expect(original.value).toBe('idle')
   })
 
   it('cancels an in-flight scan and applies the API response', async () => {
@@ -109,5 +134,17 @@ describe('useScanRun', () => {
     expect(create).toHaveBeenCalledTimes(1)
     await run.retryLastRun()
     expect(create).toHaveBeenCalledTimes(2)
+  })
+
+  it('sanitizes raw HTTP errors from create failures', async () => {
+    const run = useScanRun({
+      workspaceId: ref('ws-1'),
+      scanFailedMessage: 'Scan failed'
+    })
+    await run.runAfterCreate(async () => {
+      throw new Error('Request failed with status 500.')
+    })
+    expect(run.error.value).toBe('Scan failed')
+    expect(run.lastFailedPhase.value).toBe('upload')
   })
 })
