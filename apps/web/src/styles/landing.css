@@ -1,0 +1,131 @@
+/*
+ * Landing page scope (design: landing-advanced.md §2, mockups/landing-advanced.html).
+ * The marketing page is dark in both themes, so the dark ramp is re-declared here for the landing subtree only.
+ * Values are the shipped dark tokens from variables.css; nothing new is added to :root.
+ * The --landing-* names are layout constants and the navy band shades that have no product token yet.
+ */
+.landing-page {
+  color-scheme: dark;
+
+  --gray-0: #0b0d10;
+  --gray-1: #111317;
+  --gray-2: #181b20;
+  --gray-3: #1f2329;
+  --gray-4: #2a2f36;
+  --gray-5: #3a4049;
+  --gray-7: #7d838c;
+  --gray-8: #9ba1a9;
+  --gray-10: #e6e8eb;
+  --sev-critical-fg: #ff6b6b;
+  --sev-high-fg: #ff9a5c;
+  --sev-medium-fg: #f5c84b;
+  --sev-low-fg: #6cb6ff;
+  --sev-info-fg: #a1a8b3;
+  --nucleus-ring: #4a6fa8;
+  --nucleus-core: #e0a040;
+  --nucleus-glow: #e0a040;
+  --nucleus-glow-opacity: 0.2;
+  --color-canvas: var(--gray-0);
+  --color-surface: var(--gray-1);
+  --color-surface-raised: var(--gray-2);
+  --color-text-primary: var(--gray-10);
+  --color-text-secondary: var(--gray-8);
+  --color-text-muted: var(--gray-7);
+  --color-border: var(--gray-4);
+  --color-border-strong: var(--gray-5);
+  --color-brand-amber-ui: #e0a040;
+  --color-on-brand-amber: #1a1203;
+  --button-primary-bg: var(--gray-10);
+  --button-primary-fg: var(--gray-0);
+  --button-primary-hover-bg: #ffffff;
+  --focus-ring: 0 0 0 2px var(--gray-0), 0 0 0 4px var(--color-brand-amber-ui);
+
+  --landing-nav-h: 60px;
+  --landing-pad: clamp(20px, 4.5vw, 72px);
+  --landing-measure: 1120px;
+  --landing-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --landing-navy-deep: #0e1d38;
+  --landing-navy-line: #2a4a80;
+  --landing-navy-ring: #4a6fa8;
+  --landing-navy-accent: #9cbcf0;
+  --landing-navy-text: #dbe6f8;
+  --landing-navy-lead: #c3d3ee;
+  --landing-navy-comment: #7f97bd;
+
+  min-block-size: 100vh;
+  background: var(--gray-0);
+  color: var(--gray-10);
+  font: 400 16px / 1.6 var(--font-family-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.landing-page :focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-sm);
+}
+.landing-page [id] {
+  scroll-margin-block-start: calc(var(--landing-nav-h) + 12px);
+}
+
+.landing-skip {
+  position: absolute;
+  inset-inline-start: 12px;
+  inset-block-start: -60px;
+  z-index: 100;
+  padding: var(--space-2) 14px;
+  border-radius: var(--r-sm);
+  background: var(--gray-10);
+  color: var(--gray-0);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+}
+.landing-skip:focus {
+  inset-block-start: 10px;
+}
+
+.landing-sr-only {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.landing-kicker {
+  margin: 0 0 14px;
+  color: var(--gray-7);
+  font: 500 12px / 16px var(--landing-font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.landing-h2 {
+  margin: 0 0 var(--space-4);
+  font: 600 clamp(28px, 3.2vw, 44px) / 1.1 var(--font-family-sans);
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+.landing-lead {
+  max-inline-size: 38em;
+  margin: 0;
+  color: var(--gray-8);
+  font-size: var(--font-size-lg);
+}
+
+/* Navy self-host band */
+.landing-page .landing-band--navy .landing-kicker {
+  color: var(--landing-navy-accent);
+}
+.landing-page .landing-band--navy .landing-lead {
+  color: var(--landing-navy-lead);
+}
+.landing-page .landing-band--navy :focus-visible {
+  box-shadow: 0 0 0 2px var(--color-brand-navy), 0 0 0 4px var(--color-brand-amber-ui);
+}
+
+@media (max-width: 900px) {
+  .landing-page {
+    overflow-x: clip;
+  }
+}
