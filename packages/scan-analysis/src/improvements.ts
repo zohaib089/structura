@@ -18,12 +18,19 @@ export function buildImprovements(findings: ScanFinding[]): ScanImprovement[] {
     improvements.push({
       id: improvementId([rule, suggestion]),
       message: suggestion,
-      severity: group.some(item => item.severity === 'high' || item.severity === 'critical') ? 'high' : 'medium',
+      severity: improvementSeverity(group),
       relatedFindingIds: group.map(item => item.id)
     })
   }
 
   return improvements
+}
+
+/** Keep `critical` distinct from `high`: a group is as serious as its most serious finding (floor: medium). */
+function improvementSeverity(group: ScanFinding[]): 'critical' | 'high' | 'medium' {
+  if (group.some(item => item.severity === 'critical')) return 'critical'
+  if (group.some(item => item.severity === 'high')) return 'high'
+  return 'medium'
 }
 
 function suggestionForRule(rule: string, sample: ScanFinding | undefined): string | null {

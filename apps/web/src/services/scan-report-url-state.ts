@@ -9,16 +9,21 @@ import {
 import type { ReportTabId } from './scan-report-messages'
 import { resolveGraphFocusQuery } from './graph-node-focus'
 
-const REPORT_TAB_IDS: ReportTabId[] = [
-  'history',
+/** Tab order as shown in the UI. Summary is always first and is the default. */
+export const REPORT_TAB_IDS: ReportTabId[] = [
+  'summary',
+  'findings',
   'violations',
   'security',
   'badPractices',
   'improvements',
   'removals',
   'architecture',
-  'graph'
+  'graph',
+  'history'
 ]
+
+export const DEFAULT_REPORT_TAB: ReportTabId = 'summary'
 
 function isReportSeverity(value: string): value is ReportSeverity {
   return (ALL_REPORT_SEVERITIES as readonly string[]).includes(value)
@@ -46,11 +51,11 @@ function parseCsvQuery(query: LocationQuery, key: string): string[] {
 
 export function parseReportTabParam(tab: string | undefined): ReportTabId {
   if (tab && (REPORT_TAB_IDS as readonly string[]).includes(tab)) return tab as ReportTabId
-  return 'violations'
+  return DEFAULT_REPORT_TAB
 }
 
 export function reportTabPathSegment(tab: ReportTabId): string | undefined {
-  return tab === 'violations' ? undefined : tab
+  return tab === DEFAULT_REPORT_TAB ? undefined : tab
 }
 
 export function parseReportFiltersFromQuery(query: LocationQuery): ReportViewFilters {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { LocationQuery } from 'vue-router'
 import {
+  REPORT_TAB_IDS,
   mergeReportLocationQuery,
   parseReportFiltersFromQuery,
   parseReportNodeQuery,
@@ -11,12 +12,20 @@ import {
 import { defaultReportFilters } from '../../src/services/scan-report-filters'
 
 describe('scan report URL state', () => {
-  it('parses tab params with violations as the default', () => {
-    expect(parseReportTabParam(undefined)).toBe('violations')
+  it('parses tab params with summary as the default', () => {
+    expect(parseReportTabParam(undefined)).toBe('summary')
     expect(parseReportTabParam('graph')).toBe('graph')
-    expect(parseReportTabParam('not-a-tab')).toBe('violations')
-    expect(reportTabPathSegment('violations')).toBeUndefined()
+    expect(parseReportTabParam('findings')).toBe('findings')
+    expect(parseReportTabParam('violations')).toBe('violations')
+    expect(parseReportTabParam('not-a-tab')).toBe('summary')
+    expect(reportTabPathSegment('summary')).toBeUndefined()
+    expect(reportTabPathSegment('violations')).toBe('violations')
     expect(reportTabPathSegment('graph')).toBe('graph')
+  })
+
+  it('lists Summary first so it is the first tab people see', () => {
+    expect(REPORT_TAB_IDS[0]).toBe('summary')
+    expect(new Set(REPORT_TAB_IDS).size).toBe(REPORT_TAB_IDS.length)
   })
 
   it('round-trips filter query params', () => {

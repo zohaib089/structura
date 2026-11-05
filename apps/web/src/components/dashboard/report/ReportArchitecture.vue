@@ -1,19 +1,25 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { RouterLink, type RouteLocationRaw } from 'vue-router'
-import type { GraphDocument } from '../../viewer/graph-types'
-import type { ScanReportMessages } from '../../services/scan-report-messages'
+import ErrorState from '../../ui/ErrorState.vue'
+import SkeletonTableRows from '../../ui/skeleton/SkeletonTableRows.vue'
+import type { GraphDocument } from '../../../viewer/graph-types'
+import type { ScanReportMessages } from '../../../services/scan-report-messages'
 import {
   architectureViolationCount,
   buildModuleRows,
   graphHasArchitectureConfig
-} from '../../services/scan-report-architecture'
+} from '../../../services/scan-report-architecture'
 
 const props = defineProps<{
   graph: GraphDocument | null
   messages: ScanReportMessages
   graphHref?: (path: string) => RouteLocationRaw
+  graphLoading?: boolean
+  graphError?: boolean
 }>()
+
+const emit = defineEmits<{ retryGraph: [] }>()
 
 const configured = computed(() => graphHasArchitectureConfig(props.graph))
 const architecture = computed(() => (configured.value ? props.graph!.architecture : undefined))
@@ -27,7 +33,15 @@ const findings = computed(() => architecture.value?.findings ?? [])
 </script>
 
 <template>
-  <div v-if="!configured" class="empty-state" role="status">
+  <SkeletonTableRows v-if="graphLoading" :label="messages.graphLoadingLabel" />
+  <ErrorState
+    v-else-if="!graph && graphError"
+    :title="messages.architectureNeedsGraphTitle"
+    :message="messages.architectureNeedsGraphBody"
+    :retry-label="messages.graphRetry"
+    @retry="emit('retryGraph')"
+  />
+  <div v-else-if="!configured" class="empty-state" role="status">
     <h4>{{ messages.architectureEmptyTitle }}</h4>
     <p>{{ messages.architectureEmptyBody }}</p>
   </div>
@@ -99,9 +113,7 @@ const findings = computed(() => architecture.value?.findings ?? [])
 
 <style scoped>
 .empty-state {
-  padding: var(--space-4);
-  border: 1px dashed var(--color-border-strong);
-  border-radius: var(--radius-lg);
+  padding: var(--space-4) 0;
 }
 
 .empty-state h4 {
@@ -126,7 +138,7 @@ const findings = computed(() => architecture.value?.findings ?? [])
 
 .data-table th,
 .data-table td {
-  border: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
   padding: var(--space-2) var(--space-3);
   text-align: left;
   vertical-align: top;

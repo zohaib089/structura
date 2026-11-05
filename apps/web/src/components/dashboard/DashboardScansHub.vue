@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import type { Scan } from '../../api/scans'
 import type { GraphDocument } from '../../viewer/graph-types'
 import { getScanGraph, listScans } from '../../api/scans'
@@ -10,7 +10,7 @@ import { scanReportMessages } from '../../services/scan-report-messages'
 import ScanReportPanel from './ScanReportPanel.vue'
 import { pollScanUntilTerminal } from '../../services/scan-poll'
 import { scanMessages } from '../../services/scan-messages'
-import { scanReportPath } from '../../services/dashboard-routes'
+import { projectScansPath, scanReportPath } from '../../services/dashboard-routes'
 import type { WebLocale } from '../../services/locale'
 import OpenProjectPanel from './OpenProjectPanel.vue'
 import ScanListPanel from './ScanListPanel.vue'
@@ -40,13 +40,19 @@ const listLoading = ref(false)
 const listError = ref('')
 const selectedScanId = ref<string | null>(null)
 const graphLoading = ref(false)
+const graphError = ref(false)
 const graphDocument = ref<GraphDocument | null>(null)
 const reportLoading = ref(false)
 const reportError = ref('')
+const reportErrorDetail = ref('')
 const reportDocument = ref<ScanReportV1 | null>(null)
 let pollAbort: AbortController | null = null
 
 const selectedScan = computed(() => scans.value.find(scan => scan.id === selectedScanId.value) ?? null)
+/** Report route: the report takes the whole page (no scan list or open-project form above it). */
+const reportMode = computed(
+  () => insightView.value === 'report' && !props.compact && Boolean(selectedScanId.value || props.initialScanId)
+)
 const recentScans = computed(() =>
   [...scans.value].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).slice(0, 5)
 )
@@ -86,26 +92,50 @@ function trackInFlightScans() {
 
 async function loadSelectedReport() {
   reportDocument.value = null
+  graphDocument.value = null
   reportError.value = ''
+  reportErrorDetail.value = ''
+  graphError.value = false
   const scan = selectedScan.value
   if (!scan || scan.status !== 'succeeded' || !props.workspaceId) return
   if (insightView.value !== 'report') return
+  const requestedScanId = scan.id
   reportLoading.value = true
   graphLoading.value = true
+  // The report and the graph load independently: a slow or failed graph must not block the Summary.
+  const graphRequest = loadGraphFor(requestedScanId)
   try {
-    const [report, graph] = await Promise.all([
-      getScanReport(props.workspaceId, scan.id),
-      getScanGraph(props.workspaceId, scan.id)
-    ])
-    reportDocument.value = report
-    graphDocument.value = graph
+    const report = await getScanReport(props.workspaceId, requestedScanId)
+    if (selectedScanId.value === requestedScanId) reportDocument.value = report
   } catch (cause) {
-    reportError.value = cause instanceof Error ? cause.message : reportMessages.value.loadReportError
-    graphDocument.value = null
+    if (selectedScanId.value === requestedScanId) {
+      reportError.value = reportMessages.value.loadReportError
+      reportErrorDetail.value = cause instanceof Error ? cause.message : ''
+    }
   } finally {
     reportLoading.value = false
-    graphLoading.value = false
   }
+  await graphRequest
+}
+
+async function loadGraphFor(scanId: string) {
+  graphLoading.value = true
+  graphError.value = false
+  try {
+    const graph = await getScanGraph(props.workspaceId, scanId)
+    if (selectedScanId.value === scanId) graphDocument.value = graph
+  } catch {
+    if (selectedScanId.value === scanId) {
+      graphDocument.value = null
+      graphError.value = true
+    }
+  } finally {
+    if (selectedScanId.value === scanId) graphLoading.value = false
+  }
+}
+
+function retryGraph() {
+  if (selectedScanId.value) void loadGraphFor(selectedScanId.value)
 }
 
 function setInsightView(view: InsightView) {
@@ -118,7 +148,7 @@ function setInsightView(view: InsightView) {
   if (view === 'graph') {
     void router.push(scanReportPath(locale, workspaceId, projectId, scan.id, 'graph'))
   } else {
-    void router.push(scanReportPath(locale, workspaceId, projectId, scan.id, 'violations'))
+    void router.push(scanReportPath(locale, workspaceId, projectId, scan.id))
   }
   void loadSelectedReport()
 }
@@ -164,27 +194,28 @@ watch(
   () => props.initialInsightView,
   view => {
     if (view) insightView.value = view
-    if (view === 'report') void loadSelectedReport()
+    if (view === 'report' && !reportLoading.value && !reportDocument.value) void loadSelectedReport()
   }
 )
 </script>
 
 <template>
-  <section class="scans-hub" :aria-label="messages.hubTitle">
-    <header v-if="!compact" class="hub-header">
+  <section class="scans-hub" :class="{ 'scans-hub--report': reportMode }" :aria-label="messages.hubTitle">
+    <header v-if="!compact && !reportMode" class="hub-header">
       <p class="eyebrow">{{ messages.hubEyebrow }}</p>
       <h1>{{ messages.hubTitle }}</h1>
       <p>{{ messages.hubDescription }}</p>
     </header>
 
     <OpenProjectPanel
-      v-if="!compact"
+      v-if="!compact && !reportMode"
       :workspace-id="workspaceId"
       :locale="locale"
       @scan-finished="onScanFinished"
     />
 
     <ScanListPanel
+      v-if="!reportMode"
       :locale="locale"
       :scans="compact ? recentScans : scans"
       :loading="listLoading"
@@ -194,7 +225,12 @@ watch(
       @select="selectScan"
     />
 
-    <div v-if="selectedScan?.status === 'succeeded'" class="insight-toggle" role="tablist" :aria-label="messages.selectScan">
+    <div
+      v-if="!reportMode && selectedScan?.status === 'succeeded'"
+      class="insight-toggle"
+      role="tablist"
+      :aria-label="messages.selectScan"
+    >
       <button
         type="button"
         role="tab"
@@ -217,14 +253,21 @@ watch(
     </div>
 
     <template v-if="insightView === 'report'">
-      <SkeletonReport v-if="reportLoading" :label="reportMessages.loadingReport" />
+      <SkeletonReport v-if="reportLoading || (listLoading && !selectedScan)" :label="reportMessages.loadingReport" />
       <ErrorState
         v-else-if="reportError"
         :message="reportError"
+        :details="reportErrorDetail || undefined"
         :retry-label="sharedMessages.retry"
         @retry="loadSelectedReport"
       />
-      <p v-else-if="!compact && selectedScan?.status !== 'succeeded'" class="muted">{{ reportMessages.noReportSelected }}</p>
+      <div v-else-if="!compact && !reportDocument && selectedScan?.status !== 'succeeded'" class="not-ready" role="status">
+        <p class="not-ready__title">{{ reportMessages.reportNotReadyTitle }}</p>
+        <p class="muted">{{ reportMessages.reportNotReadyBody }}</p>
+        <RouterLink class="not-ready__link" :to="projectScansPath(locale, workspaceId, projectId ?? 'default')">
+          {{ reportMessages.backToScans }}
+        </RouterLink>
+      </div>
 
       <ScanReportPanel
         v-if="reportDocument && selectedScanId"
@@ -234,6 +277,10 @@ watch(
         :workspace-id="workspaceId"
         :project-id="projectId ?? 'default'"
         :graph="graphDocument"
+        :graph-loading="graphLoading"
+        :graph-error="graphError"
+        :scan="selectedScan"
+        @retry-graph="retryGraph"
       />
     </template>
   </section>
@@ -258,6 +305,22 @@ watch(
 
 .muted {
   color: var(--color-text-secondary);
+}
+
+.not-ready {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  padding-block: var(--space-6);
+}
+
+.not-ready__title {
+  margin: 0;
+  font-weight: var(--font-weight-medium);
+}
+
+.not-ready__link {
+  color: var(--color-brand-amber-ui);
 }
 
 .insight-toggle {

@@ -6,6 +6,8 @@ export interface TabItem {
   label: string
   count?: number
   disabled?: boolean
+  /** Native tooltip; use it to explain jargon in the label. */
+  title?: string
   tabId?: string
   panelId?: string
 }
@@ -79,6 +81,7 @@ function onKeydown(event: KeyboardEvent, index: number) {
       :aria-controls="tabPanelId(item)"
       :tabindex="modelValue === item.id ? 0 : -1"
       :disabled="item.disabled"
+      :title="item.title"
       @click="select(item)"
       @keydown="onKeydown($event, index)"
     >
