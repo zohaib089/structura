@@ -14,6 +14,7 @@ import { writeFile } from 'node:fs/promises'
 import { access } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { ScanStatus, ScanStep, WorkspaceScanRecord } from './scan-contracts.js'
+import { replaceScanFileMeta } from './scan-file-meta.js'
 import type { WorkspaceQuery } from './workspace-routes.js'
 
 export interface ScanWorkerDependencies {
@@ -142,6 +143,11 @@ async function runWorkspaceScan(scanId: string, dependencies: ScanWorkerDependen
           })
 
           await setScanStep(dependencies.query, scanId, 'saving', signal)
+          const fileMetaEntries = Object.entries(output.fileSummaries).map(([path, summary]) => ({
+            path,
+            summary
+          }))
+          await replaceScanFileMeta(dependencies.query, scanId, fileMetaEntries)
           await updateScan(
             dependencies.query,
             scanId,

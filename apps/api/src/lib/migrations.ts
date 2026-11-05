@@ -234,6 +234,19 @@ const migrations: Migration[] = [
         )
       );
     `
+  },
+  {
+    version: '009_workspace_scan_file_meta',
+    sql: `
+      CREATE TABLE IF NOT EXISTS workspace_scan_file_meta (
+        scan_id TEXT NOT NULL REFERENCES workspace_scans(id) ON DELETE CASCADE,
+        path TEXT NOT NULL,
+        summary TEXT,
+        PRIMARY KEY (scan_id, path)
+      );
+      CREATE INDEX IF NOT EXISTS workspace_scan_file_meta_scan_idx
+        ON workspace_scan_file_meta (scan_id);
+    `
   }
 ]
 
