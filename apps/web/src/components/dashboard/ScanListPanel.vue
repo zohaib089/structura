@@ -75,10 +75,7 @@ function formatDate(value: string) {
 .scan-list {
   display: grid;
   gap: var(--space-3);
-  padding: var(--space-5);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  background: color-mix(in srgb, var(--color-surface) var(--alpha-50), transparent);
+  min-width: 0;
 }
 
 .list-heading {
@@ -90,15 +87,25 @@ function formatDate(value: string) {
 
 .list-heading h2 {
   margin: 0;
-  font-size: var(--font-size-xl);
+  font-size: var(--text-18, var(--font-size-xl));
+  line-height: 1.3;
+  font-weight: var(--font-weight-semibold);
 }
 
 .rows {
   display: grid;
-  gap: var(--space-2);
+  gap: 0;
   margin: 0;
   padding: 0;
   list-style: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--color-surface);
+}
+
+.rows > li + li {
+  border-top: 1px solid var(--color-border);
 }
 
 .scan-row {
@@ -106,21 +113,26 @@ function formatDate(value: string) {
   display: grid;
   gap: var(--space-1);
   text-align: start;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-3);
-  background: var(--color-surface);
+  border: 0;
+  border-radius: 0;
+  padding: var(--space-3) var(--space-4);
+  background: transparent;
   cursor: pointer;
   font: inherit;
+  color: inherit;
+}
+
+.scan-row:hover {
+  background: var(--gray-3);
 }
 
 .scan-row.selected {
-  border-color: color-mix(in srgb, var(--color-accent-primary) var(--alpha-40), var(--color-border));
-  background: color-mix(in srgb, var(--color-accent-primary) var(--alpha-06), transparent);
+  background: color-mix(in srgb, var(--color-brand-amber-ui) var(--alpha-08), var(--color-surface));
+  box-shadow: inset 2px 0 0 var(--color-brand-amber-ui);
 }
 
 .scan-source {
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--font-weight-semibold);
   overflow-wrap: anywhere;
 }
 
@@ -129,16 +141,13 @@ function formatDate(value: string) {
   flex-wrap: wrap;
   gap: var(--space-3);
   color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-}
-
-.status[data-status='failed'] {
-  color: var(--color-danger);
+  font-size: var(--text-12);
+  line-height: var(--text-12-lh);
 }
 
 .scan-error {
   color: var(--color-danger);
-  font-size: var(--font-size-sm);
+  font-size: var(--text-12);
+  line-height: var(--text-12-lh);
 }
-
 </style>

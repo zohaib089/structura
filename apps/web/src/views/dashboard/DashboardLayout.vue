@@ -13,6 +13,7 @@ import {
   type Workspace
 } from '../../services/workspaces'
 import {
+  openProjectPath,
   projectPath,
   rememberLastWorkspaceId,
   scanReportPath,
@@ -82,15 +83,20 @@ const navItems = computed<SidebarNavItem[]>(() => {
       active: route.name === 'workspace-projects' || route.name === 'workspace-project'
     },
     {
+      id: 'open-project',
+      label: messages.value.openProjectNav,
+      to: openProjectPath(base, ws),
+      active: route.name === 'open-project'
+    },
+    {
       id: 'scans',
       label: messages.value.scansNav,
       to: workspaceScansPath(base, ws),
       active:
         route.name === 'workspace-scans'
-        ||         route.name === 'project-scans'
+        || route.name === 'project-scans'
         || route.name === 'scan-report'
         || route.name === 'project-graph'
-        || route.name === 'open-project'
     },
     {
       id: 'settings',
