@@ -32,7 +32,7 @@
   --sev-info-border: #353a42;
 
   --status-success: #3fb950;
-  --status-running: var(--accent);
+  --status-running: var(--color-brand-amber-ui);
   --status-failed: var(--sev-critical-fg);
   --status-queued: var(--gray-8);
 
@@ -67,10 +67,9 @@
   --dur-3: 240ms;
   --easing-product: cubic-bezier(0.2, 0, 0, 1);
 
-  --shell-sidebar-width: 240px;
+  --shell-sidebar-width: 232px;
   --shell-sidebar-collapsed: 56px;
   --shell-topbar-height: 48px;
-  --shell-content-max: 1280px;
 
   --button-primary-bg: var(--gray-10);
   --button-primary-fg: var(--gray-0);
@@ -173,7 +172,7 @@
   --shadow-secondary-glow: 0 12px 32px color-mix(in srgb, var(--color-accent-secondary) var(--alpha-20), transparent);
   --shadow-success-glow: 0 0 0 4px color-mix(in srgb, var(--color-success) var(--alpha-12), transparent);
   --shadow-danger-glow: 0 0 0 4px color-mix(in srgb, var(--color-danger) var(--alpha-12), transparent);
-  --focus-ring: 0 0 0 2px var(--gray-0), 0 0 0 4px var(--accent);
+  --focus-ring: 0 0 0 2px var(--gray-0), 0 0 0 4px var(--color-brand-amber-ui);
   --duration-fast: 120ms;
   --duration-normal: 200ms;
   --duration-slow: 400ms;
@@ -249,7 +248,7 @@
   --sev-info-border: #d3d7dc;
 
   --status-success: #1a7f37;
-  --status-running: var(--accent);
+  --status-running: var(--color-brand-amber-ui);
   --status-failed: var(--sev-critical-fg);
   --status-queued: var(--gray-8);
 
@@ -275,7 +274,7 @@
   --color-info: var(--sev-low-fg);
   --color-highlight: #ffffff;
   --color-text-on-accent: #ffffff;
-  --focus-ring: 0 0 0 2px var(--gray-0), 0 0 0 4px var(--accent);
+  --focus-ring: 0 0 0 2px var(--gray-0), 0 0 0 4px var(--color-brand-amber-ui);
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
   --shadow-md: 0 8px 32px rgba(15, 23, 42, 0.06);
   --shadow-lg: 0 30px 80px rgba(15, 23, 42, 0.08);

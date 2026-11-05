@@ -24,7 +24,7 @@ defineEmits<{
 <template>
   <aside class="sidebar">
     <div class="brand-row">
-      <BrandMark :size="20" />
+      <BrandMark :size="22" />
       <div class="brand-copy">
         <span class="product-name">{{ BRAND.name }}</span>
         <button type="button" class="workspace-trigger" @click="$emit('openWorkspaceMenu')">
