@@ -15,7 +15,7 @@ import type { WebLocale } from '../../services/locale'
 import OpenProjectPanel from './OpenProjectPanel.vue'
 import ScanListPanel from './ScanListPanel.vue'
 import ErrorState from '../ui/ErrorState.vue'
-import Skeleton from '../ui/Skeleton.vue'
+import SkeletonReport from '../ui/skeleton/SkeletonReport.vue'
 import { dashboardMessages } from '../../services/dashboard-messages'
 
 type InsightView = 'graph' | 'report'
@@ -217,7 +217,7 @@ watch(
     </div>
 
     <template v-if="insightView === 'report'">
-      <Skeleton v-if="reportLoading" :rows="6" :label="reportMessages.loadingReport" />
+      <SkeletonReport v-if="reportLoading" :label="reportMessages.loadingReport" />
       <ErrorState
         v-else-if="reportError"
         :message="reportError"

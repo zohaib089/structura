@@ -3,7 +3,7 @@ import { open } from 'node:fs/promises'
 import { mkdir, rm, stat, writeFile } from 'node:fs/promises'
 import { lstat, readdir } from 'node:fs/promises'
 import { basename, dirname, extname, join } from 'node:path'
-import { Readable } from 'node:stream'
+import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import * as tar from 'tar'
 import type { SourceIngestLimits } from './limits.js'
@@ -31,7 +31,21 @@ export async function extractArchiveToDirectory(
     throw new Error('Upload exceeds the configured size limit.')
   }
 
+  const createdRoot = !(await pathExists(destinationRoot))
   await mkdir(destinationRoot, { recursive: true })
+  try {
+    return await extractInto(archivePath, destinationRoot, options)
+  } catch (error) {
+    await cleanupDestination(destinationRoot, createdRoot)
+    throw error
+  }
+}
+
+async function extractInto(
+  archivePath: string,
+  destinationRoot: string,
+  options: ArchiveExtractOptions
+): Promise<ArchiveExtractResult> {
   const ext = extname(archivePath).toLowerCase()
   const lowerName = basename(archivePath).toLowerCase()
   const zipByMagic = await looksLikeZipArchive(archivePath)
@@ -45,6 +59,43 @@ export async function extractArchiveToDirectory(
   }
 
   return measureTree(destinationRoot, options.limits)
+}
+
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await lstat(path)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Remove partial output after a failed extraction. */
+async function cleanupDestination(destinationRoot: string, createdRoot: boolean): Promise<void> {
+  if (createdRoot) {
+    await rm(destinationRoot, { recursive: true, force: true })
+    return
+  }
+  const entries = await readdir(destinationRoot).catch(() => [] as string[])
+  await Promise.all(entries.map(name => rm(join(destinationRoot, name), { recursive: true, force: true })))
+}
+
+/**
+ * Counts bytes actually produced by the decompressor against a shared budget and
+ * aborts the stream once it is exceeded. Zip header sizes are attacker-controlled
+ * and are never trusted for enforcement.
+ */
+function byteBudgetGuard(budget: { remaining: number }): Transform {
+  return new Transform({
+    transform(chunk: Buffer, _encoding, callback) {
+      budget.remaining -= chunk.length
+      if (budget.remaining < 0) {
+        callback(new Error('Archive exceeds the configured uncompressed size limit.'))
+        return
+      }
+      callback(null, chunk)
+    }
+  })
 }
 
 async function looksLikeZipArchive(archivePath: string): Promise<boolean> {
@@ -98,8 +149,23 @@ async function extractZipArchive(
   options: ArchiveExtractOptions
 ): Promise<void> {
   const zip = await openZip(archivePath)
-  let fileCount = 0
-  let totalBytes = 0
+  try {
+    await extractZipEntries(zip, destinationRoot, options)
+  } finally {
+    await zip.close()
+  }
+}
+
+async function extractZipEntries(
+  zip: Awaited<ReturnType<typeof openZip>>,
+  destinationRoot: string,
+  options: ArchiveExtractOptions
+): Promise<void> {
+  const fileEntries = zip.entries.filter(entry => !entry.directory).length
+  if (fileEntries > options.limits.maxFileCount || zip.entries.length > options.limits.maxFileCount * 2) {
+    throw new Error('Archive exceeds the configured file count limit.')
+  }
+  const budget = { remaining: options.limits.maxUncompressedBytes }
 
   for (const entry of zip.entries) {
     const safePath = entry.path ? resolveInsideRoot(destinationRoot, entry.path) : destinationRoot
@@ -108,17 +174,8 @@ async function extractZipArchive(
       continue
     }
 
-    fileCount += 1
-    if (fileCount > options.limits.maxFileCount) {
-      throw new Error('Archive exceeds the configured file count limit.')
-    }
-    totalBytes += entry.uncompressedSize
-    if (totalBytes > options.limits.maxUncompressedBytes) {
-      throw new Error('Archive exceeds the configured uncompressed size limit.')
-    }
-
     await mkdir(dirname(safePath), { recursive: true })
-    await pipeline(entry.stream(), createWriteStream(safePath))
+    await pipeline(entry.stream(), byteBudgetGuard(budget), createWriteStream(safePath))
   }
 }
 

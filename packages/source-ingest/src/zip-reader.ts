@@ -18,6 +18,7 @@ export interface ZipEntryInfo {
 
 export async function openZip(archivePath: string): Promise<{
   entries: Array<ZipEntryInfo & { stream: () => Readable }>
+  close: () => Promise<void>
 }> {
   const handle = await open(archivePath, 'r')
   const stat = await handle.stat()
@@ -70,7 +71,7 @@ export async function openZip(archivePath: string): Promise<{
     offset += 46 + fileNameLength + extraLength + commentLength
   }
 
-  return { entries }
+  return { entries, close: () => handle.close() }
 }
 
 function entryStream(

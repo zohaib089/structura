@@ -6,8 +6,13 @@ import BrandMark from '../brand/BrandMark.vue'
 import ScanReportTree from './ScanReportTree.vue'
 import ScanReportArchitecturePanel from './ScanReportArchitecturePanel.vue'
 import ScanReportAnalysers from './ScanReportAnalysers.vue'
+import type {
+  ReportFinding,
+  ReportSection,
+  ReportSeverity,
+  ScanReportV1
+} from '../../api/scan-report-types'
 import ScanGraphView from '../../views/dashboard/ScanGraphView.vue'
-import type { ScanReportV1 } from '../../api/scan-report-types'
 import type { GraphDocument } from '../../viewer/graph-types'
 import type { WebLocale } from '../../services/locale'
 import { scanReportMessages, type ReportTabId } from '../../services/scan-report-messages'
@@ -27,7 +32,6 @@ import {
   architectureViolationCount,
   graphHasArchitectureConfig
 } from '../../services/scan-report-architecture'
-import type { ReportFinding, ReportSection, ReportSeverity } from '../../api/scan-report-types'
 import { scanReportPath } from '../../services/dashboard-routes'
 import {
   mergeReportLocationQuery,
@@ -472,6 +476,7 @@ const history = computed(() => props.report.history)
           :scan-id="scanId"
           :prefetched-graph="graph ?? null"
           :path-severity-counts="pathSeverityCounts"
+          :scan-findings="report.findings"
         />
       </template>
 

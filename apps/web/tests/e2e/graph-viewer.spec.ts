@@ -53,11 +53,17 @@ test('loads a fixture from file://, selects, and expands', async ({ page }) => {
 test('renders hostile labels as text under the built CSP', async ({ page }) => {
   await page.goto(pathToFileURL(builtHtml).href)
   await page.locator('[data-testid="file-input"]').setInputFiles(resolve(root, 'fixtures/hostile-graph.json'))
-  await expect(page.locator('[data-testid="graph-canvas"]')).toHaveAttribute('data-ready', 'true')
+  const canvas = page.locator('[data-testid="graph-canvas"]')
+  await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 20_000 })
+  const dismissGuide = page.getByTestId('coach-mark').getByRole('button', { name: /dismiss/i })
+  if (await dismissGuide.isVisible().catch(() => false)) {
+    await dismissGuide.click()
+  }
   const hostile = page.locator('.overview-node[data-node-id="file:src/app.ts"]')
+  await expect(hostile).toBeVisible()
   await hostile.click()
   await hostile.press('Enter')
-  const payload = await page.locator('text=<script>window.__xss=1</script>').first().textContent()
+  const payload = await page.getByText('<script>window.__xss=1</script>').first().textContent()
   expect(payload).toContain('window.__xss')
   expect(await page.evaluate(() => (window as unknown as { __xss?: number }).__xss)).toBeUndefined()
 })

@@ -27,6 +27,7 @@ import {
 } from './lib/workspace-routes.js'
 import { registerWorkspaceScanRoutes } from './lib/scan-routes.js'
 import { recoverWorkspaceScansOnStartup } from './lib/scan-worker.js'
+import { AuthRateLimiter, registerAuthRateLimits, sendTooManyRequests } from './lib/auth-rate-limit.js'
 import { logger } from './logger.js'
 import { limitsFromEnv } from '@atlasmith/source-ingest'
 
@@ -39,6 +40,8 @@ void app.register(multipart, {
     files: 1
   }
 })
+const authRateLimiter = new AuthRateLimiter()
+registerAuthRateLimits(app, authRateLimiter)
 const CODE_TTL_MINUTES = 15
 const OTP_TTL_MINUTES = 10
 const RESET_TTL_MINUTES = 30
@@ -253,6 +256,7 @@ app.post('/api/auth/login', async (request, reply) => {
     return reply.code(403).send({ success: false, message: 'Please verify your email before logging in.' })
   }
 
+  authRateLimiter.clearAccount('/api/auth/login', email)
   const session = await issueSession(user)
   return { success: true, message: 'Login successful.', ...session }
 })
@@ -329,8 +333,15 @@ app.post('/api/auth/verify-email', async (request, reply) => {
     return reply.code(400).send({ success: false, message: 'Verification code is invalid or expired. Request a new code.' })
   }
   if (!secureEqual(digest(code), user.verification_code)) {
+    const failure = authRateLimiter.recordCodeFailure('verify-email', email)
+    if (failure.locked) {
+      await query('UPDATE users SET verification_code = NULL, verification_expires_at = NULL WHERE id = $1', [user.id])
+      return sendTooManyRequests(reply, failure.retryAfterSeconds, 'Too many incorrect codes. Request a new code later.')
+    }
     return reply.code(400).send({ success: false, message: 'The verification code is incorrect.' })
   }
+  authRateLimiter.clearCodeFailures('verify-email', email)
+  authRateLimiter.clearAccount('/api/auth/verify-email', email)
 
   await query('UPDATE users SET verified = true, verification_code = NULL, verification_expires_at = NULL WHERE id = $1', [user.id])
   return { success: true, message: 'Email verified successfully.' }
@@ -400,8 +411,15 @@ app.post('/api/auth/otp/verify', async (request, reply) => {
     return reply.code(400).send({ success: false, message: 'One-time code is invalid or expired. Request a new code.' })
   }
   if (!secureEqual(digest(code), user.otp_code)) {
+    const failure = authRateLimiter.recordCodeFailure('otp', email)
+    if (failure.locked) {
+      await query('UPDATE users SET otp_code = NULL, otp_expires_at = NULL WHERE id = $1', [user.id])
+      return sendTooManyRequests(reply, failure.retryAfterSeconds, 'Too many incorrect codes. Request a new code later.')
+    }
     return reply.code(400).send({ success: false, message: 'The OTP code is incorrect.' })
   }
+  authRateLimiter.clearCodeFailures('otp', email)
+  authRateLimiter.clearAccount('/api/auth/otp/verify', email)
 
   await query('UPDATE users SET otp_code = NULL, otp_expires_at = NULL WHERE id = $1', [user.id])
   const session = await issueSession(user)
