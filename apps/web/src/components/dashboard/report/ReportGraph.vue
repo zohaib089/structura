@@ -54,8 +54,18 @@ const emit = defineEmits<{ retry: [] }>()
 </template>
 
 <style scoped>
+.report-graph {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-block-size: 0;
+  block-size: 100%;
+}
+
 .report-graph__embed,
 .report-graph__skeleton {
-  min-block-size: 32rem;
+  flex: 1 1 auto;
+  min-block-size: 28rem;
+  block-size: 100%;
 }
 </style>

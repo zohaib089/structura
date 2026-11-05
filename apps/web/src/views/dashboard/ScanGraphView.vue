@@ -120,10 +120,16 @@ watch(
 .scan-graph-view {
   display: flex;
   flex-direction: column;
-  min-block-size: calc(100dvh - var(--shell-topbar-height, 48px) - var(--space-8));
-  margin-inline: calc(-1 * var(--space-6));
-  margin-block-start: calc(-1 * var(--space-5));
-  margin-block-end: calc(-1 * var(--space-5));
+  flex: 1 1 auto;
+  inline-size: 100%;
+  min-inline-size: 0;
+  min-block-size: 28rem;
+  block-size: 100%;
+}
+
+/* Dedicated project-graph route uses shell flush content — fill the pane. */
+:global(.shell-content--flush) .scan-graph-view {
+  min-block-size: 0;
 }
 
 .state-card {
@@ -148,7 +154,10 @@ watch(
 }
 
 .scan-graph-view :deep(.viewer.viewer-embedded) {
-  block-size: calc(100dvh - var(--shell-topbar-height, 48px) - var(--space-6));
+  flex: 1 1 auto;
+  inline-size: 100%;
+  min-inline-size: 0;
   min-block-size: 28rem;
+  block-size: 100%;
 }
 </style>

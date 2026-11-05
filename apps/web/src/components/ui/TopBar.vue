@@ -27,10 +27,11 @@ defineProps<{
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
+  flex-shrink: 0;
   min-height: var(--shell-topbar-height);
   padding: 0 var(--space-5);
   border-bottom: 1px solid var(--color-border);
-  background: var(--color-canvas);
+  background: var(--color-surface);
 }
 
 .topbar-actions {

@@ -271,7 +271,7 @@ onMounted(loadDashboard)
 </script>
 
 <template>
-  <div class="dashboard-page">
+  <div class="dashboard-page" :class="{ 'dashboard-page--fill': activeSection === 'scan-report' }">
     <section class="dashboard-content">
       <div class="page-header">
         <div>
@@ -465,6 +465,30 @@ onMounted(loadDashboard)
 <style scoped>
 .dashboard-page {
   color: var(--color-text-primary);
+}
+
+.dashboard-page--fill {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-block-size: 0;
+  block-size: 100%;
+}
+
+.dashboard-page--fill .dashboard-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-block-size: 0;
+}
+
+.dashboard-page--fill .page-header {
+  flex-shrink: 0;
+}
+
+.dashboard-page--fill :deep(.scans-hub--report) {
+  flex: 1 1 auto;
+  min-block-size: 0;
 }
 
 .dashboard-content {

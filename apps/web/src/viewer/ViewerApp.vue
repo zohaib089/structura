@@ -1083,6 +1083,8 @@ const snippet = 'layers: []\nrules: []\n'
 .viewer.viewer-radial {
   display: block;
   position: relative;
+  overflow: hidden;
+  isolation: isolate;
   block-size: 100vh;
   background: var(--color-canvas);
   color: var(--color-text-primary);
@@ -1241,15 +1243,26 @@ button:disabled { opacity: var(--alpha-40); }
 .empty-graph, .loading { padding: var(--space-4); }
 @media (max-width: 1000px) {
   .viewer { grid-template-columns: minmax(0, 1fr); }
-  .rail, .inspector {
+  /* Standalone viewer only: drawers may pin to the viewport. Embedded graph stays absolute
+     inside `.viewer` so the shell sidebar is never covered or clipped at the window edge. */
+  .viewer.viewer-radial:not(.viewer-embedded) .rail,
+  .viewer.viewer-radial:not(.viewer-embedded) .inspector {
     position: fixed;
     z-index: var(--z-viewer-drawer);
     inset-block: var(--viewer-topbar-height) var(--viewer-statusbar-height);
     inline-size: min(var(--viewer-rail-width), 88vw);
     transform: translateX(-110%);
   }
-  .inspector { inset-inline-start: auto; inset-inline-end: 0; inline-size: min(var(--viewer-inspector-width), 88vw); transform: translateX(110%); }
-  .rail.is-open, .inspector.is-open { transform: none; }
+  .viewer.viewer-radial:not(.viewer-embedded) .inspector {
+    inset-inline-start: auto;
+    inset-inline-end: 0;
+    inline-size: min(var(--viewer-inspector-width), 88vw);
+    transform: translateX(110%);
+  }
+  .viewer.viewer-radial:not(.viewer-embedded) .rail.is-open,
+  .viewer.viewer-radial:not(.viewer-embedded) .inspector.is-open {
+    transform: none;
+  }
 }
 @media (max-width: 640px) {
   .file, .search { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); }
