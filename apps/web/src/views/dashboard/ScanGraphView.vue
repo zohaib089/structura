@@ -48,12 +48,8 @@ const focusPath = computed(() => resolveGraphFocusQuery(route.query))
 async function loadFileSummary(path: string): Promise<string | null> {
   const scanId = resolvedScanId.value
   if (!scanId) return null
-  try {
-    const meta = await getScanFileMeta(props.workspaceId, scanId, path)
-    return meta?.summary ?? null
-  } catch {
-    return null
-  }
+  const meta = await getScanFileMeta(props.workspaceId, scanId, path)
+  return meta?.summary ?? null
 }
 
 async function resolveScanId(): Promise<string | null> {

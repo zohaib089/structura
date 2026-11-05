@@ -6,6 +6,7 @@ import {
   directoryContents,
   exportedSymbolFallback,
   findingsForPath,
+  importProvenanceLabel,
   symbolsForFile
 } from '../../src/viewer/node-detail-data'
 import { indexGraph } from '../../src/viewer/overview'
@@ -29,6 +30,10 @@ describe('node detail data helpers', () => {
 
   it('falls back to exported symbol names when summary is missing', () => {
     expect(exportedSymbolFallback(index, 'file:apps/web/main.ts')).toBe('Exports: start')
+  })
+
+  it('humanizes import provenance labels', () => {
+    expect(importProvenanceLabel(parsed.graph, 'file:apps/web/main.ts')).toContain('found in source')
   })
 
   it('builds file sections with imports and export summary', () => {

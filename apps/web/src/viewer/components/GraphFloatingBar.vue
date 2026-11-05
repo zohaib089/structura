@@ -1,9 +1,13 @@
 <script setup lang="ts">
 defineProps<{
   filtersLabel: string
+  filtersTooltip: string
   searchLabel: string
+  searchTooltip: string
   fitLabel: string
+  fitTooltip: string
   entryLabel: string
+  entryTooltip: string
   entryOptions: { id: string; label: string; path: string }[]
   entryId: string
   searchShortcut?: string
@@ -18,14 +22,23 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="floating-bar" role="toolbar" :aria-label="entryLabel">
-    <button type="button" class="icon-button" :aria-label="filtersLabel" data-testid="graph-filter-toggle" @click="emit('toggleFilters')">
+  <div class="floating-bar" role="toolbar" aria-label="Graph controls">
+    <button
+      type="button"
+      class="icon-button"
+      :aria-label="filtersLabel"
+      :title="filtersTooltip"
+      data-testid="graph-filter-toggle"
+      @click="emit('toggleFilters')"
+    >
       <span aria-hidden="true">☰</span>
     </button>
-    <label class="entry-switcher">
+    <label class="entry-switcher" :title="entryTooltip">
       <span class="entry-prefix">{{ entryLabel }}</span>
       <select
         :value="entryId"
+        :aria-label="entryTooltip"
+        :title="entryTooltip"
         data-testid="graph-entry-switcher"
         @change="emit('update:entryId', ($event.target as HTMLSelectElement).value)"
       >
@@ -34,10 +47,27 @@ const emit = defineEmits<{
         </option>
       </select>
     </label>
-    <button type="button" class="search-button" :aria-keyshortcuts="searchShortcut" data-testid="graph-search-open" @click="emit('openSearch')">
+    <button
+      type="button"
+      class="search-button"
+      :aria-label="searchTooltip"
+      :title="searchTooltip"
+      :aria-keyshortcuts="searchShortcut"
+      data-testid="graph-search-open"
+      @click="emit('openSearch')"
+    >
       {{ searchLabel }}
     </button>
-    <button type="button" class="fit-button" data-testid="graph-fit" @click="emit('fit')">{{ fitLabel }}</button>
+    <button
+      type="button"
+      class="fit-button"
+      :aria-label="fitTooltip"
+      :title="fitTooltip"
+      data-testid="graph-fit"
+      @click="emit('fit')"
+    >
+      {{ fitLabel }}
+    </button>
   </div>
 </template>
 

@@ -101,9 +101,9 @@ export function importProvenanceLabel(document: GraphDocument, nodeId: string): 
     else extracted += 1
   }
   if (extracted === 0 && inferred === 0) return ''
-  if (inferred === 0) return 'EXTRACTED'
-  if (extracted === 0) return 'INFERRED'
-  return `${extracted} EXTRACTED · ${inferred} INFERRED`
+  if (inferred === 0) return 'Found in source'
+  if (extracted === 0) return 'Guessed from context'
+  return `${extracted} found in source · ${inferred} guessed from context`
 }
 
 function isImportEdge(edge: GraphEdge): edge is GraphEdge & { type: 'imports' | 'reexports' } {

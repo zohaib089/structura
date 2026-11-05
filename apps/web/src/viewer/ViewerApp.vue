@@ -54,7 +54,7 @@ import GraphCanvas from './components/GraphCanvas.vue'
 import GraphFloatingBar from './components/GraphFloatingBar.vue'
 import GraphLegend from './components/GraphLegend.vue'
 import GraphSourcePicker from './components/GraphSourcePicker.vue'
-import NodeDetail from './components/NodeDetail.vue'
+import NodeDetail, { type FileSummaryState } from './components/NodeDetail.vue'
 import SearchPalette from './components/SearchPalette.vue'
 
 const props = withDefaults(
@@ -118,6 +118,7 @@ const filters = ref<ViewFilters>(defaultFilters())
 const focus = ref<FocusQuery | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
 const fileSummary = ref<string | null | undefined>(undefined)
+const fileSummaryStatus = ref<FileSummaryState>('none')
 let fileMetaRequestId = 0
 
 let requestId = 0
@@ -539,6 +540,8 @@ const detail = computed(() => {
   }
 })
 
+const hasScanReport = computed(() => Boolean(props.loadFileSummary))
+
 const nodeDetailSections = computed(() => {
   if (!selection.value || selection.value.kind !== 'node' || !index.value || !overview.value) return null
   const model = overview.value.nodes.find((item) => item.id === selection.value?.id)
@@ -549,11 +552,43 @@ const nodeDetailSections = computed(() => {
     depth: model.depth,
     findings: props.scanFindings ?? [],
     pathSeverityCounts: props.pathSeverityCounts,
-    apiSummary: fileSummary.value ?? null
+    apiSummary: fileSummaryStatus.value === 'ready' ? (fileSummary.value ?? null) : null
   })
 })
 
 const panelFindings = computed(() => nodeDetailSections.value?.findings ?? [])
+
+async function loadSelectedFileSummary(nodeId: string, idx: NonNullable<typeof index.value>) {
+  const loadSummary = props.loadFileSummary
+  if (!loadSummary) {
+    fileSummaryStatus.value = 'none'
+    fileSummary.value = undefined
+    return
+  }
+  const node = idx.nodesById.get(nodeId)
+  if (node?.kind !== 'file' || !('path' in node)) {
+    fileSummaryStatus.value = 'none'
+    fileSummary.value = undefined
+    return
+  }
+  const token = ++fileMetaRequestId
+  fileSummaryStatus.value = 'loading'
+  try {
+    const summary = await loadSummary(node.path)
+    if (token !== fileMetaRequestId) return
+    fileSummaryStatus.value = 'ready'
+    fileSummary.value = summary
+  } catch {
+    if (token !== fileMetaRequestId) return
+    fileSummaryStatus.value = 'error'
+    fileSummary.value = null
+  }
+}
+
+function retryFileSummary() {
+  if (!selection.value || selection.value.kind !== 'node' || !index.value) return
+  void loadSelectedFileSummary(selection.value.id, index.value)
+}
 
 watch(
   () =>
@@ -562,20 +597,13 @@ watch(
       props.loadFileSummary,
       index.value
     ] as const,
-  async ([nodeId, loadSummary, idx]) => {
-    fileSummary.value = undefined
-    if (!nodeId || !loadSummary || !idx) return
-    const node = idx.nodesById.get(nodeId)
-    if (node?.kind !== 'file' || !('path' in node)) return
-    const token = ++fileMetaRequestId
-    try {
-      const summary = await loadSummary(node.path)
-      if (token !== fileMetaRequestId) return
-      fileSummary.value = summary
-    } catch {
-      if (token !== fileMetaRequestId) return
-      fileSummary.value = null
+  ([nodeId, , idx]) => {
+    if (!nodeId || !idx) {
+      fileSummaryStatus.value = 'none'
+      fileSummary.value = undefined
+      return
     }
+    void loadSelectedFileSummary(nodeId, idx)
   },
   { immediate: true }
 )
@@ -724,7 +752,11 @@ const skippedCount = computed(() => {
   if (!files) return 0
   return files.skipped + files.failed + files.partial
 })
-const coachSteps = computed(() => [messages.coachExpand, messages.coachFocus, messages.coachCoverage])
+const coachSteps = computed(() => [
+  messages.graphGuideStep1,
+  messages.graphGuideStep2,
+  messages.graphGuideStep3
+])
 const snippet = 'layers: []\nrules: []\n'
 </script>
 
@@ -841,9 +873,13 @@ const snippet = 'layers: []\nrules: []\n'
       <GraphFloatingBar
         v-if="overview && graph && graph.nodes.length > 0"
         :filters-label="messages.railToggle"
+        :filters-tooltip="messages.filtersTooltip"
         :search-label="messages.searchPlaceholder"
+        :search-tooltip="messages.searchTooltip"
         :fit-label="messages.zoomFit"
+        :fit-tooltip="messages.fitTooltip"
         :entry-label="messages.entryLabel"
+        :entry-tooltip="messages.entryTooltip"
         :entry-options="entryOptions"
         :entry-id="nucleusId"
         search-shortcut="Control+K Meta+K /"
@@ -852,6 +888,9 @@ const snippet = 'layers: []\nrules: []\n'
         @fit="triggerFit"
         @update:entry-id="onEntryChange"
       />
+      <p v-if="overview && graph && graph.nodes.length > 0" class="graph-hint" role="note">
+        {{ messages.graphOverviewHint }}
+      </p>
       <GraphCanvas
         v-if="overview && graph && graph.nodes.length > 0"
         :nodes="overview.nodes"
@@ -886,7 +925,7 @@ const snippet = 'layers: []\nrules: []\n'
       <p v-if="overview && overview.nodes.length === 0 && graph" class="empty-graph">{{ messages.filterEmpty }}</p>
       <GraphLegend class="stage-legend" :title="messages.legendTitle" :rows="legendRows" @toggle="legendToggle" />
       <CoachMark
-        v-if="sample && !coachDismissed"
+        v-if="overview && graph && graph.nodes.length > 0 && !coachDismissed"
         :steps="coachSteps"
         :skip-label="messages.coachSkip"
         :next-label="messages.coachNext"
@@ -906,6 +945,7 @@ const snippet = 'layers: []\nrules: []\n'
       <NodeDetail
         v-if="tab === 'details'"
         :empty="messages.detailsEmpty"
+        :panel-hint="messages.panelSelectedHint"
         :kind-label="messages.detailsKind"
         :path-label="messages.detailsPath"
         :span-label="messages.detailsSpan"
@@ -918,17 +958,38 @@ const snippet = 'layers: []\nrules: []\n'
         :type-only-label="messages.detailsTypeOnly"
         :focus-label="messages.focusEnter"
         :recentre-label="messages.recentreLabel"
+        :focus-tooltip="messages.focusTooltip"
+        :recentre-tooltip="messages.recentreTooltip"
         :depth-label="messages.depthLabel"
+        :depth-tooltip="messages.depthTooltip"
         :deps-out-label="messages.depsOutLabel"
         :deps-in-label="messages.depsInLabel"
         :findings-label="messages.findingsLabel"
+        :findings-section-label="messages.findingsSectionLabel"
         :purpose-label="messages.purposeLabel"
         :symbols-label="messages.symbolsLabel"
         :imports-label="messages.importsLabel"
         :importers-label="messages.importersLabel"
         :contents-label="messages.contentsLabel"
-        :expand-label="messages.expand"
+        :expand-contents-label="messages.expandContentsLabel"
+        :expand-tooltip="messages.expandTooltip"
         :no-findings-label="messages.noFindingsLabel"
+        :no-findings-need-scan="messages.noFindingsNeedScan"
+        :has-scan-report="hasScanReport"
+        :no-issues-stat="messages.noIssuesStat"
+        :summary-loading="messages.summaryLoading"
+        :summary-error="messages.summaryError"
+        :summary-retry="messages.summaryRetry"
+        :summary-empty="messages.summaryEmpty"
+        :empty-imports="messages.emptyImports"
+        :empty-importers="messages.emptyImporters"
+        :empty-symbols="messages.emptySymbols"
+        :empty-contents="messages.emptyContents"
+        :open-details-label="messages.openDetailsLabel"
+        :kind-tag-folder="messages.kindTagFolder"
+        :kind-tag-file="messages.kindTagFile"
+        :symbol-export-tag="messages.symbolExportTag"
+        :summary-state="fileSummaryStatus"
         :severity-label="reportMessages.severityLabel"
         :detail="detail"
         :sections="nodeDetailSections"
@@ -937,6 +998,7 @@ const snippet = 'layers: []\nrules: []\n'
         @recentre="onRecentreDetail"
         @navigate="onNavigateDetail"
         @expand-child="onExpandChildDetail"
+        @retry-summary="retryFileSummary"
       />
       <CoveragePanel
         v-else-if="tab === 'coverage'"
@@ -1109,6 +1171,19 @@ const snippet = 'layers: []\nrules: []\n'
 }
 .viewer.viewer-radial .stage-legend {
   display: none;
+}
+.graph-hint {
+  position: absolute;
+  inset-block-start: calc(var(--space-3) + 3.25rem);
+  inset-inline: var(--space-3);
+  z-index: calc(var(--z-graph-controls) - 1);
+  margin: 0;
+  padding-inline: var(--space-2);
+  font-size: var(--text-13);
+  line-height: var(--text-13-lh);
+  color: var(--color-text-secondary);
+  text-align: center;
+  pointer-events: none;
 }
 .topbar {
   grid-column: 1 / -1;
