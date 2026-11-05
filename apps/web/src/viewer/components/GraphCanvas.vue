@@ -62,6 +62,12 @@ const displayReady = computed(
   () => canvasReady.value || props.ready || props.nodes.length > 0
 )
 
+/** Matches Vue Flow DOM node count (overview nodes + optional ring guide). */
+const visibleFlowNodeCount = computed(() => {
+  const guide = props.ringCount && props.ringCount > 0 ? 1 : 0
+  return props.nodes.length + guide
+})
+
 watch(
   () => props.ready,
   ready => {
@@ -191,7 +197,7 @@ defineExpose({ root })
     :data-ready="displayReady ? 'true' : 'false'"
     :data-total-nodes="totalNodes"
     :data-total-edges="totalEdges"
-    :data-visible-nodes="nodes.length"
+    :data-visible-nodes="visibleFlowNodeCount"
     :data-visible-edges="edges.length"
     :data-aggregated-clusters="clusterCount"
   >

@@ -59,6 +59,14 @@ const emit = defineEmits<{
   backdrop-filter: blur(8px);
   transform: translateX(-50%);
   max-inline-size: min(42rem, calc(100% - var(--space-6)));
+  pointer-events: none;
+}
+.icon-button,
+.search-button,
+.fit-button,
+.entry-switcher,
+.entry-switcher select {
+  pointer-events: auto;
 }
 .icon-button,
 .search-button,
