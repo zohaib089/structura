@@ -131,11 +131,37 @@ describe('viewer components', () => {
         importKindLabel: 'Import kind',
         typeOnlyLabel: 'Type only',
         focusLabel: 'Focus',
-        detail: { title: 'apps', kind: 'directory', path: 'apps', span: '', provenance: '1 extracted · 1 inferred · 0 unresolved', confidence: '', reason: '', internal: 'Internal edges: 0', weight: '', importKind: 'dynamic', typeOnly: 'false' }
+        recentreLabel: 'Re-centre',
+        depthLabel: 'Depth',
+        depsOutLabel: 'Deps out',
+        depsInLabel: 'Deps in',
+        findingsLabel: 'Findings',
+        purposeLabel: 'Purpose',
+        symbolsLabel: 'Symbols',
+        importsLabel: 'Imports',
+        importersLabel: 'Importers',
+        contentsLabel: 'Contents',
+        expandLabel: 'Expand',
+        noFindingsLabel: 'None',
+        severityLabel: (severity: string) => severity,
+        detail: { title: 'apps', kind: 'directory', path: 'apps', span: '', provenance: '1 extracted · 1 inferred · 0 unresolved', confidence: '', reason: '', internal: 'Internal edges: 0', weight: '', importKind: 'dynamic', typeOnly: 'false' },
+        sections: {
+          stats: { depth: 1, depsOut: 2, depsIn: 0, provenance: 'EXTRACTED' },
+          summary: null,
+          summarySource: 'none',
+          symbols: [],
+          imports: [],
+          importers: [],
+          contents: [{ id: 'dir:apps/web', label: 'web', path: 'apps/web', kind: 'directory' }],
+          findings: [],
+          severityChip: null,
+          severityChips: null
+        },
+        findings: []
       }
     })
     expect(detail.get('[data-testid="node-detail"]').text()).toContain('apps')
-    expect(detail.text()).toContain('dynamic')
+    expect(detail.text()).toContain('web')
 
     const filters = mount(FilterRail, {
       props: {

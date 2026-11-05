@@ -137,6 +137,14 @@ export interface ViewerMessages {
   depsOutLabel: string
   depsInLabel: string
   depthLabel: string
+  findingsLabel: string
+  purposeLabel: string
+  symbolsLabel: string
+  importsLabel: string
+  importersLabel: string
+  contentsLabel: string
+  noFindingsLabel: string
+  nodeProvenanceLabel: string
   emptyFilters: string
   emptyBody: string
   copyCommand: string
@@ -296,6 +304,14 @@ const en: ViewerMessages = {
   depsOutLabel: 'Deps out',
   depsInLabel: 'Deps in',
   depthLabel: 'Depth',
+  findingsLabel: 'Findings',
+  purposeLabel: 'Purpose',
+  symbolsLabel: 'Functions and classes',
+  importsLabel: 'Imports',
+  importersLabel: 'Importers',
+  contentsLabel: 'Contents',
+  noFindingsLabel: 'No findings for this file',
+  nodeProvenanceLabel: 'Provenance',
   emptyFilters: 'Open a file to filter',
   emptyBody: 'Drop a {graphFile} here, or create one by running the command below in your repo. Nothing leaves your machine.',
   copyCommand: 'Copy',

@@ -36,8 +36,11 @@ import {
 } from './overview'
 import { parseGraphFile, type ParseHandle } from './parse-client'
 import { resolveGraphNodeId } from '../services/graph-node-focus'
+import type { ViewerReportFinding } from './report-types'
+import { scanReportMessages } from '../services/scan-report-messages'
 import type { SeverityCounts } from '../services/scan-report-tree'
 import type { WebLocale } from '../services/locale'
+import { buildNodeDetailSections } from './node-detail-data'
 import { sampleGraph } from './sample-graph'
 import BudgetMeter from './components/BudgetMeter.vue'
 import CoachMark from './components/CoachMark.vue'
@@ -64,6 +67,8 @@ const props = withDefaults(
     graphDocument?: GraphDocument | null
     focusPath?: string | null
     pathSeverityCounts?: Map<string, SeverityCounts>
+    scanFindings?: ViewerReportFinding[]
+    loadFileSummary?: (path: string) => Promise<string | null>
   }>(),
   {
     embedded: false,
@@ -71,12 +76,15 @@ const props = withDefaults(
     shellTheme: null,
     graphDocument: null,
     focusPath: null,
-    pathSeverityCounts: undefined
+    pathSeverityCounts: undefined,
+    scanFindings: () => [],
+    loadFileSummary: undefined
   }
 )
 
 const locale = props.locale ?? resolvePreferredWebLocale(null, navigator.languages)
 const messages = viewerMessages(locale)
+const reportMessages = computed(() => scanReportMessages(locale))
 const direction = webLocaleDirection(locale)
 const numbers = new Intl.NumberFormat(locale)
 const knownKinds = new Set(['directory', 'file', 'symbol', 'external', 'unresolved'])
@@ -109,6 +117,8 @@ const viewState = ref<ViewState>(emptyViewState())
 const filters = ref<ViewFilters>(defaultFilters())
 const focus = ref<FocusQuery | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
+const fileSummary = ref<string | null | undefined>(undefined)
+let fileMetaRequestId = 0
 
 let requestId = 0
 let handle: ParseHandle | null = null
@@ -210,6 +220,19 @@ function onEntryChange(id: string) {
 
 function onRecentreDetail() {
   if (selection.value?.kind === 'node') recenterOnNode(selection.value.id)
+}
+
+function onNavigateDetail(id: string) {
+  selectNode(id, true)
+}
+
+function onExpandChildDetail(id: string) {
+  if (!index.value) return
+  const node = index.value.nodesById.get(id)
+  if (node?.kind === 'directory' && !atCap.value) {
+    viewState.value = expandView(viewState.value, id)
+  }
+  selectNode(id, true)
 }
 
 function triggerFit() {
@@ -515,6 +538,47 @@ const detail = computed(() => {
     typeOnly: ''
   }
 })
+
+const nodeDetailSections = computed(() => {
+  if (!selection.value || selection.value.kind !== 'node' || !index.value || !overview.value) return null
+  const model = overview.value.nodes.find((item) => item.id === selection.value?.id)
+  if (!model) return null
+  return buildNodeDetailSections({
+    index: index.value,
+    nodeId: selection.value.id,
+    depth: model.depth,
+    findings: props.scanFindings ?? [],
+    pathSeverityCounts: props.pathSeverityCounts,
+    apiSummary: fileSummary.value ?? null
+  })
+})
+
+const panelFindings = computed(() => nodeDetailSections.value?.findings ?? [])
+
+watch(
+  () =>
+    [
+      selection.value?.kind === 'node' ? selection.value.id : null,
+      props.loadFileSummary,
+      index.value
+    ] as const,
+  async ([nodeId, loadSummary, idx]) => {
+    fileSummary.value = undefined
+    if (!nodeId || !loadSummary || !idx) return
+    const node = idx.nodesById.get(nodeId)
+    if (node?.kind !== 'file' || !('path' in node)) return
+    const token = ++fileMetaRequestId
+    try {
+      const summary = await loadSummary(node.path)
+      if (token !== fileMetaRequestId) return
+      fileSummary.value = summary
+    } catch {
+      if (token !== fileMetaRequestId) return
+      fileSummary.value = null
+    }
+  },
+  { immediate: true }
+)
 
 function pathOf(node: GraphNode | undefined): string {
   if (!node) return ''
@@ -845,7 +909,7 @@ const snippet = 'layers: []\nrules: []\n'
         :kind-label="messages.detailsKind"
         :path-label="messages.detailsPath"
         :span-label="messages.detailsSpan"
-        :provenance-label="messages.detailsProvenance"
+        :provenance-label="messages.nodeProvenanceLabel"
         :confidence-label="messages.detailsConfidence"
         :reason-label="messages.detailsReason"
         :internal-label="messages.detailsInternal"
@@ -854,9 +918,25 @@ const snippet = 'layers: []\nrules: []\n'
         :type-only-label="messages.detailsTypeOnly"
         :focus-label="messages.focusEnter"
         :recentre-label="messages.recentreLabel"
+        :depth-label="messages.depthLabel"
+        :deps-out-label="messages.depsOutLabel"
+        :deps-in-label="messages.depsInLabel"
+        :findings-label="messages.findingsLabel"
+        :purpose-label="messages.purposeLabel"
+        :symbols-label="messages.symbolsLabel"
+        :imports-label="messages.importsLabel"
+        :importers-label="messages.importersLabel"
+        :contents-label="messages.contentsLabel"
+        :expand-label="messages.expand"
+        :no-findings-label="messages.noFindingsLabel"
+        :severity-label="reportMessages.severityLabel"
         :detail="detail"
+        :sections="nodeDetailSections"
+        :findings="panelFindings"
         @focus="enterFocus"
         @recentre="onRecentreDetail"
+        @navigate="onNavigateDetail"
+        @expand-child="onExpandChildDetail"
       />
       <CoveragePanel
         v-else-if="tab === 'coverage'"
