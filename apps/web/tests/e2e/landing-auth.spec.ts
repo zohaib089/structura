@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { BRAND, quickstartCommand } from '../../../../packages/brand/src/brand'
+import { BRAND } from '../../../../packages/brand/src/brand'
 
 const sampleGraphJson = readFileSync(resolve('fixtures/sample-graph.json'), 'utf8')
 
@@ -47,26 +47,53 @@ function mockScanReport(page: import('@playwright/test').Page) {
   )
 }
 
-test('landing page presents the product and its section navigation', async ({ page }) => {
+test('landing page presents the product, the three calls to action and its section navigation', async ({ page }) => {
   await page.goto('/')
 
-  await expect(page.getByRole('banner').getByRole('link', { name: 'Log in' })).toBeVisible()
-  await expect(page.getByRole('banner').getByRole('link', { name: 'Launch app' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'See your architecture. Prove it stays that way.' })).toBeVisible()
-  await expect(page.getByText('Star on GitHub')).toHaveCount(0)
-  await expect(page.getByText('Sample').first()).toBeVisible()
-  await expect(page.getByText(quickstartCommand()).first()).toBeVisible()
-  await expect(page.locator('[data-testid="graph-canvas"]')).toBeVisible()
-  await expect(page.getByText('Sample data').first()).toBeVisible()
-  await expect(page.getByText('Trusted by forward-thinking teams')).toHaveCount(0)
-  await expect(page.getByText('System Online')).toHaveCount(0)
-  await expect(page.getByText('2.1x')).toHaveCount(0)
-  await expect(page.getByRole('heading', { name: 'Known limits' })).toBeVisible()
+  const nav = page.getByRole('banner')
+  await expect(nav.getByRole('link', { name: 'Try the viewer' })).toBeVisible()
+  await expect(nav.getByRole('link', { name: 'Scan a project' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: /See how your code fits together/ })).toBeVisible()
 
-  await page.getByRole('banner').getByRole('link', { name: 'How it works' }).click()
+  const hero = page.locator('#top')
+  await expect(hero.getByRole('link', { name: 'Try the viewer' })).toBeVisible()
+  await expect(hero.getByRole('link', { name: 'Self-host' })).toBeVisible()
+  await expect(hero.getByRole('link', { name: 'GitHub' })).toHaveAttribute('href', BRAND.repoUrl)
+  await expect(page.locator('[data-testid="landing-radial"]')).toBeVisible()
+  await expect(page.getByText('Sample data — a made-up project')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Every connection is labelled.' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Nothing is skipped silently.' })).toBeVisible()
+  await expect(page.getByText('Trusted by forward-thinking teams')).toHaveCount(0)
+
+  const hasHorizontalScroll = await page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth
+  )
+  expect(hasHorizontalScroll).toBe(false)
+
+  await nav.getByRole('link', { name: 'How it works' }).click()
   await expect(page).toHaveURL(/#how$/)
-  await expect(page.locator('#how')).toBeVisible()
-  await expect(page.locator('#how').getByRole('heading', { name: 'How it works' })).toBeVisible()
+  await expect(page.locator('#how').getByRole('heading', { name: 'Three steps from folder to map.' })).toBeVisible()
+})
+
+test('landing sample scan shows progress and a notification with a View map action', async ({ page }) => {
+  await page.goto('/en')
+
+  await page.getByRole('button', { name: 'Run a sample scan' }).click()
+  await expect(page.getByRole('region', { name: 'Notifications' }).getByText('Scan started')).toBeVisible()
+  await expect(page.getByTestId('scan-title')).toHaveText('Scan finished', { timeout: 10_000 })
+  await expect(page.getByRole('button', { name: 'View map' })).toBeVisible()
+})
+
+test('landing stacks on narrow screens without horizontal scrolling', async ({ page }) => {
+  for (const width of [390, 820]) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/en')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+    )
+    expect(overflow, `no horizontal scroll at ${width}px`).toBeLessThanOrEqual(0)
+  }
 })
 
 test('authenticated landing page hides guest authentication links', async ({ page }) => {

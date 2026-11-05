@@ -1,113 +1,74 @@
 <script setup lang="ts">
-import Navbar from '../components/layout/Navbar.vue'
-import FooterSection from '../components/layout/FooterSection.vue'
-import HeroSection from '../components/landing/HeroSection.vue'
-import QuickstartSection from '../components/landing/QuickstartSection.vue'
-import HonestSection from '../components/landing/HonestSection.vue'
-import CoverageSection from '../components/landing/CoverageSection.vue'
-import DriftSection from '../components/landing/DriftSection.vue'
-import HowItWorks from '../components/landing/HowItWorks.vue'
-import LimitsSection from '../components/landing/LimitsSection.vue'
+/**
+ * HomeView - the advanced marketing landing (design: landing-advanced.md, D10).
+ * Marketing route only: full-bleed bands, Nucleus brand, radial sample graph as the signature.
+ */
+import { onBeforeUnmount, onMounted } from 'vue'
+import LandingClosing from '../components/landing/LandingClosing.vue'
+import LandingConnections from '../components/landing/LandingConnections.vue'
+import LandingCoverage from '../components/landing/LandingCoverage.vue'
+import LandingFooter from '../components/landing/LandingFooter.vue'
+import LandingHero from '../components/landing/LandingHero.vue'
+import LandingHow from '../components/landing/LandingHow.vue'
+import LandingNav from '../components/landing/LandingNav.vue'
+import LandingProof from '../components/landing/LandingProof.vue'
+import LandingSelfHost from '../components/landing/LandingSelfHost.vue'
+import { useToast } from '../composables/useToast'
+import { landingPageCopy as copy } from '../services/landing-page-copy'
+import '../styles/landing.css'
 
-import { onMounted, onUnmounted, ref } from 'vue'
-
-const motionReady = ref(false)
-let revealObserver: IntersectionObserver | undefined
+const toast = useToast()
+let previousTitle = ''
+let metaDescription: HTMLMetaElement | null = null
+let createdMeta = false
+let previousDescription: string | null = null
+let sampleToastTimer: ReturnType<typeof setTimeout> | undefined
+let sampleToastId: string | undefined
 
 onMounted(() => {
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) return
+  previousTitle = document.title
+  document.title = copy.documentTitle
+  metaDescription = document.querySelector<HTMLMetaElement>('meta[name="description"]')
+  if (!metaDescription) {
+    metaDescription = document.createElement('meta')
+    metaDescription.name = 'description'
+    document.head.appendChild(metaDescription)
+    createdMeta = true
+  }
+  previousDescription = metaDescription.getAttribute('content')
+  metaDescription.setAttribute('content', copy.metaDescription)
 
-  motionReady.value = true
-  revealObserver = new IntersectionObserver((entries, observer) => {
-    for (const entry of entries) {
-      if (!entry.isIntersecting) continue
-      entry.target.classList.add('is-visible')
-      observer.unobserve(entry.target)
-    }
-  }, { threshold: 0.12 })
-
-  document.querySelectorAll<HTMLElement>('.landing-page > section:not(.hero)').forEach((section) => {
-    revealObserver?.observe(section)
-  })
+  // "Sample project loaded" once the hero graph has drawn (instantly when motion is reduced).
+  const reduced = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  sampleToastTimer = setTimeout(() => {
+    sampleToastId = toast.success(copy.toasts.sampleLoaded)
+  }, reduced ? 200 : 1600)
 })
 
-onUnmounted(() => revealObserver?.disconnect())
+onBeforeUnmount(() => {
+  document.title = previousTitle
+  if (metaDescription) {
+    if (createdMeta) metaDescription.remove()
+    else if (previousDescription !== null) metaDescription.setAttribute('content', previousDescription)
+  }
+  if (sampleToastTimer !== undefined) clearTimeout(sampleToastTimer)
+  if (sampleToastId) toast.dismiss(sampleToastId)
+})
 </script>
 
 <template>
-  <div class="landing-page" :class="{ 'motion-ready': motionReady }">
-    <Navbar />
-    <HeroSection />
-    <QuickstartSection />
-    <HonestSection />
-    <CoverageSection />
-    <DriftSection />
-    <HowItWorks />
-    <LimitsSection />
-    <FooterSection />
+  <div class="landing-page">
+    <a class="landing-skip" href="#main">{{ copy.skipLink }}</a>
+    <LandingNav />
+    <main id="main">
+      <LandingHero />
+      <LandingProof />
+      <LandingHow />
+      <LandingConnections />
+      <LandingCoverage />
+      <LandingSelfHost />
+      <LandingClosing />
+    </main>
+    <LandingFooter />
   </div>
 </template>
-
-<style scoped>
-.landing-page.motion-ready > section:not(.hero) {
-  opacity: 0;
-  transform: translateY(16px);
-  transition:
-    opacity var(--duration-slow) var(--easing-emphasized),
-    transform var(--duration-slow) var(--easing-emphasized);
-}
-
-.landing-page.motion-ready > section:not(.hero).is-visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.landing-page.motion-ready > section:not(.hero).is-visible :deep(.card) {
-  animation: card-arrive 600ms var(--easing-emphasized) both;
-}
-
-.landing-page.motion-ready > section:not(.hero).is-visible :deep(.card:nth-child(2)) {
-  animation-delay: 80ms;
-}
-
-.landing-page.motion-ready > section:not(.hero).is-visible :deep(.card:nth-child(3)) {
-  animation-delay: 160ms;
-}
-
-.landing-page.motion-ready > section:not(.hero).is-visible :deep(.card:nth-child(4)) {
-  animation-delay: 240ms;
-}
-
-@keyframes card-arrive {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.landing-page.motion-ready > #how:not(.is-visible) :deep(.draw-edge) {
-  stroke-dashoffset: 1;
-}
-
-.landing-page.motion-ready > #how.is-visible :deep(.draw-edge) {
-  stroke-dashoffset: 0;
-  transition: stroke-dashoffset var(--duration-slow) linear;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .landing-page.motion-ready > section:not(.hero),
-  .landing-page.motion-ready > section:not(.hero).is-visible :deep(.card),
-  .landing-page.motion-ready > #how :deep(.draw-edge) {
-    animation: none;
-    opacity: 1;
-    transform: none;
-    transition: none;
-    stroke-dashoffset: 0;
-  }
-}
-</style>
