@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import ScanReportArchitecturePanel from '../../src/components/dashboard/ScanReportArchitecturePanel.vue'
+import ReportArchitecture from '../../src/components/dashboard/report/ReportArchitecture.vue'
 import { scanReportMessages } from '../../src/services/scan-report-messages'
 import {
   architectureViolationCount,
@@ -115,7 +115,7 @@ describe('scan report architecture helpers', () => {
   it('renders empty state when architecture is missing', () => {
     const sample = readGraph(readFileSync(resolve('fixtures/sample-graph.json'), 'utf8'))
     expect(sample.ok).toBe(true)
-    const wrapper = mount(ScanReportArchitecturePanel, {
+    const wrapper = mount(ReportArchitecture, {
       props: { graph: sample.ok ? sample.graph : null, messages }
     })
     expect(wrapper.text()).toContain('No architecture rules configured')
@@ -123,7 +123,7 @@ describe('scan report architecture helpers', () => {
 
   it('renders module and finding rows when architecture is present', () => {
     const graph = architectureGraph()
-    const wrapper = mount(ScanReportArchitecturePanel, {
+    const wrapper = mount(ReportArchitecture, {
       props: { graph, messages }
     })
     expect(wrapper.text()).toContain('alpha')

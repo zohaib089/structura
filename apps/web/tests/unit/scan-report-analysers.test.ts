@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
-import ScanReportAnalysers from '../../src/components/dashboard/ScanReportAnalysers.vue'
+import ReportAnalysers from '../../src/components/dashboard/report/ReportAnalysers.vue'
 import { scanReportMessages } from '../../src/services/scan-report-messages'
 import {
   buildAnalyserRows,
   isInactiveAnalyserStatus,
   partitionAnalyserRows
 } from '../../src/services/scan-report-analysers'
-import type { ScanReportV1 } from '../../src/api/scan-report-types'
 import { parseScanReportV1 } from '../../src/api/scan-report-parse'
 
 describe('scan report analysers', () => {
@@ -40,41 +39,21 @@ describe('scan report analysers', () => {
     expect(report.analysers.ruff.reason).toBe('Exceeded limit')
   })
 
-  it('renders skipped analysers in a separate block with reason text', () => {
-    const report: ScanReportV1 = {
-      schemaVersion: '1.0.0',
-      generatedAt: '2026-11-02T12:00:00.000Z',
-      analysers: {
-        eslint: { status: 'ran', durationMs: 10 },
-        gitleaks: { status: 'skipped', durationMs: 0, reason: 'Not installed' }
-      },
-      history: null,
-      findings: [],
-      improvements: []
-    }
-    const wrapper = mount(ScanReportAnalysers, {
-      props: { report, messages: scanReportMessages('en') }
+  it('renders analyser rows with plain status words and the reason text', () => {
+    const rows = buildAnalyserRows({
+      eslint: { status: 'ran', durationMs: 10 },
+      gitleaks: { status: 'skipped', durationMs: 0, reason: 'Not installed' },
+      ruff: { status: 'timeout', durationMs: 5000 }
+    })
+    const wrapper = mount(ReportAnalysers, {
+      props: { rows, caption: 'Checks', messages: scanReportMessages('en') }
     })
 
-    expect(wrapper.get('h3').text()).toBe('Analysers')
     expect(wrapper.text()).toContain('eslint')
-    expect(wrapper.text()).toContain('Skipped analysers')
-    expect(wrapper.text()).toContain('Not installed')
     expect(wrapper.text()).toContain('Ran')
-  })
-
-  it('shows an empty-state message when analysers are missing', () => {
-    const report: ScanReportV1 = {
-      schemaVersion: '1.0.0',
-      generatedAt: '2026-11-02T12:00:00.000Z',
-      analysers: {},
-      history: null,
-      findings: [],
-      improvements: []
-    }
-    const wrapper = mount(ScanReportAnalysers, {
-      props: { report, messages: scanReportMessages('en') }
-    })
-    expect(wrapper.text()).toContain('No analyser run records')
+    expect(wrapper.text()).toContain('Skipped')
+    expect(wrapper.text()).toContain('Timed out')
+    expect(wrapper.text()).toContain('Not installed')
+    expect(wrapper.text()).toContain('No reason given')
   })
 })

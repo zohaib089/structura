@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { RouterLink, type RouteLocationRaw } from 'vue-router'
-import type { ReportTreeNode } from '../../services/scan-report-tree'
-import type { ScanReportMessages } from '../../services/scan-report-messages'
-import SeverityChip from '../ui/SeverityChip.vue'
-import { fileSeverityChips, folderSeverityChip } from '../../services/scan-report-tree-display'
+import type { ReportTreeNode } from '../../../services/scan-report-tree'
+import type { ScanReportMessages } from '../../../services/scan-report-messages'
+import { Network } from '@lucide/vue'
+import SeverityChip from '../../ui/SeverityChip.vue'
+import { fileSeverityChips, folderSeverityChip } from '../../../services/scan-report-tree-display'
 
 const props = defineProps<{
   root: ReportTreeNode
@@ -131,6 +132,7 @@ function folderChip(node: ReportTreeNode) {
           type="button"
           class="expander"
           :aria-label="isExpanded(row.node.path) ? 'Collapse folder' : 'Expand folder'"
+          :title="isExpanded(row.node.path) ? 'Collapse folder' : 'Expand folder'"
           @click.stop="toggleExpanded(row.node.path)"
         >
           {{ isExpanded(row.node.path) ? '▾' : '▸' }}
@@ -164,9 +166,10 @@ function folderChip(node: ReportTreeNode) {
           class="tree-graph-link"
           :to="graphHref(row.node.path)"
           :title="messages.showInGraph"
+          :aria-label="`${messages.showInGraph}: ${row.node.name}`"
           @click.stop
         >
-          {{ messages.showInGraph }}
+          <Network :size="14" aria-hidden="true" />
         </RouterLink>
       </li>
     </ul>
@@ -176,11 +179,8 @@ function folderChip(node: ReportTreeNode) {
 
 <style scoped>
 .report-tree {
-  max-height: 28rem;
+  max-block-size: 36rem;
   overflow: auto;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-surface) var(--alpha-50), transparent);
 }
 
 ul {
@@ -193,18 +193,19 @@ ul {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  border-radius: var(--radius-md);
+  border-radius: var(--r-sm);
   padding: var(--space-1) var(--space-2);
   cursor: pointer;
 }
 
 .tree-row:focus-visible {
-  outline: 2px solid var(--color-accent-primary);
+  outline: 2px solid var(--color-brand-amber-ui);
   outline-offset: 1px;
 }
 
 .tree-row.selected {
-  background: color-mix(in srgb, var(--color-accent-primary) var(--alpha-08), transparent);
+  background: var(--gray-3);
+  box-shadow: inset 2px 0 0 var(--color-brand-amber-ui);
 }
 
 .expander {
@@ -243,6 +244,31 @@ ul {
   font-size: var(--text-12);
   line-height: var(--text-12-lh);
   color: var(--color-text-muted);
+}
+
+.tree-graph-link {
+  display: inline-flex;
+  flex: none;
+  padding: 2px;
+  border-radius: var(--r-xs);
+  color: var(--color-text-muted);
+  opacity: 0;
+}
+
+.tree-row:hover .tree-graph-link,
+.tree-row:focus-within .tree-graph-link,
+.tree-row.selected .tree-graph-link,
+.tree-graph-link:focus-visible {
+  opacity: 1;
+}
+
+.tree-graph-link:hover {
+  color: var(--color-brand-amber-ui);
+}
+
+.tree-graph-link:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .muted {

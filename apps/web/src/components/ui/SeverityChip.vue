@@ -22,7 +22,13 @@ const styleVars = computed(() => ({
 </script>
 
 <template>
-  <span class="severity-chip" :class="{ 'severity-chip--compact': compact }" :style="styleVars">
+  <span
+    class="severity-chip"
+    :class="{ 'severity-chip--compact': compact }"
+    :style="styleVars"
+    :title="compact ? label : undefined"
+    :aria-label="compact && count != null ? `${label}: ${count}` : undefined"
+  >
     <component :is="Icon" class="severity-chip__icon" aria-hidden="true" :size="14" />
     <span v-if="compact && count != null" class="severity-chip__text">{{ count }}</span>
     <span v-else class="severity-chip__text">{{ label }}</span>

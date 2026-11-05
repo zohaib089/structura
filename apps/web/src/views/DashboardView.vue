@@ -397,11 +397,7 @@ onMounted(loadDashboard)
             :compact="activeSection === 'project'"
             :initial-scan-id="routeScanId || null"
             :project-id="routeProjectId || null"
-            :initial-insight-view="
-              typeof route.params.tab === 'string' && route.params.tab.length > 0
-                ? 'report'
-                : 'graph'
-            "
+            :initial-insight-view="routeScanId ? 'report' : 'graph'"
           />
 
           <section v-else-if="activeSection === 'settings'" class="team-section">
