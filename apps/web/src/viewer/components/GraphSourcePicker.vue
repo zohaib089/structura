@@ -77,7 +77,7 @@ function onCopy() {
   border: 1px solid transparent;
 }
 .picker.is-dragging {
-  border: var(--viewer-drop-border-width) dashed var(--color-accent-primary);
+  border: var(--viewer-drop-border-width) dashed var(--color-brand-amber-ui);
 }
 .drop {
   display: grid;

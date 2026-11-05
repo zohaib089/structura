@@ -43,7 +43,6 @@ export interface ScanMessages {
   scanStepLabels: () => Record<'fetching' | 'scanning' | 'analysing' | 'saving', string>
   scanStepTerminalLabels: () => Record<'succeeded' | 'failed' | 'cancelled', string>
   selectScan: string
-  openInViewer: string
   recentScansTitle: string
   viewAllScans: string
   noScanSelected: string
@@ -119,7 +118,6 @@ const en: ScanMessages = {
     }
   },
   selectScan: 'View insights',
-  openInViewer: 'Open in viewer',
   recentScansTitle: 'Recent scans',
   viewAllScans: 'Open architecture',
   noScanSelected: 'Select a finished scan to review graph insights.',

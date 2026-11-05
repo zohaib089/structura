@@ -305,7 +305,7 @@
 
   /* ---- GRAPH EDGES ---- */
   --graph-edge-extracted: #8fa8c9; /* dark #8fa8c9 | 8.07 canvas, 7.21 raised | AA graphic >=3.0 | EXTRACTED: solid neutral. Largest population, so it is the quietest hue. */
-  --graph-edge-inferred: var(--accent); /* INFERRED: dashed + "~" badge. Hue is a redundant cue only. */
+  --graph-edge-inferred: var(--color-text-secondary); /* INFERRED: dashed + "~" badge. Line style carries meaning; no blue accent. */
   --graph-edge-unresolved: var(--gray-8); /* UNRESOLVED: dotted + hollow terminal + ghost node. */
   --graph-edge-violation: var(--color-danger); /* dark #f87171 | 7.12 canvas, 6.35 raised | AA graphic >=3.0 | Drift violation: thick + X badge. Aliases --color-danger so status colour stays single-sourced. */
   --graph-edge-undeclared: var(--color-warning); /* dark #fbbf24 | 11.79 canvas, 10.53 raised | AA graphic >=3.0 | Drift undeclared dep: thick + triangle badge. Aliases --color-warning. */
@@ -439,7 +439,7 @@
 
   /* ---- GRAPH EDGES ---- */
   --graph-edge-extracted: #4f6783; /* light #4f6783 | 5.35 canvas, 5.83 raised | AA graphic >=3.0 | EXTRACTED: solid neutral. Largest population, so it is the quietest hue. */
-  --graph-edge-inferred: var(--accent);
+  --graph-edge-inferred: var(--color-text-secondary);
   --graph-edge-unresolved: var(--gray-8);
   --graph-edge-violation: var(--color-danger); /* light #b91c1c | 5.93 canvas, 6.47 raised | AA graphic >=3.0 | Drift violation: thick + X badge. Aliases --color-danger so status colour stays single-sourced. */
   --graph-edge-undeclared: var(--color-warning); /* light #a16207 | 4.52 canvas, 4.92 raised | AA graphic >=3.0 | Drift undeclared dep: thick + triangle badge. Aliases --color-warning. */

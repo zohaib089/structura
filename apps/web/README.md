@@ -2,8 +2,8 @@
 
 `apps/web` hosts two front ends:
 
-- The existing hosted UI (`npm run dev`, `npm run build`) keeps landing, auth, and workspace routes.
-- A separate static graph viewer (`npm run dev:viewer`, `npm run build:viewer`) opens a local `graph.json` in the browser. The hosted app also exposes `/viewer` (and `/:locale/viewer`) with the bundled sample graph. The viewer does not call `/api` or `/health`, does not read `?graph=`, and does not persist anything.
+- The hosted UI (`npm run dev`, `npm run build`) includes landing, auth, workspace routes, and the **in-dashboard graph** (`ScanGraphView` on scan report Graph tab and `…/projects/:projectId/graph`). Scan graphs load from `/api/.../graph` with no browser storage handoff or external viewer link.
+- A separate static graph viewer build (`npm run dev:viewer`, `npm run build:viewer`) opens a local `graph.json` for offline/file:// use. The hosted app also exposes `/viewer` (and `/:locale/viewer`) with the bundled sample graph for quick demos. That entry does not call `/api` or `/health`, does not read `?graph=`, and does not persist anything. Docker Compose does not run a separate viewer on `:8080`.
 
 ## Graph viewer
 

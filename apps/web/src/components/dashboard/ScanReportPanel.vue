@@ -542,6 +542,15 @@ const history = computed(() => props.report.history)
   align-items: flex-start;
 }
 
+.finding-graph-link {
+  color: var(--color-brand-amber-ui);
+  text-decoration: none;
+}
+
+.finding-graph-link:hover {
+  text-decoration: underline;
+}
+
 .eyebrow {
   margin: 0;
   font-size: var(--font-size-xs);
