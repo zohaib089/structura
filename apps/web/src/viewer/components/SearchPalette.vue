@@ -185,6 +185,6 @@ ul { list-style: none; margin: 0; padding: 0; }
 #search-results { max-block-size: 18rem; overflow: auto; }
 button { display: flex; inline-size: 100%; justify-content: space-between; gap: var(--space-2); background: transparent; color: inherit; border: 0; }
 .path { color: var(--color-text-secondary); unicode-bidi: isolate; font-family: var(--font-family-mono); }
-mark { background: transparent; color: var(--color-accent-primary); text-decoration: underline; }
+mark { background: transparent; color: var(--color-brand-amber-ui); text-decoration: underline; }
 [aria-selected='true'] button { background: var(--surface-tint); }
 </style>

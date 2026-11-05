@@ -11,6 +11,8 @@ import { dashboardMessages } from '../../services/dashboard-messages'
 import { scanMessages } from '../../services/scan-messages'
 import { resolveGraphFocusQuery } from '../../services/graph-node-focus'
 import { isSupportedWebLocale, readLocalePreference, resolvePreferredWebLocale } from '../../services/locale'
+import { useThemeStore } from '../../stores/theme'
+import { storeToRefs } from 'pinia'
 import '../../viewer/viewer-base.css'
 
 const props = defineProps<{
@@ -22,6 +24,8 @@ const props = defineProps<{
 }>()
 
 const route = useRoute()
+const themeStore = useThemeStore()
+const { theme: shellTheme } = storeToRefs(themeStore)
 
 const locale = computed(() => {
   const routeLocale = route.params.locale
@@ -92,6 +96,7 @@ watch(
       v-else-if="graphDocument"
       embedded
       :locale="locale"
+      :shell-theme="shellTheme"
       :graph-document="graphDocument"
       :focus-path="focusPath"
       :path-severity-counts="pathSeverityCounts"

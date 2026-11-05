@@ -53,6 +53,8 @@ const props = withDefaults(
     embedded?: boolean
     bootSample?: boolean
     locale?: WebLocale
+    /** When set (embedded dashboard), follow the app shell theme instead of managing document theme locally. */
+    shellTheme?: 'light' | 'dark' | null
     graphDocument?: GraphDocument | null
     focusPath?: string | null
     pathSeverityCounts?: Map<string, SeverityCounts>
@@ -60,6 +62,7 @@ const props = withDefaults(
   {
     embedded: false,
     bootSample: false,
+    shellTheme: null,
     graphDocument: null,
     focusPath: null,
     pathSeverityCounts: undefined
@@ -72,9 +75,10 @@ const direction = webLocaleDirection(locale)
 const numbers = new Intl.NumberFormat(locale)
 const knownKinds = new Set(['directory', 'file', 'symbol', 'external', 'unresolved'])
 
-const theme = ref<'light' | 'dark'>(
+const standaloneTheme = ref<'light' | 'dark'>(
   typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
 )
+const theme = computed(() => props.shellTheme ?? standaloneTheme.value)
 const graph = shallowRef<GraphDocument | null>(null)
 const error = ref<GraphError | null>(null)
 const loading = ref(false)
@@ -125,7 +129,7 @@ onMounted(() => {
   if (!props.embedded) {
     document.documentElement.lang = locale
     document.documentElement.dir = direction
-    document.documentElement.dataset.theme = theme.value
+    document.documentElement.dataset.theme = standaloneTheme.value
     document.title = pageTitle(messages.title)
   }
   window.addEventListener('keydown', onKeydown)
@@ -153,7 +157,8 @@ onBeforeUnmount(() => {
   handle?.cancel()
 })
 
-watch(theme, (value) => {
+watch(standaloneTheme, (value) => {
+  if (props.embedded || props.shellTheme) return
   document.documentElement.dataset.theme = value
 })
 
@@ -616,7 +621,7 @@ const snippet = 'layers: []\nrules: []\n'
       <input id="graph-file" ref="fileInput" data-testid="file-input" class="file-input" type="file" accept=".json,application/json" @change="onInput" />
       <button type="button" @click="openPicker">{{ messages.choose }}</button>
       <button type="button" class="search" aria-keyshortcuts="Control+K Meta+K /" @click="palette = true">{{ messages.search }}</button>
-      <button type="button" :aria-label="theme === 'dark' ? messages.themeToLight : messages.themeToDark" @click="theme = theme === 'dark' ? 'light' : 'dark'">
+      <button type="button" :aria-label="theme === 'dark' ? messages.themeToLight : messages.themeToDark" @click="standaloneTheme = theme === 'dark' ? 'light' : 'dark'">
         {{ theme === 'dark' ? messages.themeToLight : messages.themeToDark }}
       </button>
       <button type="button" class="drawer-toggle" :aria-label="messages.railToggle" @click="railOpen = !railOpen">{{ messages.filters }}</button>
@@ -876,6 +881,8 @@ const snippet = 'layers: []\nrules: []\n'
 }
 .topbar-embedded {
   grid-column: 1 / -1;
+  border-block-end: 1px solid var(--color-border);
+  background: var(--color-surface);
 }
 .topbar {
   grid-column: 1 / -1;

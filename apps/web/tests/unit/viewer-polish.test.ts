@@ -376,5 +376,19 @@ describe('v2 viewer polish', () => {
     const meter = readFileSync(resolve('src/viewer/components/BudgetMeter.vue'), 'utf8')
     expect(meter).toContain('var(--graph-budget-track')
   })
+
+  it('keeps legacy blue accent tokens out of viewer sources', () => {
+    const paths = [
+      resolve('src/viewer/viewer-base.css'),
+      resolve('src/viewer/components/GraphSourcePicker.vue'),
+      resolve('src/viewer/components/SearchPalette.vue'),
+      resolve('src/viewer/ViewerApp.vue')
+    ]
+    for (const path of paths) {
+      const text = readFileSync(path, 'utf8')
+      expect(text.includes('--color-accent-primary'), path).toBe(false)
+      expect(text.includes('shadow-accent-glow'), path).toBe(false)
+    }
+  })
 })
 
