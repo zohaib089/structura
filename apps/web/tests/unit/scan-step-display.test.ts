@@ -31,15 +31,24 @@ function baseScan(overrides: Partial<Scan> = {}): Scan {
 describe('scan step display', () => {
   it('marks earlier steps done and the current step active while running', () => {
     const items = buildScanStepperItems(baseScan({ step: 'analysing' }))
-    expect(items.map(item => item.state)).toEqual(['done', 'done', 'active', 'pending'])
+    expect(items.map(item => item.state)).toEqual(['done', 'done', 'done', 'active', 'pending'])
   })
 
   it('marks the failed step on terminal failure', () => {
     const items = buildScanStepperItems(baseScan({ status: 'failed', step: null }), {
       failedStep: 'scanning'
     })
-    expect(items[1]?.state).toBe('error')
+    expect(items[2]?.state).toBe('error')
+    expect(items[1]?.state).toBe('done')
     expect(items[0]?.state).toBe('done')
+  })
+
+  it('shows five phases with the queued wait first', () => {
+    const queued = buildScanStepperItems(baseScan({ status: 'queued', step: null }))
+    expect(queued.map(item => item.id)).toEqual(['queued', 'fetching', 'scanning', 'analysing', 'saving'])
+    expect(queued.map(item => item.state)).toEqual(['active', 'pending', 'pending', 'pending', 'pending'])
+    const running = buildScanStepperItems(baseScan({ step: 'fetching' }))
+    expect(running.map(item => item.state)).toEqual(['done', 'active', 'pending', 'pending', 'pending'])
   })
 
   it('announces cancelling while the scan is still running', () => {
