@@ -196,6 +196,30 @@ In the hosted app (Compose or `npm --prefix apps/web run dev` with API running),
 
 When a scan succeeds, the hub loads graph insights and a **Project report** view: folder tree, severity badges, category tabs aligned with `report.json` v1, filters, optional architecture graph preview, analyser run status, and client-side export of the filtered view as JSON or Markdown. The CLI `--report` flag produces the same `report.json` shape locally without the dashboard.
 
+### Hosted scan API (file summaries)
+
+`graph.json` (graph.v1) stays source-text-free and is unchanged by this feature. Leading file comments are computed during the hosted scan (`scanRepository` in the API worker), stored in Postgres migration `009_workspace_scan_file_meta`, and served separately:
+
+```http
+GET /api/workspaces/:workspaceId/scans/:scanId/file-meta?path=src/app.ts
+GET /api/workspaces/:workspaceId/scans/:scanId/file-meta?paths=src/app.ts,src/util.ts
+Authorization: Bearer <session token>
+```
+
+Response shape:
+
+```json
+{
+  "success": true,
+  "files": [
+    { "path": "src/app.ts", "summary": "Application entry." },
+    { "path": "src/util.ts", "summary": null }
+  ]
+}
+```
+
+Each `summary` is the first header block or line comment (JS/TS block or `//` lines, Python module docstring or `#` lines), whitespace-collapsed, capped at 300 characters. Auth and readiness match the existing scan graph/report routes (`401` without a session, `404` for unknown workspace or scan, `409` while the scan is queued or running, `404` when the scan failed).
+
 ## Privacy
 
 The scan **engine** and **CLI** do not send telemetry and do not make network calls during a normal directory scan (see [docs/inputs/engine-inputs.md](docs/inputs/engine-inputs.md)). Scanning a remote Git URL uses HTTPS clone. Optional `bench` adapters may call external model APIs unless you use `--dry-run`.

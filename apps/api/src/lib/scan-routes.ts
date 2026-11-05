@@ -12,6 +12,7 @@ import {
   enqueueWorkspaceScan,
   removeQueuedWorkspaceScan
 } from './scan-worker.js'
+import { loadScanFileMeta } from './scan-file-meta.js'
 import type { WorkspaceDatabase } from './workspace-routes.js'
 
 function readRecord(value: unknown): Record<string, unknown> | null {
@@ -293,6 +294,66 @@ export function registerWorkspaceScanRoutes(app: FastifyInstance, database: Work
       }
 
       return { success: true, report: scan.report_json }
+    }
+  )
+
+  app.get<{ Params: { workspaceId: string; scanId: string }; Querystring: { path?: string; paths?: string } }>(
+    '/api/workspaces/:workspaceId/scans/:scanId/file-meta',
+    async (request, reply) => {
+      const userId = await authenticatedUserId(request.headers.authorization, database)
+      if (!userId) return unauthenticated(reply)
+      if (!(await requireWorkspaceMember(database, request.params.workspaceId, userId))) {
+        return reply.code(404).send({ success: false, message: 'Workspace not found.' })
+      }
+
+      const singlePath = typeof request.query.path === 'string' ? request.query.path.trim() : ''
+      const batchRaw = typeof request.query.paths === 'string' ? request.query.paths.trim() : ''
+      const requestedPaths =
+        batchRaw.length > 0
+          ? batchRaw
+              .split(',')
+              .map(part => part.trim())
+              .filter(part => part.length > 0)
+          : singlePath.length > 0
+            ? [singlePath]
+            : []
+
+      if (requestedPaths.length === 0) {
+        return reply.code(400).send({
+          success: false,
+          message: 'Provide path=<repo-relative path> or paths=<comma-separated paths>.'
+        })
+      }
+
+      const result = await database.query(
+        `SELECT status
+         FROM workspace_scans
+         WHERE workspace_id = $1 AND id = $2`,
+        [request.params.workspaceId, request.params.scanId]
+      )
+      const scan = result.rows[0]
+      if (!scan) {
+        return reply.code(404).send({ success: false, message: 'Scan not found.' })
+      }
+      if (scan.status === 'queued' || scan.status === 'running') {
+        return reply.code(409).send({
+          success: false,
+          message: 'File metadata is not ready yet.',
+          status: scan.status
+        })
+      }
+      if (scan.status === 'failed') {
+        return reply.code(404).send({ success: false, message: 'File metadata is not available for this scan.' })
+      }
+
+      const summaries = await loadScanFileMeta(database.query, request.params.scanId, requestedPaths)
+      return {
+        success: true,
+        files: requestedPaths.map(path => ({
+          path,
+          summary: summaries.get(path) ?? null
+        }))
+      }
     }
   )
 }

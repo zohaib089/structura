@@ -49,6 +49,7 @@ import { truncateCodePoints } from '../text/unicode.js'
 import { decodeSource } from './decode.js'
 import { findEntryCandidates, readJsonValue } from './entries.js'
 import { parseRepoLimits } from './repo-limits.js'
+import { extractFileSummary } from './file-summary.js'
 
 /** Specifier stored for a non-literal import. It is a marker, not source text. The edge stays EXTRACTED. */
 export const NON_LITERAL_SPECIFIER = '<non-literal>'
@@ -135,6 +136,8 @@ export interface ScanOutput {
   graphPath: string
   run: RunMeta
   runPath?: string
+  /** Repo-relative paths to leading comment summaries computed during the scan (not stored in graph.v1). */
+  fileSummaries: Readonly<Record<string, string | null>>
   strictFailures: string[]
   summary: string
   elapsedMs: number
@@ -394,6 +397,7 @@ interface AnalyseOutcome {
   record: FileRecord
   parsed?: AdapterParseResult
   redactions: number
+  fileSummary: string | null
 }
 
 async function analyseFile(
@@ -411,6 +415,7 @@ async function analyseFile(
   if (!read.ok) {
     return {
       redactions: 0,
+      fileSummary: null,
       record: {
         path: file.path,
         language: file.language,
@@ -422,9 +427,14 @@ async function analyseFile(
     }
   }
   if (read.binary) {
-    return { redactions: 0, record: { path: file.path, language: file.language, status: 'skipped', reason: 'binary', lineCount: null, lossy: false } }
+    return {
+      redactions: 0,
+      fileSummary: null,
+      record: { path: file.path, language: file.language, status: 'skipped', reason: 'binary', lineCount: null, lossy: false }
+    }
   }
   const decoded = decodeSource(read.content)
+  const fileSummary = extractFileSummary(decoded.text, file.language)
   const key = {
     contentHash: contentHash(read.content),
     adapterId,
@@ -452,6 +462,7 @@ async function analyseFile(
         const skipped = outcome.reason === 'timeout' || outcome.reason === 'memory-limit'
         return {
           redactions: 0,
+          fileSummary,
           record: {
             path: file.path,
             language: file.language,
@@ -471,6 +482,7 @@ async function analyseFile(
   return {
     redactions: result.redactions,
     parsed: result,
+    fileSummary,
     record: {
       path: file.path,
       language: file.language,
@@ -572,6 +584,7 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
   const texts = new Map<string, string>()
   const records: FileRecord[] = []
   const parsed = new Map<string, AdapterParseResult>()
+  const fileSummaries: Record<string, string | null> = {}
   let redactions = 0
 
   try {
@@ -584,12 +597,14 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
       if (options.signal?.aborted) throw new InterruptedError()
       if (file.disposition === 'skipped') {
         records.push({ path: file.path, language: file.language, status: 'skipped', reason: file.skipReason, lineCount: null, lossy: false })
+        fileSummaries[file.path] = null
         continue
       }
       const picked = adapterFor(file.language)
       const outcome = await analyseFile(file, limits, picked.adapter, picked.id, picked.version, cache, fingerprint, tag, incremental)
       redactions += outcome.redactions
       records.push(outcome.record)
+      fileSummaries[file.path] = outcome.fileSummary
       if (outcome.parsed) parsed.set(file.path, outcome.parsed)
     }
   } finally {
@@ -830,6 +845,7 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
     graphPath,
     run,
     ...(runPath ? { runPath } : {}),
+    fileSummaries,
     strictFailures: failures,
     summary,
     elapsedMs: finished - started,

@@ -12,6 +12,7 @@ import type { WorkspaceQuery } from './workspace-routes.js'
 
 function createScanStore(entries: Array<[string, Record<string, unknown>]>) {
   const scans = new Map<string, Record<string, unknown>>(entries)
+  const fileMeta = new Map<string, string | null>()
 
   const applyUpdate = (scan: Record<string, unknown>, text: string, params: unknown[]) => {
     const setPart = text.match(/SET (.+?) WHERE/s)?.[1] ?? ''
@@ -30,6 +31,22 @@ function createScanStore(entries: Array<[string, Record<string, unknown>]>) {
   }
 
   const query: WorkspaceQuery = async (text, params = []) => {
+    if (text.startsWith('DELETE FROM workspace_scan_file_meta')) {
+      const scanId = String(params[0])
+      for (const key of [...fileMeta.keys()]) {
+        if (key.startsWith(`${scanId}:`)) fileMeta.delete(key)
+      }
+      return { rows: [] }
+    }
+    if (text.includes('INSERT INTO workspace_scan_file_meta')) {
+      const scanId = String(params[0])
+      const paths = params[1] as string[]
+      const summaries = params[2] as Array<string | null>
+      paths.forEach((path, index) => {
+        fileMeta.set(`${scanId}:${path}`, summaries[index] ?? null)
+      })
+      return { rows: [] }
+    }
     if (text.startsWith('SELECT id, workspace_id')) {
       return { rows: scans.get(String(params[0])) ? [scans.get(String(params[0]))!] : [] }
     }
@@ -48,11 +65,11 @@ function createScanStore(entries: Array<[string, Record<string, unknown>]>) {
     return { rows: [] }
   }
 
-  return { scans, query }
+  return { scans, query, fileMeta }
 }
 
 test('scan worker stores graph json after a mocked successful scan', async () => {
-  const { scans, query } = createScanStore([
+  const { scans, query, fileMeta } = createScanStore([
     [
       'scan-1',
       {
@@ -93,7 +110,8 @@ test('scan worker stores graph json after a mocked successful scan', async () =>
       strictFailures: [],
       summary: 'ok',
       elapsedMs: 1,
-      root: '/tmp'
+      root: '/tmp',
+      fileSummaries: { 'README.md': 'hello world' }
     }),
     runAnalysis: async () => ({
       schemaVersion: '1.0.0',
@@ -109,10 +127,11 @@ test('scan worker stores graph json after a mocked successful scan', async () =>
   assert.equal(scans.get('scan-1')?.step, null)
   assert.deepEqual(scans.get('scan-1')?.graph_json, { schema: 'graph.v1' })
   assert.equal((scans.get('scan-1')?.report_json as { schemaVersion?: string })?.schemaVersion, '1.0.0')
+  assert.equal(fileMeta.get('scan-1:README.md'), 'hello world')
 })
 
 test('scan worker updates step through scan phases', async () => {
-  const { scans, query } = createScanStore([
+  const { scans, query, fileMeta } = createScanStore([
     [
       'scan-1',
       {
@@ -168,7 +187,8 @@ test('scan worker updates step through scan phases', async () => {
         strictFailures: [],
         summary: 'ok',
         elapsedMs: 1,
-        root: '/tmp'
+        root: '/tmp',
+        fileSummaries: {}
       }
     },
     runAnalysis: async () => ({
@@ -189,7 +209,7 @@ test('scan worker updates step through scan phases', async () => {
 })
 
 test('running scan stops cooperatively when aborted after cancel', async () => {
-  const { scans, query } = createScanStore([
+  const { scans, query, fileMeta } = createScanStore([
     [
       'scan-1',
       {
@@ -236,7 +256,8 @@ test('running scan stops cooperatively when aborted after cancel', async () => {
         strictFailures: [],
         summary: 'ok',
         elapsedMs: 1,
-        root: '/tmp'
+        root: '/tmp',
+        fileSummaries: {}
       }
     },
     runAnalysis: async () => ({
@@ -261,7 +282,7 @@ test('running scan stops cooperatively when aborted after cancel', async () => {
 })
 
 test('recoverWorkspaceScansOnStartup fails interrupted running scans', async () => {
-  const { scans, query } = createScanStore([
+  const { scans, query, fileMeta } = createScanStore([
     [
       'scan-running',
       {

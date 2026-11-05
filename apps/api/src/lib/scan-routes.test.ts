@@ -6,6 +6,7 @@ import type { WorkspaceDatabase, WorkspaceQuery } from './workspace-routes.js'
 
 function createScanApi() {
   const scans = new Map<string, Record<string, unknown>>()
+  const fileMeta = new Map<string, string | null>()
   const memberships = new Map<string, string>([['workspace-1:user-1', 'member']])
 
   const query: WorkspaceQuery = async (text, params = []) => {
@@ -48,6 +49,19 @@ function createScanApi() {
       const scan = scans.get(String(params[1]))
       return { rows: scan ? [{ status: scan.status, report_json: scan.report_json ?? null }] : [] }
     }
+    if (text.includes('FROM workspace_scan_file_meta')) {
+      const scanId = String(params[0])
+      const paths = params[1] as string[]
+      return {
+        rows: paths
+          .filter(path => fileMeta.has(`${scanId}:${path}`))
+          .map(path => ({ path, summary: fileMeta.get(`${scanId}:${path}`) ?? null }))
+      }
+    }
+    if (text.includes('WHERE workspace_id = $1 AND id = $2') && text.startsWith('SELECT status')) {
+      const scan = scans.get(String(params[1]))
+      return { rows: scan ? [{ status: scan.status }] : [] }
+    }
     if (text.includes('WHERE workspace_id = $1 AND id = $2')) {
       const scan = scans.get(String(params[1]))
       return { rows: scan ? [scan] : [] }
@@ -72,7 +86,7 @@ function createScanApi() {
 
   const app = Fastify()
   registerWorkspaceScanRoutes(app, database)
-  return { app, scans }
+  return { app, scans, fileMeta }
 }
 
 test('scan routes require auth and workspace membership', async () => {
@@ -232,6 +246,72 @@ test('cancel route returns 409 when scan already finished', async () => {
     })
     assert.equal(cancelled.statusCode, 409)
     assert.equal(cancelled.json().success, false)
+  } finally {
+    await api.app.close()
+  }
+})
+
+test('file-meta route returns 409 until scan completes', async () => {
+  const api = createScanApi()
+  try {
+    const created = await api.app.inject({
+      method: 'POST',
+      url: '/api/workspaces/workspace-1/scans',
+      headers: { authorization: 'Bearer valid-session' },
+      payload: { source: 'git', url: 'https://github.com/org/repo' }
+    })
+    const scanId = created.json().scan.id as string
+    const response = await api.app.inject({
+      method: 'GET',
+      url: `/api/workspaces/workspace-1/scans/${scanId}/file-meta?path=src/app.ts`,
+      headers: { authorization: 'Bearer valid-session' }
+    })
+    assert.equal(response.statusCode, 409)
+  } finally {
+    await api.app.close()
+  }
+})
+
+test('file-meta route returns stored summaries when ready', async () => {
+  const api = createScanApi()
+  try {
+    const created = await api.app.inject({
+      method: 'POST',
+      url: '/api/workspaces/workspace-1/scans',
+      headers: { authorization: 'Bearer valid-session' },
+      payload: { source: 'git', url: 'https://github.com/org/repo' }
+    })
+    const scanId = created.json().scan.id as string
+    const scan = api.scans.get(scanId)!
+    scan.status = 'succeeded'
+    api.fileMeta.set(`${scanId}:src/app.ts`, 'Application entry.')
+    api.fileMeta.set(`${scanId}:src/util.ts`, null)
+
+    const single = await api.app.inject({
+      method: 'GET',
+      url: `/api/workspaces/workspace-1/scans/${scanId}/file-meta?path=src/app.ts`,
+      headers: { authorization: 'Bearer valid-session' }
+    })
+    assert.equal(single.statusCode, 200)
+    assert.deepEqual(single.json(), {
+      success: true,
+      files: [{ path: 'src/app.ts', summary: 'Application entry.' }]
+    })
+
+    const batch = await api.app.inject({
+      method: 'GET',
+      url: `/api/workspaces/workspace-1/scans/${scanId}/file-meta?paths=src/app.ts,src/util.ts,src/missing.ts`,
+      headers: { authorization: 'Bearer valid-session' }
+    })
+    assert.equal(batch.statusCode, 200)
+    assert.deepEqual(batch.json(), {
+      success: true,
+      files: [
+        { path: 'src/app.ts', summary: 'Application entry.' },
+        { path: 'src/util.ts', summary: null },
+        { path: 'src/missing.ts', summary: null }
+      ]
+    })
   } finally {
     await api.app.close()
   }

@@ -73,7 +73,8 @@ test('applies the versioned auth, workspace, invitation, and analysis metadata m
     '005_workspace_scans',
     '006_scan_report_json',
     '007_workspace_scan_upload_running',
-    '008_workspace_scan_step_cancel'
+    '008_workspace_scan_step_cancel',
+    '009_workspace_scan_file_meta'
   ])
   assert.deepEqual(secondRun, [])
   assert.match(database.statements.join('\n'), /CREATE TABLE IF NOT EXISTS workspace_members/)

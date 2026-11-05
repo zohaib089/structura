@@ -2,6 +2,7 @@ export { ArchitectureConfigError } from '../architecture/errors.js'
 export { decodeSource, type DecodedSource } from './decode.js'
 export { findEntryCandidates } from './entries.js'
 export { parseRepoLimits } from './repo-limits.js'
+export { collapseFileSummary, extractFileSummary } from './file-summary.js'
 export {
   discardOutputTemps,
   InterruptedError,
