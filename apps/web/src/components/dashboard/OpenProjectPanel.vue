@@ -253,6 +253,7 @@ function onRetry() {
       :scan="activeScan"
       :step-labels="messages.scanStepLabels()"
       :queued-label="messages.scanStepQueued"
+      :status-lines="messages.scanStepStatusLines()"
       :terminal-labels="messages.scanStepTerminalLabels()"
       :failed-step="lastFailedStep"
       :cancelling="cancelling"

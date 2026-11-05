@@ -176,6 +176,7 @@
   --duration-fast: 120ms;
   --duration-normal: 200ms;
   --duration-slow: 400ms;
+  --duration-shimmer: 1.6s; /* skeleton shimmer sweep (loading-and-toasts.md §1.3) */
   --duration-entrance: 1000ms;
   --duration-pulse: 2s;
   --duration-float: 9s;
@@ -300,6 +301,13 @@
   --color-brand-amber: #d4912f; /* dark #d4912f | 7.40 canvas, 6.60 raised | decorative/fill | Logo-exact amber for FILLS in static art (mark on navy, og-image). On light UI it is only 2.4-2.7:1, so do not use it for strokes/text there. */
   --color-brand-mark: #e8f0ff; /* dark #e8f0ff | 17.19 canvas, 15.35 raised | AA graphic >=3.0 | BrandMark strokes + nodes (follows theme). */
   --color-brand-mark-accent: #d4912f; /* dark #d4912f | 7.40 canvas, 6.60 raised | AA graphic >=3.0 | BrandMark amber pair. Light value is a slightly deeper amber so the pair keeps >=3:1. */
+  /* Nucleus mark (logo-final/NUCLEUS.md): the plate is navy in both themes; ring + core are theme-tuned. */
+  --nucleus-plate: #12264a;
+  --nucleus-ring: #4a6fa8;
+  --nucleus-core: #e0a040;
+  --nucleus-glow: #e0a040;
+  --nucleus-glow-opacity: 0.2;
+  --nucleus-spec: #fff8ec;
   --color-brand-amber-ui: #e0a040; /* dark #e0a040 | 8.69 canvas, 8.12 surface, 7.76 raised | AA text >=4.5 | THE amber for UI: selection ring, focus path, brand links/badges, amber button fill. Text-grade in both themes. */
   --color-on-brand-amber: #1a1203; /* dark #1a1203 | 1.06 canvas, 1.06 raised | decorative/fill | Text/icon on a --color-brand-amber-ui fill (pair ratio checked in tokens-contrast.md: 8.19 dark, 5.43 light). */
 
@@ -434,6 +442,12 @@
   --color-brand-amber: #d4912f; /* light #d4912f | 2.44 canvas, 2.66 raised | decorative/fill | Logo-exact amber for FILLS in static art (mark on navy, og-image). On light UI it is only 2.4-2.7:1, so do not use it for strokes/text there. */
   --color-brand-mark: #12264a; /* light #12264a | 13.74 canvas, 14.98 raised | AA graphic >=3.0 | BrandMark strokes + nodes (follows theme). */
   --color-brand-mark-accent: #c47d12; /* light #c47d12 | 3.06 canvas, 3.34 raised | AA graphic >=3.0 | BrandMark amber pair. Light value is a slightly deeper amber so the pair keeps >=3:1. */
+  --nucleus-plate: #12264a;
+  --nucleus-ring: #35568f;
+  --nucleus-core: #d4912f;
+  --nucleus-glow: #d4912f;
+  --nucleus-glow-opacity: 0.13;
+  --nucleus-spec: #fff8ec;
   --color-brand-amber-ui: #9a5b00; /* light #9a5b00 | 4.98 canvas, 5.22 surface, 5.43 raised | AA text >=4.5 | THE amber for UI: selection ring, focus path, brand links/badges, amber button fill. Text-grade in both themes. */
   --color-on-brand-amber: #ffffff; /* light #ffffff | 1.09 canvas, 1.00 raised | decorative/fill | Text/icon on a --color-brand-amber-ui fill (pair ratio checked in tokens-contrast.md: 8.19 dark, 5.43 light). */
 

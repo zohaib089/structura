@@ -2,6 +2,8 @@
 import { BRAND, pageTitle, quickstartCommand } from '../../../../packages/brand/src/brand'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import BrandMark from '../components/brand/BrandMark.vue'
+import ToastStack from '../components/ui/ToastStack.vue'
+import { useToast } from '../composables/useToast'
 import { resolvePreferredWebLocale, webLocaleDirection } from '../services/locale'
 import {
   COMFORT_NODE_BUDGET,
@@ -102,7 +104,7 @@ const coachDismissed = ref(false)
 const fileName = ref('')
 const sample = ref(false)
 const dragging = ref(false)
-const toast = ref('')
+const toasts = useToast()
 const palette = ref(false)
 const shortcuts = ref(false)
 const query = ref('')
@@ -124,7 +126,6 @@ let fileMetaRequestId = 0
 let requestId = 0
 let handle: ParseHandle | null = null
 let loadingTimer = 0
-let toastTimer = 0
 
 const index = computed(() => (graph.value ? indexGraph(graph.value) : null))
 const focusMembers = computed(() => {
@@ -241,9 +242,7 @@ function triggerFit() {
 }
 
 function showToast(text: string) {
-  toast.value = text
-  window.clearTimeout(toastTimer)
-  toastTimer = window.setTimeout(() => { toast.value = '' }, 3000)
+  toasts.info(text)
 }
 
 function format(template: string, values: Record<string, string | number> = {}) {
@@ -1076,7 +1075,7 @@ const snippet = 'layers: []\nrules: []\n'
       <button type="button" @click="shortcuts = false">{{ messages.shortcutsClose }}</button>
     </div>
     <p class="sr-only" aria-live="polite">{{ announce }}</p>
-    <p v-if="toast" class="toast" role="status">{{ toast }}</p>
+    <ToastStack />
   </div>
 </template>
 
@@ -1206,17 +1205,6 @@ const snippet = 'layers: []\nrules: []\n'
 .skip { position: absolute; inset-inline-start: var(--space-2); inset-block-start: -100%; }
 .skip:focus { inset-block-start: var(--space-2); z-index: var(--z-skip-link); }
 .drop-overlay, .scrim { position: fixed; inset: 0; z-index: var(--z-palette); display: grid; place-items: center; background: var(--color-surface-overlay); }
-.toast {
-  position: fixed;
-  inset-block-end: var(--space-4);
-  inset-inline-start: 50%;
-  z-index: var(--z-toast);
-  transform: translateX(-50%);
-  background: var(--color-surface-raised);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
-}
 .sr-only { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 button {
   min-block-size: var(--viewer-hit-target);

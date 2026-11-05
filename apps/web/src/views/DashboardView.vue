@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import DashboardToast from '../components/dashboard/DashboardToast.vue'
+import HexLoader from '../components/ui/HexLoader.vue'
+import SkeletonTableRows from '../components/ui/skeleton/SkeletonTableRows.vue'
+import { useToast } from '../composables/useToast'
 import DashboardScansHub from '../components/dashboard/DashboardScansHub.vue'
 import OpenProjectPanel from '../components/dashboard/OpenProjectPanel.vue'
 import { isSupportedWebLocale, readLocalePreference, resolvePreferredWebLocale } from '../services/locale'
@@ -83,8 +85,7 @@ const pendingInvitations = ref<WorkspaceInvitation[]>([])
 const workspaceName = ref('')
 const projectName = ref('')
 const projectDescription = ref('')
-const toastMessage = ref('')
-let toastTimeout: ReturnType<typeof setTimeout> | undefined
+const toast = useToast()
 const selectedWorkspace = computed(() =>
   workspaces.value.find(workspace => workspace.id === selectedWorkspaceId.value) ?? null
 )
@@ -101,18 +102,7 @@ function formatDate(value: string) {
 }
 
 function showToast(message: string) {
-  toastMessage.value = message
-  if (toastTimeout) clearTimeout(toastTimeout)
-  toastTimeout = setTimeout(() => {
-    toastMessage.value = ''
-    toastTimeout = undefined
-  }, 5000)
-}
-
-function dismissToast() {
-  toastMessage.value = ''
-  if (toastTimeout) clearTimeout(toastTimeout)
-  toastTimeout = undefined
+  toast.success(message, { dismissLabel: messages.value.dismissNotification })
 }
 
 async function loadProjects(workspaceId: string) {
@@ -278,20 +268,10 @@ watch(
 )
 
 onMounted(loadDashboard)
-onBeforeUnmount(() => {
-  if (toastTimeout) clearTimeout(toastTimeout)
-})
 </script>
 
 <template>
   <div class="dashboard-page">
-    <DashboardToast
-      v-if="toastMessage"
-      :message="toastMessage"
-      :dismiss-label="messages.dismissNotification"
-      @dismiss="dismissToast"
-    />
-
     <section class="dashboard-content">
       <div class="page-header">
         <div>
@@ -313,13 +293,7 @@ onBeforeUnmount(() => {
       </div>
 
         <p v-if="error" class="feedback error" role="alert">{{ error }}</p>
-        <div v-if="loading" class="loading-skeleton state-card" role="status" :aria-label="messages.loadingWorkspaces">
-          <span class="sr-only">{{ messages.loadingWorkspaces }}</span>
-          <div class="skeleton-line skeleton-title" aria-hidden="true" />
-          <div class="skeleton-line skeleton-copy" aria-hidden="true" />
-          <div class="skeleton-line skeleton-copy short" aria-hidden="true" />
-          <div class="skeleton-card" aria-hidden="true" />
-        </div>
+        <SkeletonTableRows v-if="loading" :rows="4" :label="messages.loadingWorkspaces" />
         <div v-else-if="dashboardLoadError" class="state-card error-state" role="alert">
           <p>{{ dashboardLoadError }}</p>
           <button class="primary-button" type="button" @click="loadDashboard">{{ messages.retry }}</button>
@@ -340,7 +314,7 @@ onBeforeUnmount(() => {
                 required
               >
               <button class="primary-button" type="submit" :disabled="submitting">
-                <span v-if="submitting" class="button-loader" aria-hidden="true" />
+                <HexLoader v-if="submitting" size="sm" :label="messages.creating" hide-label inline :delay="0" :min-visible="0" />
                 {{ submitting ? messages.creating : messages.createWorkspace }}
               </button>
             </form>
@@ -371,10 +345,7 @@ onBeforeUnmount(() => {
               <p>{{ projectsError }}</p>
               <button class="primary-button" type="button" @click="reloadProjectsForWorkspace">{{ messages.retry }}</button>
             </div>
-            <div v-else-if="projectsLoading" class="project-skeleton" role="status" :aria-label="messages.loadingWorkspaces">
-              <span class="sr-only">{{ messages.loadingWorkspaces }}</span>
-              <div v-for="item in 2" :key="item" class="skeleton-card" aria-hidden="true" />
-            </div>
+            <SkeletonTableRows v-else-if="projectsLoading" :rows="8" :label="messages.loadingWorkspaces" />
             <div v-else-if="projects.length === 0" class="state-card">
               <h3>{{ messages.noProjects }}</h3>
               <p>{{ messages.createProjectPrompt }}</p>
@@ -407,7 +378,7 @@ onBeforeUnmount(() => {
                 <textarea v-model="projectDescription" maxlength="2000" rows="3" />
               </label>
               <button class="primary-button" type="submit" :disabled="submitting">
-                <span v-if="submitting" class="button-loader" aria-hidden="true" />
+                <HexLoader v-if="submitting" size="sm" :label="messages.creating" hide-label inline :delay="0" :min-visible="0" />
                 {{ submitting ? messages.creating : messages.createProject }}
               </button>
             </form>
@@ -468,7 +439,7 @@ onBeforeUnmount(() => {
                   <input v-model="inviteEmail" type="email" maxlength="254" autocomplete="email" required>
                 </label>
                 <button class="primary-button" type="submit" :disabled="teamSubmitting">
-                  <span v-if="teamSubmitting" class="button-loader" aria-hidden="true" />
+                  <HexLoader v-if="teamSubmitting" size="sm" :label="messages.sendInvitation" hide-label inline :delay="0" :min-visible="0" />
                   {{ messages.sendInvitation }}
                 </button>
               </form>
@@ -710,80 +681,6 @@ onBeforeUnmount(() => {
 .project-form {
   padding: var(--space-5);
   border-block: 1px solid var(--color-border);
-}
-
-.loading-skeleton,
-.project-skeleton {
-  display: grid;
-  gap: var(--space-3);
-}
-
-.skeleton-line,
-.skeleton-card {
-  background: var(--gray-3);
-  border: 1px solid var(--color-border);
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .skeleton-line,
-  .skeleton-card {
-    background: linear-gradient(
-      90deg,
-      var(--gray-3),
-      color-mix(in srgb, var(--gray-3) 70%, var(--gray-5)),
-      var(--gray-3)
-    );
-    background-size: 200% 100%;
-    animation: skeleton-shimmer var(--duration-pulse) ease-in-out infinite;
-  }
-}
-
-.skeleton-line {
-  height: 1rem;
-  width: min(24rem, 80%);
-  border-radius: var(--r-sm);
-}
-
-.skeleton-title {
-  height: 1.75rem;
-  width: min(18rem, 60%);
-}
-
-.skeleton-line.short {
-  width: min(14rem, 45%);
-}
-
-.skeleton-card {
-  min-height: 5rem;
-  border-radius: var(--r-md);
-}
-
-.button-loader {
-  display: inline-block;
-  width: 1em;
-  height: 1em;
-  margin-inline-end: var(--space-2);
-  vertical-align: -0.15em;
-  border: 2px solid currentColor;
-  border-inline-end-color: transparent;
-  border-radius: 50%;
-  animation: loader-spin var(--duration-slow) linear infinite;
-}
-
-@keyframes skeleton-shimmer {
-  to { background-position: -200% 0; }
-}
-
-@keyframes loader-spin {
-  to { transform: rotate(360deg); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .skeleton-line,
-  .skeleton-card,
-  .button-loader {
-    animation: none;
-  }
 }
 
 .state-card p,

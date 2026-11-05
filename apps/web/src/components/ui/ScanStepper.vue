@@ -1,17 +1,21 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { ScanStep } from '../../api/scans'
+import type { Scan, ScanStep } from '../../api/scans'
 import {
   buildScanStepperItems,
   scanStepperLiveMessage,
-  type ScanStepperItem
+  type ScanStepperItem,
+  type ScanStepperPhase
 } from '../../services/scan-step-display'
-import type { Scan } from '../../api/scans'
 import Button from './Button.vue'
+import HexLoader from './HexLoader.vue'
 
 const props = defineProps<{
   scan: Scan
-  stepLabels: Record<ScanStep, string>
+  /** Phase titles (loading-and-toasts.md §1.4): Waiting to start, Preparing files, Reading files, Analysing code, Building report. */
+  stepLabels: Record<ScanStepperPhase, string>
+  /** One plain-language status line shown under the active phase. */
+  statusLines?: Partial<Record<ScanStepperPhase, string>>
   queuedLabel: string
   terminalLabels: Record<'succeeded' | 'failed' | 'cancelled', string>
   cancelling?: boolean
@@ -19,9 +23,13 @@ const props = defineProps<{
   cancelLabel?: string
   cancellingLabel?: string
   showCancel?: boolean
+  /** One-line plain reason shown under the failed phase (no HTTP codes or stack traces). */
+  failureReason?: string
+  /** When set, a Retry button appears under a failed scan. */
+  retryLabel?: string
 }>()
 
-const emit = defineEmits<{ cancel: [] }>()
+const emit = defineEmits<{ cancel: []; retry: [] }>()
 
 const items = computed<ScanStepperItem[]>(() =>
   buildScanStepperItems(props.scan, {
@@ -38,6 +46,8 @@ const liveMessage = computed(() =>
     terminalLabels: props.terminalLabels
   })
 )
+
+const canRetry = computed(() => props.scan.status === 'failed' && Boolean(props.retryLabel))
 
 const canCancel = computed(
   () =>
@@ -78,12 +88,18 @@ function stepStateLabel(state: ScanStepperItem['state']): string {
           <span v-if="item.state === 'done'">✓</span>
           <span v-else-if="item.state === 'error'">!</span>
           <span v-else-if="item.state === 'cancelled'">×</span>
-          <span v-else-if="item.state === 'active'" class="scan-stepper__pulse">●</span>
+          <HexLoader v-else-if="item.state === 'active'" size="sm" :label="stepLabels[item.id]" hide-label inline :delay="0" :min-visible="0" />
           <span v-else>○</span>
         </span>
         <span class="scan-stepper__text">
           <span class="scan-stepper__label">{{ stepLabels[item.id] }}</span>
           <span class="scan-stepper__state">{{ stepStateLabel(item.state) }}</span>
+          <span v-if="item.state === 'active' && statusLines?.[item.id]" class="scan-stepper__status">
+            {{ statusLines[item.id] }}
+          </span>
+          <span v-else-if="item.state === 'error' && failureReason" class="scan-stepper__status">
+            {{ failureReason }}
+          </span>
         </span>
       </li>
     </ol>
@@ -99,6 +115,9 @@ function stepStateLabel(state: ScanStepperItem['state']): string {
     <p v-else-if="cancelling" class="scan-stepper__cancelling" role="status">
       {{ cancellingLabel ?? 'Cancelling…' }}
     </p>
+    <Button v-if="canRetry" variant="secondary" size="sm" type="button" @click="emit('retry')">
+      {{ retryLabel }}
+    </Button>
   </div>
 </template>
 
@@ -171,26 +190,20 @@ function stepStateLabel(state: ScanStepperItem['state']): string {
   color: var(--color-text-secondary);
 }
 
-.scan-stepper__pulse {
-  display: inline-block;
-  animation: scan-stepper-pulse var(--duration-slow) ease-in-out infinite;
+.scan-stepper__step[data-state='error'] .scan-stepper__state {
+  color: var(--sev-critical-fg);
+  font-weight: var(--font-weight-medium);
+}
+
+.scan-stepper__status {
+  font-size: var(--text-12);
+  line-height: var(--text-12-lh);
+  color: var(--color-text-secondary);
 }
 
 .scan-stepper__cancelling {
   margin: 0;
   font-size: var(--text-13);
   color: var(--color-text-secondary);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .scan-stepper__pulse {
-    animation: none;
-  }
-}
-
-@keyframes scan-stepper-pulse {
-  50% {
-    opacity: 0.45;
-  }
 }
 </style>

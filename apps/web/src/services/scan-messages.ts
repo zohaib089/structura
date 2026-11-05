@@ -35,12 +35,14 @@ export interface ScanMessages {
   scanStepAnalysing: string
   scanStepSaving: string
   scanStepQueued: string
+  scanStepQueuedTitle: string
+  scanStepStatusLines: () => Record<'queued' | 'fetching' | 'scanning' | 'analysing' | 'saving', string>
   scanStepSucceeded: string
   scanStepFailed: string
   scanStepCancelled: string
   scanCancel: string
   scanCancelling: string
-  scanStepLabels: () => Record<'fetching' | 'scanning' | 'analysing' | 'saving', string>
+  scanStepLabels: () => Record<'queued' | 'fetching' | 'scanning' | 'analysing' | 'saving', string>
   scanStepTerminalLabels: () => Record<'succeeded' | 'failed' | 'cancelled', string>
   selectScan: string
   recentScansTitle: string
@@ -92,11 +94,12 @@ const en: ScanMessages = {
     return `${scan.url ?? 'Git remote'}${branch}`
   },
   scanFailed: 'Scan failed',
-  scanStepFetching: 'Fetching source',
-  scanStepScanning: 'Scanning files',
-  scanStepAnalysing: 'Analysing project',
-  scanStepSaving: 'Saving results',
-  scanStepQueued: 'Scan queued',
+  scanStepFetching: 'Preparing files',
+  scanStepScanning: 'Reading files',
+  scanStepAnalysing: 'Analysing code',
+  scanStepSaving: 'Building report',
+  scanStepQueued: 'Your scan is in line — usually under a minute.',
+  scanStepQueuedTitle: 'Waiting to start',
   scanStepSucceeded: 'Scan complete',
   scanStepFailed: 'Scan failed',
   scanStepCancelled: 'Scan cancelled',
@@ -104,10 +107,20 @@ const en: ScanMessages = {
   scanCancelling: 'Cancelling…',
   scanStepLabels() {
     return {
+      queued: this.scanStepQueuedTitle,
       fetching: this.scanStepFetching,
       scanning: this.scanStepScanning,
       analysing: this.scanStepAnalysing,
       saving: this.scanStepSaving
+    }
+  },
+  scanStepStatusLines() {
+    return {
+      queued: this.scanStepQueued,
+      fetching: 'Getting your project ready…',
+      scanning: 'Checking your files…',
+      analysing: 'Running the analysers…',
+      saving: 'Putting findings together…'
     }
   },
   scanStepTerminalLabels() {
