@@ -18,13 +18,18 @@ import { formatMessage, viewerMessages } from './messages'
 import {
   buildOverview,
   collapseView,
+  collectEntryPoints,
   defaultFilters,
   emptyViewState,
+  entryLabelForNode,
+  expandRadialRing,
   expandView,
   focusHits,
   indexGraph,
   pinPath,
+  resolveNucleusId,
   searchGraph,
+  setNucleus,
   type FocusQuery,
   type ViewFilters,
   type ViewState
@@ -43,6 +48,7 @@ import ErrorBanner from './components/ErrorBanner.vue'
 import FilterRail from './components/FilterRail.vue'
 import FocusBar from './components/FocusBar.vue'
 import GraphCanvas from './components/GraphCanvas.vue'
+import GraphFloatingBar from './components/GraphFloatingBar.vue'
 import GraphLegend from './components/GraphLegend.vue'
 import GraphSourcePicker from './components/GraphSourcePicker.vue'
 import NodeDetail from './components/NodeDetail.vue'
@@ -119,6 +125,27 @@ const overview = computed(() => {
   if (!index.value) return null
   return buildOverview(index.value, viewState.value, filters.value, focusMembers.value)
 })
+const entryOptions = computed(() => (index.value ? collectEntryPoints(index.value) : []))
+const nucleusId = computed(() =>
+  index.value ? resolveNucleusId(index.value, viewState.value.nucleusId) : ''
+)
+const ringCount = computed(() => {
+  if (!overview.value) return 0
+  let max = 0
+  for (const node of overview.value.nodes) max = Math.max(max, node.depth)
+  return max
+})
+const nucleusLabel = computed(() => {
+  if (!index.value) return ''
+  return entryLabelForNode(index.value.nodesById.get(nucleusId.value), nucleusId.value)
+})
+const radialStatus = computed(() =>
+  format(messages.statusRadial, { rings: numbers.format(ringCount.value), name: nucleusLabel.value })
+)
+const panStatus = computed(() =>
+  format(messages.statusPanZoom, { nodes: numbers.format(overview.value?.nodes.length ?? 0) })
+)
+const fitSignature = ref(0)
 const search = computed(() => (index.value ? searchGraph(index.value, query.value, SEARCH_RESULT_CAP) : { hits: [], total: 0 }))
 const nodeRatio = computed(() => (overview.value ? overview.value.nodes.length / HARD_NODE_CAP : 0))
 const edgeRatio = computed(() => (overview.value ? overview.value.edges.length / HARD_EDGE_CAP : 0))
@@ -168,6 +195,26 @@ watch(overview, (value) => {
     activeId.value = value.nodes[0]?.id ?? null
   }
 })
+
+function recenterOnNode(id: string, quiet = false) {
+  if (!index.value) return
+  viewState.value = setNucleus(viewState.value, id)
+  fitSignature.value += 1
+  if (!quiet) showToast(messages.toastLayout)
+}
+
+function onEntryChange(id: string) {
+  recenterOnNode(id)
+  selectNode(id, false)
+}
+
+function onRecentreDetail() {
+  if (selection.value?.kind === 'node') recenterOnNode(selection.value.id)
+}
+
+function triggerFit() {
+  fitSignature.value += 1
+}
 
 function showToast(text: string) {
   toast.value = text
@@ -223,6 +270,8 @@ async function loadGraphDocument(document: GraphDocument) {
   filters.value = defaultFilters()
   sample.value = false
   fileName.value = 'scan-graph.json'
+  const entries = collectEntryPoints(indexGraph(document))
+  if (entries[0]) viewState.value = setNucleus(viewState.value, entries[0].id)
   if (document.nodes.length === 0) ready.value = true
   applyFocusPath(props.focusPath)
 }
@@ -326,7 +375,11 @@ function toggleNode(id: string) {
     announce.value = format(messages.moreNext, { n: numbers.format(Math.min(node.remainder, 50)) })
     return
   }
-  if (!node.cluster) return
+  if (!node.cluster && !node.more) {
+    viewState.value = expandRadialRing(viewState.value)
+    announce.value = format(messages.announceExpanded, { name: node.label, n: numbers.format(viewState.value.maxRadialRing ?? 0) })
+    return
+  }
   if (node.expanded) {
     viewState.value = collapseView(index.value, viewState.value, id)
     announce.value = format(messages.announceCollapsed, { name: node.label, n: numbers.format(node.clusterSize) })
@@ -338,6 +391,7 @@ function toggleNode(id: string) {
 }
 
 function selectNode(id: string, fromClick: boolean) {
+  if (fromClick) recenterOnNode(id, true)
   selection.value = { kind: 'node', id }
   activeId.value = id
   tab.value = 'details'
@@ -611,7 +665,7 @@ const snippet = 'layers: []\nrules: []\n'
 </script>
 
 <template>
-  <div class="viewer" :class="{ 'viewer-embedded': embedded }" :dir="direction">
+  <div class="viewer viewer-radial" :class="{ 'viewer-embedded': embedded }" :dir="direction">
     <a v-if="!embedded" class="skip" href="#graph-canvas">{{ messages.skip }}</a>
     <header v-if="!embedded" class="topbar" role="banner">
       <BrandMark :size="24" />
@@ -627,13 +681,8 @@ const snippet = 'layers: []\nrules: []\n'
       <button type="button" class="drawer-toggle" :aria-label="messages.railToggle" @click="railOpen = !railOpen">{{ messages.filters }}</button>
       <button type="button" class="drawer-toggle" :aria-label="messages.inspectorToggle" @click="inspectorOpen = !inspectorOpen">{{ messages.inspector }}</button>
     </header>
-    <header v-else class="topbar topbar-embedded" role="toolbar" :aria-label="messages.graphLabel">
-      <button type="button" class="search" aria-keyshortcuts="Control+K Meta+K /" @click="palette = true">{{ messages.search }}</button>
-      <button type="button" class="drawer-toggle" :aria-label="messages.railToggle" @click="railOpen = !railOpen">{{ messages.filters }}</button>
-      <button type="button" class="drawer-toggle" :aria-label="messages.inspectorToggle" @click="inspectorOpen = !inspectorOpen">{{ messages.inspector }}</button>
-    </header>
 
-    <aside class="rail" :class="{ 'is-open': railOpen }" :aria-label="messages.filters">
+    <aside class="rail" :class="{ 'is-open': railOpen }" :aria-label="messages.filters" :aria-hidden="!railOpen && embedded ? true : undefined">
       <FilterRail
         :label="messages.filters"
         :provenance-label="messages.filterProvenance"
@@ -725,6 +774,20 @@ const snippet = 'layers: []\nrules: []\n'
         @confirmed="focus = focus ? { ...focus, confirmedOnly: !focus.confirmedOnly } : focus"
         @exit="focus = null"
       />
+      <GraphFloatingBar
+        v-if="overview && graph && graph.nodes.length > 0"
+        :filters-label="messages.railToggle"
+        :search-label="messages.searchPlaceholder"
+        :fit-label="messages.zoomFit"
+        :entry-label="messages.entryLabel"
+        :entry-options="entryOptions"
+        :entry-id="nucleusId"
+        search-shortcut="Control+K Meta+K /"
+        @toggle-filters="railOpen = !railOpen"
+        @open-search="palette = true"
+        @fit="triggerFit"
+        @update:entry-id="onEntryChange"
+      />
       <GraphCanvas
         v-if="overview && graph && graph.nodes.length > 0"
         :nodes="overview.nodes"
@@ -747,6 +810,9 @@ const snippet = 'layers: []\nrules: []\n'
         :fit-duration="cameraDuration"
         :fit-padding="cameraPadding"
         :path-severity-counts="pathSeverityCounts"
+        :nucleus-id="nucleusId"
+        :ring-count="ringCount"
+        :fit-bump="fitSignature"
         @select="selectNode($event, true)"
         @toggle="toggleNode"
         @select-edge="selectEdge"
@@ -787,8 +853,10 @@ const snippet = 'layers: []\nrules: []\n'
         :import-kind-label="messages.detailsImportKind"
         :type-only-label="messages.detailsTypeOnly"
         :focus-label="messages.focusEnter"
+        :recentre-label="messages.recentreLabel"
         :detail="detail"
         @focus="enterFocus"
+        @recentre="onRecentreDetail"
       />
       <CoveragePanel
         v-else-if="tab === 'coverage'"
@@ -821,7 +889,12 @@ const snippet = 'layers: []\nrules: []\n'
     </aside>
 
     <footer class="status" role="contentinfo">
+      <span class="status-radial">{{ radialStatus }}</span>
+      <span class="status-edges">{{ messages.provExtracted }} · {{ messages.provInferred }} · {{ messages.provUnresolved }}</span>
+      <span v-if="sample" class="pill">{{ messages.samplePill }}</span>
+      <span class="status-pan">{{ panStatus }}</span>
       <BudgetMeter
+        class="status-budget"
         :text="format(messages.budgetMeter, { nodes: numbers.format(overview?.nodes.length ?? 0), nodeBudget: numbers.format(HARD_NODE_CAP), edges: numbers.format(overview?.edges.length ?? 0), edgeBudget: numbers.format(HARD_EDGE_CAP) })"
         :ratio="ratio"
         :warn="meterTone === 'detail'"
@@ -833,9 +906,8 @@ const snippet = 'layers: []\nrules: []\n'
         :limit-label="messages.budgetLimit"
         :hidden-label="overview && overview.hiddenNodes > 0 ? format(messages.budgetHidden, { n: numbers.format(overview.hiddenNodes) }) : ''"
       />
-      <button type="button" @click="tab = 'coverage'; inspectorOpen = true">{{ format(messages.statusCoverage, { pct: numbers.format(parsedPct) }) }}</button>
-      <button type="button" @click="tab = 'drift'; inspectorOpen = true">{{ messages.driftNotConfigured }}</button>
-      <span v-if="sample">{{ messages.sampleFooter }}</span>
+      <button v-if="!embedded" type="button" @click="tab = 'coverage'; inspectorOpen = true">{{ format(messages.statusCoverage, { pct: numbers.format(parsedPct) }) }}</button>
+      <button v-if="!embedded" type="button" @click="tab = 'drift'; inspectorOpen = true">{{ messages.driftNotConfigured }}</button>
     </footer>
 
     <SearchPalette
@@ -867,22 +939,96 @@ const snippet = 'layers: []\nrules: []\n'
 </template>
 
 <style scoped>
-.viewer {
-  display: grid;
-  grid-template-columns: var(--viewer-rail-width) minmax(0, 1fr) var(--viewer-inspector-width);
-  grid-template-rows: var(--viewer-topbar-height) minmax(0, 1fr) var(--viewer-statusbar-height);
+.viewer.viewer-radial {
+  display: block;
+  position: relative;
   block-size: 100vh;
   background: var(--color-canvas);
   color: var(--color-text-primary);
+  font-feature-settings: var(--font-feature-ui);
 }
-.viewer.viewer-embedded {
+.viewer.viewer-radial.viewer-embedded {
   block-size: 100%;
   min-block-size: 0;
 }
-.topbar-embedded {
-  grid-column: 1 / -1;
-  border-block-end: 1px solid var(--color-border);
+.viewer.viewer-radial:not(.viewer-embedded) {
+  display: grid;
+  grid-template-rows: var(--viewer-topbar-height) minmax(0, 1fr) var(--viewer-statusbar-height);
+}
+.viewer.viewer-radial .stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  min-block-size: 0;
+  block-size: 100%;
+}
+.viewer.viewer-radial:not(.viewer-embedded) .stage {
+  grid-row: 2;
+}
+.viewer.viewer-radial.viewer-embedded .stage {
+  position: absolute;
+  inset: 0;
+  padding-block-end: var(--viewer-statusbar-height);
+}
+.viewer.viewer-radial .rail,
+.viewer.viewer-radial .inspector {
+  position: absolute;
+  z-index: var(--z-viewer-drawer);
+  inset-block: 0;
+  overflow: auto;
+  padding: var(--space-3);
+  background: color-mix(in srgb, var(--color-surface) 96%, transparent);
+  backdrop-filter: blur(10px);
+  transition: transform var(--dur-2) var(--easing-standard);
+}
+.viewer.viewer-radial .rail {
+  inset-inline-start: 0;
+  inline-size: min(var(--viewer-rail-width), 88vw);
+  border-inline-end: 1px solid var(--color-border);
+  transform: translateX(-110%);
+}
+.viewer.viewer-radial .inspector {
+  inset-inline-end: 0;
+  inline-size: min(var(--viewer-inspector-width), 92vw);
+  border-inline-start: 1px solid var(--color-border);
+  transform: translateX(110%);
+}
+.viewer.viewer-radial .rail.is-open,
+.viewer.viewer-radial .inspector.is-open {
+  transform: none;
+}
+.viewer.viewer-radial .status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  padding-inline: var(--space-3);
   background: var(--color-surface);
+  border-block-start: 1px solid var(--color-border);
+  font-size: var(--text-12);
+  line-height: var(--text-12-lh);
+}
+.viewer.viewer-radial.viewer-embedded .status {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: var(--viewer-statusbar-height);
+}
+.viewer.viewer-radial:not(.viewer-embedded) .status {
+  grid-row: 3;
+}
+.status-radial,
+.status-edges,
+.status-pan {
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+.status-budget {
+  margin-inline-start: auto;
+}
+.viewer.viewer-radial .stage-legend {
+  display: none;
 }
 .topbar {
   grid-column: 1 / -1;
@@ -891,27 +1037,7 @@ const snippet = 'layers: []\nrules: []\n'
   gap: var(--space-2);
   padding-inline: var(--space-3);
   background: var(--color-surface);
-}
-.stage {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  min-inline-size: 0;
-  min-block-size: 0;
-  block-size: 100%;
-}
-.rail, .inspector {
-  overflow: auto;
-  padding: var(--space-3);
-  background: var(--color-surface);
-}
-.status {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding-inline: var(--space-3);
-  background: var(--color-surface);
+  border-block-end: 1px solid var(--color-border);
 }
 .wordmark { font-weight: 700; letter-spacing: -0.03em; }
 .pill {

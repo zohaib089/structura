@@ -16,6 +16,7 @@ const props = defineProps<{
   more: boolean
   remainder: number
   selected: boolean
+  nucleus?: boolean
   dimmed: boolean
   tabIndex: number
   path: string
@@ -57,6 +58,7 @@ function onSpace(event: KeyboardEvent) {
     class="overview-node"
     :class="{
       'is-selected': selected,
+      'is-nucleus': nucleus,
       'is-dimmed': dimmed,
       'is-more': more,
       'is-cluster': cluster,
@@ -149,6 +151,14 @@ function onSpace(event: KeyboardEvent) {
   border-style: dashed;
 }
 .is-file { border-radius: var(--radius-full); }
+.is-nucleus.is-file {
+  border-radius: var(--radius-sm);
+  clip-path: polygon(25% 6%, 75% 6%, 96% 50%, 75% 94%, 25% 94%, 4% 50%);
+  padding-inline: var(--space-3);
+  border-width: 2px;
+  border-color: var(--graph-selected-ring, var(--color-brand-amber-ui));
+  background: color-mix(in srgb, var(--color-brand-amber-ui) 12%, var(--graph-node-fill));
+}
 .is-external {
   border-style: dashed;
   background: var(--graph-external-fill);

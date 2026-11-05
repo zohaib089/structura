@@ -6,6 +6,15 @@ import {
 } from './caps'
 import type { GraphDocument, GraphEdge, GraphNode, Provenance } from './graph-types'
 
+export const RADIAL_RING_GAP = 220
+export const RADIAL_DEFAULT_MAX_RING = 6
+
+export interface EntryPointOption {
+  id: string
+  label: string
+  path: string
+}
+
 export interface GraphIndex {
   document: GraphDocument
   nodesById: Map<string, GraphNode>
@@ -47,6 +56,10 @@ export interface ViewState {
   expanded: string[]
   revealed: Record<string, number>
   pinned: string[]
+  /** Radial layout: graph nucleus (entry file). */
+  nucleusId?: string
+  /** Radial layout: max outbound dependency ring depth from nucleus. */
+  maxRadialRing?: number
 }
 
 export interface OverviewNodeModel {
@@ -100,7 +113,28 @@ export const LAYOUT_COLUMN = 280
 export const LAYOUT_ROW = 80
 
 export function emptyViewState(): ViewState {
-  return { expanded: [], revealed: {}, pinned: [] }
+  return { expanded: [], revealed: {}, pinned: [], maxRadialRing: RADIAL_DEFAULT_MAX_RING }
+}
+
+export function setNucleus(state: ViewState, nucleusId: string): ViewState {
+  const next = cloneState(state)
+  next.nucleusId = nucleusId
+  next.maxRadialRing = next.maxRadialRing ?? RADIAL_DEFAULT_MAX_RING
+  return next
+}
+
+export function expandRadialRing(state: ViewState): ViewState {
+  const next = cloneState(state)
+  const current = next.maxRadialRing ?? RADIAL_DEFAULT_MAX_RING
+  next.maxRadialRing = current + 1
+  return next
+}
+
+export function collapseRadialRing(state: ViewState): ViewState {
+  const next = cloneState(state)
+  const current = next.maxRadialRing ?? RADIAL_DEFAULT_MAX_RING
+  next.maxRadialRing = Math.max(0, current - 1)
+  return next
 }
 
 export function defaultFilters(): ViewFilters {
@@ -379,12 +413,15 @@ export function buildOverview(
   filters: ViewFilters,
   focusIds: ReadonlySet<string> | null = null
 ): OverviewModel {
-  const provenanceOpen = filters.provenance.extracted || filters.provenance.inferred || filters.provenance.unresolved
+  const nucleusId = resolveNucleusId(index, state.nucleusId)
+  const maxRing = state.maxRadialRing ?? RADIAL_DEFAULT_MAX_RING
+  const ringDepths = dependencyRingDepths(index, nucleusId, filters, maxRing)
   const expanded = new Set(state.expanded)
   const pinned = new Set(state.pinned)
   const nodes: OverviewNodeModel[] = []
   const visible = new Set<string>()
   const hiddenNodeIds = new Set<string>()
+  const provenanceOpen = filters.provenance.extracted || filters.provenance.inferred || filters.provenance.unresolved
 
   const passes = (id: string): boolean => {
     if (!provenanceOpen) return false
@@ -408,57 +445,23 @@ export function buildOverview(
   }
   for (const node of index.document.nodes) considerHidden(node.id)
 
-  const addLevel = (parentKey: string, childIds: string[], depth: number) => {
-    const filtered = childIds.filter((id) => passes(id))
-    const room = HARD_NODE_CAP - nodes.length
-    if (room <= 0) return
-    const configured = state.revealed[parentKey]
-    const sliceCap = configured ?? (parentKey === 'root' ? INITIAL_NODE_CAP : EXPAND_NODE_CAP)
-    const pinnedHere = filtered.filter((id) => pinned.has(id) && filtered.indexOf(id) >= sliceCap)
-    const page = filtered.slice(0, sliceCap)
-    const chosen: string[] = []
-    const chosenSet = new Set<string>()
-    for (const id of [...page, ...pinnedHere]) {
-      if (chosenSet.has(id)) continue
-      chosenSet.add(id)
-      chosen.push(id)
-    }
-    const overflow = filtered.length > chosen.length
-    const limit = Math.min(chosen.length, Math.max(room - (overflow ? 1 : 0), 0))
-    const rootLimited = parentKey === 'root' && overflow
-      ? Math.min(limit, Math.max(sliceCap - 1, 0))
-      : limit
-    const shown = chosen.slice(0, rootLimited)
-    const shownSet = new Set(shown)
-    const remainder = filtered.filter((id) => !shownSet.has(id)).length
-    for (const id of shown) {
-      if (nodes.length >= HARD_NODE_CAP) break
-      const model = nodeModel(index, id, depth, expanded.has(id), focusIds)
-      nodes.push(model)
-      visible.add(id)
-      if (model.expanded) addLevel(id, index.children.get(id) ?? [], depth + 1)
-    }
-    if (remainder > 0 && nodes.length < HARD_NODE_CAP) {
-      const moreId = `more:${parentKey}`
-      nodes.push({
-        id: moreId,
-        label: '',
-        kind: 'more',
-        cluster: false,
-        clusterSize: remainder,
-        expanded: false,
-        depth,
-        path: '',
-        more: true,
-        remainder,
-        internalEdges: 0,
-        dimmed: false
-      })
-      visible.add(moreId)
-    }
+  const sortedRing = [...ringDepths.entries()].sort(
+    (a, b) => a[1] - b[1] || compareUtf16(a[0], b[0])
+  )
+  for (const [id, depth] of sortedRing) {
+    if (nodes.length >= HARD_NODE_CAP) break
+    if (!passes(id) && id !== nucleusId) continue
+    if (visible.has(id)) continue
+    nodes.push(nodeModel(index, id, depth, expanded.has(id), focusIds))
+    visible.add(id)
   }
-
-  addLevel('root', index.topLevel, 0)
+  for (const pinnedId of pinned) {
+    if (visible.has(pinnedId) || nodes.length >= HARD_NODE_CAP) continue
+    if (!passes(pinnedId)) continue
+    const pinnedDepth = ringDepths.get(pinnedId) ?? 1
+    nodes.push(nodeModel(index, pinnedId, pinnedDepth, expanded.has(pinnedId), focusIds))
+    visible.add(pinnedId)
+  }
 
   const internal = new Map<string, number>()
   const bundles = new Map<string, Bundle>()
@@ -500,10 +503,11 @@ export function buildOverview(
     hiddenNodes: hiddenNodeIds.size,
     hiddenEdges,
     edgesOmittedByCap,
-    positions: layoutNodes(nodes)
+    positions: layoutRadialNodes(nodes, nucleusId)
   }
 }
 
+/** @deprecated Column layout kept for tests that assert deterministic spacing. */
 export function layoutNodes(nodes: { id: string; depth: number }[]): Map<string, { x: number; y: number }> {
   const columns = new Map<number, string[]>()
   for (const node of nodes) {
@@ -766,7 +770,9 @@ function cloneState(state: ViewState): ViewState {
   return {
     expanded: [...state.expanded],
     revealed: { ...state.revealed },
-    pinned: [...state.pinned]
+    pinned: [...state.pinned],
+    nucleusId: state.nucleusId,
+    maxRadialRing: state.maxRadialRing
   }
 }
 
@@ -797,6 +803,175 @@ export interface SearchHit {
   path: string
   kind: string
   score: number
+}
+
+export function collectEntryPoints(index: GraphIndex): EntryPointOption[] {
+  const fromEngine: EntryPointOption[] = []
+  for (const node of index.document.nodes) {
+    if (node.kind !== 'file' || !('path' in node) || !node.entryCandidate) continue
+    fromEngine.push({ id: node.id, label: node.label, path: node.path })
+  }
+  if (fromEngine.length > 0) {
+    fromEngine.sort((a, b) => compareUtf16(a.path, b.path))
+    return fromEngine
+  }
+
+  const conventional: EntryPointOption[] = []
+  const conventionalName = /^(main|index)\.(tsx?|jsx?|vue|mts|cts)$/i
+  for (const node of index.document.nodes) {
+    if (node.kind !== 'file' || !('path' in node)) continue
+    const base = node.path.split('/').pop() ?? node.label
+    if (conventionalName.test(base)) {
+      conventional.push({ id: node.id, label: node.label, path: node.path })
+    }
+  }
+  if (conventional.length > 0) {
+    conventional.sort((a, b) => {
+      const rank = (path: string) => {
+        const base = path.split('/').pop() ?? ''
+        if (/^main\./i.test(base)) return 0
+        if (/^index\./i.test(base)) return 1
+        return 2
+      }
+      const byRank = rank(a.path) - rank(b.path)
+      return byRank !== 0 ? byRank : compareUtf16(a.path, b.path)
+    })
+    return conventional
+  }
+
+  const files: EntryPointOption[] = []
+  for (const node of index.document.nodes) {
+    if (node.kind !== 'file' || !('path' in node)) continue
+    files.push({ id: node.id, label: node.label, path: node.path })
+  }
+  files.sort((a, b) => compareUtf16(a.path, b.path))
+  return files.slice(0, 1)
+}
+
+export function resolveNucleusId(index: GraphIndex, preferredId: string | null | undefined): string {
+  if (preferredId && index.nodesById.has(preferredId)) return preferredId
+  const entries = collectEntryPoints(index)
+  if (entries[0]) return entries[0].id
+  return index.document.nodes[0]?.id ?? 'dir:.'
+}
+
+export function layoutRadialNodes(
+  nodes: { id: string; depth: number }[],
+  _nucleusId: string
+): Map<string, { x: number; y: number }> {
+  const rings = new Map<number, string[]>()
+  for (const node of nodes) {
+    const list = rings.get(node.depth) ?? []
+    list.push(node.id)
+    rings.set(node.depth, list)
+  }
+
+  const positions = new Map<string, { x: number; y: number }>()
+  const ringNumbers = [...rings.keys()].sort((a, b) => a - b)
+
+  for (const ring of ringNumbers) {
+    const ids = (rings.get(ring) ?? []).sort(compareUtf16)
+    if (ids.length === 0) continue
+
+    if (ring === 0) {
+      if (ids.length === 1) {
+        positions.set(ids[0]!, { x: 0, y: 0 })
+        continue
+      }
+      const miniRadius = 48
+      const step = (2 * Math.PI) / ids.length
+      const start = -Math.PI / 2
+      ids.forEach((id, index) => {
+        const angle = start + index * step
+        positions.set(id, { x: miniRadius * Math.cos(angle), y: miniRadius * Math.sin(angle) })
+      })
+      continue
+    }
+
+    const radius = ring * RADIAL_RING_GAP
+    const step = (2 * Math.PI) / ids.length
+    const start = -Math.PI / 2
+    ids.forEach((id, index) => {
+      const angle = start + index * step
+      positions.set(id, { x: radius * Math.cos(angle), y: radius * Math.sin(angle) })
+    })
+  }
+
+  return positions
+}
+
+function radialNodePasses(index: GraphIndex, filters: ViewFilters, id: string): boolean {
+  const provenanceOpen = filters.provenance.extracted || filters.provenance.inferred || filters.provenance.unresolved
+  if (!provenanceOpen) return false
+  if (id.startsWith('cluster:')) {
+    const kind = id.slice('cluster:'.length)
+    if (filters.kinds && !filters.kinds.includes(kind)) return false
+    const members = index.clusterMembers.get(id) ?? []
+    return members.some((member) => radialNodePasses(index, filters, member))
+  }
+  const node = index.nodesById.get(id)
+  if (!node) return false
+  if (filters.kinds && !filters.kinds.includes(node.kind)) return false
+  if (filters.languages && node.kind === 'file' && 'language' in node) {
+    if (!filters.languages.includes(node.language ?? '')) return false
+  }
+  if (filters.driftOnly && !index.unresolvedTouch.has(id)) return false
+  return true
+}
+
+function radialLinkPasses(filters: ViewFilters, unresolved: boolean, provenance: Provenance): boolean {
+  if (unresolved) return filters.provenance.unresolved
+  if (provenance === 'INFERRED') return filters.provenance.inferred
+  return filters.provenance.extracted
+}
+
+export function dependencyRingDepths(
+  index: GraphIndex,
+  nucleusId: string,
+  filters: ViewFilters,
+  maxRing: number
+): Map<string, number> {
+  const depths = new Map<string, number>()
+  if (!index.nodesById.has(nucleusId)) return depths
+  depths.set(nucleusId, 0)
+  const queue: string[] = [nucleusId]
+  let head = 0
+  while (head < queue.length) {
+    const current = queue[head]!
+    head += 1
+    const depth = depths.get(current)!
+    if (depth >= maxRing) continue
+    for (const link of index.outgoing.get(current) ?? []) {
+      if (!radialLinkPasses(filters, link.unresolved, link.provenance)) continue
+      const target = link.other
+      if (!radialNodePasses(index, filters, target)) continue
+      if (depths.has(target)) continue
+      depths.set(target, depth + 1)
+      queue.push(target)
+    }
+  }
+  return depths
+}
+
+export function countDependencyEdges(index: GraphIndex, nodeId: string): { out: number; in: number } {
+  let out = 0
+  let inn = 0
+  for (const edge of index.document.edges) {
+    if (edge.type === 'contains') continue
+    if (edge.source === nodeId) out += 1
+    if (edge.target === nodeId) inn += 1
+  }
+  return { out, in: inn }
+}
+
+export function entryLabelForNode(node: GraphNode | undefined, fallbackId: string): string {
+  if (!node) return fallbackId
+  if (node.label) return node.label
+  if ((node.kind === 'directory' || node.kind === 'file') && 'path' in node) {
+    const parts = node.path.split('/')
+    return parts[parts.length - 1] || node.path
+  }
+  return fallbackId
 }
 
 

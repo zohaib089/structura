@@ -130,6 +130,13 @@ export interface ViewerMessages {
   unknownKinds: string
   railToggle: string
   inspectorToggle: string
+  entryLabel: string
+  recentreLabel: string
+  statusRadial: string
+  statusPanZoom: string
+  depsOutLabel: string
+  depsInLabel: string
+  depthLabel: string
   emptyFilters: string
   emptyBody: string
   copyCommand: string
@@ -280,8 +287,15 @@ const en: ViewerMessages = {
   toastLayout: 'Layout updated',
   fileChip: 'Opened file',
   unknownKinds: '{n} kinds this viewer does not know',
-  railToggle: 'Filters',
-  inspectorToggle: 'Inspector',
+  railToggle: 'Toggle filters drawer',
+  inspectorToggle: 'Toggle inspector',
+  entryLabel: 'Entry',
+  recentreLabel: 'Re-centre on node',
+  statusRadial: 'Radial · {rings} rings · nucleus {name}',
+  statusPanZoom: '{nodes} nodes · pan/zoom',
+  depsOutLabel: 'Deps out',
+  depsInLabel: 'Deps in',
+  depthLabel: 'Depth',
   emptyFilters: 'Open a file to filter',
   emptyBody: 'Drop a {graphFile} here, or create one by running the command below in your repo. Nothing leaves your machine.',
   copyCommand: 'Copy',

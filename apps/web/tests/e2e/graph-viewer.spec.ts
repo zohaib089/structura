@@ -24,16 +24,29 @@ test('loads a fixture from file://, selects, and expands', async ({ page }) => {
   await expect(canvas).toHaveAttribute('data-visible-edges', String(domEdges))
   expect(domNodes).toBeLessThanOrEqual(300)
   expect(domEdges).toBeLessThanOrEqual(1000)
-  const cluster = page.locator('.overview-node[data-node-id="dir:apps"]')
-  await cluster.click()
-  await expect(cluster).toHaveAttribute('aria-selected', 'true')
-  await expect(page.locator('[data-testid="node-detail"]')).toContainText('apps')
-  await expect(cluster).toHaveAttribute('data-expanded', 'false')
-  await cluster.press('Enter')
-  await expect(cluster).toHaveAttribute('data-expanded', 'true')
-  const packages = page.locator('.overview-node[data-node-id="dir:packages"]')
-  await packages.dblclick()
-  await expect(packages).toHaveAttribute('data-expanded', 'true')
+
+  const nucleus = page.locator('.overview-node[data-node-id="file:apps/web/main.ts"]')
+  await expect(nucleus).toBeVisible()
+  await nucleus.click()
+  await expect(nucleus).toHaveAttribute('aria-selected', 'true')
+  await expect(page.locator('[data-testid="node-detail"]')).toContainText('main.ts')
+
+  const visibleBefore = Number(await canvas.getAttribute('data-visible-nodes'))
+  await nucleus.press('Enter')
+  await expect
+    .poll(async () => Number(await canvas.getAttribute('data-visible-nodes')))
+    .toBeGreaterThanOrEqual(visibleBefore)
+  await expect
+    .poll(async () => {
+      const count = await page.locator('.vue-flow__node').count()
+      return Number(await canvas.getAttribute('data-visible-nodes')) === count
+    })
+    .toBe(true)
+
+  const dependency = page.locator('.overview-node[data-node-id="file:packages/brand/brand.ts"]')
+  await expect(dependency).toBeVisible()
+  await dependency.click()
+  await expect(dependency).toHaveAttribute('aria-selected', 'true')
   expect(errors).toEqual([])
 })
 
