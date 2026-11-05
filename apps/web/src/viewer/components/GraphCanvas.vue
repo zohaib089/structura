@@ -10,6 +10,7 @@ import { lookupPathSeverityCounts } from '../../services/scan-report-tree-displa
 import FitFrame from './FitFrame.vue'
 import OverviewEdge from './OverviewEdge.vue'
 import OverviewNode from './OverviewNode.vue'
+import RadialRingGuides from './RadialRingGuides.vue'
 import ZoomPad from './ZoomPad.vue'
 
 const props = defineProps<{
@@ -32,7 +33,10 @@ const props = defineProps<{
   focusIds?: string[]
   fitDuration?: number
   fitPadding?: number
+  fitBump?: number
   pathSeverityCounts?: Map<string, SeverityCounts>
+  nucleusId?: string | null
+  ringCount?: number
 }>()
 
 const emit = defineEmits<{
@@ -90,7 +94,24 @@ function flowing(edge: OverviewEdgeModel): boolean {
   return ids.has(edge.source) && ids.has(edge.target)
 }
 
-const flowNodes = () => props.nodes.map((node): Node<OverviewNodeModel> => ({
+const flowNodes = () => {
+  const guide =
+    props.ringCount && props.ringCount > 0
+      ? [{
+          id: '__radial-guides__',
+          type: 'radial-guides',
+          position: { x: 0, y: 0 },
+          draggable: false,
+          selectable: false,
+          connectable: false,
+          focusable: false,
+          deletable: false,
+          data: { ringCount: props.ringCount }
+        } satisfies Node]
+      : []
+  return [
+    ...guide,
+    ...props.nodes.map((node): Node<OverviewNodeModel> => ({
   id: node.id,
   type: FLOW_NODE_TYPE,
   position: props.positions.get(node.id) ?? { x: 0, y: 0 },
@@ -110,6 +131,8 @@ const flowNodes = () => props.nodes.map((node): Node<OverviewNodeModel> => ({
         ...(node.more ? { 'data-testid': 'expand-more' } : {})
       } as Node['domAttributes']
     }))
+  ]
+}
 
 const flowEdges = () => props.edges.map((edge): Edge<OverviewEdgeModel> => ({
   id: edge.id,
@@ -187,6 +210,9 @@ defineExpose({ root })
       @node-click="onNodeClick"
       @edge-click="onEdgeClick"
     >
+      <template #node-radial-guides="guideProps">
+        <RadialRingGuides :ring-count="guideProps.data?.ringCount ?? 0" />
+      </template>
       <template #node-overview="nodeProps">
         <OverviewNode
           :id="nodeProps.id"
@@ -198,6 +224,7 @@ defineExpose({ root })
           :more="Boolean(nodeProps.data?.more)"
           :remainder="nodeProps.data?.remainder ?? 0"
           :selected="selectedId === nodeProps.id"
+          :nucleus="nucleusId === nodeProps.id"
           :dimmed="Boolean(nodeProps.data?.dimmed)"
           :tab-index="activeId === nodeProps.id ? 0 : -1"
           :path="nodeProps.data?.path ?? ''"
@@ -219,7 +246,7 @@ defineExpose({ root })
       <Background variant="dots" :gap="24" :size="1" color="var(--graph-dot)" />
       <div class="vignette" aria-hidden="true"></div>
       <FitFrame
-        :signature="`${nodes.map((node) => node.id).join('\n')}|${(focusIds ?? []).join(',')}`"
+        :signature="`${fitBump ?? 0}|${nodes.map((node) => node.id).join('\n')}|${(focusIds ?? []).join(',')}`"
         :duration="fitDuration ?? 0"
         :padding="fitPadding ?? 0.2"
       />
@@ -232,6 +259,10 @@ defineExpose({ root })
 .canvas { position: relative; flex: 1; block-size: 100%; min-block-size: 0; direction: ltr; }
 .canvas :deep(.vue-flow) { block-size: 100%; background: var(--color-canvas); }
 .canvas :deep(.vue-flow__attribution) { display: none; }
+.canvas :deep(.vue-flow__node[data-id="__radial-guides__"]) {
+  pointer-events: none;
+  z-index: 0 !important;
+}
 .canvas :deep(.vue-flow__handle) { opacity: 0; }
 .vignette {
   position: absolute;

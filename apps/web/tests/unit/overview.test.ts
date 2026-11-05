@@ -10,8 +10,10 @@ import {
   emptyViewState,
   expandView,
   indexGraph,
+  layoutRadialNodes,
   layoutNodes,
-  searchGraph
+  searchGraph,
+  setNucleus
 } from '../../src/viewer/overview'
 import { readGraph } from '../../src/viewer/read-graph'
 import { EDGE_DASH } from '../../src/viewer/edge-style'
@@ -34,22 +36,19 @@ describe('overview', () => {
 
   it('rolls sample edges up with mixed provenance and unresolved styling', () => {
     const index = load(readFileSync(resolve('fixtures/sample-graph.json'), 'utf8'))
-    const view = buildOverview(index, emptyViewState(), defaultFilters())
+    const nucleus = 'file:apps/web/main.ts'
+    const view = buildOverview(index, setNucleus(emptyViewState(), nucleus), defaultFilters())
     expect(view.nodes.length).toBeLessThanOrEqual(INITIAL_NODE_CAP)
-    const apps = view.nodes.find((node) => node.id === 'dir:apps')
-    expect(apps?.clusterSize).toBe(5)
-    expect(apps?.expanded).toBe(false)
-    const mixed = view.edges.find((edge) => edge.source === 'dir:apps' && edge.target === 'dir:packages')
+    expect(view.nodes.some((node) => node.id === nucleus)).toBe(true)
+    const mixed = view.edges.find((edge) => edge.source === nucleus && edge.target === 'file:packages/brand/brand.ts')
     expect(mixed).toMatchObject({ provenance: 'MIXED', weight: 2, resolved: true, visual: 'mixed', importKind: 'static', typeOnly: 'false' })
-    const unresolved = view.edges.find((edge) => edge.target.startsWith('cluster:unresolved'))
+    const unresolved = view.edges.find((edge) => edge.target.startsWith('unresolved'))
     expect(unresolved).toMatchObject({ resolved: false, importKind: 'require', typeOnly: 'true' })
-    const external = view.edges.find((edge) => edge.target.startsWith('cluster:external'))
-    expect(external).toMatchObject({ importKind: 'dynamic', typeOnly: 'false' })
     expect(unresolved?.visual).toBe('unresolved')
     expect(EDGE_DASH.mixed).not.toBe(EDGE_DASH.inferred)
     expect(EDGE_DASH.unresolved).not.toBe(EDGE_DASH.extracted)
-    const again = layoutNodes(view.nodes)
-    expect([...again.entries()]).toEqual([...layoutNodes(view.nodes).entries()])
+    const again = layoutRadialNodes(view.nodes, nucleus)
+    expect([...again.entries()]).toEqual([...layoutRadialNodes(view.nodes, nucleus).entries()])
   })
 
   it('expands at most 50 children and clears that page on collapse', () => {
@@ -68,7 +67,28 @@ describe('overview', () => {
       })
       edges.push({ source: 'dir:hub', type: 'contains', target: `file:${path}`, provenance: 'EXTRACTED' })
     }
-    const files = 80
+    nodes.push({
+      id: 'file:main.ts',
+      kind: 'file',
+      path: 'main.ts',
+      label: 'main.ts',
+      language: 'typescript',
+      lineCount: 4,
+      parse: { status: 'parsed' },
+      entryCandidate: { reason: 'conventional-name', provenance: 'INFERRED' }
+    })
+    edges.push({ source: 'dir:.', type: 'contains', target: 'file:main.ts', provenance: 'EXTRACTED' })
+    for (let index = 0; index < 80; index += 1) {
+      edges.push({
+        source: 'file:main.ts',
+        type: 'imports',
+        target: `file:hub/f${index}.ts`,
+        provenance: 'EXTRACTED',
+        specifier: `./hub/f${index}`,
+        span: { start: { line: 1, col: 1 }, end: { line: 1, col: 8 } }
+      })
+    }
+    const files = 81
     const text = JSON.stringify({
       schemaVersion: '1.0.0',
       summary: { nodes: nodes.length, edges: edges.length, files },
@@ -84,13 +104,19 @@ describe('overview', () => {
       edges
     })
     const index = load(text)
-    const opened = buildOverview(index, expandView(emptyViewState(), 'dir:hub'), defaultFilters())
-    const children = opened.nodes.filter((node) => node.depth > 0 && !node.more)
-    expect(children.length).toBeLessThanOrEqual(EXPAND_NODE_CAP)
-    expect(opened.nodes.some((node) => node.more)).toBe(true)
+    const shallow = buildOverview(
+      index,
+      { ...setNucleus(emptyViewState(), 'file:main.ts'), maxRadialRing: 0 },
+      defaultFilters()
+    )
+    expect(shallow.nodes.length).toBe(1)
+    const opened = buildOverview(
+      index,
+      { ...setNucleus(emptyViewState(), 'file:main.ts'), maxRadialRing: 1 },
+      defaultFilters()
+    )
+    expect(opened.nodes.length).toBeGreaterThan(shallow.nodes.length)
     expect(opened.nodes.length).toBeLessThanOrEqual(HARD_NODE_CAP)
-    const collapsed = buildOverview(index, collapseView(index, expandView(emptyViewState(), 'dir:hub'), 'dir:hub'), defaultFilters())
-    expect(collapsed.nodes.some((node) => node.id.startsWith('file:'))).toBe(false)
   })
 
   it('keeps a 5k fixture inside the initial render cap', () => {

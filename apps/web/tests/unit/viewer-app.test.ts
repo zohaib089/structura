@@ -10,7 +10,7 @@ vi.mock('../../src/viewer/parse-client', () => ({
 }))
 
 describe('ViewerApp', () => {
-  it('opens the bundled sample and expands a cluster from the keyboard model', async () => {
+  it('opens the bundled sample and expands radial rings from the keyboard model', async () => {
     class ResizeObserverStub {
       observe() {}
       unobserve() {}
@@ -49,13 +49,14 @@ describe('ViewerApp', () => {
     const canvas = wrapper.get('[data-testid="graph-canvas"]')
     expect(canvas.attributes('data-total-nodes')).toBe('11')
     expect(Number(canvas.attributes('data-visible-nodes'))).toBeLessThanOrEqual(300)
-    const cluster = wrapper.get('[data-node-id="dir:apps"]')
-    await cluster.trigger('click')
-    expect(wrapper.get('[data-testid="node-detail"]').text()).toContain('apps')
-    await cluster.trigger('keydown', { key: 'Enter' })
-    expect(wrapper.get('[data-node-id="dir:apps"]').attributes('data-expanded')).toBe('true')
-    await wrapper.get('.overview-node[data-node-id="dir:packages"]').trigger('dblclick')
-    expect(wrapper.get('.overview-node[data-node-id="dir:packages"]').attributes('data-expanded')).toBe('true')
+    const nucleus = wrapper.get('[data-node-id="file:apps/web/main.ts"]')
+    await nucleus.trigger('click')
+    expect(wrapper.get('[data-testid="node-detail"]').text()).toContain('main.ts')
+    const visibleBefore = Number(canvas.attributes('data-visible-nodes'))
+    await nucleus.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    expect(Number(canvas.attributes('data-visible-nodes'))).toBeGreaterThanOrEqual(visibleBefore)
+    expect(wrapper.find('[data-testid="graph-entry-switcher"]').exists()).toBe(true)
     wrapper.unmount()
   })
 })

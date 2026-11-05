@@ -14,6 +14,7 @@ defineProps<{
   importKindLabel: string
   typeOnlyLabel: string
   focusLabel: string
+  recentreLabel: string
   detail: {
     title: string
     kind: string
@@ -29,7 +30,7 @@ defineProps<{
   } | null
 }>()
 
-const emit = defineEmits<{ focus: [] }>()
+const emit = defineEmits<{ focus: []; recentre: [] }>()
 </script>
 
 <template>
@@ -49,6 +50,7 @@ const emit = defineEmits<{ focus: [] }>()
         <div v-if="detail.typeOnly"><dt>{{ typeOnlyLabel }}</dt><dd>{{ detail.typeOnly }}</dd></div>
         <div v-if="detail.internal"><dt>{{ internalLabel }}</dt><dd>{{ detail.internal }}</dd></div>
       </dl>
+      <button type="button" class="primary" data-testid="graph-recentre" @click="emit('recentre')">{{ recentreLabel }}</button>
       <button type="button" @click="emit('focus')">{{ focusLabel }}</button>
     </template>
   </section>
@@ -60,6 +62,13 @@ div { display: flex; justify-content: space-between; gap: var(--space-2); }
 dd { margin: 0; unicode-bidi: isolate; }
 .path { font-family: var(--font-family-mono); }
 button { min-block-size: var(--viewer-hit-target); }
+button.primary {
+  inline-size: 100%;
+  margin-block-end: var(--space-2);
+  border: 1px solid var(--button-primary-border);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-fg);
+}
 </style>
 
 

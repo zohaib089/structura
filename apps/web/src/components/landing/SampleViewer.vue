@@ -10,11 +10,12 @@ import {
   collapseView,
   defaultFilters,
   emptyViewState,
+  expandRadialRing,
   expandView,
   focusHits,
   indexGraph,
-  layoutNodes,
   pinPath,
+  setNucleus,
   type FocusQuery,
   type ViewState
 } from '../../viewer/overview'
@@ -30,7 +31,9 @@ const reduced = prefersReducedMotion()
 const stopped = ref(false)
 const selectedId = ref<string | null>(reduced ? focusTarget : null)
 const focus = ref<FocusQuery | null>(reduced ? focusQuery : null)
-const state = ref<ViewState>(reduced ? pinPath(index, emptyViewState(), focusTarget) : emptyViewState())
+const state = ref<ViewState>(
+  reduced ? setNucleus(pinPath(index, emptyViewState(), focusTarget), focusTarget) : setNucleus(emptyViewState(), focusTarget)
+)
 
 const focusMembers = computed(() => {
   if (!focus.value) return null
@@ -39,7 +42,11 @@ const focusMembers = computed(() => {
 })
 
 const view = computed(() => buildOverview(index, state.value, defaultFilters(), focusMembers.value))
-const positions = computed(() => layoutNodes(view.value.nodes))
+const ringCount = computed(() => {
+  let max = 0
+  for (const node of view.value.nodes) max = Math.max(max, node.depth)
+  return max
+})
 const focusIds = computed(() => (focusMembers.value ? [...focusMembers.value] : []))
 
 let timers: number[] = []
@@ -53,17 +60,22 @@ function stop() {
 function onToggle(id: string) {
   stop()
   const node = view.value.nodes.find((item) => item.id === id)
-  if (!node?.cluster && !node?.more) return
-  state.value = node.expanded
-    ? collapseView(index, state.value, id)
-    : expandView(state.value, id)
+  if (node?.more) {
+    state.value = expandView(state.value, id)
+    return
+  }
+  if (node?.cluster) {
+    state.value = node.expanded ? collapseView(index, state.value, id) : expandView(state.value, id)
+    return
+  }
+  state.value = expandRadialRing(state.value)
 }
 
 onMounted(() => {
   if (reduced || stopped.value) return
   timers.push(window.setTimeout(() => {
     if (stopped.value) return
-    state.value = expandView(state.value, 'dir:apps')
+    state.value = expandRadialRing(state.value)
   }, 700))
   timers.push(window.setTimeout(() => {
     if (stopped.value) return
@@ -88,7 +100,7 @@ onBeforeUnmount(() => {
       <GraphCanvas
         :nodes="view.nodes"
         :edges="view.edges"
-        :positions="positions"
+        :positions="view.positions"
         :total-nodes="sampleGraph.summary.nodes"
         :total-edges="sampleGraph.summary.edges"
         :cluster-count="view.nodes.filter((node) => node.cluster).length"
@@ -96,6 +108,8 @@ onBeforeUnmount(() => {
         :label="copy.graphLabel"
         :selected-id="selectedId"
         :active-id="selectedId ?? view.nodes[0]?.id ?? null"
+        :nucleus-id="focusTarget"
+        :ring-count="ringCount"
         :more-label="(count) => formatMessage(copy.moreNode, { n: count })"
         :expand-label="copy.expand"
         :collapse-label="copy.collapse"
