@@ -209,8 +209,10 @@ watch(
 
     <OpenProjectPanel
       v-if="!compact && !reportMode"
+      embedded
       :workspace-id="workspaceId"
       :locale="locale"
+      :project-id="projectId"
       @scan-finished="onScanFinished"
     />
 

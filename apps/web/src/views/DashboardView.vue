@@ -324,7 +324,6 @@ onMounted(loadDashboard)
             <OpenProjectPanel
               :workspace-id="selectedWorkspaceId"
               :locale="locale"
-              @scan-finished="showToast(messages.projectCreated)"
             />
           </section>
 
