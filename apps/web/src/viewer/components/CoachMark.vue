@@ -37,14 +37,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 .coach {
   position: absolute;
   inset-block-end: var(--space-16);
-  inset-inline-start: 50%;
+  inset-inline-start: var(--space-3);
   z-index: var(--z-viewer-panel);
-  transform: translateX(-50%);
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
   align-items: center;
-  max-inline-size: 28rem;
+  max-inline-size: 22rem;
   padding: var(--space-3);
   border-radius: var(--radius-md);
   background: var(--color-surface-raised);

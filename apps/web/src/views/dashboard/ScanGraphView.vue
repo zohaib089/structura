@@ -4,7 +4,9 @@ import '@vue-flow/core/dist/theme-default.css'
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getScanGraph, listScans } from '../../api/scans'
+import { getScanFileMeta } from '../../api/scan-file-meta'
 import type { GraphDocument } from '../../viewer/graph-types'
+import type { ReportFinding } from '../../api/scan-report-types'
 import type { SeverityCounts } from '../../services/scan-report-tree'
 import ViewerApp from '../../viewer/ViewerApp.vue'
 import { dashboardMessages } from '../../services/dashboard-messages'
@@ -21,6 +23,7 @@ const props = defineProps<{
   scanId?: string | null
   prefetchedGraph?: GraphDocument | null
   pathSeverityCounts?: Map<string, SeverityCounts>
+  scanFindings?: ReportFinding[]
 }>()
 
 const route = useRoute()
@@ -41,6 +44,13 @@ const graphDocument = ref<GraphDocument | null>(null)
 const resolvedScanId = ref<string | null>(null)
 
 const focusPath = computed(() => resolveGraphFocusQuery(route.query))
+
+async function loadFileSummary(path: string): Promise<string | null> {
+  const scanId = resolvedScanId.value
+  if (!scanId) return null
+  const meta = await getScanFileMeta(props.workspaceId, scanId, path)
+  return meta?.summary ?? null
+}
 
 async function resolveScanId(): Promise<string | null> {
   if (props.scanId) return props.scanId
@@ -100,6 +110,8 @@ watch(
       :graph-document="graphDocument"
       :focus-path="focusPath"
       :path-severity-counts="pathSeverityCounts"
+      :scan-findings="scanFindings ?? []"
+      :load-file-summary="loadFileSummary"
     />
   </div>
 </template>

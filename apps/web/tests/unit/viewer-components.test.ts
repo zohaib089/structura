@@ -120,22 +120,70 @@ describe('viewer components', () => {
     const detail = mount(NodeDetail, {
       props: {
         empty: 'Select a node or edge to see details',
+        panelHint: 'Details for your selection.',
         kindLabel: 'Kind',
         pathLabel: 'Path',
         spanLabel: 'Span',
-        provenanceLabel: 'Provenance',
+        provenanceLabel: 'How we know',
         confidenceLabel: 'Confidence',
         reasonLabel: 'Reason',
         internalLabel: 'Internal',
         weightLabel: 'Weight',
         importKindLabel: 'Import kind',
         typeOnlyLabel: 'Type only',
-        focusLabel: 'Focus',
-        detail: { title: 'apps', kind: 'directory', path: 'apps', span: '', provenance: '1 extracted · 1 inferred · 0 unresolved', confidence: '', reason: '', internal: 'Internal edges: 0', weight: '', importKind: 'dynamic', typeOnly: 'false' }
+        focusLabel: 'Show only connections',
+        recentreLabel: 'Centre graph here',
+        focusTooltip: 'Focus tooltip',
+        recentreTooltip: 'Recentre tooltip',
+        depthLabel: 'Levels from centre',
+        depthTooltip: 'Depth tooltip',
+        depsOutLabel: 'Uses',
+        depsInLabel: 'Used by',
+        findingsLabel: 'Findings',
+        findingsSectionLabel: 'Findings',
+        purposeLabel: 'What this file does',
+        symbolsLabel: 'Functions and classes',
+        importsLabel: 'This file uses',
+        importersLabel: 'Used by',
+        contentsLabel: 'Contents',
+        expandContentsLabel: 'Show inside on map',
+        expandTooltip: 'Expand tooltip',
+        noFindingsLabel: 'No issues on this file.',
+        noFindingsNeedScan: 'Need scan report.',
+        hasScanReport: false,
+        noIssuesStat: 'None',
+        summaryLoading: 'Loading…',
+        summaryError: 'Error',
+        summaryRetry: 'Retry',
+        summaryEmpty: 'Empty',
+        emptyImports: 'No imports',
+        emptyImporters: 'No importers',
+        emptySymbols: 'No symbols',
+        emptyContents: 'Empty folder',
+        openDetailsLabel: 'Open details',
+        kindTagFolder: 'Folder',
+        kindTagFile: 'File',
+        symbolExportTag: 'Export',
+        summaryState: 'none',
+        severityLabel: (severity: string) => severity,
+        detail: { title: 'apps', kind: 'directory', path: 'apps', span: '', provenance: '1 extracted · 1 inferred · 0 unresolved', confidence: '', reason: '', internal: 'Internal edges: 0', weight: '', importKind: 'dynamic', typeOnly: 'false' },
+        sections: {
+          stats: { depth: 1, depsOut: 2, depsIn: 0, provenance: 'Found in source' },
+          summary: null,
+          summarySource: 'none',
+          symbols: [],
+          imports: [],
+          importers: [],
+          contents: [{ id: 'dir:apps/web', label: 'web', path: 'apps/web', kind: 'directory' }],
+          findings: [],
+          severityChip: null,
+          severityChips: null
+        },
+        findings: []
       }
     })
     expect(detail.get('[data-testid="node-detail"]').text()).toContain('apps')
-    expect(detail.text()).toContain('dynamic')
+    expect(detail.text()).toContain('Folder')
 
     const filters = mount(FilterRail, {
       props: {
