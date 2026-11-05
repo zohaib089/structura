@@ -29,7 +29,7 @@ describe('app shell + graph viewport containment', () => {
       }
     })
 
-    expect(wrapper.get('.app-shell').exists()).toBe(true)
+    expect(wrapper.get('.app-shell').classes()).toContain('app-shell')
     const content = wrapper.get('#app-main-content')
     expect(content.classes()).toContain('shell-content--fill')
     expect(content.classes()).not.toContain('shell-content--flush')
@@ -79,7 +79,7 @@ describe('app shell + graph viewport containment', () => {
 
     const viewer = wrapper.get('.viewer.viewer-embedded')
     expect(viewer.classes()).toContain('viewer-radial')
-    expect(wrapper.get('aside.rail').exists()).toBe(true)
+    expect(wrapper.get('aside.rail').classes()).toContain('rail')
     wrapper.unmount()
 
     const viewerSource = readFileSync(
