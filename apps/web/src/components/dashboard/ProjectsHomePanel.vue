@@ -177,18 +177,19 @@ onMounted(() => {
           @keydown.enter="($event.currentTarget as HTMLElement).querySelector('a')?.click()"
         >
           <td>
-            <RouterLink
-              class="projects-home__name"
-              :to="projectPath(locale, workspaceId, project.id)"
-            >
-              {{ project.name }}
-            </RouterLink>
+            <h3 class="projects-home__name">
+              <RouterLink
+                :to="projectPath(locale, workspaceId, project.id)"
+              >
+                {{ project.name }}
+              </RouterLink>
+            </h3>
           </td>
           <td class="projects-home__desc">
             {{ project.description || messages.noDescription }}
           </td>
           <td>
-            <time :datetime="project.updated_at">{{ formatDate(project.updated_at) }}</time>
+            <time :datetime="project.updated_at">{{ messages.lastUpdated }} · {{ formatDate(project.updated_at) }}</time>
           </td>
           <td class="projects-home__chevron" aria-hidden="true">
             <ChevronRight :size="16" />
@@ -364,12 +365,19 @@ onMounted(() => {
 }
 
 .projects-home__name {
-  color: var(--color-text-primary);
+  margin: 0;
+  font-size: inherit;
+  line-height: inherit;
   font-weight: var(--font-weight-semibold);
+}
+
+.projects-home__name a {
+  color: var(--color-text-primary);
+  font-weight: inherit;
   text-decoration: none;
 }
 
-.projects-home__name:hover {
+.projects-home__name a:hover {
   color: var(--color-brand-amber-ui);
 }
 
