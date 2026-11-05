@@ -43,7 +43,7 @@ select {
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--accent) var(--alpha-32), transparent);
+  background: color-mix(in srgb, var(--color-brand-amber-ui) var(--alpha-32), transparent);
   color: var(--color-text-primary);
 }
 

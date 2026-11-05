@@ -70,9 +70,9 @@ export default {
 
 .shell-content {
   flex: 1;
-  width: min(100%, var(--shell-content-max));
-  margin-inline: auto;
-  padding: var(--space-5);
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-5) var(--space-6);
 }
 
 .skip-link {

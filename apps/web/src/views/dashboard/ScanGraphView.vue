@@ -104,8 +104,9 @@ watch(
   display: flex;
   flex-direction: column;
   min-block-size: calc(100dvh - var(--shell-topbar-height, 48px) - var(--space-8));
-  margin-inline: calc(-1 * var(--space-4));
-  margin-block-end: calc(-1 * var(--space-4));
+  margin-inline: calc(-1 * var(--space-6));
+  margin-block-start: calc(-1 * var(--space-5));
+  margin-block-end: calc(-1 * var(--space-5));
 }
 
 .state-card {

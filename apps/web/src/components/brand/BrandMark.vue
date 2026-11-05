@@ -61,7 +61,7 @@ const CAMBER = [['T', 'L'], ['T', 'R'], ['B', 'L'], ['B', 'R']] as const
     <title v-if="title">{{ title }}</title>
 
     <template v-if="compact">
-      <path :d="HEX_COMPACT" class="stroke" stroke-width="4.4" stroke-linejoin="round" fill="none" />
+      <path :d="HEX_COMPACT" class="plate" stroke-width="4.4" stroke-linejoin="round" />
       <line :x1="CP.L[0]" :y1="CP.L[1]" :x2="CP.C[0]" :y2="CP.C[1]" class="stroke" stroke-width="2.4" stroke-linecap="round" />
       <line :x1="CP.C[0]" :y1="CP.C[1]" :x2="CP.R[0]" :y2="CP.R[1]" class="stroke" stroke-width="2.4" stroke-linecap="round" />
       <line v-for="([a, b], i) in CAMBER" :key="i" :x1="CP[a][0]" :y1="CP[a][1]" :x2="CP[b][0]" :y2="CP[b][1]" class="stroke accent" stroke-width="2.8" stroke-linecap="round" />
@@ -75,7 +75,7 @@ const CAMBER = [['T', 'L'], ['T', 'R'], ['B', 'L'], ['B', 'R']] as const
     </template>
 
     <template v-else>
-      <path :d="HEX_FULL" class="stroke" stroke-width="14" stroke-linejoin="round" fill="none" />
+      <path :d="HEX_FULL" class="plate" stroke-width="14" stroke-linejoin="round" />
       <g :stroke-width="ES" stroke-linecap="round">
         <line v-for="(s, i) in darkEdges" :key="`d${i}`" v-bind="s" class="stroke" />
         <line v-for="(s, i) in amberEdges" :key="`a${i}`" v-bind="s" class="stroke accent" />
@@ -95,12 +95,20 @@ const CAMBER = [['T', 'L'], ['T', 'R'], ['B', 'L'], ['B', 'R']] as const
   flex: none;
   color: var(--color-brand-mark);
 }
+.plate {
+  fill: var(--color-brand-navy);
+  stroke: var(--color-brand-navy);
+}
 .stroke { stroke: var(--color-brand-mark); }
 .fill { fill: var(--color-brand-mark); }
 .accent.stroke { stroke: var(--color-brand-mark-accent); }
 .accent.fill { fill: var(--color-brand-mark-accent); }
 /* mono: everything follows currentColor (set `color` on the parent) */
 .is-mono { color: inherit; }
+.is-mono .plate {
+  fill: none;
+  stroke: currentColor;
+}
 .is-mono .stroke, .is-mono .accent.stroke { stroke: currentColor; }
 .is-mono .fill, .is-mono .accent.fill { fill: currentColor; }
 </style>
