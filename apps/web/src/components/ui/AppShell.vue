@@ -3,16 +3,23 @@ import Sidebar, { type SidebarNavItem } from './Sidebar.vue'
 import TopBar from './TopBar.vue'
 import type { BreadcrumbItem } from './Breadcrumbs.vue'
 
-defineProps<{
-  workspaceName: string
-  navItems: SidebarNavItem[]
-  breadcrumbs: BreadcrumbItem[]
-  appNavigationLabel: string
-  workspaceLabel: string
-  skipToContentLabel: string
-  commandPaletteLabel: string
-  commandPaletteHint: string
-}>()
+withDefaults(
+  defineProps<{
+    workspaceName: string
+    navItems: SidebarNavItem[]
+    breadcrumbs: BreadcrumbItem[]
+    appNavigationLabel: string
+    workspaceLabel: string
+    skipToContentLabel: string
+    commandPaletteLabel: string
+    commandPaletteHint: string
+    /** Graph routes fill the content pane edge-to-edge (mock `.content.flush`). */
+    flushContent?: boolean
+    /** Keep shell padding but lock the pane height so embedded graph can flex-fill. */
+    fillContent?: boolean
+  }>(),
+  { flushContent: false, fillContent: false }
+)
 </script>
 
 <template>
@@ -40,8 +47,18 @@ defineProps<{
           <slot name="top-actions" />
         </template>
       </TopBar>
-      <main id="app-main-content" class="shell-content" tabindex="-1">
-        <slot />
+      <main
+        id="app-main-content"
+        class="shell-content"
+        :class="{
+          'shell-content--flush': flushContent,
+          'shell-content--fill': fillContent && !flushContent
+        }"
+        tabindex="-1"
+      >
+        <div class="shell-content-body">
+          <slot />
+        </div>
       </main>
     </div>
   </div>
@@ -57,7 +74,11 @@ export default {
 .app-shell {
   display: grid;
   grid-template-columns: var(--shell-sidebar-width) minmax(0, 1fr);
-  min-height: 100vh;
+  align-items: stretch;
+  width: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
   background: var(--color-canvas);
   color: var(--color-text-primary);
 }
@@ -66,13 +87,37 @@ export default {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 .shell-content {
+  display: flex;
+  flex-direction: column;
   flex: 1;
   width: 100%;
   min-width: 0;
+  min-height: 0;
+  overflow: auto;
   padding: var(--space-5) var(--space-6);
+}
+
+.shell-content-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.shell-content--flush {
+  padding: 0;
+  overflow: hidden;
+}
+
+.shell-content--fill {
+  overflow: hidden;
 }
 
 .skip-link {

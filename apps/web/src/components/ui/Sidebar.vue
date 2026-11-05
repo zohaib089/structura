@@ -57,8 +57,12 @@ defineEmits<{
 .sidebar {
   display: flex;
   flex-direction: column;
-  width: var(--shell-sidebar-width);
-  min-height: 100%;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--shell-sidebar-width);
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
   padding: var(--space-4) var(--space-3);
   background: var(--color-surface);
   border-right: 1px solid var(--color-border);

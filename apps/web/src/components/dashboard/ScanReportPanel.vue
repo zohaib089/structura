@@ -146,7 +146,12 @@ function showAllFindings() {
 </script>
 
 <template>
-  <section class="report" :aria-label="messages.panelTitle" data-testid="scan-report">
+  <section
+    class="report"
+    :class="{ 'report--graph': activeTab === 'graph' }"
+    :aria-label="messages.panelTitle"
+    data-testid="scan-report"
+  >
     <ReportHeader
       :messages="messages"
       :scan-id="scanId"
@@ -249,6 +254,14 @@ function showAllFindings() {
   inline-size: 100%;
 }
 
+.report--graph {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-block-size: 0;
+  block-size: 100%;
+}
+
 .report__hint {
   margin: 0;
   max-inline-size: 60rem;
@@ -257,7 +270,18 @@ function showAllFindings() {
   color: var(--color-text-secondary);
 }
 
+.report--graph .report__hint {
+  flex-shrink: 0;
+}
+
 .report__panel {
   min-inline-size: 0;
+}
+
+.report--graph .report__panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-block-size: 0;
 }
 </style>

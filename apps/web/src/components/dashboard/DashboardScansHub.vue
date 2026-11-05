@@ -294,6 +294,17 @@ watch(
   gap: var(--space-5);
 }
 
+.scans-hub--report {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-block-size: 0;
+}
+
+.scans-hub--report :deep(.report--graph) {
+  flex: 1 1 auto;
+}
+
 .hub-header h1 {
   margin: var(--space-2) 0;
 }

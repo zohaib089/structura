@@ -101,6 +101,14 @@ const navItems = computed<SidebarNavItem[]>(() => {
   ]
 })
 
+const flushContent = computed(
+  () => route.name === 'project-graph'
+)
+
+const fillContent = computed(
+  () => route.name === 'project-graph' || (route.name === 'scan-report' && scanTab.value === 'graph')
+)
+
 const breadcrumbs = computed<BreadcrumbItem[]>(() => {
   const items: BreadcrumbItem[] = []
   if (selectedWorkspace.value) {
@@ -184,6 +192,8 @@ onMounted(loadWorkspaces)
     :skip-to-content-label="messages.skipToContent"
     :command-palette-label="messages.commandPalette"
     :command-palette-hint="messages.commandPaletteHint"
+    :flush-content="flushContent"
+    :fill-content="fillContent"
   >
     <template #top-actions>
       <button v-if="session" type="button" class="ghost-button" @click="handleLogout">
@@ -206,11 +216,19 @@ onMounted(loadWorkspaces)
       <p>{{ loadError }}</p>
       <button type="button" class="primary-button" @click="loadWorkspaces">{{ messages.retry }}</button>
     </div>
-    <RouterView v-else />
+    <RouterView v-else class="shell-route" />
   </AppShell>
 </template>
 
 <style scoped>
+.shell-route {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
 .state-card {
   padding: var(--space-5);
   border: 1px solid var(--color-border);
