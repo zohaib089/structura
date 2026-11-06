@@ -86,19 +86,19 @@ function onInput(event: Event) {
   font-weight: var(--font-weight-bold);
   letter-spacing: var(--tracking-widest);
   text-transform: uppercase;
-  color: var(--color-text-secondary);
+  color: var(--gray-8);
 }
 
 input {
   width: 100%;
-  border: 1px solid color-mix(in srgb, var(--color-accent-primary) var(--alpha-16), transparent);
-  background: color-mix(in srgb, var(--color-surface) var(--alpha-04), transparent);
-  color: var(--color-text-primary);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--gray-5);
+  background: var(--gray-2);
+  color: var(--gray-10);
+  border-radius: var(--r-md);
   padding: var(--space-3) var(--space-3);
   font-size: var(--font-size-md);
   outline: none;
-  transition: border-color var(--duration-normal) ease, box-shadow var(--duration-normal) ease, background var(--duration-normal) ease;
+  transition: border-color var(--dur-1) var(--easing-product), box-shadow var(--dur-1) var(--easing-product), background var(--dur-1) var(--easing-product);
 }
 
 input.has-password-toggle {
@@ -116,38 +116,51 @@ input.has-password-toggle {
   place-items: center;
   transform: translateY(-50%);
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-xs);
   background: transparent;
-  color: var(--color-text-secondary);
+  color: var(--gray-8);
   cursor: pointer;
-  transition: color var(--duration-fast) ease, background var(--duration-fast) ease, border-color var(--duration-fast) ease;
+  transition: color var(--dur-1) var(--easing-product), background var(--dur-1) var(--easing-product), border-color var(--dur-1) var(--easing-product);
 }
 
 .password-toggle:hover,
 .password-toggle:focus-visible {
-  border-color: color-mix(in srgb, var(--color-accent-primary) var(--alpha-16), transparent);
-  background: color-mix(in srgb, var(--color-accent-primary) var(--alpha-08), transparent);
-  color: var(--color-accent-primary);
+  border-color: var(--gray-5);
+  background: var(--gray-3);
+  color: var(--color-brand-amber-ui);
+}
+
+.password-toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 input::placeholder {
-  color: var(--color-text-secondary);
+  color: var(--gray-7);
 }
 
 input:focus {
-  border-color: color-mix(in srgb, var(--color-accent-primary) var(--alpha-50), transparent);
+  border-color: var(--color-brand-amber-ui);
   box-shadow: var(--focus-ring);
-  background: color-mix(in srgb, var(--color-surface) var(--alpha-04), transparent);
+  background: var(--gray-2);
 }
 
 small {
-  color: var(--color-text-secondary);
+  color: var(--gray-7);
   font-size: var(--font-size-xs);
   line-height: var(--line-height-normal);
 }
 
 [data-theme='light'] input {
-  background: color-mix(in srgb, var(--color-surface-raised) var(--alpha-90), transparent);
-  border-color: color-mix(in srgb, var(--color-surface) var(--alpha-08), transparent);
+  background: var(--gray-2);
+  border-color: var(--gray-5);
+  color: var(--gray-10);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  input,
+  .password-toggle {
+    transition: none;
+  }
 }
 </style>

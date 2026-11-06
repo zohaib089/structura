@@ -513,9 +513,9 @@ const activeEyebrow = computed(() => activeView.value === 'login'
   gap: var(--space-3);
   margin-bottom: var(--space-6);
   padding: var(--space-2);
-  border-radius: var(--radius-lg);
-  border: 1px solid color-mix(in srgb, var(--color-accent-primary) var(--alpha-12), transparent);
-  background: color-mix(in srgb, var(--color-accent-primary) var(--alpha-04), transparent);
+  border-radius: var(--r-md);
+  border: 1px solid var(--gray-4);
+  background: var(--gray-1);
 }
 
 .mode-group,
@@ -523,8 +523,8 @@ const activeEyebrow = computed(() => activeView.value === 'login'
   display: inline-flex;
   gap: var(--space-1);
   padding: var(--space-1);
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-surface) var(--alpha-04), transparent);
+  border-radius: var(--r-sm);
+  background: var(--gray-2);
 }
 
 button {
@@ -534,20 +534,30 @@ button {
 .mode-group button,
 .account-type button {
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-xs);
   padding: var(--space-2) var(--space-3);
   background: transparent;
-  color: var(--color-text-secondary);
+  color: var(--gray-8);
   font-weight: var(--font-weight-bold);
   cursor: pointer;
-  transition: all var(--duration-normal) ease;
+  transition: background var(--dur-1) var(--easing-product), color var(--dur-1) var(--easing-product), box-shadow var(--dur-1) var(--easing-product);
+}
+
+.mode-group button:focus-visible,
+.account-type button:focus-visible,
+.text-button:focus-visible,
+.inline-link:focus-visible,
+.primary-button:focus-visible,
+.danger-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .mode-group button.active,
 .account-type button.active {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--color-accent-primary) var(--alpha-20), transparent), color-mix(in srgb, var(--color-accent-secondary) var(--alpha-16), transparent));
-  color: var(--color-text-primary);
-  box-shadow: var(--shadow-md);
+  background: var(--gray-3);
+  color: var(--gray-10);
+  box-shadow: inset 0 -2px 0 var(--color-brand-amber-ui);
 }
 
 .auth-form {
@@ -574,12 +584,12 @@ button {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  color: var(--color-text-secondary);
+  color: var(--gray-8);
   font-size: var(--font-size-sm);
 }
 
 .checkbox-row input {
-  accent-color: var(--color-accent-primary);
+  accent-color: var(--color-brand-amber-ui);
 }
 
 .text-button,
@@ -587,45 +597,55 @@ button {
   border: none;
   background: transparent;
   padding: 0;
-  color: var(--color-accent-primary);
+  color: var(--color-brand-amber-ui);
   font-weight: var(--font-weight-bold);
   cursor: pointer;
 }
 
 .primary-button {
   width: 100%;
-  border: none;
-  border-radius: var(--radius-lg);
-  padding: var(--space-4) var(--space-4);
-  background: var(--color-accent-gradient-soft);
-  color: var(--color-text-on-accent);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  padding: var(--space-3) var(--space-4);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-fg);
   font-weight: var(--font-weight-extrabold);
   cursor: pointer;
-  box-shadow: var(--shadow-accent-glow);
-  transition: transform var(--duration-normal) ease;
+  box-shadow: none;
+  transition: background var(--dur-1) var(--easing-product), transform var(--dur-1) var(--easing-product);
 }
 
-.primary-button:hover {
-  transform: translateY(-1px);
+.primary-button:hover:not(:disabled) {
+  background: var(--button-primary-hover-bg);
+}
+
+.primary-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .danger-button {
   width: 100%;
-  border: none;
-  border-radius: var(--radius-lg);
-  padding: var(--space-4) var(--space-4);
-  background: linear-gradient(135deg, color-mix(in srgb, var(--color-danger) var(--alpha-full), transparent), color-mix(in srgb, var(--color-danger) var(--alpha-90), transparent));
-  color: var(--color-highlight);
+  border: 1px solid var(--sev-critical-border);
+  border-radius: var(--r-md);
+  padding: var(--space-3) var(--space-4);
+  background: var(--sev-critical-bg);
+  color: var(--sev-critical-fg);
   font-weight: var(--font-weight-extrabold);
   cursor: pointer;
-  box-shadow: var(--shadow-danger-glow);
+  box-shadow: none;
+}
+
+.danger-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .divider {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  color: var(--color-text-secondary);
+  color: var(--gray-7);
   font-size: var(--font-size-xs);
   letter-spacing: var(--tracking-widest);
   text-transform: uppercase;
@@ -636,7 +656,7 @@ button {
   content: '';
   flex: 1;
   height: 1px;
-  background: color-mix(in srgb, var(--color-accent-primary) var(--alpha-16), transparent);
+  background: var(--gray-4);
 }
 
 .sso-grid {
@@ -647,24 +667,24 @@ button {
 
 .sso-button {
   padding: var(--space-3) var(--space-2);
-  border: 1px solid color-mix(in srgb, var(--color-accent-primary) var(--alpha-16), transparent);
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-accent-primary) var(--alpha-04), transparent);
-  color: var(--color-text-primary);
+  border: 1px solid var(--gray-5);
+  border-radius: var(--r-md);
+  background: var(--gray-2);
+  color: var(--gray-10);
   font-weight: var(--font-weight-bold);
   cursor: pointer;
 }
 
 .meta-copy,
 .helper-text {
-  color: var(--color-text-secondary);
+  color: var(--gray-8);
   line-height: var(--line-height-relaxed);
   font-size: var(--font-size-sm);
 }
 
 .password-meta {
   font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
+  color: var(--gray-7);
   line-height: var(--line-height-normal);
 }
 
@@ -674,7 +694,7 @@ button {
 
 .alert {
   padding: var(--space-3) var(--space-3);
-  border-radius: var(--radius-md);
+  border-radius: var(--r-md);
   font-size: var(--font-size-sm);
   line-height: var(--line-height-relaxed);
 }
@@ -693,7 +713,7 @@ button {
 
 .success-box {
   padding: var(--space-4) var(--space-4);
-  border-radius: var(--radius-lg);
+  border-radius: var(--r-md);
   border: 1px solid color-mix(in srgb, var(--color-success) var(--alpha-24), transparent);
   background: color-mix(in srgb, var(--color-success) var(--alpha-08), transparent);
 }
@@ -704,7 +724,8 @@ button {
 }
 
 .success-box p {
-  color: var(--color-text-secondary);
+  margin: 0;
+  color: var(--gray-8);
   line-height: var(--line-height-relaxed);
 }
 
@@ -725,21 +746,51 @@ button {
 
 .warning-row {
   padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-md);
+  border-radius: var(--r-md);
   border: 1px solid color-mix(in srgb, var(--color-danger) var(--alpha-16), transparent);
   background: color-mix(in srgb, var(--color-danger) var(--alpha-04), transparent);
 }
 
-[data-theme='light'] .mode-switcher,
+@media (max-width: 640px) {
+  .row.two-col,
+  .row.split {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .mode-switcher {
+    flex-direction: column;
+  }
+}
+
+[data-theme='light'] .mode-switcher {
+  background: var(--gray-1);
+  border-color: var(--gray-4);
+}
+
 [data-theme='light'] .mode-group,
 [data-theme='light'] .account-type,
 [data-theme='light'] .sso-button {
-  background: color-mix(in srgb, var(--color-surface-raised) var(--alpha-90), transparent);
-  border-color: color-mix(in srgb, var(--color-surface) var(--alpha-08), transparent);
+  background: var(--gray-2);
+  border-color: var(--gray-4);
 }
 
 [data-theme='light'] .mode-group button,
 [data-theme='light'] .account-type button {
-  color: var(--color-text-primary);
+  color: var(--gray-8);
+}
+
+[data-theme='light'] .mode-group button.active,
+[data-theme='light'] .account-type button.active {
+  color: var(--gray-10);
+  background: var(--gray-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mode-group button,
+  .account-type button,
+  .primary-button {
+    transition: none;
+  }
 }
 </style>
