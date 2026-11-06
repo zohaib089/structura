@@ -29,7 +29,7 @@ defineEmits<{
         <span class="product-name">{{ BRAND.name }}</span>
         <button type="button" class="workspace-trigger" @click="$emit('openWorkspaceMenu')">
           <span class="workspace-label">{{ workspaceLabel }}</span>
-          <span class="workspace-name">{{ workspaceName }}</span>
+          <span class="workspace-name" role="heading" aria-level="2">{{ workspaceName }}</span>
         </button>
       </div>
     </div>

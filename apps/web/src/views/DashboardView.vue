@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import {useRoute, useRouter, RouterLink } from 'vue-router'
 import HexLoader from '../components/ui/HexLoader.vue'
 import SkeletonTableRows from '../components/ui/skeleton/SkeletonTableRows.vue'
 import { useToast } from '../composables/useToast'
 import DashboardScansHub from '../components/dashboard/DashboardScansHub.vue'
+import ProjectsHomePanel from '../components/dashboard/ProjectsHomePanel.vue'
 import OpenProjectPanel from '../components/dashboard/OpenProjectPanel.vue'
 import { isSupportedWebLocale, readLocalePreference, resolvePreferredWebLocale } from '../services/locale'
 import { dashboardMessages } from '../services/dashboard-messages'
 import {
+  openProjectPath,
   workspaceRootPath,
   workspaceSettingsPath
 } from '../services/dashboard-routes'
@@ -57,6 +59,11 @@ const routeProjectId = computed(() =>
 
 const routeScanId = computed(() => (typeof route.params.scanId === 'string' ? route.params.scanId : ''))
 
+const currentProjectName = computed(() => {
+  const match = projects.value.find(project => project.id === routeProjectId.value)
+  return match?.name ?? routeProjectId.value
+})
+
 const sectionTitle = computed(() => ({
   projects: messages.value.projects,
   'open-project': messages.value.openProjectNav,
@@ -89,18 +96,6 @@ const toast = useToast()
 const selectedWorkspace = computed(() =>
   workspaces.value.find(workspace => workspace.id === selectedWorkspaceId.value) ?? null
 )
-const filteredProjects = computed(() => {
-  const search = projectSearch.value.trim().toLocaleLowerCase(locale.value)
-  if (!search) return projects.value
-  return projects.value.filter(project =>
-    `${project.name} ${project.description}`.toLocaleLowerCase(locale.value).includes(search)
-  )
-})
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }).format(new Date(value))
-}
-
 function showToast(message: string) {
   toast.success(message, { dismissLabel: messages.value.dismissNotification })
 }
@@ -273,9 +268,8 @@ onMounted(loadDashboard)
 <template>
   <div class="dashboard-page" :class="{ 'dashboard-page--fill': activeSection === 'scan-report' }">
     <section class="dashboard-content">
-      <div class="page-header">
+      <div v-if="activeSection !== 'projects'" class="page-header">
         <div>
-          <p v-if="activeSection === 'projects'" class="page-eyebrow">{{ messages.workspaceOverview }}</p>
           <h1>{{ sectionTitle }}</h1>
         </div>
         <label v-if="workspaces.length > 1" class="workspace-picker">
@@ -327,73 +321,64 @@ onMounted(loadDashboard)
             />
           </section>
 
-          <section v-else-if="activeSection === 'projects'" class="projects-section">
-            <div class="section-heading">
+          <ProjectsHomePanel
+            v-else-if="activeSection === 'projects' && selectedWorkspaceId"
+            :locale="locale"
+            :workspace-id="selectedWorkspaceId"
+            :workspace-name="selectedWorkspace?.name ?? ''"
+            :projects="projects"
+            :loading="projectsLoading"
+            :error="projectsError"
+            :can-create="selectedWorkspace?.role === 'owner' || selectedWorkspace?.role === 'admin'"
+            :search="projectSearch"
+            :project-name="projectName"
+            :project-description="projectDescription"
+            :submitting="submitting"
+            @update:search="projectSearch = $event"
+            @update:project-name="projectName = $event"
+            @update:project-description="projectDescription = $event"
+            @retry="reloadProjectsForWorkspace"
+            @create="handleCreateProject"
+          />
+
+          <section
+            v-else-if="activeSection === 'project' && selectedWorkspaceId"
+            class="project-summary"
+            data-testid="project-summary"
+          >
+            <header class="project-summary__header">
               <div>
                 <p class="eyebrow">{{ messages.projects }}</p>
-                <h2>{{ selectedWorkspace?.name }}</h2>
+                <h2>{{ currentProjectName }}</h2>
+                <p class="project-summary__blurb">{{ messages.projectSummaryBlurb }}</p>
               </div>
-            </div>
-
-            <label class="project-search">
-              <span class="sr-only">{{ messages.searchProjects }}</span>
-              <input v-model="projectSearch" type="search" :placeholder="messages.searchProjects">
-            </label>
-
-            <div v-if="projectsError" class="state-card error-state" role="alert">
-              <p>{{ projectsError }}</p>
-              <button class="primary-button" type="button" @click="reloadProjectsForWorkspace">{{ messages.retry }}</button>
-            </div>
-            <SkeletonTableRows v-else-if="projectsLoading" :rows="8" :label="messages.loadingWorkspaces" />
-            <div v-else-if="projects.length === 0" class="state-card">
-              <h3>{{ messages.noProjects }}</h3>
-              <p>{{ messages.createProjectPrompt }}</p>
-            </div>
-            <div v-else-if="filteredProjects.length === 0" class="state-card">
-              <p>{{ messages.noMatchingProjects }}</p>
-            </div>
-            <ul v-else class="project-list">
-              <li v-for="project in filteredProjects" :key="project.id" class="project-item">
-                <div class="project-item-heading">
-                <h3>{{ project.name }}</h3>
-                  <time :datetime="project.updated_at">{{ messages.lastUpdated }} · {{ formatDate(project.updated_at) }}</time>
-                </div>
-                <p>{{ project.description || messages.noDescription }}</p>
-              </li>
-            </ul>
-
-            <form
-              v-if="selectedWorkspace?.role === 'owner' || selectedWorkspace?.role === 'admin'"
-              class="project-form"
-              @submit.prevent="handleCreateProject"
-            >
-              <h3>{{ messages.createProject }}</h3>
-              <label>
-                {{ messages.projectName }}
-                <input v-model="projectName" maxlength="120" required>
-              </label>
-              <label>
-                {{ messages.description }} <span class="optional-label">{{ messages.optional }}</span>
-                <textarea v-model="projectDescription" maxlength="2000" rows="3" />
-              </label>
-              <button class="primary-button" type="submit" :disabled="submitting">
-                <HexLoader v-if="submitting" size="sm" :label="messages.creating" hide-label inline :delay="0" :min-visible="0" />
-                {{ submitting ? messages.creating : messages.createProject }}
-              </button>
-            </form>
+              <RouterLink
+                class="project-summary__cta"
+                :to="openProjectPath(locale, selectedWorkspaceId)"
+              >
+                {{ messages.scanAProject }}
+              </RouterLink>
+            </header>
+            <DashboardScansHub
+              :workspace-id="selectedWorkspaceId"
+              :locale="locale"
+              compact
+              :initial-scan-id="routeScanId || null"
+              :project-id="routeProjectId || null"
+              :initial-insight-view="routeScanId ? 'report' : 'graph'"
+            />
           </section>
 
           <DashboardScansHub
             v-else-if="
               (activeSection === 'workspace-scans'
                 || activeSection === 'scans'
-                || activeSection === 'scan-report'
-                || activeSection === 'project')
+                || activeSection === 'scan-report')
               && selectedWorkspaceId
             "
             :workspace-id="selectedWorkspaceId"
             :locale="locale"
-            :compact="activeSection === 'project'"
+            :compact="false"
             :initial-scan-id="routeScanId || null"
             :project-id="routeProjectId || null"
             :initial-insight-view="routeScanId ? 'report' : 'graph'"
@@ -835,5 +820,60 @@ onMounted(loadDashboard)
     align-items: flex-start;
     flex-direction: column;
   }
+}
+
+.project-summary {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.project-summary__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.project-summary__header h2 {
+  margin: var(--space-1) 0;
+  font-size: var(--text-24, 1.5rem);
+  line-height: 1.25;
+}
+
+.project-summary__blurb {
+  margin: 0;
+  max-inline-size: 42rem;
+  color: var(--color-text-secondary);
+  font-size: var(--text-14);
+  line-height: var(--text-14-lh);
+}
+
+.project-summary__cta {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 1.75rem;
+  padding-inline: var(--space-3);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--button-primary-border);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-fg);
+  font-size: var(--text-14);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+}
+
+.project-summary__cta:hover {
+  background: var(--button-primary-hover-bg);
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: var(--text-12);
+  line-height: var(--text-12-lh);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 </style>
