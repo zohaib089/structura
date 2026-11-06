@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   openProjectPath,
+  projectGraphPath,
   projectScansPath,
   readLastWorkspaceId,
   rememberLastWorkspaceId,
@@ -23,6 +24,10 @@ describe('dashboard routes', () => {
     )
     expect(scanGraphPath('en', 'ws-1', 'proj-1', 'scan-9', 'src/app.ts')).toBe(
       '/en/w/ws-1/projects/proj-1/scans/scan-9/graph?node=src%2Fapp.ts'
+    )
+    expect(projectGraphPath('en', 'ws-1', 'proj-1')).toBe('/en/w/ws-1/projects/proj-1/graph')
+    expect(projectGraphPath('en', 'ws-1', 'proj-1', 'src/main.ts')).toBe(
+      '/en/w/ws-1/projects/proj-1/graph?node=src%2Fmain.ts'
     )
   })
 

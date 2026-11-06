@@ -157,7 +157,18 @@ function onSpace(event: KeyboardEvent) {
   padding-inline: var(--space-3);
   border-width: 2px;
   border-color: var(--graph-selected-ring, var(--color-brand-amber-ui));
-  background: color-mix(in srgb, var(--color-brand-amber-ui) 12%, var(--graph-node-fill));
+  background:
+    radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--color-brand-amber-ui) 38%, transparent) 0%, transparent 58%),
+    var(--nucleus-plate, var(--color-brand-navy));
+  color: var(--gray-10);
+  box-shadow: var(--graph-selected-halo, 0 0 0 4px color-mix(in srgb, var(--color-brand-amber-ui) 24%, transparent));
+}
+.is-nucleus.is-file .kind-mark,
+.is-nucleus.is-file .label {
+  color: var(--gray-10);
+}
+.is-nucleus.is-file .kind-mark {
+  color: var(--color-brand-amber-ui);
 }
 .is-external {
   border-style: dashed;

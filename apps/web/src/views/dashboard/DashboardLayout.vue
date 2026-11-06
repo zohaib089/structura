@@ -14,7 +14,7 @@ import {
 } from '../../services/workspaces'
 import {
   openProjectPath,
-  projectPath,
+  projectGraphPath,
   rememberLastWorkspaceId,
   scanReportPath,
   workspaceRootPath,
@@ -80,7 +80,7 @@ const navItems = computed<SidebarNavItem[]>(() => {
       id: 'projects',
       label: messages.value.projects,
       to: workspaceRootPath(base, ws),
-      active: route.name === 'workspace-projects' || route.name === 'workspace-project'
+      active: route.name === 'workspace-projects' || route.name === 'workspace-project' || route.name === 'project-graph'
     },
     {
       id: 'open-project',
@@ -96,7 +96,6 @@ const navItems = computed<SidebarNavItem[]>(() => {
         route.name === 'workspace-scans'
         || route.name === 'project-scans'
         || route.name === 'scan-report'
-        || route.name === 'project-graph'
     },
     {
       id: 'settings',
@@ -127,7 +126,7 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => {
     const project = projectId.value
     items.push({
       label: messages.value.projectBreadcrumb,
-      to: projectPath(locale.value, workspaceParam.value, project)
+      to: projectGraphPath(locale.value, workspaceParam.value, project)
     })
   }
   if (scanId.value) {

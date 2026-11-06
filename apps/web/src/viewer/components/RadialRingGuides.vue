@@ -28,9 +28,17 @@ const rings = computed(() => {
 }
 .ring {
   fill: none;
-  stroke: var(--color-border);
+  stroke: color-mix(in srgb, var(--color-brand-navy-lift) 55%, var(--gray-4));
   stroke-width: 1;
-  stroke-dasharray: 4 6;
+  stroke-dasharray: 2 7;
+  opacity: 0.7;
+}
+.ring:nth-child(1) {
+  stroke-dasharray: none;
   opacity: 0.55;
+}
+.ring:nth-child(2) {
+  stroke-dasharray: 4 6;
+  opacity: 0.62;
 }
 </style>

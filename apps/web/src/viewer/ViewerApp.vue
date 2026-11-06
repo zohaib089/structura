@@ -1086,7 +1086,10 @@ const snippet = 'layers: []\nrules: []\n'
   overflow: hidden;
   isolation: isolate;
   block-size: 100vh;
-  background: var(--color-canvas);
+  background:
+    radial-gradient(60% 70% at 50% 48%, color-mix(in srgb, var(--color-brand-navy) 42%, transparent) 0%, transparent 72%),
+    var(--color-canvas-vignette),
+    var(--color-canvas);
   color: var(--color-text-primary);
   font-feature-settings: var(--font-feature-ui);
 }
@@ -1121,7 +1124,7 @@ const snippet = 'layers: []\nrules: []\n'
   inset-block: 0;
   overflow: auto;
   padding: var(--space-3);
-  background: color-mix(in srgb, var(--color-surface) 96%, transparent);
+  background: color-mix(in srgb, var(--color-brand-navy) 18%, var(--color-surface) 82%);
   backdrop-filter: blur(10px);
   transition: transform var(--dur-2) var(--easing-standard);
 }
@@ -1179,12 +1182,18 @@ const snippet = 'layers: []\nrules: []\n'
   inset-inline: var(--space-3);
   z-index: calc(var(--z-graph-controls) - 1);
   margin: 0;
-  padding-inline: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  border: 1px solid color-mix(in srgb, var(--color-brand-amber-ui) 28%, var(--color-border));
+  background: color-mix(in srgb, var(--color-surface-raised) 82%, transparent);
   font-size: var(--text-13);
   line-height: var(--text-13-lh);
   color: var(--color-text-secondary);
   text-align: center;
   pointer-events: none;
+  justify-self: center;
+  max-inline-size: min(36rem, calc(100% - var(--space-6)));
+  margin-inline: auto;
 }
 .topbar {
   grid-column: 1 / -1;

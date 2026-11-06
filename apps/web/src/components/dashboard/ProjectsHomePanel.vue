@@ -14,7 +14,7 @@ import { scanMessages } from '../../services/scan-messages'
 import type { WebLocale } from '../../services/locale'
 import {
   openProjectPath,
-  projectPath,
+  projectGraphPath,
   scanReportPath,
   workspaceScansPath
 } from '../../services/dashboard-routes'
@@ -179,7 +179,8 @@ onMounted(() => {
           <td>
             <h3 class="projects-home__name">
               <RouterLink
-                :to="projectPath(locale, workspaceId, project.id)"
+                :to="projectGraphPath(locale, workspaceId, project.id)"
+                data-testid="project-open-link"
               >
                 {{ project.name }}
               </RouterLink>
