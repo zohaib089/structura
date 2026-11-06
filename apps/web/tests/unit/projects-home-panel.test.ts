@@ -77,6 +77,9 @@ describe('ProjectsHomePanel', () => {
     expect(wrapper.text()).toContain('Projects name areas of work')
     expect(wrapper.text()).toContain('not filtered by project yet')
     expect(wrapper.get('[data-testid="projects-open-cta"]').text()).toContain('Scan a project')
+    expect(wrapper.get('[data-testid="project-open-link"]').attributes('href')).toBe(
+      '/en/w/ws-1/projects/p1/graph'
+    )
     expect(wrapper.get('[data-testid="recent-workspace-scans"]').text()).toContain(
       'Recent workspace scans'
     )

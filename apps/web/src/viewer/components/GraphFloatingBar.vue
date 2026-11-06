@@ -83,10 +83,11 @@ const emit = defineEmits<{
   justify-content: center;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--color-border);
+  border: 1px solid color-mix(in srgb, var(--color-brand-amber-ui) 32%, var(--color-border));
   border-radius: var(--r-md);
-  background: color-mix(in srgb, var(--color-surface-raised) 92%, transparent);
-  backdrop-filter: blur(8px);
+  background: color-mix(in srgb, var(--color-brand-navy) 28%, var(--color-surface-raised) 72%);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-brand-navy) 35%, transparent);
   transform: translateX(-50%);
   max-inline-size: min(42rem, calc(100% - var(--space-6)));
   pointer-events: none;
@@ -132,5 +133,13 @@ select {
   min-inline-size: 8rem;
   text-align: start;
   color: var(--color-text-muted);
+}
+.icon-button:focus-visible,
+.search-button:focus-visible,
+.fit-button:focus-visible,
+.entry-switcher select:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-color: var(--color-brand-amber-ui);
 }
 </style>

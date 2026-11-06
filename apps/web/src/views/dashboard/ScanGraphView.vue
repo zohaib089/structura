@@ -125,6 +125,9 @@ watch(
   min-inline-size: 0;
   min-block-size: 28rem;
   block-size: 100%;
+  background:
+    radial-gradient(60% 70% at 50% 48%, color-mix(in srgb, var(--color-brand-navy) 28%, transparent) 0%, transparent 72%),
+    var(--color-canvas);
 }
 
 /* Dedicated project-graph route uses shell flush content — fill the pane. */

@@ -104,8 +104,16 @@ export function createAppRouter(history: RouterHistory = createWebHistory(import
           {
             path: 'projects/:projectId',
             name: 'workspace-project',
-            component: dashboardView,
-            meta: { dashboardSection: 'project' }
+            redirect: to => ({
+              name: 'project-graph',
+              params: {
+                locale: to.params.locale,
+                workspace: to.params.workspace,
+                projectId: to.params.projectId
+              },
+              query: to.query,
+              hash: to.hash
+            })
           },
           {
             path: 'projects/:projectId/scans',
