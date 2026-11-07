@@ -2,18 +2,28 @@
 import { BRAND } from '../../../../../packages/brand/src/brand'
 import { useLandingLinks } from '../../composables/useLandingLinks'
 import { landingPageCopy as copy } from '../../services/landing-page-copy'
+import { navigationMessages } from '../../services/navigation-messages'
+import { useRoute } from 'vue-router'
+import { computed } from 'vue'
+import { isSupportedWebLocale } from '../../services/locale'
 import BrandMark from '../brand/BrandMark.vue'
 import LocaleSwitcher from '../layout/LocaleSwitcher.vue'
+import ThemeToggle from '../layout/ThemeToggle.vue'
 import GithubMark from './GithubMark.vue'
 import LandingCta from './LandingCta.vue'
 
 const links = useLandingLinks()
+const route = useRoute()
+const navMessages = computed(() => {
+  const raw = route.params.locale
+  return navigationMessages(typeof raw === 'string' && isSupportedWebLocale(raw) ? raw : 'en')
+})
 </script>
 
 <template>
   <header class="landing-nav">
     <RouterLink :to="links.home.value" class="landing-nav__brand" :aria-label="copy.homeLabel">
-      <BrandMark :size="30" />
+      <BrandMark :size="28" />
       <span class="landing-nav__name">{{ BRAND.name }}</span>
     </RouterLink>
     <nav class="landing-nav__links" :aria-label="copy.nav.label">
@@ -24,6 +34,7 @@ const links = useLandingLinks()
     <div class="landing-nav__spacer" />
     <div class="landing-nav__actions">
       <LocaleSwitcher class="landing-nav__locale" />
+      <ThemeToggle :label="navMessages.toggleTheme" />
       <a class="landing-nav__github" :href="links.repo" rel="noopener noreferrer" :aria-label="copy.nav.githubLabel">
         <GithubMark />
         <span>{{ copy.nav.github }}</span>
@@ -88,7 +99,7 @@ const links = useLandingLinks()
 }
 .landing-nav__locale :deep(select) {
   inline-size: 7.5rem;
-  min-block-size: 32px;
+  min-block-size: var(--header-control-h);
   padding-block: var(--space-1);
   font-size: var(--text-13);
 }

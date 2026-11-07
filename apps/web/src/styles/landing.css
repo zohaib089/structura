@@ -40,7 +40,7 @@
   --button-primary-hover-bg: #ffffff;
   --focus-ring: 0 0 0 2px var(--gray-0), 0 0 0 4px var(--color-brand-amber-ui);
 
-  --landing-nav-h: 60px;
+  --landing-nav-h: var(--shell-topbar-height);
   --landing-pad: clamp(20px, 4.5vw, 72px);
   --landing-measure: 1120px;
   --landing-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;

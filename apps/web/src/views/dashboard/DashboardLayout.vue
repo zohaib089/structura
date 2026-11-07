@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import AppShell from '../../components/ui/AppShell.vue'
 import LocaleSwitcher from '../../components/layout/LocaleSwitcher.vue'
 import { getCurrentSession, logoutUser } from '../../services/auth'
-import { useThemeStore } from '../../stores/theme'
+import ThemeToggle from '../../components/layout/ThemeToggle.vue'
 import { dashboardMessages } from '../../services/dashboard-messages'
 import { navigationMessages } from '../../services/navigation-messages'
 import { isSupportedWebLocale, readLocalePreference, resolvePreferredWebLocale } from '../../services/locale'
@@ -36,7 +36,6 @@ interface BreadcrumbItem {
 
 const route = useRoute()
 const router = useRouter()
-const themeStore = useThemeStore()
 const session = getCurrentSession()
 const workspaces = ref<Workspace[]>([])
 const loading = ref(true)
@@ -201,16 +200,14 @@ onMounted(loadWorkspaces)
     :fill-content="fillContent"
   >
     <template #top-actions>
+      <LocaleSwitcher class="topbar-locale" />
+      <ThemeToggle :label="navMessages.toggleTheme" />
       <button v-if="session" type="button" class="ghost-button" @click="handleLogout">
         {{ messages.logOut }}
       </button>
     </template>
 
     <template #sidebar-footer>
-      <LocaleSwitcher />
-      <button type="button" class="ghost-button" @click="themeStore.toggleTheme()">
-        {{ navMessages.toggleTheme }}
-      </button>
       <p v-if="session?.user" class="user-meta">{{ session.user.fullName }}</p>
     </template>
 
@@ -226,6 +223,12 @@ onMounted(loadWorkspaces)
 </template>
 
 <style scoped>
+.topbar-locale :deep(select) {
+  inline-size: 7.5rem;
+  min-block-size: var(--header-control-h);
+  padding-block: var(--space-1);
+  font-size: var(--text-13);
+}
 .shell-route {
   display: flex;
   flex-direction: column;
