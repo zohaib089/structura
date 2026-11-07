@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { Handle, Position } from '@vue-flow/core'
 import { computed } from 'vue'
-import SeverityChip from '../../components/ui/SeverityChip.vue'
-import { SEVERITY_LABELS } from '../../services/severity-display'
+import RadialNodeGlyph from '../../components/graph/RadialNodeGlyph.vue'
+import { nodeFrameSize } from '../../components/graph/radial-geometry'
 import type { SeverityCounts } from '../../services/scan-report-tree'
-import { fileSeverityChips, folderSeverityChip } from '../../services/scan-report-tree-display'
+
+type RadialSeverity = 'critical' | 'high' | 'medium' | 'low' | 'info'
 
 const props = defineProps<{
   id: string
@@ -28,18 +29,16 @@ const props = defineProps<{
   entering?: boolean
   enterDelay?: number
   severityCounts?: SeverityCounts | null
+  severity?: RadialSeverity
+  hot?: boolean
+  deg?: number
 }>()
 
-const emit = defineEmits<{ select: []; toggle: [] }>()
+const emit = defineEmits<{ select: []; toggle: []; hover: []; unhover: []; focus: []; blur: [] }>()
 
 const accessible = computed(() => (props.more ? props.moreLabel : props.label))
-
-const folderChip = computed(() =>
-  props.severityCounts && props.kind !== 'file' ? folderSeverityChip(props.severityCounts) : null
-)
-const fileChips = computed(() =>
-  props.severityCounts && props.kind === 'file' ? fileSeverityChips(props.severityCounts) : null
-)
+const frame = computed(() => nodeFrameSize(props.depth ?? 1, Boolean(props.nucleus)))
+const shownSeverity = computed<RadialSeverity>(() => props.severity ?? 'info')
 
 function onEnter(event: KeyboardEvent) {
   if (event.target !== event.currentTarget) return
@@ -55,9 +54,12 @@ function onSpace(event: KeyboardEvent) {
 
 <template>
   <div
-    class="overview-node"
+    class="overview-node radial__node"
     :class="{
+      'radial__node--entry': nucleus,
+      [`radial__node--ring-${depth ?? 0}`]: true,
       'is-selected': selected,
+      'is-hot': hot,
       'is-nucleus': nucleus,
       'is-dimmed': dimmed,
       'is-more': more,
@@ -65,10 +67,11 @@ function onSpace(event: KeyboardEvent) {
       'is-file': kind === 'file',
       'is-external': kind === 'external',
       'is-unresolved': kind === 'unresolved',
+      'radial__node--unresolved': kind === 'unresolved',
       'is-expanded': expanded,
       'is-entering': entering
     }"
-    :style="{ '--node-layer': `var(--graph-layer-${((depth ?? 0) % 6) + 1})`, animationDelay: `${enterDelay ?? 0}ms` }"
+    :style="{ width: `${frame}px`, height: `${frame}px`, animationDelay: `${enterDelay ?? 0}ms` }"
     :data-node-id="id"
     :data-node-kind="kind"
     :data-cluster-size="cluster ? clusterSize : undefined"
@@ -84,34 +87,23 @@ function onSpace(event: KeyboardEvent) {
     @dblclick.stop.prevent="emit('toggle')"
     @keydown.enter.prevent="onEnter"
     @keydown.space.prevent="onSpace"
+    @mouseenter="emit('hover')"
+    @mouseleave="emit('unhover')"
+    @focus="emit('focus')"
+    @blur="emit('blur')"
   >
-    <Handle type="target" :position="Position.Left" />
-    <span v-if="cluster" class="kind-mark" aria-hidden="true">{{ expanded ? 'â¾' : 'â¸' }}</span>
-    <span v-else-if="more" class="kind-mark" aria-hidden="true">+</span>
-    <span v-else-if="kind === 'unresolved'" class="kind-mark" aria-hidden="true">?</span>
-    <span v-else-if="kind === 'file'" class="kind-mark" aria-hidden="true">{{ (language || 'â¢').slice(0, 1) }}</span>
-    <span v-else class="kind-mark" aria-hidden="true">â¢</span>
-    <span class="label" dir="ltr">{{ more ? moreLabel : label }}</span>
-    <span v-if="folderChip" class="severity-chips">
-      <SeverityChip
-        compact
-        :severity="folderChip.severity"
-        :label="SEVERITY_LABELS[folderChip.severity]"
-        :count="folderChip.count"
-      />
-    </span>
-    <span v-else-if="fileChips && fileChips.chips.length > 0" class="severity-chips">
-      <SeverityChip
-        v-for="chip in fileChips.chips"
-        :key="`${id}-${chip.severity}`"
-        compact
-        :severity="chip.severity"
-        :label="SEVERITY_LABELS[chip.severity]"
-        :count="chip.count"
-      />
-      <span v-if="fileChips.overflow > 0" class="severity-overflow">+{{ fileChips.overflow }}</span>
-    </span>
-    <span v-if="cluster" class="count tnum">{{ clusterSize }}</span>
+    <Handle type="target" :position="Position.Top" class="radial-handle" />
+    <svg class="radial-node-svg" :viewBox="`0 0 ${frame} ${frame}`" :width="frame" :height="frame" aria-hidden="true">
+      <g :transform="`translate(${frame / 2} ${frame / 2})`">
+        <RadialNodeGlyph
+          :label="more ? moreLabel : label"
+          :ring="depth ?? 1"
+          :severity="shownSeverity"
+          :deg="deg ?? 0"
+          :entry="nucleus"
+        />
+      </g>
+    </svg>
     <button
       v-if="cluster || more"
       type="button"
@@ -123,127 +115,55 @@ function onSpace(event: KeyboardEvent) {
     >
       {{ expanded ? '–' : '+' }}
     </button>
-    <Handle type="source" :position="Position.Right" />
+    <Handle type="source" :position="Position.Bottom" class="radial-handle" />
   </div>
 </template>
 
 <style scoped>
 .overview-node {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-block-size: var(--graph-node-height, 2.75rem);
-  min-inline-size: var(--graph-node-min-width, 8rem);
-  max-inline-size: var(--graph-node-max-width, 14rem);
-  padding-inline: var(--space-2);
-  border: var(--graph-node-border-width, 1.5px) solid var(--graph-node-border, var(--color-border-strong));
-  border-radius: var(--graph-node-radius, var(--radius-sm));
-  background: var(--graph-node-fill, var(--color-surface-raised));
-  color: var(--color-text-primary);
-}
-.is-cluster {
-  border-radius: var(--radius-lg);
-  background: var(--surface-tint, var(--graph-cluster-fill));
-  border-inline-start: 3px solid var(--node-layer, var(--graph-layer-1));
-}
-.is-expanded.is-cluster {
-  background: var(--graph-frame-fill);
-  border-style: dashed;
-}
-.is-file { border-radius: var(--radius-full); }
-.is-nucleus.is-file {
-  border-radius: var(--radius-sm);
-  clip-path: polygon(25% 6%, 75% 6%, 96% 50%, 75% 94%, 25% 94%, 4% 50%);
-  padding-inline: var(--space-3);
-  border-width: 2px;
-  border-color: var(--graph-selected-ring, var(--color-brand-amber-ui));
-  background:
-    radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--color-brand-amber-ui) 38%, transparent) 0%, transparent 58%),
-    var(--nucleus-plate, var(--color-brand-navy));
-  color: var(--gray-10);
-  box-shadow: var(--graph-selected-halo, 0 0 0 4px color-mix(in srgb, var(--color-brand-amber-ui) 24%, transparent));
-}
-.is-nucleus.is-file .kind-mark,
-.is-nucleus.is-file .label {
-  color: var(--gray-10);
-}
-.is-nucleus.is-file .kind-mark {
-  color: var(--color-brand-amber-ui);
-}
-.is-external {
-  border-style: dashed;
-  background: var(--graph-external-fill);
-}
-.is-unresolved {
-  background: transparent;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  unicode-bidi: isolate;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-}
-.is-selected .label { font-size: var(--font-size-sm); }
-.count, .kind-mark { color: var(--color-text-secondary); }
-.tnum { font-feature-settings: var(--font-feature-ui); font-variant-numeric: tabular-nums; }
-@media (prefers-reduced-motion: no-preference) {
-  .overview-node { transition: box-shadow var(--duration-fast) var(--easing-standard), border-color var(--duration-fast) var(--easing-standard); }
-  .is-entering { animation: node-in var(--duration-slow) var(--easing-emphasized) both; }
-}
-@keyframes node-in {
-  from { opacity: 0; transform: scale(0.92); }
-  to { opacity: 1; transform: scale(1); }
-}
-.node-toggle {
-  margin-inline-start: auto;
-  min-inline-size: var(--viewer-hit-target, 2.75rem);
-  min-block-size: var(--viewer-hit-target, 2.75rem);
+  position: relative;
+  display: block;
+  padding: 0;
   border: 0;
   background: transparent;
-  color: inherit;
+  overflow: visible;
+  box-sizing: border-box;
 }
-.overview-node:hover {
-  border-color: var(--graph-hover-border);
-  box-shadow: var(--shadow-md);
+.radial-node-svg {
+  display: block;
+  overflow: visible;
+  inline-size: 100%;
+  block-size: 100%;
+}
+.radial-handle {
+  left: 50%;
+  top: 50%;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+.node-toggle {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  border: 0;
+  padding: 0;
 }
 .is-selected {
-  outline: var(--graph-selected-width, 2px) solid var(--graph-selected-ring, var(--color-brand-amber-ui));
-  outline-offset: 0;
-  box-shadow: var(--graph-selected-halo, none);
+  --radial-select: var(--graph-selected-ring, var(--color-brand-amber-ui));
 }
-.is-dimmed { opacity: var(--graph-dim-opacity, 0.2); }
-.is-dimmed .label,
-.is-dimmed .count { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.is-selected .radial__halo {
+  stroke: var(--radial-select, var(--color-brand-amber-ui));
+}
 .overview-node:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
 }
-.is-selected:focus-visible {
-  outline: var(--graph-selected-width, 2px) solid var(--graph-selected-ring, var(--color-brand-amber-ui));
-  outline-offset: 0;
-  box-shadow: var(--focus-ring), var(--graph-selected-halo, none);
+.is-dimmed {
+  opacity: 0.45;
 }
-.label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  unicode-bidi: isolate;
-}
-
-.severity-chips {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1);
-  flex-shrink: 0;
-}
-
-.severity-overflow {
-  font-size: var(--text-12);
-  line-height: var(--text-12-lh);
-  color: var(--color-text-muted);
-}
-
-.count, .kind-mark { color: var(--color-text-secondary); }
 </style>
 
 

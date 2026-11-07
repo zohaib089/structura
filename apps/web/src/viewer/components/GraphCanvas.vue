@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { Background } from '@vue-flow/background'
 import { VueFlow, type Edge, type Node } from '@vue-flow/core'
 import { computed, nextTick, ref, watch } from 'vue'
+import { nodeFrameSize, pathToNucleus } from '../../components/graph/radial-geometry'
+import '../../components/graph/radial-graph.css'
 import { FLOW_EDGE_TYPE, FLOW_NODE_TYPE } from '../caps'
 import { motionMs, prefersReducedMotion } from '../motion'
 import type { OverviewEdgeModel, OverviewNodeModel } from '../overview'
 import type { SeverityCounts } from '../../services/scan-report-tree'
+import { highestSeverity } from '../../services/scan-report-tree'
+
+type RadialSeverity = 'critical' | 'high' | 'medium' | 'low' | 'info'
 import { lookupPathSeverityCounts } from '../../services/scan-report-tree-display'
 import FitFrame from './FitFrame.vue'
 import OverviewEdge from './OverviewEdge.vue'
@@ -51,6 +55,8 @@ const root = ref<HTMLElement | null>(null)
 const entering = ref<Set<string>>(new Set())
 const delays = ref<Map<string, number>>(new Map())
 const canvasReady = ref(false)
+const hoveredId = ref<string | null>(null)
+const focusedId = ref<string | null>(null)
 
 function markCanvasReady() {
   if (canvasReady.value) return
@@ -94,6 +100,33 @@ function severityCountsForPath(path: string): SeverityCounts | null {
   return lookupPathSeverityCounts(props.pathSeverityCounts, path)
 }
 
+const focusDim = computed(() => props.nodes.some(node => node.dimmed))
+const pointerId = computed(() => hoveredId.value ?? focusedId.value ?? props.selectedId)
+const hot = computed(() => {
+  if (focusDim.value) {
+    return {
+      nodeIds: new Set(props.nodes.filter(node => !node.dimmed).map(node => node.id)),
+      edgeIds: new Set(props.edges.filter(edge => flowing(edge)).map(edge => edge.id)),
+      dim: true
+    }
+  }
+  if (!pointerId.value) return { nodeIds: new Set<string>(), edgeIds: new Set<string>(), dim: false }
+  const path = pathToNucleus(pointerId.value, props.nodes, props.edges)
+  return { nodeIds: path.nodeIds, edgeIds: path.edgeIds, dim: true }
+})
+
+function visualSeverity(node: OverviewNodeModel | undefined): RadialSeverity {
+  if (!node || node.kind === 'unresolved' || node.more) return 'info'
+  const counts = severityCountsForPath(node.path)
+  return (counts && highestSeverity(counts)) || 'info'
+}
+
+function nodeDegrees(id: string): number {
+  const point = props.positions.get(id)
+  if (!point) return 0
+  return (Math.atan2(point.y, point.x) * 180) / Math.PI
+}
+
 function flowing(edge: OverviewEdgeModel): boolean {
   if (!props.focusIds || edge.visual === 'unresolved') return false
   const ids = new Set(props.focusIds)
@@ -112,15 +145,19 @@ const flowNodes = () => {
           connectable: false,
           focusable: false,
           deletable: false,
-          data: { ringCount: props.ringCount }
+          data: { ringCount: props.ringCount },
+          style: { width: '1px', height: '1px' }
         } satisfies Node]
       : []
   return [
     ...guide,
-    ...props.nodes.map((node): Node<OverviewNodeModel> => ({
+    ...props.nodes.map((node): Node<OverviewNodeModel> => {
+      const center = props.positions.get(node.id) ?? { x: 0, y: 0 }
+      const frame = nodeFrameSize(node.depth, props.nucleusId === node.id)
+      return {
   id: node.id,
   type: FLOW_NODE_TYPE,
-  position: props.positions.get(node.id) ?? { x: 0, y: 0 },
+  position: { x: center.x - frame / 2, y: center.y - frame / 2 },
   draggable: false,
   selectable: true,
   connectable: false,
@@ -135,8 +172,10 @@ const flowNodes = () => {
           ? { 'data-cluster-size': String(node.clusterSize), 'data-expanded': node.expanded ? 'true' : 'false' }
           : {}),
         ...(node.more ? { 'data-testid': 'expand-more' } : {})
-      } as Node['domAttributes']
-    }))
+      } as Node['domAttributes'],
+      style: { width: `${frame}px`, height: `${frame}px` }
+    }
+    })
   ]
 }
 
@@ -148,7 +187,7 @@ const flowEdges = () => props.edges.map((edge): Edge<OverviewEdgeModel> => ({
   selectable: true,
   deletable: false,
   focusable: false,
-  data: { ...edge, flowing: flowing(edge) },
+  data: { ...edge, flowing: flowing(edge), hot: hot.value.edgeIds.has(edge.id) },
   label: edge.label,
       domAttributes: {
         'data-provenance': edge.provenance,
@@ -200,6 +239,7 @@ defineExpose({ root })
     :data-visible-nodes="visibleFlowNodeCount"
     :data-visible-edges="edges.length"
     :data-aggregated-clusters="clusterCount"
+    :class="{ 'radial--dim': hot.dim }"
   >
     <VueFlow
       :nodes="flowNodes()"
@@ -242,15 +282,20 @@ defineExpose({ root })
           :expand-label="expandLabel"
           :collapse-label="collapseLabel"
           :severity-counts="severityCountsForPath(nodeProps.data?.path ?? '')"
+          :severity="visualSeverity(nodeProps.data)"
+          :hot="hot.nodeIds.has(nodeProps.id)"
+          :deg="nodeDegrees(nodeProps.id)"
           @select="emit('select', nodeProps.id)"
           @toggle="emit('toggle', nodeProps.id)"
+          @hover="hoveredId = nodeProps.id"
+          @unhover="hoveredId = hoveredId === nodeProps.id ? null : hoveredId"
+          @focus="focusedId = nodeProps.id"
+          @blur="focusedId = focusedId === nodeProps.id ? null : focusedId"
         />
       </template>
       <template #edge-overview="edgeProps">
         <OverviewEdge v-bind="edgeProps" />
       </template>
-      <Background variant="dots" :gap="24" :size="1" color="var(--graph-dot)" />
-      <div class="vignette" aria-hidden="true"></div>
       <FitFrame
         :signature="`${fitBump ?? 0}|${nodes.map((node) => node.id).join('\n')}|${(focusIds ?? []).join(',')}`"
         :duration="fitDuration ?? 0"
@@ -263,20 +308,20 @@ defineExpose({ root })
 
 <style scoped>
 .canvas { position: relative; flex: 1; block-size: 100%; min-block-size: 0; direction: ltr; }
-.canvas :deep(.vue-flow) { block-size: 100%; background: var(--color-canvas); }
+.canvas :deep(.vue-flow) { block-size: 100%; background: transparent; }
 .canvas :deep(.vue-flow__attribution) { display: none; }
+.canvas :deep(.vue-flow__node-overview),
+.canvas :deep(.vue-flow__node[data-id="__radial-guides__"]) {
+  overflow: visible;
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
 .canvas :deep(.vue-flow__node[data-id="__radial-guides__"]) {
   pointer-events: none;
   z-index: 0 !important;
 }
 .canvas :deep(.vue-flow__handle) { opacity: 0; }
-.vignette {
-  position: absolute;
-  inset: 0;
-  z-index: var(--z-graph-controls);
-  pointer-events: none;
-  background: var(--color-canvas-vignette);
-}
 </style>
 
 

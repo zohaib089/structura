@@ -1,0 +1,173 @@
+/* Visual language of the landing hero radial graph. Imported by the hero and the dashboard canvas. */
+
+.radial__ring {
+  fill: none;
+  stroke: var(--gray-4);
+  stroke-width: 1;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: radial-ring-in 0.9s var(--easing-product, cubic-bezier(0.2, 0, 0, 1)) both;
+}
+.radial__ring--3,
+.radial__ring--4,
+.radial__ring--5,
+.radial__ring--6 {
+  stroke-dasharray: 2 7;
+}
+.radial__ring-label {
+  fill: var(--gray-7);
+  font: 500 10px var(--landing-font-mono, var(--font-family-mono));
+  letter-spacing: 0.06em;
+  paint-order: stroke;
+  stroke: var(--gray-0);
+  stroke-width: 5px;
+  pointer-events: none;
+}
+
+.radial__edge {
+  fill: none;
+  stroke: #5a6270;
+  stroke-width: 1.3;
+  animation: radial-fade 0.7s var(--easing-product, cubic-bezier(0.2, 0, 0, 1)) both;
+  transition:
+    stroke var(--dur-2, 160ms) var(--easing-product, cubic-bezier(0.2, 0, 0, 1)),
+    opacity var(--dur-2, 160ms) var(--easing-product, cubic-bezier(0.2, 0, 0, 1));
+}
+.radial__edge--inferred {
+  stroke-dasharray: 7 5;
+}
+.radial__edge--mixed {
+  stroke-dasharray: 3 2;
+}
+.radial__edge--unresolved {
+  stroke: var(--gray-7);
+  stroke-dasharray: 1.5 5;
+  stroke-linecap: round;
+}
+.radial__edge.is-hot {
+  stroke: var(--color-brand-amber-ui);
+  stroke-width: 1.9;
+  opacity: 1;
+}
+.radial--dim .radial__edge:not(.is-hot),
+.vue-flow.radial--dim .radial__edge:not(.is-hot) {
+  opacity: 0.28;
+}
+.radial--dim .radial__node:not(.is-hot) {
+  opacity: 0.45;
+}
+
+.radial__node {
+  cursor: pointer;
+  outline: none;
+  transition: opacity var(--dur-2, 160ms) var(--easing-product, cubic-bezier(0.2, 0, 0, 1));
+}
+.radial__node:not(.radial__node--entry) {
+  animation: radial-fade 0.5s var(--easing-product, cubic-bezier(0.2, 0, 0, 1)) both;
+}
+.radial__body {
+  fill: var(--gray-2);
+  stroke-width: 1.6;
+}
+.radial__node--unresolved .radial__body {
+  fill: var(--gray-0);
+  stroke-dasharray: 2 3;
+}
+.radial__halo {
+  fill: none;
+  stroke: var(--color-brand-amber-ui);
+  stroke-width: 2;
+  opacity: 0;
+  transition: opacity var(--dur-2, 160ms) var(--easing-product, cubic-bezier(0.2, 0, 0, 1));
+}
+.radial__node:hover .radial__halo,
+.radial__node:focus-visible .radial__halo,
+.radial__node.is-selected .radial__halo {
+  opacity: 1;
+}
+.radial__label,
+.radial__entry-name,
+.radial__entry-tag {
+  font: 500 11px var(--landing-font-mono, var(--font-family-mono));
+  fill: var(--gray-10);
+  paint-order: stroke;
+  stroke: var(--gray-0);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.radial__entry-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+.radial__entry-tag {
+  font-size: 10px;
+  font-weight: 400;
+  fill: var(--gray-8);
+}
+
+.radial__nucleus .nucleus-sweep,
+.radial__nucleus .nucleus-core {
+  transform-origin: 32px 32px;
+}
+.radial__nucleus .nucleus-sweep {
+  opacity: 0.55;
+  animation: radial-rotate 6s linear infinite;
+}
+.radial__nucleus .nucleus-core {
+  animation: radial-pulse 3s ease-in-out infinite;
+}
+
+.vue-flow__edge.selected .radial__edge,
+.vue-flow__edge:focus .radial__edge,
+.vue-flow__edge:focus-visible .radial__edge {
+  stroke: var(--color-brand-amber-ui);
+  stroke-width: 1.9;
+}
+
+@keyframes radial-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes radial-ring-in {
+  from {
+    opacity: 0;
+    transform: scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes radial-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes radial-pulse {
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+@media (max-width: 640px) {
+  .radial__node--ring-3 .radial__label,
+  .radial__ring-label {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .radial__ring,
+  .radial__edge,
+  .radial__node:not(.radial__node--entry) {
+    animation: none;
+  }
+  .radial__nucleus .nucleus-sweep {
+    display: none;
+  }
+  .radial__nucleus .nucleus-core {
+    animation: none;
+  }
+}
