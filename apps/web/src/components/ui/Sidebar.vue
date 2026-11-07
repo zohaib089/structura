@@ -26,6 +26,7 @@ defineEmits<{
     <div class="brand-row">
       <BrandMark :size="28" />
       <span class="product-name">{{ BRAND.name }}</span>
+      <slot name="brand-action" />
     </div>
     <div class="brand-copy">
         <button type="button" class="workspace-trigger" @click="$emit('openWorkspaceMenu')">

@@ -7,6 +7,7 @@ import { getCurrentSession, logoutUser } from '../../services/auth'
 import ThemeToggle from '../../components/layout/ThemeToggle.vue'
 import { dashboardMessages } from '../../services/dashboard-messages'
 import { navigationMessages } from '../../services/navigation-messages'
+import { viewerMessages } from '../../viewer/messages'
 import { isSupportedWebLocale, readLocalePreference, resolvePreferredWebLocale } from '../../services/locale'
 import {
   listWorkspaces,
@@ -196,13 +197,14 @@ onMounted(loadWorkspaces)
     :skip-to-content-label="messages.skipToContent"
     :command-palette-label="messages.commandPalette"
     :command-palette-hint="messages.commandPaletteHint"
+    :close-navigation-label="viewerMessages(locale).close"
     :flush-content="flushContent"
     :fill-content="fillContent"
   >
     <template #top-actions>
       <LocaleSwitcher class="topbar-locale" />
       <ThemeToggle :label="navMessages.toggleTheme" />
-      <button v-if="session" type="button" class="ghost-button" @click="handleLogout">
+      <button v-if="session" type="button" class="ghost-button topbar-logout" @click="handleLogout">
         {{ messages.logOut }}
       </button>
     </template>
@@ -223,6 +225,17 @@ onMounted(loadWorkspaces)
 </template>
 
 <style scoped>
+.topbar-logout {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  block-size: var(--header-control-h);
+  padding: 0 var(--space-3);
+  font-size: var(--text-13);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1;
+  white-space: nowrap;
+}
 .topbar-locale :deep(select) {
   inline-size: 7.5rem;
   min-block-size: var(--header-control-h);

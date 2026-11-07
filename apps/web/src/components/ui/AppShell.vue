@@ -2,7 +2,9 @@
 import Sidebar, { type SidebarNavItem } from './Sidebar.vue'
 import TopBar from './TopBar.vue'
 import { Menu, X } from '@lucide/vue'
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import BrandMark from '../brand/BrandMark.vue'
+import { BRAND } from '../../../../../packages/brand/src/brand'
 import { useRoute } from 'vue-router'
 import type { BreadcrumbItem } from './Breadcrumbs.vue'
 
@@ -20,16 +22,29 @@ withDefaults(
     flushContent?: boolean
     /** Keep shell padding but lock the pane height so embedded graph can flex-fill. */
     fillContent?: boolean
+    /** Accessible name for the drawer close button (caller passes an existing translated key). */
+    closeNavigationLabel?: string
   }>(),
-  { flushContent: false, fillContent: false }
+  { flushContent: false, fillContent: false, closeNavigationLabel: undefined }
 )
 
 /** Below 900px the sidebar becomes an off-canvas drawer opened from the top bar. */
 const navOpen = ref(false)
+const menuButton = ref<HTMLButtonElement | null>(null)
+const closeButton = ref<HTMLButtonElement | null>(null)
 const route = useRoute()
-watch(() => route?.fullPath, () => { navOpen.value = false })
+function openNav() {
+  navOpen.value = true
+  void nextTick(() => closeButton.value?.focus())
+}
+function closeNav(returnFocus = true) {
+  if (!navOpen.value) return
+  navOpen.value = false
+  if (returnFocus) void nextTick(() => menuButton.value?.focus())
+}
+watch(() => route?.fullPath, () => closeNav(false))
 function onKey(event: KeyboardEvent) {
-  if (event.key === 'Escape') navOpen.value = false
+  if (event.key === 'Escape') closeNav()
 }
 onMounted(() => window.addEventListener('keydown', onKey))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
@@ -38,7 +53,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 <template>
   <div class="app-shell" :class="{ 'app-shell--nav-open': navOpen }">
     <a class="skip-link" href="#app-main-content">{{ skipToContentLabel }}</a>
-    <div v-if="navOpen" class="shell-backdrop" aria-hidden="true" @click="navOpen = false" />
+    <div v-if="navOpen" class="shell-backdrop" aria-hidden="true" @click="closeNav()" />
     <Sidebar
       id="app-shell-sidebar"
       class="shell-sidebar"
@@ -48,6 +63,20 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
       :workspace-label="workspaceLabel"
       @open-workspace-menu="$emit('openWorkspaceMenu')"
     >
+      <template #brand-action>
+        <button
+          v-if="navOpen"
+          ref="closeButton"
+          type="button"
+          class="shell-close-button"
+          data-testid="shell-close-button"
+          :aria-label="closeNavigationLabel ?? appNavigationLabel"
+          :title="closeNavigationLabel ?? appNavigationLabel"
+          @click="closeNav()"
+        >
+          <X :size="18" aria-hidden="true" />
+        </button>
+      </template>
       <template #footer>
         <slot name="sidebar-footer" />
       </template>
@@ -61,6 +90,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
       >
         <template #leading>
           <button
+            ref="menuButton"
             type="button"
             class="shell-menu-button"
             data-testid="shell-menu-button"
@@ -68,11 +98,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
             :aria-expanded="navOpen"
             :aria-label="appNavigationLabel"
             :title="appNavigationLabel"
-            @click="navOpen = !navOpen"
+            @click="navOpen ? closeNav() : openNav()"
           >
-            <X v-if="navOpen" :size="18" aria-hidden="true" />
-            <Menu v-else :size="18" aria-hidden="true" />
+            <Menu :size="18" aria-hidden="true" />
           </button>
+          <span class="shell-mobile-brand" data-testid="shell-mobile-brand">
+            <BrandMark :size="24" :title="BRAND.name" />
+          </span>
         </template>
         <template #actions>
           <slot name="top-actions" />
@@ -183,6 +215,23 @@ export default {
   color: var(--color-text-primary);
   cursor: pointer;
 }
+.shell-close-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  margin-inline-start: auto;
+  inline-size: var(--header-control-h);
+  block-size: var(--header-control-h);
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+.shell-mobile-brand { display: none; flex: none; align-items: center; }
+.shell-close-button:focus-visible,
 .shell-menu-button:focus-visible {
   outline: 2px solid var(--color-brand-amber-ui);
   outline-offset: 2px;
@@ -191,6 +240,7 @@ export default {
 @media (max-width: 900px) {
   .app-shell { grid-template-columns: minmax(0, 1fr); }
   .shell-menu-button { display: inline-flex; }
+  .shell-mobile-brand { display: inline-flex; }
   .shell-sidebar {
     position: fixed;
     inset-block: 0;

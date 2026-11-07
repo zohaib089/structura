@@ -12,9 +12,11 @@ describe('AppShell mobile navigation', () => {
       props: {
         workspaceName: 'Platform team', navItems: [], breadcrumbs: [],
         appNavigationLabel: 'App navigation', workspaceLabel: 'Workspace',
-        skipToContentLabel: 'Skip', commandPaletteLabel: 'Search', commandPaletteHint: '⌘K'
+        skipToContentLabel: 'Skip', commandPaletteLabel: 'Search', commandPaletteHint: '⌘K',
+        closeNavigationLabel: 'Close'
       },
-      global: { plugins: [router] }
+      global: { plugins: [router] },
+      attachTo: document.body
     })
     const button = wrapper.get('[data-testid="shell-menu-button"]')
     expect(button.attributes('aria-label')).toBe('App navigation')
@@ -24,8 +26,19 @@ describe('AppShell mobile navigation', () => {
     await button.trigger('click')
     expect(button.attributes('aria-expanded')).toBe('true')
     expect(wrapper.classes()).toContain('app-shell--nav-open')
+    await wrapper.vm.$nextTick()
+    const close = wrapper.get('#app-shell-sidebar [data-testid="shell-close-button"]')
+    expect(close.attributes('aria-label')).toBe('Close')
+    expect(document.activeElement).toBe(close.element)
+    await close.trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(button.attributes('aria-expanded')).toBe('false')
+    expect(document.activeElement).toBe(button.element)
+    expect(wrapper.find('[data-testid="shell-mobile-brand"] svg[role="img"]').exists()).toBe(true)
+    await button.trigger('click')
     await router.push('/en/w/ws/scans')
     await wrapper.vm.$nextTick()
     expect(button.attributes('aria-expanded')).toBe('false')
+    wrapper.unmount()
   })
 })
