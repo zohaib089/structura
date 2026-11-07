@@ -200,3 +200,9 @@
     background: radial-gradient(closest-side, var(--landing-navy-deep) 0%, #0b1426 100%);
   }
 }
+/* Longer locales (e.g. French) ran the hero lead under the light-theme navy disc; keep the copy column clear of it. */
+@media (min-width: 901px) {
+  [data-theme='light'] .landing-page .landing-hero__copy {
+    max-inline-size: min(600px, 38vw);
+  }
+}
