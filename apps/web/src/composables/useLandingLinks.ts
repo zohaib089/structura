@@ -9,7 +9,7 @@ import {
   readLocalePreference,
   resolvePreferredWebLocale
 } from '../services/locale'
-import { landingPageCopy as copy } from '../services/landing-page-copy'
+import { landingPageCopyFor } from '../services/landing-page-copy'
 
 /**
  * Resolved landing link targets for the current locale (see landing-links.ts for the config).
@@ -27,8 +27,8 @@ export function useLandingLinks() {
   const app = computed(() => {
     if (!hostedAppEnabled) return null
     return signedIn.value
-      ? { to: localizedPath(locale.value, LANDING_LINKS.projectsPath), label: copy.cta.projects }
-      : { to: localizedPath(locale.value, LANDING_LINKS.scanPath), label: copy.cta.scan }
+      ? { to: localizedPath(locale.value, LANDING_LINKS.projectsPath), label: landingPageCopyFor(locale.value).cta.projects }
+      : { to: localizedPath(locale.value, LANDING_LINKS.scanPath), label: landingPageCopyFor(locale.value).cta.scan }
   })
   return {
     locale,

@@ -2,11 +2,14 @@
 import { ArrowRight, CircleDot } from '@lucide/vue'
 import { computed, ref } from 'vue'
 import { useLandingLinks } from '../../composables/useLandingLinks'
-import { landingPageCopy as copy, stepsAway } from '../../services/landing-page-copy'
+import { useLandingCopy } from '../../composables/useLandingCopy'
+import { fillCopy } from '../../services/landing-page-copy'
 import { SAMPLE_NODES, type SampleNode } from '../../services/landing-sample-graph'
 import GithubMark from './GithubMark.vue'
 import LandingCta from './LandingCta.vue'
 import RadialSampleGraph from './RadialSampleGraph.vue'
+
+const copy = useLandingCopy()
 
 const links = useLandingLinks()
 const inspected = ref<SampleNode | null>(null)
@@ -20,8 +23,8 @@ const inspectParts = computed(() => {
   const node = inspected.value
   if (!node || node.entry) return null
   return {
-    severity: node.severity === 'info' ? copy.severity.info : `${copy.severity[node.severity]} issue`,
-    steps: stepsAway(node.ring),
+    severity: node.severity === 'info' ? copy.severity.info : fillCopy(copy.a11y.issue, { severity: copy.severity[node.severity] }),
+    steps: copy.stepsAway(node.ring),
     link: copy.linkKind[node.link]
   }
 })
@@ -78,7 +81,7 @@ const inspectBody = computed(() =>
           </div>
           <div class="landing-hero__inspect-body">
             <template v-if="inspectParts">
-              <b>{{ inspectParts.severity }}</b> · {{ inspectParts.steps }} from {{ SAMPLE_NODES[0]?.label }} · link:
+              <b>{{ inspectParts.severity }}</b> · {{ fillCopy(copy.a11y.inspectSteps, { steps: inspectParts.steps, start: SAMPLE_NODES[0]?.label ?? '' }) }} · {{ copy.a11y.inspectLink }}
               <b>{{ inspectParts.link }}</b>
             </template>
             <template v-else>{{ inspectBody }}</template>

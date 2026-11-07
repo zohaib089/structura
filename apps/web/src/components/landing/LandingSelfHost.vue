@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { Check } from '@lucide/vue'
 import { useLandingLinks } from '../../composables/useLandingLinks'
-import { landingPageCopy as copy } from '../../services/landing-page-copy'
+import { useLandingCopy } from '../../composables/useLandingCopy'
 import GithubMark from './GithubMark.vue'
 import LandingCta from './LandingCta.vue'
 import LandingSection from './LandingSection.vue'
+
+const copy = useLandingCopy()
 
 const links = useLandingLinks()
 </script>

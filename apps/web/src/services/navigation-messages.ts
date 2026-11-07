@@ -10,6 +10,10 @@ export interface NavigationMessages {
   quickstart: string
   language: string
   toggleTheme: string
+  /** Accessible name for the dashboard drawer close button. */
+  closeMenu: string
+  /** Brand tagline shown on the sign-in brand panel. */
+  brandTagline: string
   logIn: string
   logOut: string
   launchApp: string
@@ -33,6 +37,8 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     quickstart: 'Quickstart',
     language: 'Language',
     toggleTheme: 'Toggle theme',
+    closeMenu: 'Close menu',
+    brandTagline: 'Your architecture, owned and verified.',
     logIn: 'Log in',
     logOut: 'Log out',
     launchApp: 'Launch app',
@@ -48,6 +54,8 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     quickstart: 'Quickstart',
     language: 'Idioma',
     toggleTheme: 'Alternar tema',
+    closeMenu: 'Fechar menu',
+    brandTagline: 'A sua arquitetura, sob o seu controlo e verificada.',
     logIn: 'Entrar',
     logOut: 'Sair',
     launchApp: 'Abrir aplicativo',
@@ -63,6 +71,8 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     quickstart: 'Quickstart',
     language: 'Lingua',
     toggleTheme: 'Cambia tema',
+    closeMenu: 'Chiudi menu',
+    brandTagline: 'La tua architettura, sotto il tuo controllo e verificata.',
     logIn: 'Accedi',
     logOut: 'Esci',
     launchApp: 'Apri app',
@@ -78,6 +88,8 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     quickstart: 'Quickstart',
     language: 'Langue',
     toggleTheme: 'Changer de thème',
+    closeMenu: 'Fermer le menu',
+    brandTagline: 'Votre architecture, maîtrisée et vérifiée.',
     logIn: 'Connexion',
     logOut: 'Déconnexion',
     launchApp: 'Ouvrir l’application',
@@ -93,6 +105,8 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     quickstart: 'Quickstart',
     language: 'Taal',
     toggleTheme: 'Thema wisselen',
+    closeMenu: 'Menu sluiten',
+    brandTagline: 'Je architectuur, in eigen beheer en geverifieerd.',
     logIn: 'Inloggen',
     logOut: 'Uitloggen',
     launchApp: 'App openen',
@@ -108,6 +122,8 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     quickstart: 'Quickstart',
     language: 'Idioma',
     toggleTheme: 'Cambiar tema',
+    closeMenu: 'Cerrar menú',
+    brandTagline: 'Tu arquitectura, bajo tu control y verificada.',
     logIn: 'Iniciar sesión',
     logOut: 'Cerrar sesión',
     launchApp: 'Abrir aplicación',
@@ -123,6 +139,8 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     quickstart: 'Quickstart',
     language: '言語',
     toggleTheme: 'テーマを切り替え',
+    closeMenu: 'メニューを閉じる',
+    brandTagline: 'あなたのアーキテクチャを、自分の手で、確かな根拠とともに。',
     logIn: 'ログイン',
     logOut: 'ログアウト',
     launchApp: 'アプリを開く',
@@ -138,6 +156,8 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     quickstart: 'Quickstart',
     language: '语言',
     toggleTheme: '切换主题',
+    closeMenu: '关闭菜单',
+    brandTagline: '你的架构，自主掌控，有据可查。',
     logIn: '登录',
     logOut: '退出登录',
     launchApp: '打开应用',
@@ -153,6 +173,8 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     quickstart: 'Quickstart',
     language: 'भाषा',
     toggleTheme: 'थीम बदलें',
+    closeMenu: 'मेनू बंद करें',
+    brandTagline: 'आपका आर्किटेक्चर, आपके नियंत्रण में और सत्यापित।',
     logIn: 'लॉग इन करें',
     logOut: 'लॉग आउट करें',
     launchApp: 'ऐप खोलें',
@@ -168,6 +190,8 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     quickstart: 'Quickstart',
     language: 'زبان',
     toggleTheme: 'تھیم تبدیل کریں',
+    closeMenu: 'مینو بند کریں',
+    brandTagline: 'آپ کا آرکیٹیکچر، آپ کے اختیار میں اور تصدیق شدہ۔',
     logIn: 'لاگ اِن',
     logOut: 'لاگ آؤٹ',
     launchApp: 'ایپ کھولیں',

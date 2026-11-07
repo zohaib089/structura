@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { landingPageCopy as copy } from '../../services/landing-page-copy'
+import { useLandingCopy } from '../../composables/useLandingCopy'
 import LandingSection from './LandingSection.vue'
+
+const copy = useLandingCopy()
 
 /** Line style per link kind: solid, dashed, dotted (hollow dotted ends for "couldn't confirm"). */
 const LINE: Record<string, { dash?: string; width: number; cap?: 'round'; hollow?: boolean }> = {

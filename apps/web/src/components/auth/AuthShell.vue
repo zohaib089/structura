@@ -1,6 +1,16 @@
 <script setup lang="ts">
 import BrandMark from '../brand/BrandMark.vue'
 import { BRAND } from '../../../../../packages/brand/src/brand'
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+import { isSupportedWebLocale } from '../../services/locale'
+import { navigationMessages } from '../../services/navigation-messages'
+
+const route = useRoute()
+const tagline = computed(() => {
+  const raw = route?.params.locale
+  return navigationMessages(typeof raw === 'string' && isSupportedWebLocale(raw) ? raw : 'en').brandTagline
+})
 
 defineProps({
   eyebrow: {
@@ -25,7 +35,7 @@ defineProps({
         <div class="brand-panel__inner">
           <BrandMark :size="56" :title="BRAND.name" />
           <p class="wordmark">{{ BRAND.name }}</p>
-          <p class="tagline">{{ BRAND.tagline }}</p>
+          <p class="tagline">{{ tagline }}</p>
         </div>
       </aside>
 

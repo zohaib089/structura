@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { Code, Monitor, Tag, UserX } from '@lucide/vue'
 import type { Component } from 'vue'
-import { landingPageCopy as copy } from '../../services/landing-page-copy'
+import { useLandingCopy } from '../../composables/useLandingCopy'
+
+const copy = useLandingCopy()
 
 const icons: Record<string, Component> = { monitor: Monitor, user: UserX, code: Code, tag: Tag }
 </script>

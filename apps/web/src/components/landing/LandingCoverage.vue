@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { Check, CircleAlert } from '@lucide/vue'
-import { landingPageCopy as copy } from '../../services/landing-page-copy'
+import { useLandingCopy } from '../../composables/useLandingCopy'
 import LandingSection from './LandingSection.vue'
+
+const copy = useLandingCopy()
 </script>
 
 <template>
