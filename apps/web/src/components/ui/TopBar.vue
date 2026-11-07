@@ -10,7 +10,8 @@ defineProps<{
 
 <template>
   <header class="topbar" role="banner">
-    <Breadcrumbs :items="breadcrumbs" />
+    <slot name="leading" />
+    <Breadcrumbs class="topbar-crumbs" :items="breadcrumbs" />
     <div class="topbar-actions">
       <button type="button" class="command-button" :aria-label="commandPaletteLabel" disabled>
         <span>{{ commandPaletteLabel }}</span>
@@ -34,7 +35,14 @@ defineProps<{
   background: var(--color-surface);
 }
 
+.topbar-crumbs {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
 .topbar-actions {
+  flex: none;
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -62,5 +70,14 @@ defineProps<{
   font-family: var(--font-family-mono);
   font-size: var(--text-12);
   color: var(--color-text-muted);
+}
+
+@media (max-width: 900px) {
+  .topbar { gap: var(--space-2); padding: 0 var(--space-3); }
+  .topbar-actions { gap: var(--space-1); }
+  .command-button { display: none; }
+}
+@media (max-width: 480px) {
+  .topbar-crumbs { display: none; }
 }
 </style>

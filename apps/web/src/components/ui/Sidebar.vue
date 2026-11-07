@@ -24,14 +24,15 @@ defineEmits<{
 <template>
   <aside class="sidebar">
     <div class="brand-row">
-      <BrandMark :size="22" />
-      <div class="brand-copy">
-        <span class="product-name">{{ BRAND.name }}</span>
+      <BrandMark :size="28" />
+      <span class="product-name">{{ BRAND.name }}</span>
+      <slot name="brand-action" />
+    </div>
+    <div class="brand-copy">
         <button type="button" class="workspace-trigger" @click="$emit('openWorkspaceMenu')">
           <span class="workspace-label">{{ workspaceLabel }}</span>
           <span class="workspace-name" role="heading" aria-level="2">{{ workspaceName }}</span>
         </button>
-      </div>
     </div>
 
     <nav class="sidebar-nav" :aria-label="appNavigationLabel">
@@ -68,24 +69,29 @@ defineEmits<{
   border-right: 1px solid var(--color-border);
 }
 
+/* Matches the 56px TopBar so the drawer and header share one baseline (S1). */
 .brand-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--space-3);
-  margin-bottom: var(--space-6);
+  box-sizing: border-box;
+  block-size: var(--shell-topbar-height);
+  margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-3)) var(--space-4);
+  padding-inline: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .brand-copy {
   display: grid;
   gap: var(--space-1);
   min-width: 0;
+  margin-bottom: var(--space-6);
 }
 
 .product-name {
-  font-size: var(--text-14);
-  line-height: var(--text-14-lh);
+  font-size: 18px;
   font-weight: var(--font-weight-semibold);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 
 .workspace-trigger {

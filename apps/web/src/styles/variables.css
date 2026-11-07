@@ -69,7 +69,10 @@
 
   --shell-sidebar-width: 232px;
   --shell-sidebar-collapsed: 56px;
-  --shell-topbar-height: 48px;
+  /* One header geometry for landing, auth and dashboard (S1). */
+  --shell-topbar-height: 56px;
+  --header-control-h: 32px;
+  --header-brand-mark: 28px;
 
   --button-primary-bg: var(--gray-10);
   --button-primary-fg: var(--gray-0);

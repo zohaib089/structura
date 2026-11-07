@@ -1,19 +1,17 @@
 <script setup lang="ts">
-import { Moon, Sun } from '@lucide/vue';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { BRAND } from '../../../../../packages/brand/src/brand'
 import BrandMark from '../brand/BrandMark.vue'
 import { hostedAppEnabled } from '../../hosted-app'
-import { useThemeStore } from '../../stores/theme';
 import LocaleSwitcher from './LocaleSwitcher.vue'
+import ThemeToggle from './ThemeToggle.vue'
 import { isSupportedWebLocale, readLocalePreference, resolvePreferredWebLocale } from '../../services/locale'
 import { navigationMessages } from '../../services/navigation-messages'
 import { getCurrentSession, logoutUser } from '../../services/auth'
 
 const route = useRoute()
 const router = useRouter()
-const themeStore = useThemeStore()
 
 const locale = computed(() => {
   const routeLocale = route.params.locale
@@ -77,10 +75,7 @@ async function handleLogout() {
       <div class="right-side">
         <LocaleSwitcher />
 
-        <button class="theme-btn" @click="themeStore.toggleTheme" :aria-label="messages.toggleTheme">
-          <Sun v-if="themeStore.theme === 'dark'" :size="18" />
-          <Moon v-else :size="18" />
-        </button>
+        <ThemeToggle :label="messages.toggleTheme" />
 
         <button v-if="hostedAppEnabled && isAuthenticated" type="button" class="btn-signup" @click="handleLogout">
           {{ messages.logOut }}
@@ -97,249 +92,82 @@ async function handleLogout() {
 </template>
 
 <style scoped>
+/* Same geometry as LandingNav and the dashboard TopBar: full-width bar, --shell-topbar-height, bottom border. */
 .navbar {
-  position: fixed;
+  position: sticky;
   top: 0;
-  left: 0;
-  right: 0;
   z-index: 100;
-  padding: var(--space-4) var(--space-3) 0;
-  pointer-events: none;
+  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  border-block-end: 1px solid var(--color-border);
 }
-
+.navbar.is-scrolled { backdrop-filter: blur(10px); }
+@media (prefers-reduced-transparency: reduce) {
+  .navbar.is-scrolled { backdrop-filter: none; background: var(--color-surface); }
+}
 .container {
-  width: calc(100% - 28px);
-  max-width: none;
-  margin: 0 auto;
-  padding: var(--space-3) var(--space-5);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-6);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-2xl);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-md);
-  pointer-events: auto;
+  block-size: var(--shell-topbar-height);
+  padding-inline: var(--space-6);
 }
-
-.navbar.is-scrolled .container {
-  background: var(--color-surface-overlay);
-  backdrop-filter: blur(12px);
-}
-
-@media (prefers-reduced-transparency: reduce) {
-  .navbar.is-scrolled .container { backdrop-filter: none; }
-}
-
-.logo-wrap {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-}
-
+.logo-wrap { display: flex; align-items: center; flex-shrink: 0; }
 .logo {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: var(--space-3);
+  border-radius: var(--r-sm);
+  color: var(--color-text-primary);
   text-decoration: none;
-  color: inherit;
 }
-
-.logo-icon {
-  position: relative;
-  width: 42px;
-  height: 42px;
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--color-accent-primary) var(--alpha-20), transparent), color-mix(in srgb, var(--color-accent-secondary) var(--alpha-20), transparent));
-  border: 1px solid color-mix(in srgb, var(--color-accent-primary) var(--alpha-32), transparent);
-  box-shadow: var(--shadow-accent-glow);
-}
-
-.logo-mark {
-  position: relative;
-  width: 18px;
-  height: 18px;
-  border-radius: var(--radius-sm);
-  border: 2px solid color-mix(in srgb, var(--color-highlight) var(--alpha-90), transparent);
-  border-left-color: color-mix(in srgb, var(--color-accent-primary) var(--alpha-90), transparent);
-  border-bottom-color: color-mix(in srgb, var(--color-accent-secondary) var(--alpha-90), transparent);
-  transform: rotate(45deg);
-  box-shadow: var(--shadow-accent-glow);
-}
-
-.logo-mark::before {
-  content: '';
-  position: absolute;
-  inset: 4px 4px 4px 4px;
-  border-radius: var(--radius-sm);
-  border: 1px solid color-mix(in srgb, var(--color-highlight) var(--alpha-80), transparent);
-  border-left-color: transparent;
-  border-top-color: transparent;
-}
-
 .logo-text {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-extrabold);
-  color: var(--color-text-primary);
-  letter-spacing: var(--tracking-tighter);
+  font-size: 18px;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.02em;
 }
-
-.nav-links {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-6);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-full);
-  background: color-mix(in srgb, var(--color-accent-primary) var(--alpha-04), transparent);
-  border: 1px solid color-mix(in srgb, var(--color-accent-primary) var(--alpha-08), transparent);
-}
-
+.nav-links { display: flex; align-items: center; gap: var(--space-1); }
 .nav-links a {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: var(--tracking-wide);
-  transition: color var(--duration-normal) ease, transform var(--duration-normal) ease;
-}
-
-.nav-links a:hover {
-  color: var(--color-accent-primary);
-  transform: translateY(-1px);
-}
-
-.right-side {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-shrink: 0;
-}
-
-.theme-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-md);
-  border: 1px solid color-mix(in srgb, var(--color-accent-primary) var(--alpha-16), transparent);
-  background: color-mix(in srgb, var(--color-accent-primary) var(--alpha-04), transparent);
-  color: var(--color-text-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all var(--duration-normal) ease;
-}
-
-.theme-btn:hover {
-  border-color: color-mix(in srgb, var(--color-accent-primary) var(--alpha-50), transparent);
-  box-shadow: var(--shadow-accent-glow);
-  transform: translateY(-1px);
-}
-
-.btn-login {
   padding: var(--space-2) var(--space-3);
-  color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  border-radius: var(--radius-sm);
-  transition: all var(--duration-normal) ease;
+  border-radius: var(--r-sm);
+  color: var(--color-text-secondary);
+  font-size: var(--text-14);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
 }
-
-.btn-login:hover {
-  color: var(--color-accent-primary);
-  background: color-mix(in srgb, var(--color-accent-primary) var(--alpha-04), transparent);
+.nav-links a:hover { color: var(--color-text-primary); background: var(--gray-3); }
+.right-side { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+:deep(.locale-control select) {
+  inline-size: 7.5rem;
+  min-block-size: var(--header-control-h);
+  padding-block: var(--space-1);
+  font-size: var(--text-13);
 }
-
+.btn-login,
 .btn-signup {
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-md);
-  background: var(--color-accent-gradient-soft);
-  color: var(--color-text-on-accent);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-extrabold);
-  box-shadow: var(--shadow-accent-glow);
-  transition: all var(--duration-normal) ease;
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--header-control-h);
+  padding: 0 var(--space-3);
+  border-radius: var(--r-sm);
+  font-size: var(--text-13);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
 }
-
-.btn-signup:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-secondary-glow);
+.btn-login { color: var(--color-text-primary); border: 1px solid var(--color-border); background: transparent; }
+.btn-login:hover { background: var(--gray-3); }
+.btn-signup {
+  border: 0;
+  background: var(--button-primary-bg);
+  color: var(--button-primary-fg);
+  cursor: pointer;
 }
-
-[data-theme='light'] .container {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--color-highlight) var(--alpha-90), transparent), color-mix(in srgb, var(--color-surface-raised) var(--alpha-90), transparent));
-  border-color: color-mix(in srgb, var(--color-surface) var(--alpha-08), transparent);
-  box-shadow: var(--shadow-accent-glow);
-}
-
-[data-theme='light'] .nav-links {
-  background: color-mix(in srgb, var(--color-highlight) var(--alpha-70), transparent);
-  border-color: color-mix(in srgb, var(--color-surface) var(--alpha-04), transparent);
-}
-
-[data-theme='light'] .nav-links a,
-[data-theme='light'] .btn-login {
-  color: var(--color-text-primary);
-}
-
-[data-theme='light'] .theme-btn,
-[data-theme='light'] .btn-login:hover {
-  background: color-mix(in srgb, var(--color-highlight) var(--alpha-70), transparent);
-}
-
-[data-theme='light'] .logo-icon {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--color-accent-primary) var(--alpha-12), transparent), color-mix(in srgb, var(--color-accent-secondary) var(--alpha-12), transparent));
-  border-color: color-mix(in srgb, var(--color-accent-primary) var(--alpha-20), transparent);
-}
-
-[data-theme='light'] .logo-mark {
-  border-color: color-mix(in srgb, var(--color-surface) var(--alpha-90), transparent);
-  border-left-color: color-mix(in srgb, var(--color-accent-primary) var(--alpha-90), transparent);
-  border-bottom-color: color-mix(in srgb, var(--color-accent-secondary) var(--alpha-90), transparent);
-}
-
-[data-theme='light'] .logo-mark::before {
-  border-color: color-mix(in srgb, var(--color-surface) var(--alpha-70), transparent);
-}
-
-@media (max-width: 1000px) {
-  .nav-links {
-    display: none;
-  }
-}
-
+@media (max-width: 1000px) { .nav-links { display: none; } }
 @media (max-width: 640px) {
-  .navbar {
-    padding: var(--space-3) var(--space-3) 0;
-  }
-
-  .container {
-    width: calc(100% - 12px);
-    padding: var(--space-3) var(--space-3);
-    gap: var(--space-3);
-  }
-
-  .logo-text {
-    font-size: var(--font-size-md);
-  }
-
-  .btn-login {
-    display: none;
-  }
-
-  .right-side {
-    gap: var(--space-1);
-  }
-
-  :deep(.locale-control select) {
-    width: 5.75rem;
-  }
-
-  .btn-signup {
-    padding: var(--space-2) var(--space-2);
-  }
+  .container { padding-inline: var(--space-3); gap: var(--space-2); }
+  .right-side { gap: var(--space-1); }
+  .btn-login { display: none; }
+  :deep(.locale-control select) { inline-size: 5.75rem; }
 }
+@media (max-width: 400px) { .logo-text { display: none; } }
 </style>

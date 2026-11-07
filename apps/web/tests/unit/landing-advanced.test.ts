@@ -1,5 +1,6 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createPinia } from 'pinia'
 import { nextTick } from 'vue'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 
@@ -41,7 +42,7 @@ async function mountHome() {
   const router = makeRouter()
   await router.push('/en')
   await router.isReady()
-  const wrapper = mount(HomeView, { global: { plugins: [router] }, attachTo: document.body })
+  const wrapper = mount(HomeView, { global: { plugins: [router, createPinia()] }, attachTo: document.body })
   mounted.push(wrapper)
   return { wrapper, router }
 }
@@ -206,6 +207,12 @@ describe('HomeView', () => {
     await nextTick()
     expect(toast.toasts).toHaveLength(0)
     stack.unmount()
+  })
+
+  it('offers an icon-only theme toggle in the landing header', async () => {
+    const { wrapper } = await mountHome()
+    const toggle = wrapper.get('.landing-nav [data-testid="theme-toggle"]')
+    expect(toggle.attributes('aria-label')).toBe('Toggle theme')
   })
 
   it('sets and restores the document title', async () => {

@@ -40,7 +40,7 @@
   --button-primary-hover-bg: #ffffff;
   --focus-ring: 0 0 0 2px var(--gray-0), 0 0 0 4px var(--color-brand-amber-ui);
 
-  --landing-nav-h: 60px;
+  --landing-nav-h: var(--shell-topbar-height);
   --landing-pad: clamp(20px, 4.5vw, 72px);
   --landing-measure: 1120px;
   --landing-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -57,6 +57,31 @@
   color: var(--gray-10);
   font: 400 16px / 1.6 var(--font-family-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * Light landing (S1). Dark above stays the default; this only applies when the user picks light.
+ * Values mirror the light product ramp in variables.css. Navy band tokens are kept so the hero graph stays on navy.
+ */
+[data-theme='light'] .landing-page {
+  color-scheme: light;
+
+  --gray-0: #ffffff;
+  --gray-1: #f7f8fa;
+  --gray-2: #ffffff;
+  --gray-3: #eef0f3;
+  --gray-4: #e2e5e9;
+  --gray-5: #c9ced5;
+  --gray-7: #6b717b;
+  --gray-8: #5b616b;
+  --gray-10: #16181c;
+  --sev-critical-fg: #b4232c;
+  --sev-high-fg: #b45309;
+  --sev-medium-fg: #8a6a00;
+  --sev-low-fg: #1d5fb8;
+  --sev-info-fg: #5b616b;
+  --color-brand-amber-ui: #b7791f;
+  --button-primary-hover-bg: #000000;
 }
 
 .landing-page :focus-visible {
@@ -127,5 +152,51 @@
 @media (max-width: 900px) {
   .landing-page {
     overflow-x: clip;
+  }
+}
+
+/*
+ * Light landing: keep the sample graph on a stable navy surface with its dark-theme palette,
+ * so labels, rings and outer nodes stay legible. Renderer, layout and data are untouched; dark is unchanged.
+ */
+[data-theme='light'] .landing-page .landing-hero__graph {
+  color-scheme: dark;
+
+  --gray-0: #0b0d10;
+  --gray-1: #111317;
+  --gray-2: #181b20;
+  --gray-3: #1f2329;
+  --gray-4: #2a2f36;
+  --gray-5: #3a4049;
+  --gray-7: #7d838c;
+  --gray-8: #9ba1a9;
+  --gray-10: #e6e8eb;
+  --sev-critical-fg: #ff6b6b;
+  --sev-high-fg: #ff9a5c;
+  --sev-medium-fg: #f5c84b;
+  --sev-low-fg: #6cb6ff;
+  --sev-info-fg: #a1a8b3;
+  --color-brand-amber-ui: #e0a040;
+  --color-text-primary: var(--gray-10);
+  --color-text-secondary: var(--gray-8);
+  --color-text-muted: var(--gray-7);
+  --color-border: var(--gray-4);
+
+  color: var(--gray-10);
+  background: radial-gradient(closest-side, var(--landing-navy-deep) 0%, #0b1426 88%, transparent 100%);
+  border-radius: 50%;
+}
+/* The white scrim would cut a hard edge across the navy disc in light; the headline already sits clear of it. */
+[data-theme='light'] .landing-page .landing-hero::after {
+  background: linear-gradient(90deg, var(--gray-0) 0%, color-mix(in srgb, var(--gray-0) 85%, transparent) 30%, transparent 45%);
+}
+/* The dark hero's navy glow reads as a grey smear on white; the navy disc above carries the graph instead. */
+[data-theme='light'] .landing-page .landing-hero {
+  background: var(--gray-0);
+}
+/* Phones/tablets: the graph sits below the copy, so a hard-edged disc avoids the soft halo smearing grey. */
+@media (max-width: 900px) {
+  [data-theme='light'] .landing-page .landing-hero__graph {
+    background: radial-gradient(closest-side, var(--landing-navy-deep) 0%, #0b1426 100%);
   }
 }
