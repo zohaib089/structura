@@ -28,7 +28,7 @@ const links = useLandingLinks()
       </div>
       <div class="sh__term" role="group" :aria-label="copy.selfHost.terminalLabel">
         <div class="sh__term-head"><span>{{ copy.selfHost.terminalBadge }}</span><span>{{ copy.selfHost.terminalTitle }}</span></div>
-        <pre><span v-for="line in copy.selfHost.terminalLines" :key="line.comment" class="sh__group"><span class="sh__comment">{{ line.comment }}</span><span class="sh__command">{{ line.command }}</span></span></pre>
+        <pre><span v-for="line in copy.selfHost.terminalLines" :key="line.comment" class="sh__group"><span class="sh__comment">{{ line.comment }}</span><span class="sh__command" dir="ltr">{{ line.command }}</span></span></pre>
       </div>
     </div>
   </LandingSection>

@@ -116,3 +116,28 @@ describe('small auth and shell translations', () => {
     expect(wrapper.get('.tagline').text()).toBe('Votre architecture, maîtrisée et vérifiée.')
   })
 })
+
+describe('RTL code direction and light navy band palette', () => {
+  it('keeps code and command examples left-to-right on the Urdu landing, in exact order', async () => {
+    const r = router()
+    await r.push('/ur')
+    await r.isReady()
+    const wrapper = mount(HomeView, { global: { plugins: [r, createPinia()] }, attachTo: document.body })
+    const codes = wrapper.findAll('.conn__row code')
+    expect(codes.length).toBe(3)
+    for (const code of codes) expect(code.attributes('dir')).toBe('ltr')
+    expect(codes[0].text()).toContain("import { auth } from './auth'")
+    const commands = wrapper.findAll('.sh__command')
+    expect(commands.map(c => c.attributes('dir'))).toEqual(['ltr', 'ltr', 'ltr'])
+    expect(commands.map(c => c.text())).toEqual(['git clone <atlasmith-repo-url>', 'docker compose up --build', 'http://localhost:5173'])
+    wrapper.unmount()
+  })
+
+  it('scopes a dark-surface palette to the navy band in light theme and mirrors the hero fade in RTL', async () => {
+    const { readFileSync } = await import('node:fs')
+    const css = readFileSync(`${process.cwd()}/src/styles/landing.css`, 'utf8')
+    expect(css).toMatch(/\[data-theme='light'\] \.landing-page \.landing-band--navy \{\s*color-scheme: dark;\s*--gray-0: #0b0d10;[\s\S]*?--gray-10: #e6e8eb;/)
+    expect(css).toMatch(/\[dir='rtl'\] \.landing-page \.landing-hero::after \{\s*background: linear-gradient\(270deg/)
+    expect(css).toMatch(/\.landing-page \[dir='ltr'\] \{\s*unicode-bidi: isolate;\s*direction: ltr;/)
+  })
+})

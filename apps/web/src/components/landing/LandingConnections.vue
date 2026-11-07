@@ -48,7 +48,7 @@ const LINE: Record<string, { dash?: string; width: number; cap?: 'round'; hollow
           <div>
             <h3>{{ row.title }} <span class="conn__tag">{{ row.tag }}</span></h3>
             <p>{{ row.body }}</p>
-            <code><span class="conn__comment">{{ row.commentLine }}</span><span class="conn__line">{{ row.codeLine }}</span></code>
+            <code dir="ltr"><span class="conn__comment">{{ row.commentLine }}</span><span class="conn__line">{{ row.codeLine }}</span></code>
           </div>
         </div>
       </div>
