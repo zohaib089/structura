@@ -110,7 +110,7 @@ describe('viewer components', () => {
         ]
       }
     })
-    expect(legend.findAll('line').map((line) => line.attributes('stroke-dasharray') ?? 'none')).toEqual(['none', '7 5', '0.1 6'])
+    expect(legend.findAll('line').map((line) => line.attributes('stroke-dasharray') ?? 'none')).toEqual(['none', '7 5', '1.5 5'])
 
     const meter = mount(BudgetMeter, {
       props: { text: 'Showing 4 of 1000 nodes · 3 of 1000 edges', ratio: 0.2, warn: false, full: false, nearLabel: 'near', fullLabel: 'full', hiddenLabel: '' }

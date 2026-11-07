@@ -1,8 +1,10 @@
 /**
  * Sample data for the landing hero graph (design: landing-advanced.md §2, mockups/landing-advanced.html).
- * Everything here is made up. The layout is pure maths so it can be unit tested without a DOM.
- * Swap for the shared radial graph component once the D3 radial layout lands.
+ * Everything here is made up. Positions use the shared radial geometry so the dashboard
+ * graph draws rings, edges, and nodes with the same measurements.
  */
+import { quadraticEdgePath, ringLabelDegrees, ringRadius, HERO_RING_RADII } from '../components/graph/radial-geometry'
+
 export type SampleSeverity = 'critical' | 'high' | 'medium' | 'low' | 'info'
 export type SampleLinkKind = 'extracted' | 'inferred' | 'unresolved' | 'start'
 
@@ -31,7 +33,7 @@ export interface SampleEdge {
 
 export const GRAPH_VIEWBOX = 1000
 export const GRAPH_CENTER = 500
-export const RING_RADII = [0, 140, 262, 372] as const
+export const RING_RADII = HERO_RING_RADII
 
 type Ring1 = [label: string, severity: SampleSeverity, deg: number]
 type Ring2 = [label: string, severity: SampleSeverity, deg: number, parentIndex: number]
@@ -57,9 +59,10 @@ const INFERRED_RING_3 = new Set([3, 6])
 
 function polar(ring: 1 | 2 | 3, deg: number) {
   const radians = (deg * Math.PI) / 180
+  const radius = ringRadius(ring)
   return {
-    x: GRAPH_CENTER + Math.cos(radians) * RING_RADII[ring],
-    y: GRAPH_CENTER + Math.sin(radians) * RING_RADII[ring]
+    x: GRAPH_CENTER + Math.cos(radians) * radius,
+    y: GRAPH_CENTER + Math.sin(radians) * radius
   }
 }
 
@@ -105,11 +108,7 @@ function buildNodes(): SampleNode[] {
 export const SAMPLE_NODES: readonly SampleNode[] = buildNodes()
 
 function edgePath(a: SampleNode, b: SampleNode): string {
-  const mx = (a.x + b.x) / 2
-  const my = (a.y + b.y) / 2
-  const cx = mx + (GRAPH_CENTER - mx) * 0.12
-  const cy = my + (GRAPH_CENTER - my) * 0.12
-  return `M${a.x.toFixed(1)} ${a.y.toFixed(1)} Q${cx.toFixed(1)} ${cy.toFixed(1)} ${b.x.toFixed(1)} ${b.y.toFixed(1)}`
+  return quadraticEdgePath(a.x, a.y, b.x, b.y, GRAPH_CENTER, GRAPH_CENTER)
 }
 
 function buildEdges(): SampleEdge[] {
@@ -132,11 +131,10 @@ function buildEdges(): SampleEdge[] {
 
 export const SAMPLE_EDGES: readonly SampleEdge[] = buildEdges()
 
-export const SAMPLE_RING_LABELS = [
-  { ring: 1, deg: 112 },
-  { ring: 2, deg: 120 },
-  { ring: 3, deg: 90 }
-] as const
+export const SAMPLE_RING_LABELS = ([1, 2, 3] as const).map(ring => ({
+  ring,
+  deg: ringLabelDegrees(ring)
+}))
 
 /** Edges from a node back to the entry file, as `from-to` keys. */
 export function pathToEntry(id: number): Array<[number, number]> {

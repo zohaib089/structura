@@ -1,3 +1,4 @@
+import { ringRadius } from '../components/graph/radial-geometry'
 import {
   EXPAND_NODE_CAP,
   HARD_EDGE_CAP,
@@ -6,7 +7,6 @@ import {
 } from './caps'
 import type { GraphDocument, GraphEdge, GraphNode, Provenance } from './graph-types'
 
-export const RADIAL_RING_GAP = 220
 export const RADIAL_DEFAULT_MAX_RING = 6
 
 export interface EntryPointOption {
@@ -98,6 +98,8 @@ export interface OverviewEdgeModel {
   typeOnly: '' | 'true' | 'false' | 'mixed'
   label: string
   flowing?: boolean
+  /** Amber path back to the nucleus, same treatment as the landing hero. */
+  hot?: boolean
 }
 
 export interface OverviewModel {
@@ -888,7 +890,7 @@ export function layoutRadialNodes(
       continue
     }
 
-    const radius = ring * RADIAL_RING_GAP
+    const radius = ringRadius(ring)
     const step = (2 * Math.PI) / ids.length
     const start = -Math.PI / 2
     ids.forEach((id, index) => {

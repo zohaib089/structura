@@ -4,7 +4,7 @@ import type { EdgeVisual } from './overview'
 export const EDGE_DASH: Record<EdgeVisual, string> = {
   extracted: 'none',
   inferred: '7 5',
-  unresolved: '0.1 6',
+  unresolved: '1.5 5',
   mixed: '3 2'
 }
 
@@ -15,14 +15,14 @@ export function edgeClass(visual: EdgeVisual): string {
   return 'edge-extracted'
 }
 
+/** Same ink as the landing hero edges. */
+const HERO_EDGE = '#5a6270'
+
 export function edgeStroke(visual: EdgeVisual): string {
-  if (visual === 'inferred' || visual === 'mixed') return 'var(--graph-edge-inferred, var(--color-text-secondary))'
-  if (visual === 'unresolved') return 'var(--graph-edge-unresolved, var(--color-text-muted))'
-  return 'var(--graph-edge-extracted, var(--color-text-primary))'
+  if (visual === 'unresolved') return 'var(--gray-7)'
+  return HERO_EDGE
 }
 
 export function edgeWidth(visual: EdgeVisual): string {
-  if (visual === 'unresolved') return 'var(--graph-edge-width-unresolved, 1.5)'
-  if (visual === 'mixed') return 'var(--graph-edge-width-inferred, 1.5)'
-  return 'var(--graph-edge-width-extracted, 1.5)'
+  return visual === 'unresolved' ? '1.3' : '1.3'
 }

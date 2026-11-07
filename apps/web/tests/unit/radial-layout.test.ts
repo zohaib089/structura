@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { HERO_RING_RADII, ringRadius } from '../../src/components/graph/radial-geometry'
 import {
   collectEntryPoints,
   defaultFilters,
@@ -45,6 +46,9 @@ describe('radial layout helpers', () => {
     expect(positions.get('file:apps/web/main.ts')).toEqual({ x: 0, y: 0 })
     const ringOne = positions.get('file:packages/brand/brand.ts')
     expect(ringOne).toBeDefined()
-    expect(Math.hypot(ringOne!.x, ringOne!.y)).toBeGreaterThan(100)
+    expect(Math.hypot(ringOne!.x, ringOne!.y)).toBeCloseTo(ringRadius(1), 5)
+    expect(ringRadius(1)).toBe(HERO_RING_RADII[1])
+    expect(ringRadius(2)).toBe(HERO_RING_RADII[2])
+    expect(ringRadius(3)).toBe(HERO_RING_RADII[3])
   })
 })

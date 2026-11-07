@@ -1,13 +1,12 @@
 <script setup lang="ts">
 /**
  * RadialSampleGraph - the hero signature: rings around the entry file, drawn from made-up sample data.
- * Standalone SVG until the shared radial graph (D3) is on main; then swap it in sample mode.
+ * Node marks, ring strokes, and edge ink come from the shared radial graph used by the dashboard.
  * Severity = icon shape + word + colour. Edges: solid (found in code), dashed (likely), dotted (couldn't confirm).
  * Nodes are focusable buttons with an amber focus ring; hover, focus and click highlight the path back to the entry.
  * Motion is CSS only and switches off under prefers-reduced-motion (rings and nodes simply appear).
  */
 import { computed, ref } from 'vue'
-import { SEVERITY_ICONS } from '../../services/severity-display'
 import { landingPageCopy as copy, stepsAway } from '../../services/landing-page-copy'
 import {
   edgeKey,
@@ -20,7 +19,8 @@ import {
   SAMPLE_RING_LABELS,
   type SampleNode
 } from '../../services/landing-sample-graph'
-import BrandMark from '../brand/BrandMark.vue'
+import RadialNodeGlyph from '../graph/RadialNodeGlyph.vue'
+import '../graph/radial-graph.css'
 
 const emit = defineEmits<{ inspect: [node: SampleNode | null] }>()
 
@@ -67,32 +67,10 @@ function onSelect(id: number) {
   publish()
 }
 
-const NODE_RADIUS: Record<number, number> = { 1: 15, 2: 12.5, 3: 11 }
-const SEVERITY_COLOR = (severity: string) => `var(--sev-${severity}-fg)`
-
-function nodeRadius(node: SampleNode): number {
-  return NODE_RADIUS[node.ring] ?? 11
-}
-
 function ariaLabel(node: SampleNode): string {
   if (node.entry) return `${node.label}, where the project starts.`
   const issue = node.severity === 'info' ? 'No issues found.' : `${copy.severity[node.severity]} issue.`
   return `${node.label}, ${stepsAway(node.ring)} from the start. ${copy.linkKind[node.link]}. ${issue}`
-}
-
-interface LabelPlacement {
-  x: number
-  y: number
-  anchor: 'start' | 'middle' | 'end'
-}
-function labelPlacement(node: SampleNode): LabelPlacement {
-  const r = nodeRadius(node)
-  const radians = (node.deg * Math.PI) / 180
-  const out = Math.cos(radians)
-  if (Math.abs(out) < 0.25) {
-    return { x: 0, y: Math.sin(radians) > 0 ? r + 18 : -r - 8, anchor: 'middle' }
-  }
-  return { x: out > 0 ? r + 9 : -r - 9, y: 4, anchor: out > 0 ? 'start' : 'end' }
 }
 
 const nodeDelay = (node: SampleNode) => `${(0.35 + node.ring * 0.2 + node.id * 0.012).toFixed(2)}s`
@@ -183,29 +161,13 @@ const ringLabel = (entry: (typeof SAMPLE_RING_LABELS)[number]) => {
         @keydown.enter.prevent="onSelect(node.id)"
         @keydown.space.prevent="onSelect(node.id)"
       >
-        <template v-if="node.entry">
-          <circle r="56" class="radial__halo" />
-          <!-- Nucleus with its idle loader: slow ring sweep + core pulse; static under reduced motion. -->
-          <BrandMark class="radial__nucleus" :size="88" animated x="-44" y="-44" />
-          <text y="74" text-anchor="middle" class="radial__entry-name">{{ node.label }}</text>
-          <text y="92" text-anchor="middle" class="radial__entry-tag">{{ copy.hero.entryTag }}</text>
-        </template>
-        <template v-else>
-          <circle :r="nodeRadius(node) + 7" class="radial__halo" />
-          <circle :r="nodeRadius(node)" class="radial__body" :style="{ stroke: SEVERITY_COLOR(node.severity) }" />
-          <component
-            :is="SEVERITY_ICONS[node.severity]"
-            :size="nodeRadius(node) * 1.15"
-            :x="-nodeRadius(node) * 0.575"
-            :y="-nodeRadius(node) * 0.575"
-            :stroke-width="2.4"
-            :style="{ color: SEVERITY_COLOR(node.severity) }"
-            aria-hidden="true"
-          />
-          <text :x="labelPlacement(node).x" :y="labelPlacement(node).y" :text-anchor="labelPlacement(node).anchor" class="radial__label">
-            {{ node.label }}
-          </text>
-        </template>
+        <RadialNodeGlyph
+          :label="node.label"
+          :ring="node.ring"
+          :severity="node.severity"
+          :deg="node.deg"
+          :entry="node.entry"
+        />
       </g>
     </g>
   </svg>
@@ -217,163 +179,5 @@ const ringLabel = (entry: (typeof SAMPLE_RING_LABELS)[number]) => {
   block-size: 100%;
   display: block;
   overflow: visible;
-}
-
-.radial__ring {
-  fill: none;
-  stroke: var(--gray-4);
-  stroke-width: 1;
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: radial-ring-in 0.9s var(--easing-product) both;
-}
-.radial__ring--3 {
-  stroke-dasharray: 2 7;
-}
-.radial__ring-label {
-  fill: var(--gray-7);
-  font: 500 10px var(--landing-font-mono);
-  letter-spacing: 0.06em;
-  paint-order: stroke;
-  stroke: var(--gray-0);
-  stroke-width: 5px;
-}
-
-.radial__edge {
-  fill: none;
-  stroke: #5a6270;
-  stroke-width: 1.3;
-  animation: radial-fade 0.7s var(--easing-product) both;
-  transition:
-    stroke var(--dur-2) var(--easing-product),
-    opacity var(--dur-2) var(--easing-product);
-}
-.radial__edge--inferred {
-  stroke-dasharray: 7 5;
-}
-.radial__edge--unresolved {
-  stroke: var(--gray-7);
-  stroke-dasharray: 1.5 5;
-  stroke-linecap: round;
-}
-.radial__edge.is-hot {
-  stroke: var(--color-brand-amber-ui);
-  stroke-width: 1.9;
-  opacity: 1;
-}
-.radial--dim .radial__edge:not(.is-hot) {
-  opacity: 0.28;
-}
-.radial--dim .radial__node:not(.is-hot) {
-  opacity: 0.45;
-}
-
-.radial__node {
-  cursor: pointer;
-  outline: none;
-  transition: opacity var(--dur-2) var(--easing-product);
-}
-.radial__node:not(.radial__node--entry) {
-  animation: radial-fade 0.5s var(--easing-product) both;
-}
-.radial__body {
-  fill: var(--gray-2);
-  stroke-width: 1.6;
-}
-.radial__node--unresolved .radial__body {
-  fill: var(--gray-0);
-  stroke-dasharray: 2 3;
-}
-.radial__halo {
-  fill: none;
-  stroke: var(--color-brand-amber-ui);
-  stroke-width: 2;
-  opacity: 0;
-  transition: opacity var(--dur-2) var(--easing-product);
-}
-.radial__node:hover .radial__halo,
-.radial__node:focus-visible .radial__halo,
-.radial__node.is-selected .radial__halo {
-  opacity: 1;
-}
-.radial__label,
-.radial__entry-name,
-.radial__entry-tag {
-  font: 500 11px var(--landing-font-mono);
-  fill: var(--gray-10);
-  paint-order: stroke;
-  stroke: var(--gray-0);
-  stroke-width: 4px;
-  stroke-linejoin: round;
-}
-.radial__entry-name {
-  font-size: 14px;
-  font-weight: 600;
-}
-.radial__entry-tag {
-  font-size: 10px;
-  font-weight: 400;
-  fill: var(--gray-8);
-}
-
-/* Idle HexLoader on the nucleus: slow sweep, gentle pulse. */
-.radial__nucleus :deep(.nucleus-sweep),
-.radial__nucleus :deep(.nucleus-core) {
-  transform-origin: 32px 32px;
-}
-.radial__nucleus :deep(.nucleus-sweep) {
-  opacity: 0.55;
-  animation: radial-rotate 6s linear infinite;
-}
-.radial__nucleus :deep(.nucleus-core) {
-  animation: radial-pulse 3s ease-in-out infinite;
-}
-
-@keyframes radial-fade {
-  from {
-    opacity: 0;
-  }
-}
-@keyframes radial-ring-in {
-  from {
-    opacity: 0;
-    transform: scale(0.88);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-@keyframes radial-rotate {
-  to {
-    transform: rotate(360deg);
-  }
-}
-@keyframes radial-pulse {
-  50% {
-    transform: scale(1.08);
-  }
-}
-
-@media (max-width: 640px) {
-  .radial__node--ring-3 .radial__label,
-  .radial__ring-label {
-    display: none;
-  }
-}
-
-/* Reduced motion: everything is drawn at once; the nucleus is a static mark. */
-@media (prefers-reduced-motion: reduce) {
-  .radial__ring,
-  .radial__edge,
-  .radial__node:not(.radial__node--entry) {
-    animation: none;
-  }
-  .radial__nucleus :deep(.nucleus-sweep) {
-    display: none;
-  }
-  .radial__nucleus :deep(.nucleus-core) {
-    animation: none;
-  }
 }
 </style>
