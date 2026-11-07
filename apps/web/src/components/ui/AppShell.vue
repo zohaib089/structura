@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import Sidebar, { type SidebarNavItem } from './Sidebar.vue'
 import TopBar from './TopBar.vue'
+import { Menu, X } from '@lucide/vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import type { BreadcrumbItem } from './Breadcrumbs.vue'
 
 withDefaults(
@@ -20,12 +23,25 @@ withDefaults(
   }>(),
   { flushContent: false, fillContent: false }
 )
+
+/** Below 900px the sidebar becomes an off-canvas drawer opened from the top bar. */
+const navOpen = ref(false)
+const route = useRoute()
+watch(() => route?.fullPath, () => { navOpen.value = false })
+function onKey(event: KeyboardEvent) {
+  if (event.key === 'Escape') navOpen.value = false
+}
+onMounted(() => window.addEventListener('keydown', onKey))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 </script>
 
 <template>
-  <div class="app-shell">
+  <div class="app-shell" :class="{ 'app-shell--nav-open': navOpen }">
     <a class="skip-link" href="#app-main-content">{{ skipToContentLabel }}</a>
+    <div v-if="navOpen" class="shell-backdrop" aria-hidden="true" @click="navOpen = false" />
     <Sidebar
+      id="app-shell-sidebar"
+      class="shell-sidebar"
       :workspace-name="workspaceName"
       :nav-items="navItems"
       :app-navigation-label="appNavigationLabel"
@@ -43,6 +59,21 @@ withDefaults(
         :command-palette-label="commandPaletteLabel"
         :command-palette-hint="commandPaletteHint"
       >
+        <template #leading>
+          <button
+            type="button"
+            class="shell-menu-button"
+            data-testid="shell-menu-button"
+            aria-controls="app-shell-sidebar"
+            :aria-expanded="navOpen"
+            :aria-label="appNavigationLabel"
+            :title="appNavigationLabel"
+            @click="navOpen = !navOpen"
+          >
+            <X v-if="navOpen" :size="18" aria-hidden="true" />
+            <Menu v-else :size="18" aria-hidden="true" />
+          </button>
+        </template>
         <template #actions>
           <slot name="top-actions" />
         </template>
@@ -136,5 +167,55 @@ export default {
 
 .skip-link:focus {
   transform: translateY(0);
+}
+
+.shell-menu-button {
+  display: none;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--header-control-h);
+  block-size: var(--header-control-h);
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+.shell-menu-button:focus-visible {
+  outline: 2px solid var(--color-brand-amber-ui);
+  outline-offset: 2px;
+}
+
+@media (max-width: 900px) {
+  .app-shell { grid-template-columns: minmax(0, 1fr); }
+  .shell-menu-button { display: inline-flex; }
+  .shell-sidebar {
+    position: fixed;
+    inset-block: 0;
+    inset-inline-start: 0;
+    z-index: 70;
+    inline-size: min(var(--shell-sidebar-width), 85vw);
+    visibility: hidden;
+    transform: translateX(-100%);
+    transition: transform var(--dur-1, 150ms) var(--easing-product, ease), visibility 0s linear var(--dur-1, 150ms);
+    box-shadow: var(--shadow-md);
+  }
+  [dir='rtl'] .shell-sidebar { transform: translateX(100%); }
+  .app-shell--nav-open .shell-sidebar {
+    visibility: visible;
+    transform: none;
+    transition: transform var(--dur-1, 150ms) var(--easing-product, ease);
+  }
+  .shell-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 65;
+    background: color-mix(in srgb, #000 45%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .shell-sidebar { transition: none; }
 }
 </style>

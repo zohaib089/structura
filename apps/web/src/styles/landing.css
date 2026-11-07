@@ -183,7 +183,7 @@
   --color-border: var(--gray-4);
 
   color: var(--gray-10);
-  background: radial-gradient(closest-side, var(--landing-navy-deep) 0%, #0b1426 88%, transparent 100%);
+  background: radial-gradient(closest-side, var(--landing-navy-deep) 0%, #0b1426 100%);
   border-radius: 50%;
 }
 /* The white scrim would cut a hard edge across the navy disc in light; the headline already sits clear of it. */
