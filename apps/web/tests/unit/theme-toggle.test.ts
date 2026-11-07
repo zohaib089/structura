@@ -20,3 +20,12 @@ describe('ThemeToggle', () => {
     expect(button.attributes('aria-pressed')).toBe(String(store.theme === 'dark'))
   })
 })
+
+describe('landing theme tokens', () => {
+  it('declares a light override scoped to the landing page and keeps dark as the default', async () => {
+    const { readFileSync } = await import('node:fs')
+    const css = readFileSync(`${process.cwd()}/src/styles/landing.css`, 'utf8')
+    expect(css).toMatch(/\.landing-page \{\s*color-scheme: dark;/)
+    expect(css).toMatch(/\[data-theme='light'\] \.landing-page \{\s*color-scheme: light;/)
+  })
+})

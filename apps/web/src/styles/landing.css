@@ -59,6 +59,31 @@
   -webkit-font-smoothing: antialiased;
 }
 
+/*
+ * Light landing (S1). Dark above stays the default; this only applies when the user picks light.
+ * Values mirror the light product ramp in variables.css. Navy band tokens are kept so the hero graph stays on navy.
+ */
+[data-theme='light'] .landing-page {
+  color-scheme: light;
+
+  --gray-0: #ffffff;
+  --gray-1: #f7f8fa;
+  --gray-2: #ffffff;
+  --gray-3: #eef0f3;
+  --gray-4: #e2e5e9;
+  --gray-5: #c9ced5;
+  --gray-7: #6b717b;
+  --gray-8: #5b616b;
+  --gray-10: #16181c;
+  --sev-critical-fg: #b4232c;
+  --sev-high-fg: #b45309;
+  --sev-medium-fg: #8a6a00;
+  --sev-low-fg: #1d5fb8;
+  --sev-info-fg: #5b616b;
+  --color-brand-amber-ui: #b7791f;
+  --button-primary-hover-bg: #000000;
+}
+
 .landing-page :focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
