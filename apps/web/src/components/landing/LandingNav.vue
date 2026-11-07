@@ -123,6 +123,12 @@ const navMessages = computed(() => {
     display: none;
   }
 }
+@media (max-width: 480px) {
+  .landing-nav { gap: var(--space-2); }
+  .landing-nav__actions { gap: var(--space-1); }
+  .landing-nav__github { display: none; }
+  .landing-nav__locale :deep(select) { inline-size: 5.75rem; }
+}
 @media (max-width: 400px) {
   .landing-nav__name {
     display: none;

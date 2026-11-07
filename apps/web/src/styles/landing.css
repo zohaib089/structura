@@ -154,3 +154,43 @@
     overflow-x: clip;
   }
 }
+
+/*
+ * Light landing: keep the sample graph on a stable navy surface with its dark-theme palette,
+ * so labels, rings and outer nodes stay legible. Renderer, layout and data are untouched; dark is unchanged.
+ */
+[data-theme='light'] .landing-page .landing-hero__graph {
+  color-scheme: dark;
+
+  --gray-0: #0b0d10;
+  --gray-1: #111317;
+  --gray-2: #181b20;
+  --gray-3: #1f2329;
+  --gray-4: #2a2f36;
+  --gray-5: #3a4049;
+  --gray-7: #7d838c;
+  --gray-8: #9ba1a9;
+  --gray-10: #e6e8eb;
+  --sev-critical-fg: #ff6b6b;
+  --sev-high-fg: #ff9a5c;
+  --sev-medium-fg: #f5c84b;
+  --sev-low-fg: #6cb6ff;
+  --sev-info-fg: #a1a8b3;
+  --color-brand-amber-ui: #e0a040;
+  --color-text-primary: var(--gray-10);
+  --color-text-secondary: var(--gray-8);
+  --color-text-muted: var(--gray-7);
+  --color-border: var(--gray-4);
+
+  color: var(--gray-10);
+  background: radial-gradient(closest-side, var(--landing-navy-deep) 0%, #0b1426 88%, transparent 100%);
+  border-radius: 50%;
+}
+/* The white scrim would cut a hard edge across the navy disc in light; the headline already sits clear of it. */
+[data-theme='light'] .landing-page .landing-hero::after {
+  background: linear-gradient(90deg, var(--gray-0) 0%, color-mix(in srgb, var(--gray-0) 85%, transparent) 30%, transparent 45%);
+}
+/* The dark hero's navy glow reads as a grey smear on white; the navy disc above carries the graph instead. */
+[data-theme='light'] .landing-page .landing-hero {
+  background: var(--gray-0);
+}
