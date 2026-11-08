@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Handle, Position } from '@vue-flow/core'
 import { computed } from 'vue'
+import BrandMark from '../../components/brand/BrandMark.vue'
 import SeverityChip from '../../components/ui/SeverityChip.vue'
 import { SEVERITY_LABELS } from '../../services/severity-display'
 import type { SeverityCounts } from '../../services/scan-report-tree'
@@ -31,6 +32,9 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{ select: []; toggle: [] }>()
+
+/** Compact landing-style mark: a disc with a glyph, label beside it (files, externals, unresolved). */
+const disc = computed(() => !props.more && (!props.cluster || Boolean(props.nucleus)))
 
 const accessible = computed(() => (props.more ? props.moreLabel : props.label))
 
@@ -85,12 +89,17 @@ function onSpace(event: KeyboardEvent) {
     @keydown.enter.prevent="onEnter"
     @keydown.space.prevent="onSpace"
   >
-    <Handle type="target" :position="Position.Left" />
-    <span v-if="cluster" class="kind-mark" aria-hidden="true">{{ expanded ? 'â¾' : 'â¸' }}</span>
-    <span v-else-if="more" class="kind-mark" aria-hidden="true">+</span>
-    <span v-else-if="kind === 'unresolved'" class="kind-mark" aria-hidden="true">?</span>
-    <span v-else-if="kind === 'file'" class="kind-mark" aria-hidden="true">{{ (language || 'â¢').slice(0, 1) }}</span>
-    <span v-else class="kind-mark" aria-hidden="true">â¢</span>
+    <span class="kind-mark" :class="{ 'kind-mark--disc': disc }" aria-hidden="true">
+      <Handle type="target" :position="Position.Left" />
+      <BrandMark v-if="nucleus" class="nucleus-mark" :size="30" />
+      <template v-else-if="cluster">{{ expanded ? '▾' : '▸' }}</template>
+      <template v-else-if="more">+</template>
+      <template v-else-if="kind === 'unresolved'">?</template>
+      <template v-else-if="kind === 'external'">◇</template>
+      <template v-else-if="kind === 'file'">{{ (language || '•').slice(0, 1) }}</template>
+      <template v-else>•</template>
+      <Handle type="source" :position="Position.Right" />
+    </span>
     <span class="label" dir="ltr">{{ more ? moreLabel : label }}</span>
     <span v-if="folderChip" class="severity-chips">
       <SeverityChip
@@ -123,7 +132,6 @@ function onSpace(event: KeyboardEvent) {
     >
       {{ expanded ? '–' : '+' }}
     </button>
-    <Handle type="source" :position="Position.Right" />
   </div>
 </template>
 
@@ -143,7 +151,7 @@ function onSpace(event: KeyboardEvent) {
 }
 .is-cluster {
   border-radius: var(--radius-lg);
-  background: var(--surface-tint, var(--graph-cluster-fill));
+  background: var(--graph-cluster-fill);
   border-inline-start: 3px solid var(--node-layer, var(--graph-layer-1));
 }
 .is-expanded.is-cluster {
@@ -151,25 +159,6 @@ function onSpace(event: KeyboardEvent) {
   border-style: dashed;
 }
 .is-file { border-radius: var(--radius-full); }
-.is-nucleus.is-file {
-  border-radius: var(--radius-sm);
-  clip-path: polygon(25% 6%, 75% 6%, 96% 50%, 75% 94%, 25% 94%, 4% 50%);
-  padding-inline: var(--space-3);
-  border-width: 2px;
-  border-color: var(--graph-selected-ring, var(--color-brand-amber-ui));
-  background:
-    radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--color-brand-amber-ui) 38%, transparent) 0%, transparent 58%),
-    var(--nucleus-plate, var(--color-brand-navy));
-  color: var(--gray-10);
-  box-shadow: var(--graph-selected-halo, 0 0 0 4px color-mix(in srgb, var(--color-brand-amber-ui) 24%, transparent));
-}
-.is-nucleus.is-file .kind-mark,
-.is-nucleus.is-file .label {
-  color: var(--gray-10);
-}
-.is-nucleus.is-file .kind-mark {
-  color: var(--color-brand-amber-ui);
-}
 .is-external {
   border-style: dashed;
   background: var(--graph-external-fill);
@@ -244,6 +233,59 @@ function onSpace(event: KeyboardEvent) {
 }
 
 .count, .kind-mark { color: var(--color-text-secondary); }
+
+/* S3: Nucleus radial parity. Files, externals and unresolved imports render as compact marks on
+ * the navy surface: a coloured disc with a non-colour glyph (language letter, ◇, ?), label beside. */
+.overview-node:has(.kind-mark--disc),
+.is-cluster.is-nucleus:has(.kind-mark--disc) {
+  min-inline-size: 0;
+  min-block-size: var(--viewer-hit-target, 2.75rem);
+  padding-inline: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  box-shadow: none;
+}
+.kind-mark { position: relative; }
+.kind-mark :deep(.vue-flow__handle) {
+  inset-inline-start: 50% !important;
+  inset-block-start: 50% !important;
+  transform: translate(-50%, -50%) !important;
+}
+.kind-mark--disc {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  border: 2px solid var(--node-layer, var(--graph-layer-1));
+  border-radius: 50%;
+  background: #0f1d36;
+  color: var(--node-layer, var(--graph-layer-1));
+  font: 600 var(--font-size-xs) / 1 var(--font-family-mono, ui-monospace, monospace);
+  text-transform: lowercase;
+}
+.is-external .kind-mark--disc { border-style: dashed; color: var(--color-text-secondary); border-color: var(--color-text-secondary); }
+.is-unresolved .kind-mark--disc { border-style: dotted; border-color: var(--gray-7); color: var(--gray-8); background: transparent; }
+.overview-node:has(.kind-mark--disc) .label {
+  font-family: var(--font-family-mono, ui-monospace, monospace);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-primary);
+  text-shadow: 0 0 3px #0b1628, 0 0 6px #0b1628;
+}
+.is-nucleus .kind-mark--disc {
+  inline-size: 3rem;
+  block-size: 3rem;
+  border: 0;
+  background: var(--color-brand-amber-ui);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-brand-amber-ui) 22%, transparent), 0 0 28px color-mix(in srgb, var(--color-brand-amber-ui) 45%, transparent);
+}
+.is-nucleus .label { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); }
+.overview-node.is-selected:has(.kind-mark--disc) { outline: 0; box-shadow: none; }
+.is-selected .kind-mark--disc { box-shadow: 0 0 0 3px #0b1628, 0 0 0 5px var(--graph-selected-ring, var(--color-brand-amber-ui)); }
+.overview-node:has(.kind-mark--disc):hover { box-shadow: none; }
+.overview-node:has(.kind-mark--disc):hover .kind-mark--disc { border-color: var(--graph-hover-border); }
+.overview-node:has(.kind-mark--disc):focus-visible { box-shadow: var(--focus-ring); }
 </style>
 
 

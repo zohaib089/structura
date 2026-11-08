@@ -37,6 +37,7 @@ import {
   type ViewState
 } from './overview'
 import { parseGraphFile, type ParseHandle } from './parse-client'
+import './graph-surface.css'
 import { resolveGraphNodeId } from '../services/graph-node-focus'
 import type { ViewerReportFinding } from './report-types'
 import { scanReportMessages } from '../services/scan-report-messages'
@@ -744,7 +745,7 @@ function exportCoverage() {
 
 const command = quickstartCommand()
 const cameraDuration = computed(() => (focus.value ? fitDurationMs() : 0))
-const cameraPadding = computed(() => (focus.value ? 0.25 : 0.2))
+const cameraPadding = computed(() => (focus.value ? 0.25 : 0.32))
 const meterTone = computed(() => budgetTone(overview.value?.nodes.length ?? 0, COMFORT_NODE_BUDGET, HARD_NODE_CAP))
 const skippedCount = computed(() => {
   const files = graph.value?.coverage.files
@@ -809,7 +810,7 @@ const snippet = 'layers: []\nrules: []\n'
       </button>
     </aside>
 
-    <main class="stage">
+    <main class="stage graph-surface">
       <LoadingSkeleton
         v-if="loading"
         :label="format(messages.readingFile, { graphFile: BRAND.graphFile, size: formatByteSize(loadingBytes, locale) })"
@@ -1031,7 +1032,11 @@ const snippet = 'layers: []\nrules: []\n'
 
     <footer class="status" role="contentinfo">
       <span class="status-radial">{{ radialStatus }}</span>
-      <span class="status-edges">{{ messages.provExtracted }} · {{ messages.provInferred }} · {{ messages.provUnresolved }}</span>
+      <span class="status-edges" data-testid="edge-style-legend">
+        <span class="edge-key"><i class="edge-key__line edge-key__line--extracted" aria-hidden="true"></i>{{ messages.provExtracted }}</span>
+        <span class="edge-key"><i class="edge-key__line edge-key__line--inferred" aria-hidden="true"></i>{{ messages.provInferred }}</span>
+        <span class="edge-key"><i class="edge-key__line edge-key__line--unresolved" aria-hidden="true"></i>{{ messages.provUnresolved }}</span>
+      </span>
       <span v-if="sample" class="pill">{{ messages.samplePill }}</span>
       <span class="status-pan">{{ panStatus }}</span>
       <BudgetMeter
@@ -1165,6 +1170,16 @@ const snippet = 'layers: []\nrules: []\n'
   grid-row: 3;
 }
 .status-radial,
+.status-edges { display: inline-flex; gap: var(--space-3); }
+.edge-key { display: inline-flex; align-items: center; gap: var(--space-1); }
+.edge-key__line { display: inline-block; inline-size: 1.25rem; block-size: 0; border-block-start: 2px solid currentColor; }
+.edge-key__line--inferred { border-block-start-style: dashed; }
+.edge-key__line--unresolved { border-block-start-style: dotted; }
+@media (max-width: 640px) {
+  /* The floating bar wraps on phones; keep the overview hint for assistive tech only. */
+  .status-edges { flex-wrap: wrap; white-space: normal; row-gap: 0; }
+  .graph-hint { position: absolute; inline-size: 1px; block-size: 1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
 .status-edges,
 .status-pan {
   color: var(--color-text-muted);

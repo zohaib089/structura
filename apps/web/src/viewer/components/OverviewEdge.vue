@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { BaseEdge, getBezierPath, type EdgeProps } from '@vue-flow/core'
+import { BaseEdge, getStraightPath, type EdgeProps } from '@vue-flow/core'
 import { computed } from 'vue'
 import { EDGE_DASH, edgeClass, edgeStroke, edgeWidth } from '../edge-style'
 import type { EdgeVisual, OverviewEdgeModel } from '../overview'
 
 const props = defineProps<EdgeProps<OverviewEdgeModel>>()
 const visual = computed<EdgeVisual>(() => props.data?.visual ?? 'extracted')
-const path = computed(() => getBezierPath(props))
+const path = computed(() => getStraightPath(props))
 const markerId = computed(() => `marker-${props.id}`)
 const flowing = computed(() => Boolean(props.data?.flowing) && visual.value !== 'unresolved')
 const style = computed(() => ({

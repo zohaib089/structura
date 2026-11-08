@@ -12,6 +12,7 @@ import OverviewEdge from './OverviewEdge.vue'
 import OverviewNode from './OverviewNode.vue'
 import RadialRingGuides from './RadialRingGuides.vue'
 import ZoomPad from './ZoomPad.vue'
+import '../graph-surface.css'
 
 const props = defineProps<{
   nodes: OverviewNodeModel[]
@@ -188,7 +189,7 @@ defineExpose({ root })
   <div
     id="graph-canvas"
     ref="root"
-    class="canvas"
+    class="canvas graph-surface"
     data-testid="graph-canvas"
     role="application"
     :aria-label="label"
@@ -263,19 +264,27 @@ defineExpose({ root })
 
 <style scoped>
 .canvas { position: relative; flex: 1; block-size: 100%; min-block-size: 0; direction: ltr; }
-.canvas :deep(.vue-flow) { block-size: 100%; background: var(--color-canvas); }
+.canvas {
+  /* Navy Nucleus surface painted by the canvas itself, so Vue Flow never covers it. */
+  background:
+    radial-gradient(62% 72% at 50% 48%, #16305a 0%, #10213f 38%, #0b1628 72%, #090f1b 100%);
+}
+.canvas :deep(.vue-flow),
+.canvas :deep(.vue-flow__background) { block-size: 100%; background: transparent; }
 .canvas :deep(.vue-flow__attribution) { display: none; }
 .canvas :deep(.vue-flow__node[data-id="__radial-guides__"]) {
   pointer-events: none;
   z-index: 0 !important;
 }
 .canvas :deep(.vue-flow__handle) { opacity: 0; }
+.canvas :deep(.vue-flow__edge-textbg) { fill: #0f1d36; }
+.canvas :deep(.vue-flow__edge-text) { fill: var(--color-text-secondary); font-size: 11px; }
 .vignette {
   position: absolute;
   inset: 0;
   z-index: var(--z-graph-controls);
   pointer-events: none;
-  background: var(--color-canvas-vignette);
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(5, 9, 16, 0.55) 100%);
 }
 </style>
 
