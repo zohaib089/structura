@@ -91,7 +91,7 @@ function onSpace(event: KeyboardEvent) {
   >
     <span class="kind-mark" :class="{ 'kind-mark--disc': disc }" aria-hidden="true">
       <Handle type="target" :position="Position.Left" />
-      <BrandMark v-if="nucleus" class="nucleus-mark" :size="30" />
+      <BrandMark v-if="nucleus" class="nucleus-mark" size="calc(30px * var(--graph-mark-scale, 1))" />
       <template v-else-if="cluster">{{ expanded ? '▾' : '▸' }}</template>
       <template v-else-if="more">+</template>
       <template v-else-if="kind === 'unresolved'">?</template>
@@ -239,6 +239,7 @@ function onSpace(event: KeyboardEvent) {
 .overview-node:has(.kind-mark--disc),
 .is-cluster.is-nucleus:has(.kind-mark--disc) {
   min-inline-size: 0;
+  max-inline-size: calc(var(--graph-node-max-width, 14rem) * var(--graph-mark-scale, 1));
   min-block-size: var(--viewer-hit-target, 2.75rem);
   padding-inline: 0 var(--space-2);
   border: 0;
@@ -256,31 +257,31 @@ function onSpace(event: KeyboardEvent) {
   display: inline-grid;
   place-items: center;
   flex-shrink: 0;
-  inline-size: 1.75rem;
-  block-size: 1.75rem;
-  border: 2px solid var(--node-layer, var(--graph-layer-1));
+  inline-size: calc(1.75rem * var(--graph-mark-scale, 1));
+  block-size: calc(1.75rem * var(--graph-mark-scale, 1));
+  border: calc(2px * var(--graph-mark-scale, 1)) solid var(--node-layer, var(--graph-layer-1));
   border-radius: 50%;
   background: #0f1d36;
   color: var(--node-layer, var(--graph-layer-1));
-  font: 600 var(--font-size-xs) / 1 var(--font-family-mono, ui-monospace, monospace);
+  font: 600 calc(var(--font-size-xs) * var(--graph-mark-scale, 1)) / 1 var(--font-family-mono, ui-monospace, monospace);
   text-transform: lowercase;
 }
 .is-external .kind-mark--disc { border-style: dashed; color: var(--color-text-secondary); border-color: var(--color-text-secondary); }
 .is-unresolved .kind-mark--disc { border-style: dotted; border-color: var(--gray-7); color: var(--gray-8); background: transparent; }
 .overview-node:has(.kind-mark--disc) .label {
   font-family: var(--font-family-mono, ui-monospace, monospace);
-  font-size: var(--font-size-xs);
+  font-size: calc(var(--font-size-xs) * var(--graph-mark-scale, 1));
   color: var(--color-text-primary);
   text-shadow: 0 0 3px #0b1628, 0 0 6px #0b1628;
 }
 .is-nucleus .kind-mark--disc {
-  inline-size: 3rem;
-  block-size: 3rem;
+  inline-size: calc(3rem * var(--graph-mark-scale, 1));
+  block-size: calc(3rem * var(--graph-mark-scale, 1));
   border: 0;
   background: var(--color-brand-amber-ui);
   box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-brand-amber-ui) 22%, transparent), 0 0 28px color-mix(in srgb, var(--color-brand-amber-ui) 45%, transparent);
 }
-.is-nucleus .label { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); }
+.is-nucleus .label { font-size: calc(var(--font-size-sm) * var(--graph-mark-scale, 1)); font-weight: var(--font-weight-semibold); }
 .overview-node.is-selected:has(.kind-mark--disc) { outline: 0; box-shadow: none; }
 .is-selected .kind-mark--disc { box-shadow: 0 0 0 3px #0b1628, 0 0 0 5px var(--graph-selected-ring, var(--color-brand-amber-ui)); }
 .overview-node:has(.kind-mark--disc):hover { box-shadow: none; }

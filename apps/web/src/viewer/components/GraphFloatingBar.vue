@@ -142,4 +142,18 @@ select {
   box-shadow: var(--focus-ring);
   border-color: var(--color-brand-amber-ui);
 }
+@media (max-width: 640px) {
+  /* One compact row on phones so the toolbar does not cover the graph. */
+  .floating-bar {
+    flex-wrap: nowrap;
+    gap: var(--space-1);
+    padding: var(--space-1);
+    inline-size: calc(100% - var(--space-4));
+    max-inline-size: none;
+  }
+  .entry-prefix { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  select { max-inline-size: 6.5rem; }
+  .search-button { min-inline-size: 0; flex: 1 1 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-inline: var(--space-2); }
+  .fit-button { padding-inline: var(--space-2); white-space: nowrap; }
+}
 </style>

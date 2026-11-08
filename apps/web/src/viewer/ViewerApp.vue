@@ -745,7 +745,7 @@ function exportCoverage() {
 
 const command = quickstartCommand()
 const cameraDuration = computed(() => (focus.value ? fitDurationMs() : 0))
-const cameraPadding = computed(() => (focus.value ? 0.25 : 0.32))
+const cameraPadding = computed(() => (focus.value ? 0.25 : 0.12))
 const meterTone = computed(() => budgetTone(overview.value?.nodes.length ?? 0, COMFORT_NODE_BUDGET, HARD_NODE_CAP))
 const skippedCount = computed(() => {
   const files = graph.value?.coverage.files

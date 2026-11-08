@@ -29,7 +29,7 @@ const rings = computed(() => {
 .ring {
   fill: none;
   stroke: #3b5683;
-  stroke-width: 1.25;
+  stroke-width: calc(1.25px * var(--graph-mark-scale, 1));
   stroke-dasharray: 2 7;
   opacity: 0.9;
 }

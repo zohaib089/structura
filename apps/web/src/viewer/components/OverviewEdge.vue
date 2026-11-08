@@ -11,7 +11,7 @@ const markerId = computed(() => `marker-${props.id}`)
 const flowing = computed(() => Boolean(props.data?.flowing) && visual.value !== 'unresolved')
 const style = computed(() => ({
   stroke: edgeStroke(visual.value),
-  strokeWidth: edgeWidth(visual.value),
+  strokeWidth: `calc(${edgeWidth(visual.value)} * var(--graph-mark-scale, 1) * 1px)`,
   strokeDasharray: flowing.value && visual.value === 'extracted'
     ? 'var(--graph-edge-dash-flow)'
     : EDGE_DASH[visual.value] === 'none' ? 'none' : EDGE_DASH[visual.value],

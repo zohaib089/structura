@@ -36,14 +36,15 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 <style scoped>
 .coach {
   position: absolute;
-  inset-block-end: var(--space-16);
+  inset-block-end: var(--space-3);
   inset-inline-start: var(--space-3);
+  /* Never under the zoom pad (bottom-right). The fit reserves this card's measured height. */
+  max-inline-size: min(22rem, calc(100% - var(--viewer-control-size, 2.75rem) - var(--space-8)));
   z-index: var(--z-viewer-panel);
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
   align-items: center;
-  max-inline-size: 22rem;
   padding: var(--space-3);
   border-radius: var(--radius-md);
   background: var(--color-surface-raised);
@@ -52,4 +53,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 }
 .progress { margin: 0; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
 button { min-block-size: var(--viewer-hit-target); }
+p { margin: 0; }
+@media (max-width: 640px) {
+  .coach { padding: var(--space-2); gap: var(--space-1) var(--space-2); font-size: var(--text-13, 0.8125rem); }
+  .coach > p:first-child { flex-basis: 100%; }
+}
 </style>

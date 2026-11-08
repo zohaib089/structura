@@ -256,6 +256,8 @@ defineExpose({ root })
         :signature="`${fitBump ?? 0}|${nodes.map((node) => node.id).join('\n')}|${(focusIds ?? []).join(',')}`"
         :duration="fitDuration ?? 0"
         :padding="fitPadding ?? 0.2"
+        :ring-count="ringCount ?? 0"
+        :focus-ids="focusIds ?? []"
       />
       <ZoomPad :zoom-in="zoomIn" :zoom-out="zoomOut" :zoom-fit="zoomFit" />
     </VueFlow>
