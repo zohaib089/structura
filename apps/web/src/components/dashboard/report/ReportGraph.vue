@@ -77,7 +77,7 @@ async function fitToScreen() {
     ? el.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop
     : el.getBoundingClientRect().top + window.scrollY
   const target = scroller ?? document.scrollingElement
-  target?.scrollTo?.({ top, behavior: 'auto' })
+  target?.scrollTo?.({ top, behavior: 'instant' as ScrollBehavior })
   // Short pages cannot scroll the graph flush to the top, leaving a half-cropped header above it.
   // Reserve exactly the missing distance below the graph and scroll again.
   await new Promise<void>((done) => requestAnimationFrame(() => done()))
@@ -85,7 +85,7 @@ async function fitToScreen() {
   if (gap > 1) {
     tailSpace.value = Math.ceil(gap)
     await nextTick()
-    target?.scrollTo?.({ top, behavior: 'auto' })
+    target?.scrollTo?.({ top, behavior: 'instant' as ScrollBehavior })
   }
 }
 
@@ -98,7 +98,7 @@ watch(() => props.graph, (graph) => { if (graph) void fitToScreen() })
 </script>
 
 <template>
-  <div ref="root" class="report-graph" data-testid="report-graph" :style="phoneHeight ? { blockSize: `${phoneHeight}px`, minBlockSize: `${phoneHeight}px`, flex: '0 0 auto', marginBlockEnd: tailSpace ? `${tailSpace}px` : undefined } : undefined">
+  <div ref="root" class="report-graph" data-testid="report-graph" :style="phoneHeight ? { boxSizing: 'border-box', blockSize: `${phoneHeight + tailSpace}px`, minBlockSize: `${phoneHeight + tailSpace}px`, flex: '0 0 auto', paddingBlockEnd: tailSpace ? `${tailSpace}px` : undefined } : undefined">
     <SkeletonGraph v-if="graphLoading" class="report-graph__skeleton" :label="messages.graphLoadingLabel" />
     <ErrorState
       v-else-if="!graph"
