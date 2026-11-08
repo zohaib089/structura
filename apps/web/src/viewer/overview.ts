@@ -7,6 +7,8 @@ import {
 import type { GraphDocument, GraphEdge, GraphNode, Provenance } from './graph-types'
 
 export const RADIAL_RING_GAP = 220
+/** Minimum arc (flow px) between neighbours on one ring, so compact marks + labels do not collide. */
+export const RADIAL_MIN_ARC = 150
 export const RADIAL_DEFAULT_MAX_RING = 6
 
 export interface EntryPointOption {
@@ -868,6 +870,7 @@ export function layoutRadialNodes(
 
   const positions = new Map<string, { x: number; y: number }>()
   const ringNumbers = [...rings.keys()].sort((a, b) => a - b)
+  let previousRadius = 0
 
   for (const ring of ringNumbers) {
     const ids = (rings.get(ring) ?? []).sort(compareUtf16)
@@ -888,9 +891,16 @@ export function layoutRadialNodes(
       continue
     }
 
-    const radius = ring * RADIAL_RING_GAP
+    // Ring radius grows with the ring's population so neighbours keep a readable arc between them,
+    // and each ring is at least one gap outside the previous one (concentric, entry-centred semantics kept).
+    const radius = Math.max(
+      previousRadius === 0 ? RADIAL_RING_GAP : previousRadius + RADIAL_RING_GAP * 0.55,
+      (ids.length * RADIAL_MIN_ARC) / (2 * Math.PI)
+    )
+    previousRadius = radius
     const step = (2 * Math.PI) / ids.length
-    const start = -Math.PI / 2
+    // Odd rings are rotated half a step so labels on consecutive rings do not stack on one spoke.
+    const start = -Math.PI / 2 + (ring % 2 === 0 ? step / 2 : 0)
     ids.forEach((id, index) => {
       const angle = start + index * step
       positions.set(id, { x: radius * Math.cos(angle), y: radius * Math.sin(angle) })

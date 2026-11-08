@@ -82,3 +82,32 @@ test('ships a CSP whose hashes match the inline scripts', () => {
     expect(scriptHashes).toContain(digest)
   }
 })
+
+test('dense test-only fixture: decluttered labels stay reachable, select shows detail, entry expands', async ({ page }) => {
+  // tests/e2e/fixtures/dense-graph.test-only.json is an authored TEST-ONLY fixture (33 nodes), not product data.
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto(pathToFileURL(builtHtml).href)
+  await page.locator('[data-testid="file-input"]').setInputFiles(resolve(root, 'tests/e2e/fixtures/dense-graph.test-only.json'))
+  const canvas = page.locator('[data-testid="graph-canvas"]')
+  await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 20_000 })
+  await expect(canvas).toHaveAttribute('data-total-nodes', '33')
+  const nodes = page.locator('.overview-node:not(.is-nucleus)')
+  await expect.poll(() => nodes.count()).toBeGreaterThan(3)
+  // Every visible node keeps its name accessible, decluttered or not.
+  for (const label of await nodes.evaluateAll((els) => els.map((e) => e.getAttribute('aria-label') ?? ''))) expect(label.length).toBeGreaterThan(0)
+  const hidden = page.locator('.overview-node[data-label-hidden]:not(.is-nucleus)')
+  const id = (await ((await hidden.count()) > 0 ? hidden.first() : nodes.first()).getAttribute('data-node-id'))!
+  const target = page.locator(`.overview-node[data-node-id="${id}"]`)
+  const path = id.replace(/^(file|dir):/, '')
+  const name = path.split('/').pop()!
+  await target.click()
+  await expect(target).toHaveAttribute('aria-selected', 'true')
+  await expect(page.locator('[data-testid="node-detail"]')).toContainText(name)
+  await expect(target.locator(':scope > .aside')).toHaveCSS('opacity', '1')
+
+  const nucleus = page.locator('.overview-node.is-nucleus')
+  const before = Number(await canvas.getAttribute('data-visible-nodes'))
+  await nucleus.focus()
+  await nucleus.press('Enter')
+  await expect.poll(async () => Number(await canvas.getAttribute('data-visible-nodes'))).toBeGreaterThanOrEqual(before)
+})

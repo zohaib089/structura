@@ -1,0 +1,42 @@
+[
+ {
+  "id": "f-0",
+  "section": "violations",
+  "severity": "critical",
+  "file": "src/router/index.ts",
+  "message": "Circular dependency",
+  "provenance": "EXTRACTED"
+ },
+ {
+  "id": "f-1",
+  "section": "violations",
+  "severity": "high",
+  "file": "src/api/client.ts",
+  "message": "Untrusted URL join",
+  "provenance": "EXTRACTED"
+ },
+ {
+  "id": "f-2",
+  "section": "violations",
+  "severity": "high",
+  "file": "src/views/ScanView.vue",
+  "message": "Oversized component",
+  "provenance": "EXTRACTED"
+ },
+ {
+  "id": "f-3",
+  "section": "violations",
+  "severity": "medium",
+  "file": "src/stores/session.ts",
+  "message": "Token kept in localStorage",
+  "provenance": "EXTRACTED"
+ },
+ {
+  "id": "f-4",
+  "section": "violations",
+  "severity": "low",
+  "file": "src/utils/format.ts",
+  "message": "Unused export",
+  "provenance": "EXTRACTED"
+ }
+]

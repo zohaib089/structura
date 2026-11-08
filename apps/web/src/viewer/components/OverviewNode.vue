@@ -29,12 +29,18 @@ const props = defineProps<{
   entering?: boolean
   enterDelay?: number
   severityCounts?: SeverityCounts | null
+  /** Which side of the disc the label sits on (west half of the rings: start). */
+  labelSide?: 'start' | 'end'
 }>()
 
 const emit = defineEmits<{ select: []; toggle: [] }>()
 
 /** Compact landing-style mark: a disc with a glyph, label beside it (files, externals, unresolved). */
 const disc = computed(() => !props.more && (!props.cluster || Boolean(props.nucleus)))
+
+/** Disc colour carries meaning: the file's highest finding severity (with the chip/word beside it), else neutral. */
+const topSeverity = computed(() => fileChips.value?.chips[0]?.severity ?? folderChip.value?.severity ?? null)
+const discColor = computed(() => (topSeverity.value ? `var(--sev-${topSeverity.value}-fg)` : 'var(--graph-node-border)'))
 
 const accessible = computed(() => (props.more ? props.moreLabel : props.label))
 
@@ -72,7 +78,7 @@ function onSpace(event: KeyboardEvent) {
       'is-expanded': expanded,
       'is-entering': entering
     }"
-    :style="{ '--node-layer': `var(--graph-layer-${((depth ?? 0) % 6) + 1})`, animationDelay: `${enterDelay ?? 0}ms` }"
+    :style="{ '--node-layer': discColor, animationDelay: `${enterDelay ?? 0}ms` }"
     :data-node-id="id"
     :data-node-kind="kind"
     :data-cluster-size="cluster ? clusterSize : undefined"
@@ -91,7 +97,7 @@ function onSpace(event: KeyboardEvent) {
   >
     <span class="kind-mark" :class="{ 'kind-mark--disc': disc }" aria-hidden="true">
       <Handle type="target" :position="Position.Left" />
-      <BrandMark v-if="nucleus" class="nucleus-mark" size="calc(30px * var(--graph-mark-scale, 1))" />
+      <BrandMark v-if="nucleus" class="nucleus-mark" size="calc(22px * var(--graph-mark-scale, 1))" />
       <template v-else-if="cluster">{{ expanded ? '▾' : '▸' }}</template>
       <template v-else-if="more">+</template>
       <template v-else-if="kind === 'unresolved'">?</template>
@@ -100,38 +106,40 @@ function onSpace(event: KeyboardEvent) {
       <template v-else>•</template>
       <Handle type="source" :position="Position.Right" />
     </span>
-    <span class="label" dir="ltr">{{ more ? moreLabel : label }}</span>
-    <span v-if="folderChip" class="severity-chips">
-      <SeverityChip
-        compact
-        :severity="folderChip.severity"
-        :label="SEVERITY_LABELS[folderChip.severity]"
-        :count="folderChip.count"
-      />
+    <span class="aside" :class="{ 'aside--start': disc && labelSide === 'start' }">
+      <span class="label" dir="ltr">{{ more ? moreLabel : label }}</span>
+      <span v-if="folderChip" class="severity-chips">
+        <SeverityChip
+          compact
+          :severity="folderChip.severity"
+          :label="SEVERITY_LABELS[folderChip.severity]"
+          :count="folderChip.count"
+        />
+      </span>
+      <span v-else-if="fileChips && fileChips.chips.length > 0" class="severity-chips">
+        <SeverityChip
+          v-for="chip in fileChips.chips"
+          :key="`${id}-${chip.severity}`"
+          compact
+          :severity="chip.severity"
+          :label="SEVERITY_LABELS[chip.severity]"
+          :count="chip.count"
+        />
+        <span v-if="fileChips.overflow > 0" class="severity-overflow">+{{ fileChips.overflow }}</span>
+      </span>
+      <span v-if="cluster" class="count tnum">{{ clusterSize }}</span>
+      <button
+        v-if="cluster || more"
+        type="button"
+        class="nodrag nopan node-toggle"
+        tabindex="-1"
+        :aria-label="expanded ? collapseLabel : expandLabel"
+        @click.stop="emit('toggle')"
+        @dblclick.stop.prevent
+      >
+        {{ expanded ? '–' : '+' }}
+      </button>
     </span>
-    <span v-else-if="fileChips && fileChips.chips.length > 0" class="severity-chips">
-      <SeverityChip
-        v-for="chip in fileChips.chips"
-        :key="`${id}-${chip.severity}`"
-        compact
-        :severity="chip.severity"
-        :label="SEVERITY_LABELS[chip.severity]"
-        :count="chip.count"
-      />
-      <span v-if="fileChips.overflow > 0" class="severity-overflow">+{{ fileChips.overflow }}</span>
-    </span>
-    <span v-if="cluster" class="count tnum">{{ clusterSize }}</span>
-    <button
-      v-if="cluster || more"
-      type="button"
-      class="nodrag nopan node-toggle"
-      tabindex="-1"
-      :aria-label="expanded ? collapseLabel : expandLabel"
-      @click.stop="emit('toggle')"
-      @dblclick.stop.prevent
-    >
-      {{ expanded ? '–' : '+' }}
-    </button>
   </div>
 </template>
 
@@ -257,13 +265,13 @@ function onSpace(event: KeyboardEvent) {
   display: inline-grid;
   place-items: center;
   flex-shrink: 0;
-  inline-size: calc(1.75rem * var(--graph-mark-scale, 1));
-  block-size: calc(1.75rem * var(--graph-mark-scale, 1));
+  inline-size: calc(1.25rem * var(--graph-mark-scale, 1));
+  block-size: calc(1.25rem * var(--graph-mark-scale, 1));
   border: calc(2px * var(--graph-mark-scale, 1)) solid var(--node-layer, var(--graph-layer-1));
   border-radius: 50%;
   background: #0f1d36;
   color: var(--node-layer, var(--graph-layer-1));
-  font: 600 calc(var(--font-size-xs) * var(--graph-mark-scale, 1)) / 1 var(--font-family-mono, ui-monospace, monospace);
+  font: 600 calc(10px * var(--graph-mark-scale, 1)) / 1 var(--font-family-mono, ui-monospace, monospace);
   text-transform: lowercase;
 }
 .is-external .kind-mark--disc { border-style: dashed; color: var(--color-text-secondary); border-color: var(--color-text-secondary); }
@@ -275,11 +283,11 @@ function onSpace(event: KeyboardEvent) {
   text-shadow: 0 0 3px #0b1628, 0 0 6px #0b1628;
 }
 .is-nucleus .kind-mark--disc {
-  inline-size: calc(3rem * var(--graph-mark-scale, 1));
-  block-size: calc(3rem * var(--graph-mark-scale, 1));
-  /* Same centre as a regular 1.75rem disc, so the entry sits exactly on the ring centre. */
-  margin-block: calc(-0.625rem * var(--graph-mark-scale, 1));
-  margin-inline-start: calc(-0.625rem * var(--graph-mark-scale, 1));
+  inline-size: calc(2.25rem * var(--graph-mark-scale, 1));
+  block-size: calc(2.25rem * var(--graph-mark-scale, 1));
+  /* Same centre as a regular 1.25rem disc, so the entry sits exactly on the ring centre. */
+  margin-block: calc(-0.5rem * var(--graph-mark-scale, 1));
+  margin-inline-start: calc(-0.5rem * var(--graph-mark-scale, 1));
   border: 0;
   background: var(--color-brand-amber-ui);
   box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-brand-amber-ui) 22%, transparent), 0 0 28px color-mix(in srgb, var(--color-brand-amber-ui) 45%, transparent);
@@ -290,6 +298,31 @@ function onSpace(event: KeyboardEvent) {
 .overview-node:has(.kind-mark--disc):hover { box-shadow: none; }
 .overview-node:has(.kind-mark--disc):hover .kind-mark--disc { border-color: var(--graph-hover-border); }
 .overview-node:has(.kind-mark--disc):focus-visible { box-shadow: var(--focus-ring); }
+
+/* Labels sit outside the disc box so the disc stays on its ring point; west-half labels read inward. */
+.overview-node:has(.kind-mark--disc) { position: relative; inline-size: max-content; padding-inline: 0; }
+.overview-node:has(.kind-mark--disc) > .aside {
+  position: absolute;
+  inset-inline-start: calc(100% + var(--space-1));
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+.overview-node:has(.kind-mark--disc) > .aside--start {
+  inset-inline-start: auto;
+  inset-inline-end: calc(100% + var(--space-1));
+  flex-direction: row-reverse;
+}
+.overview-node:not(:has(.kind-mark--disc)) > .aside { display: contents; }
+/* Decluttered (label would collide): name stays in aria-label/title and shows on hover/focus/selection. */
+[data-label-hidden] > .aside { opacity: 0; transition: opacity var(--duration-fast, 120ms) ease; }
+[data-label-hidden]:hover > .aside,
+[data-label-hidden]:focus-visible > .aside,
+[data-label-hidden].is-selected > .aside { opacity: 1; z-index: 2; }
+@media (prefers-reduced-motion: reduce) { [data-label-hidden] > .aside { transition: none; } }
 </style>
 
 

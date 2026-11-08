@@ -4,9 +4,12 @@ import { RADIAL_RING_GAP } from '../overview'
 
 const props = defineProps<{
   ringCount: number
+  /** Actual ring radii from the layout (rings grow with population); falls back to the fixed gap. */
+  radii?: number[]
 }>()
 
 const rings = computed(() => {
+  if (props.radii && props.radii.length > 0) return props.radii
   const list: number[] = []
   for (let ring = 1; ring <= props.ringCount; ring += 1) list.push(ring * RADIAL_RING_GAP)
   return list
@@ -23,8 +26,8 @@ const rings = computed(() => {
 .ring-guides {
   /* Node positions are top-left corners; centre the rings on the disc centre of a node at (0,0). */
   display: block;
-  margin-inline-start: calc(0.875rem * var(--graph-mark-scale, 1));
-  margin-block-start: max(calc(var(--viewer-hit-target, 2.75rem) / 2), calc(0.875rem * var(--graph-mark-scale, 1)));
+  margin-inline-start: calc(0.625rem * var(--graph-mark-scale, 1));
+  margin-block-start: max(calc(var(--viewer-hit-target, 2.75rem) / 2), calc(0.625rem * var(--graph-mark-scale, 1)));
   overflow: visible;
   pointer-events: none;
   inline-size: 1px;

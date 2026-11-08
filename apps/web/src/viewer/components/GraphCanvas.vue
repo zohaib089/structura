@@ -101,6 +101,19 @@ function flowing(edge: OverviewEdgeModel): boolean {
   return ids.has(edge.source) && ids.has(edge.target)
 }
 
+/** Ring radii as laid out: one radius per populated depth, measured from the ring centre (0,0). */
+const ringRadii = computed(() => {
+  const byDepth = new Map<number, number>()
+  for (const node of props.nodes) {
+    const depth = node.depth ?? 0
+    if (depth <= 0) continue
+    const at = props.positions.get(node.id)
+    if (!at) continue
+    byDepth.set(depth, Math.max(byDepth.get(depth) ?? 0, Math.round(Math.hypot(at.x, at.y))))
+  }
+  return [...byDepth.entries()].sort((a, b) => a[0] - b[0]).map(([, radius]) => radius)
+})
+
 const flowNodes = () => {
   const guide =
     props.ringCount && props.ringCount > 0
@@ -113,7 +126,7 @@ const flowNodes = () => {
           connectable: false,
           focusable: false,
           deletable: false,
-          data: { ringCount: props.ringCount }
+          data: { ringCount: props.ringCount, radii: ringRadii.value }
         } satisfies Node]
       : []
   return [
@@ -218,7 +231,7 @@ defineExpose({ root })
       @edge-click="onEdgeClick"
     >
       <template #node-radial-guides="guideProps">
-        <RadialRingGuides :ring-count="guideProps.data?.ringCount ?? 0" />
+        <RadialRingGuides :ring-count="guideProps.data?.ringCount ?? 0" :radii="guideProps.data?.radii ?? []" />
       </template>
       <template #node-overview="nodeProps">
         <OverviewNode
@@ -243,6 +256,7 @@ defineExpose({ root })
           :expand-label="expandLabel"
           :collapse-label="collapseLabel"
           :severity-counts="severityCountsForPath(nodeProps.data?.path ?? '')"
+          :label-side="(positions.get(nodeProps.id)?.x ?? 0) < -1 ? 'start' : 'end'"
           @select="emit('select', nodeProps.id)"
           @toggle="emit('toggle', nodeProps.id)"
         />

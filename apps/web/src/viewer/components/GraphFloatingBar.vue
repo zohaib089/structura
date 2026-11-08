@@ -78,7 +78,7 @@ const emit = defineEmits<{
   inset-inline-start: 50%;
   z-index: var(--z-graph-controls);
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
@@ -89,7 +89,7 @@ const emit = defineEmits<{
   backdrop-filter: blur(10px);
   box-shadow: 0 8px 24px color-mix(in srgb, var(--color-brand-navy) 35%, transparent);
   transform: translateX(-50%);
-  max-inline-size: min(42rem, calc(100% - var(--space-6)));
+  inline-size: min(40rem, calc(100% - var(--space-6)));
   pointer-events: none;
 }
 .icon-button,

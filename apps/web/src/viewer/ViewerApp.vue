@@ -38,6 +38,7 @@ import {
 } from './overview'
 import { parseGraphFile, type ParseHandle } from './parse-client'
 import './graph-surface.css'
+import { SEVERITY_LABELS } from '../services/severity-display'
 import { resolveGraphNodeId } from '../services/graph-node-focus'
 import type { ViewerReportFinding } from './report-types'
 import { scanReportMessages } from '../services/scan-report-messages'
@@ -142,6 +143,16 @@ const entryOptions = computed(() => (index.value ? collectEntryPoints(index.valu
 const nucleusId = computed(() =>
   index.value ? resolveNucleusId(index.value, viewState.value.nucleusId) : ''
 )
+/** Disc rings take the file's highest severity colour; explain only the severities present in this scan. */
+const SEVERITY_ORDER = ['critical', 'high', 'medium', 'low'] as const
+const severityLegend = computed(() => {
+  const present = new Set<string>()
+  for (const counts of props.pathSeverityCounts?.values() ?? []) {
+    for (const sev of SEVERITY_ORDER) if ((counts as unknown as Record<string, number>)[sev] > 0) present.add(sev)
+  }
+  return SEVERITY_ORDER.filter((sev) => present.has(sev))
+})
+
 const ringCount = computed(() => {
   if (!overview.value) return 0
   let max = 0
@@ -1037,6 +1048,9 @@ const snippet = 'layers: []\nrules: []\n'
         <span class="edge-key"><i class="edge-key__line edge-key__line--inferred" aria-hidden="true"></i>{{ messages.provInferred }}</span>
         <span class="edge-key"><i class="edge-key__line edge-key__line--unresolved" aria-hidden="true"></i>{{ messages.provUnresolved }}</span>
       </span>
+      <span v-if="severityLegend.length > 0" class="status-severity" data-testid="severity-colour-legend">
+        <span v-for="sev in severityLegend" :key="sev" class="sev-key"><i class="sev-key__disc" :style="{ borderColor: `var(--sev-${sev}-fg)` }" aria-hidden="true"></i>{{ SEVERITY_LABELS[sev] }}</span>
+      </span>
       <span v-if="sample" class="pill">{{ messages.samplePill }}</span>
       <span class="status-pan">{{ panStatus }}</span>
       <BudgetMeter
@@ -1170,15 +1184,19 @@ const snippet = 'layers: []\nrules: []\n'
   grid-row: 3;
 }
 .status-radial,
-.status-edges { display: inline-flex; gap: var(--space-3); }
+.status-edges, .status-severity { display: inline-flex; gap: var(--space-3); }
+.sev-key { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--color-text-muted); white-space: nowrap; }
+.sev-key__disc { display: inline-block; inline-size: 0.625rem; block-size: 0.625rem; border: 2px solid; border-radius: 50%; }
+/* Guide card sits above the footer (embedded stage pads for it) and is measured by the fit. */
+.viewer.viewer-radial.viewer-embedded .coach { inset-block-end: calc(var(--viewer-statusbar-height) + var(--space-3)); }
 .edge-key { display: inline-flex; align-items: center; gap: var(--space-1); }
 .edge-key__line { display: inline-block; inline-size: 1.25rem; block-size: 0; border-block-start: 2px solid currentColor; }
 .edge-key__line--inferred { border-block-start-style: dashed; }
 .edge-key__line--unresolved { border-block-start-style: dotted; }
 @media (max-width: 640px) {
-  /* The floating bar wraps on phones; keep the overview hint for assistive tech only. */
-  .status-edges { flex-wrap: wrap; white-space: normal; row-gap: 0; }
-  .graph-hint { position: absolute; inline-size: 1px; block-size: 1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  /* One footer row that never clips: legend first, the rest scrolls sideways. */
+  .viewer.viewer-radial .status { flex-wrap: nowrap; overflow-x: auto; white-space: nowrap; }
+  .status-edges, .status-severity { order: -1; flex-shrink: 0; }
 }
 .status-edges,
 .status-pan {
@@ -1191,24 +1209,17 @@ const snippet = 'layers: []\nrules: []\n'
 .viewer.viewer-radial .stage-legend {
   display: none;
 }
+/* The overview hint repeats the guide card; kept for assistive tech only so it never covers nodes. */
 .graph-hint {
   position: absolute;
-  inset-block-start: calc(var(--space-3) + 3.25rem);
-  inset-inline: var(--space-3);
-  z-index: calc(var(--z-graph-controls) - 1);
+  inline-size: 1px;
+  block-size: 1px;
   margin: 0;
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-full);
-  border: 1px solid color-mix(in srgb, var(--color-brand-amber-ui) 28%, var(--color-border));
-  background: color-mix(in srgb, var(--color-surface-raised) 82%, transparent);
-  font-size: var(--text-13);
-  line-height: var(--text-13-lh);
-  color: var(--color-text-secondary);
-  text-align: center;
-  pointer-events: none;
-  justify-self: center;
-  max-inline-size: min(36rem, calc(100% - var(--space-6)));
-  margin-inline: auto;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 .topbar {
   grid-column: 1 / -1;
