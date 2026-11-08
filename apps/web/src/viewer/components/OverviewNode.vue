@@ -277,6 +277,9 @@ function onSpace(event: KeyboardEvent) {
 .is-nucleus .kind-mark--disc {
   inline-size: calc(3rem * var(--graph-mark-scale, 1));
   block-size: calc(3rem * var(--graph-mark-scale, 1));
+  /* Same centre as a regular 1.75rem disc, so the entry sits exactly on the ring centre. */
+  margin-block: calc(-0.625rem * var(--graph-mark-scale, 1));
+  margin-inline-start: calc(-0.625rem * var(--graph-mark-scale, 1));
   border: 0;
   background: var(--color-brand-amber-ui);
   box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-brand-amber-ui) 22%, transparent), 0 0 28px color-mix(in srgb, var(--color-brand-amber-ui) 45%, transparent);

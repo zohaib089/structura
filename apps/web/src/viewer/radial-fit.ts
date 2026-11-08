@@ -10,6 +10,8 @@ export interface RadialFitInput {
   reserve: { top: number; bottom: number }
   nodes: FitBox[]
   ringRadius: number | null
+  /** Measured ring centre in flow units (defaults to 0,0). */
+  center?: { x: number; y: number }
   padding: number
   maxZoom?: number
   minZoom?: number
@@ -22,8 +24,8 @@ export function radialFitViewport(input: RadialFitInput): { x: number; y: number
   const minY = Math.min(...nodes.map((n) => n.y))
   const maxY = Math.max(...nodes.map((n) => n.y + n.height))
   const radial = input.ringRadius !== null
-  const cx = radial ? 0 : (minX + maxX) / 2
-  const cy = radial ? 0 : (minY + maxY) / 2
+  const cx = radial ? (input.center?.x ?? 0) : (minX + maxX) / 2
+  const cy = radial ? (input.center?.y ?? 0) : (minY + maxY) / 2
   const ring = radial ? (input.ringRadius as number) : 0
   const halfW = Math.max(ring, Math.abs(minX - cx), Math.abs(maxX - cx), 1)
   const halfH = Math.max(ring, Math.abs(minY - cy), Math.abs(maxY - cy), 1)

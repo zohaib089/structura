@@ -32,13 +32,21 @@ function fit() {
     return
   }
   const measured = overlays(canvas)
+  // Ring centre = entry disc centre; measure it so the entry lands in the middle of the free area.
+  const guide = canvas.querySelector('.ring-guides')?.getBoundingClientRect()
+  const box = canvas.getBoundingClientRect()
+  const vp = flow.viewport.value
+  const center = guide && vp.zoom > 0
+    ? { x: (guide.left - box.left - vp.x) / vp.zoom, y: (guide.top - box.top - vp.y) / vp.zoom }
+    : undefined
   const input = {
     width: canvas.clientWidth,
     height: canvas.clientHeight,
     reserve: { top: measured.top, bottom: 0 },
     nodes,
     ringRadius: focus.size === 0 && (props.ringCount ?? 0) > 0 ? RADIAL_RING_GAP * 0.5 : null,
-    padding: props.padding ?? 0.2
+    padding: props.padding ?? 0.2,
+    center
   }
   let viewport = radialFitViewport(input)
   // Only give up height to the guide card when the fitted graph would actually sit under it.

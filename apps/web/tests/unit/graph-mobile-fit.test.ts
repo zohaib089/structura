@@ -20,6 +20,12 @@ describe('radial fit (S3 mobile)', () => {
     expect(vp.y + -234 * vp.zoom).toBeGreaterThan(60)
   })
 
+  it('centres a measured ring centre (entry disc) rather than the node corner', () => {
+    const vp = radialFitViewport({ width: 390, height: 700, reserve: { top: 0, bottom: 0 }, nodes, ringRadius: 110, padding: 0.12, center: { x: 14, y: 22 } })
+    expect(vp.x + 14 * vp.zoom).toBeCloseTo(195, 5)
+    expect(vp.y + 22 * vp.zoom).toBeCloseTo(350, 5)
+  })
+
   it('keeps the bottom node above a reserved guide card and caps the zoom', () => {
     const vp = radialFitViewport({ width: 390, height: 700, reserve: { top: 60, bottom: 120 }, nodes, ringRadius: 110, padding: 0.12 })
     expect(vp.y + (206 + 28) * vp.zoom).toBeLessThan(700 - 120)
