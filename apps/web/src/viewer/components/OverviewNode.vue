@@ -97,7 +97,7 @@ function onSpace(event: KeyboardEvent) {
   >
     <span class="kind-mark" :class="{ 'kind-mark--disc': disc }" aria-hidden="true">
       <Handle type="target" :position="Position.Left" />
-      <BrandMark v-if="nucleus" class="nucleus-mark" size="calc(22px * var(--graph-mark-scale, 1))" />
+      <BrandMark v-if="nucleus" class="nucleus-mark" size="calc(22px * var(--graph-disc-scale, 1))" />
       <template v-else-if="cluster">{{ expanded ? '▾' : '▸' }}</template>
       <template v-else-if="more">+</template>
       <template v-else-if="kind === 'unresolved'">?</template>
@@ -265,13 +265,13 @@ function onSpace(event: KeyboardEvent) {
   display: inline-grid;
   place-items: center;
   flex-shrink: 0;
-  inline-size: calc(1.25rem * var(--graph-mark-scale, 1));
-  block-size: calc(1.25rem * var(--graph-mark-scale, 1));
-  border: calc(2px * var(--graph-mark-scale, 1)) solid var(--node-layer, var(--graph-layer-1));
+  inline-size: calc(1.25rem * var(--graph-disc-scale, 1));
+  block-size: calc(1.25rem * var(--graph-disc-scale, 1));
+  border: calc(2px * var(--graph-disc-scale, 1)) solid var(--node-layer, var(--graph-layer-1));
   border-radius: 50%;
   background: #0f1d36;
   color: var(--node-layer, var(--graph-layer-1));
-  font: 600 calc(10px * var(--graph-mark-scale, 1)) / 1 var(--font-family-mono, ui-monospace, monospace);
+  font: 600 calc(10px * var(--graph-disc-scale, 1)) / 1 var(--font-family-mono, ui-monospace, monospace);
   text-transform: lowercase;
 }
 .is-external .kind-mark--disc { border-style: dashed; color: var(--color-text-secondary); border-color: var(--color-text-secondary); }
@@ -283,11 +283,11 @@ function onSpace(event: KeyboardEvent) {
   text-shadow: 0 0 3px #0b1628, 0 0 6px #0b1628;
 }
 .is-nucleus .kind-mark--disc {
-  inline-size: calc(2.25rem * var(--graph-mark-scale, 1));
-  block-size: calc(2.25rem * var(--graph-mark-scale, 1));
+  inline-size: calc(2.25rem * var(--graph-disc-scale, 1));
+  block-size: calc(2.25rem * var(--graph-disc-scale, 1));
   /* Same centre as a regular 1.25rem disc, so the entry sits exactly on the ring centre. */
-  margin-block: calc(-0.5rem * var(--graph-mark-scale, 1));
-  margin-inline-start: calc(-0.5rem * var(--graph-mark-scale, 1));
+  margin-block: calc(-0.5rem * var(--graph-disc-scale, 1));
+  margin-inline-start: calc(-0.5rem * var(--graph-disc-scale, 1));
   border: 0;
   background: var(--color-brand-amber-ui);
   box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-brand-amber-ui) 22%, transparent), 0 0 28px color-mix(in srgb, var(--color-brand-amber-ui) 45%, transparent);

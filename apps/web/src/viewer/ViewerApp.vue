@@ -1194,9 +1194,13 @@ const snippet = 'layers: []\nrules: []\n'
 .edge-key__line--inferred { border-block-start-style: dashed; }
 .edge-key__line--unresolved { border-block-start-style: dotted; }
 @media (max-width: 640px) {
-  /* One footer row that never clips: legend first, the rest scrolls sideways. */
-  .viewer.viewer-radial .status { flex-wrap: nowrap; overflow-x: auto; white-space: nowrap; }
-  .status-edges, .status-severity { order: -1; flex-shrink: 0; }
+  /* Phone footer wraps onto rows inside a real reserved height (stage pads for it, coach sits above it):
+   * line legend, severity legend, then the node/edge meter. Ring summary and pan hint stay for screen readers. */
+  .viewer.viewer-radial { --viewer-statusbar-height: 7.25rem; }
+  .viewer.viewer-radial .status { flex-wrap: wrap; align-content: center; gap: var(--space-1) var(--space-3); padding-block: var(--space-1); overflow: hidden; }
+  .status-edges, .status-severity { order: -1; flex-wrap: wrap; gap: var(--space-1) var(--space-3); }
+  .viewer.viewer-radial .status-radial,
+  .viewer.viewer-radial .status-pan { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 }
 .status-edges,
 .status-pan {

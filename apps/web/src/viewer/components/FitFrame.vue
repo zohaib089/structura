@@ -10,7 +10,10 @@ const flow = useVueFlow()
 /** Target on-screen label size (px) and the cap on how far marks may grow in flow units. */
 const LABEL_PX = 11.5
 const BASE_LABEL_PX = 11
-const MAX_MARK_SCALE = 4.2
+const MAX_MARK_SCALE = 9
+/** Discs stay a compact ~15px on screen so readable labels do not force marks to collide. */
+const DISC_PX = 15
+const BASE_DISC_PX = 20
 
 function overlays(canvas: HTMLElement) {
   const box = canvas.getBoundingClientRect()
@@ -36,12 +39,15 @@ function measuredBoxes(canvas: HTMLElement, focus: Set<string>): FitBox[] {
     height: rect.height / vp.zoom
   })
   const boxes: FitBox[] = []
+  // Narrow canvases fit ring + marks only (labels are screen-constant, so counting them shrinks the
+  // graph without limit); declutter then hides labels that would leave the canvas.
+  const withLabels = canvas.clientWidth >= 640
   canvas.querySelectorAll<HTMLElement>('.overview-node').forEach((node) => {
     const id = node.dataset.nodeId ?? ''
     if (focus.size > 0 && !focus.has(id)) return
     boxes.push(toFlow(node.getBoundingClientRect()))
     const aside = node.querySelector<HTMLElement>(':scope > .aside')
-    if (aside) boxes.push(toFlow(aside.getBoundingClientRect()))
+    if (withLabels && aside && !node.hasAttribute('data-label-hidden')) boxes.push(toFlow(aside.getBoundingClientRect()))
   })
   if (focus.size === 0) {
     const rings = canvas.querySelectorAll('.ring-guides circle')
@@ -112,13 +118,15 @@ function declutter() {
     const d = centre ? Math.hypot(r.left - centre.left, r.top - centre.top) : 0
     return (n.querySelector('.severity-chips') ? 0 : 1e5) + d
   }
+  const bounds = canvas.getBoundingClientRect()
+  const outside = (r: DOMRect) => r.left < bounds.left + 4 || r.right > bounds.right - 4 || r.top < bounds.top || r.bottom > bounds.bottom
   const placed: DOMRect[] = []
   const hit = (a: DOMRect, b: DOMRect, pad = 2) =>
     a.left < b.right + pad && a.right > b.left - pad && a.top < b.bottom + pad && a.bottom > b.top - pad
   for (const node of [...nodes].sort((a, b) => rank(a) - rank(b))) {
     const label = node.querySelector<HTMLElement>(':scope > .aside')!.getBoundingClientRect()
     const must = node.classList.contains('is-nucleus') || node.classList.contains('is-selected')
-    const clash = placed.some((p) => hit(label, p)) || discs.some((d) => d.node !== node && hit(label, d.rect))
+    const clash = outside(label) || placed.some((p) => hit(label, p)) || discs.some((d) => d.node !== node && hit(label, d.rect))
     if (clash && !must) node.setAttribute('data-label-hidden', 'true')
     else placed.push(label)
   }
@@ -134,6 +142,11 @@ async function fit() {
   fitOnce()
   await frame(); await frame()
   declutter()
+  // Second pass: fit the ring bounds plus only the labels that stay visible, then re-place labels.
+  await frame()
+  fitOnce()
+  await frame(); await frame()
+  declutter()
 }
 
 watch(
@@ -143,6 +156,7 @@ watch(
     if (!el || !(zoom > 0)) return
     const scale = Math.min(MAX_MARK_SCALE, Math.max(1, LABEL_PX / (BASE_LABEL_PX * zoom)))
     el.style.setProperty('--graph-mark-scale', scale.toFixed(3))
+    el.style.setProperty('--graph-disc-scale', Math.min(scale, Math.max(1, DISC_PX / (BASE_DISC_PX * zoom))).toFixed(3))
     scheduleDeclutter()
   },
   { immediate: true }
