@@ -38,7 +38,10 @@ const props = defineProps<{
   pathSeverityCounts?: Map<string, SeverityCounts>
   nucleusId?: string | null
   ringCount?: number
+  showAllCross?: boolean
 }>()
+
+const hoverId = ref<string | null>(null)
 
 const emit = defineEmits<{
   select: [id: string]
@@ -172,7 +175,11 @@ const flowEdges = () => props.edges.map((edge): Edge<OverviewEdgeModel> => ({
     ...edge,
     flowing: flowing(edge),
     radialCentre: radialCentre.value,
-    emphasized: Boolean(props.selectedId && (edge.source === props.selectedId || edge.target === props.selectedId))
+    emphasized: Boolean(
+      (props.selectedId && (edge.source === props.selectedId || edge.target === props.selectedId)) ||
+      (hoverId.value && (edge.source === hoverId.value || edge.target === hoverId.value))
+    ),
+    showAllCross: Boolean(props.showAllCross)
   },
   label: edge.label,
       domAttributes: {
@@ -184,6 +191,12 @@ const flowEdges = () => props.edges.map((edge): Edge<OverviewEdgeModel> => ({
 
 function onNodeClick(payload: { node: { id: string } }) {
   emit('select', payload.node.id)
+}
+function onNodeEnter(payload: { node: { id: string } }) {
+  hoverId.value = payload.node.id
+}
+function onNodeLeave() {
+  hoverId.value = null
 }
 
 function onEdgeClick(payload: { edge: { id: string } }) {
@@ -240,6 +253,8 @@ defineExpose({ root })
       @nodes-initialized="onInit"
       @node-click="onNodeClick"
       @edge-click="onEdgeClick"
+      @node-mouse-enter="onNodeEnter"
+      @node-mouse-leave="onNodeLeave"
     >
       <template #node-radial-guides="guideProps">
         <RadialRingGuides :ring-count="guideProps.data?.ringCount ?? 0" :radii="guideProps.data?.radii ?? []" />

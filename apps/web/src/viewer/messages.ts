@@ -171,6 +171,9 @@ export interface ViewerMessages {
   graphGuideStep1: string
   graphGuideStep2: string
   graphGuideStep3: string
+  /** Toolbar toggle: reveal non-tree cross-links (count is substituted). */
+  showAllConnections: string
+  hideExtraConnections: string
   filtersTooltip: string
   searchTooltip: string
   fitTooltip: string
@@ -357,6 +360,8 @@ const en: ViewerMessages = {
   graphGuideStep1: 'Click any node to open its details.',
   graphGuideStep2: 'On a folder, choose “Show inside on map” to reveal more on the ring.',
   graphGuideStep3: 'Choose “Centre graph here” to redraw the map around that file.',
+  showAllConnections: 'Show all connections ({n})',
+  hideExtraConnections: 'Hide extra connections ({n})',
   filtersTooltip: 'Open filters to hide file types or link types',
   searchTooltip: 'Find a file or symbol by name',
   fitTooltip: 'Zoom so the whole graph fits on screen',

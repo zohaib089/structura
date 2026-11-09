@@ -103,6 +103,7 @@ const loading = ref(false)
 const loadingVisible = ref(false)
 const loadingBytes = ref(0)
 const coachDismissed = ref(false)
+const showAllCross = ref(false)
 const fileName = ref('')
 const sample = ref(false)
 const dragging = ref(false)
@@ -763,6 +764,13 @@ const skippedCount = computed(() => {
   if (!files) return 0
   return files.skipped + files.failed + files.partial
 })
+const crossLinkCount = computed(() => overview.value?.edges.filter((e) => e.role === 'cross').length ?? 0)
+const showAllCrossLabel = computed(() =>
+  format(showAllCross.value ? messages.hideExtraConnections : messages.showAllConnections, {
+    n: numbers.format(crossLinkCount.value)
+  })
+)
+
 const coachSteps = computed(() => [
   messages.graphGuideStep1,
   messages.graphGuideStep2,
@@ -894,10 +902,14 @@ const snippet = 'layers: []\nrules: []\n'
         :entry-options="entryOptions"
         :entry-id="nucleusId"
         search-shortcut="Control+K Meta+K /"
+        :show-all-cross-label="crossLinkCount > 0 ? showAllCrossLabel : undefined"
+        :show-all-cross="showAllCross"
+        :cross-link-count="crossLinkCount"
         @toggle-filters="railOpen = !railOpen"
         @open-search="palette = true"
         @fit="triggerFit"
         @update:entry-id="onEntryChange"
+        @toggle-show-all-cross="showAllCross = !showAllCross"
       />
       <p v-if="overview && graph && graph.nodes.length > 0" class="graph-hint" role="note">
         {{ messages.graphOverviewHint }}
@@ -927,6 +939,7 @@ const snippet = 'layers: []\nrules: []\n'
         :nucleus-id="nucleusId"
         :ring-count="ringCount"
         :fit-bump="fitSignature"
+        :show-all-cross="showAllCross"
         @select="selectNode($event, true)"
         @toggle="toggleNode"
         @select-edge="selectEdge"
@@ -1194,12 +1207,7 @@ const snippet = 'layers: []\nrules: []\n'
 .edge-key__line--inferred { border-block-start-style: dashed; }
 .edge-key__line--unresolved { border-block-start-style: dotted; }
 @media (max-width: 640px) {
-  /* Phone: coach under the toolbar so it does not cover the lower graph (desktop keeps bottom-left). */
-  .viewer.viewer-radial.viewer-embedded .coach {
-    inset-block-end: auto;
-    inset-block-start: calc(var(--viewer-control-size, 2.75rem) + var(--space-3));
-  }
-  /* Phone footer wraps onto rows inside a real reserved height (stage pads for it):
+  /* Phone footer wraps onto rows inside a real reserved height (stage pads for it; coach sits above it):
    * line legend, severity legend, then the node/edge meter. Ring summary and pan hint stay for screen readers. */
   .viewer.viewer-radial { --viewer-statusbar-height: 7.25rem; }
   .viewer.viewer-radial .status { flex-wrap: wrap; align-content: center; gap: var(--space-1) var(--space-3); padding-block: var(--space-1); overflow: hidden; }

@@ -8,7 +8,7 @@ import type { GraphDocument, GraphEdge, GraphNode, Provenance } from './graph-ty
 
 export const RADIAL_RING_GAP = 220
 /** Minimum arc (flow px) between neighbours on one ring, so compact marks + labels do not collide. */
-export const RADIAL_MIN_ARC = 150
+export const RADIAL_MIN_ARC = 168
 export const RADIAL_DEFAULT_MAX_RING = 6
 
 export interface EntryPointOption {
@@ -108,6 +108,8 @@ export interface OverviewEdgeModel {
   radialCentre?: { x: number; y: number }
   /** True when the edge touches the selected node — cross-links paint at full opacity. */
   emphasized?: boolean
+  /** When true, paint every cross-link (toolbar toggle). */
+  showAllCross?: boolean
 }
 
 export interface OverviewModel {
@@ -425,7 +427,7 @@ export function buildOverview(
 ): OverviewModel {
   const nucleusId = resolveNucleusId(index, state.nucleusId)
   const maxRing = state.maxRadialRing ?? RADIAL_DEFAULT_MAX_RING
-  const ringDepths = dependencyRingDepths(index, nucleusId, filters, maxRing)
+  const { depths: ringDepths, parentOf: treeParent } = dependencyRingTree(index, nucleusId, filters, maxRing)
   const expanded = new Set(state.expanded)
   const pinned = new Set(state.pinned)
   const nodes: OverviewNodeModel[] = []
@@ -502,7 +504,7 @@ export function buildOverview(
 
   for (const node of nodes) node.internalEdges = internal.get(node.id) ?? 0
 
-  let edgeModels = [...bundles.values()].map((b) => toEdgeModel(b, ringDepths))
+  let edgeModels = [...bundles.values()].map((b) => toEdgeModel(b, ringDepths, treeParent))
   edgeModels.sort((a, b) => b.weight - a.weight || compareUtf16(a.id, b.id))
   const edgesOmittedByCap = Math.max(0, edgeModels.length - HARD_EDGE_CAP)
   edgeModels = edgeModels.slice(0, HARD_EDGE_CAP)
@@ -541,6 +543,17 @@ export function compareUtf16(a: string, b: string): number {
   if (a < b) return -1
   if (a > b) return 1
   return 0
+}
+
+function edgeRadialRoleFromTree(
+  source: string,
+  target: string,
+  hierarchy: boolean,
+  treeParent: Map<string, string>
+): RadialEdgeRole {
+  if (hierarchy) return 'cross'
+  if (treeParent.get(source) === target || treeParent.get(target) === source) return 'spoke'
+  return 'cross'
 }
 
 export function edgeVisual(provenance: Provenance | 'MIXED', resolved: boolean): EdgeVisual {
@@ -597,7 +610,7 @@ function addBundle(
   bundles.set(key, bundle)
 }
 
-function toEdgeModel(bundle: Bundle, ringDepths: Map<string, number>): OverviewEdgeModel {
+function toEdgeModel(bundle: Bundle, _ringDepths: Map<string, number>, treeParent: Map<string, string>): OverviewEdgeModel {
   const weight = bundle.extracted + bundle.inferred + bundle.unresolved
   const resolved = bundle.unresolved === 0
   let provenance: Provenance | 'MIXED'
@@ -606,12 +619,7 @@ function toEdgeModel(bundle: Bundle, ringDepths: Map<string, number>): OverviewE
   else provenance = 'EXTRACTED'
   const visual = edgeVisual(provenance, resolved)
   const imported = importSummary(bundle)
-  const sd = ringDepths.get(bundle.source)
-  const td = ringDepths.get(bundle.target)
-  const role: RadialEdgeRole =
-    bundle.hierarchy || sd === undefined || td === undefined || Math.abs(sd - td) !== 1
-      ? 'cross'
-      : 'spoke'
+  const role: RadialEdgeRole = edgeRadialRoleFromTree(bundle.source, bundle.target, bundle.hierarchy, treeParent)
   return {
     id: `bundle:${bundle.source}>${bundle.target}:${visual}:${bundle.hierarchy ? 'h' : 'b'}`,
     source: bundle.source,
@@ -950,14 +958,16 @@ function radialLinkPasses(filters: ViewFilters, unresolved: boolean, provenance:
   return filters.provenance.extracted
 }
 
-export function dependencyRingDepths(
+/** BFS depths from the nucleus plus the tree parent used for spoke edges. */
+export function dependencyRingTree(
   index: GraphIndex,
   nucleusId: string,
   filters: ViewFilters,
   maxRing: number
-): Map<string, number> {
+): { depths: Map<string, number>; parentOf: Map<string, string> } {
   const depths = new Map<string, number>()
-  if (!index.nodesById.has(nucleusId)) return depths
+  const parentOf = new Map<string, string>()
+  if (!index.nodesById.has(nucleusId)) return { depths, parentOf }
   depths.set(nucleusId, 0)
   const queue: string[] = [nucleusId]
   let head = 0
@@ -972,10 +982,20 @@ export function dependencyRingDepths(
       if (!radialNodePasses(index, filters, target)) continue
       if (depths.has(target)) continue
       depths.set(target, depth + 1)
+      parentOf.set(target, current)
       queue.push(target)
     }
   }
-  return depths
+  return { depths, parentOf }
+}
+
+export function dependencyRingDepths(
+  index: GraphIndex,
+  nucleusId: string,
+  filters: ViewFilters,
+  maxRing: number
+): Map<string, number> {
+  return dependencyRingTree(index, nucleusId, filters, maxRing).depths
 }
 
 export function countDependencyEdges(index: GraphIndex, nodeId: string): { out: number; in: number } {

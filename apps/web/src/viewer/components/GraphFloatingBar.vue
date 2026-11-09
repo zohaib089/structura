@@ -1,5 +1,5 @@
 <script setup lang="ts">
-defineProps<{
+const props = defineProps<{
   filtersLabel: string
   filtersTooltip: string
   searchLabel: string
@@ -11,6 +11,9 @@ defineProps<{
   entryOptions: { id: string; label: string; path: string }[]
   entryId: string
   searchShortcut?: string
+  showAllCrossLabel?: string
+  showAllCross?: boolean
+  crossLinkCount?: number
 }>()
 
 const emit = defineEmits<{
@@ -18,6 +21,7 @@ const emit = defineEmits<{
   openSearch: []
   fit: []
   'update:entryId': [id: string]
+  toggleShowAllCross: []
 }>()
 </script>
 
@@ -68,6 +72,17 @@ const emit = defineEmits<{
     >
       {{ fitLabel }}
     </button>
+    <button
+      v-if="showAllCrossLabel && (crossLinkCount ?? 0) > 0"
+      type="button"
+      class="links-button"
+      :aria-pressed="showAllCross ? 'true' : 'false'"
+      :title="showAllCrossLabel"
+      data-testid="graph-show-all-links"
+      @click="emit('toggleShowAllCross')"
+    >
+      {{ showAllCrossLabel }}
+    </button>
   </div>
 </template>
 
@@ -95,9 +110,26 @@ const emit = defineEmits<{
 .icon-button,
 .search-button,
 .fit-button,
+.links-button,
 .entry-switcher,
 .entry-switcher select {
   pointer-events: auto;
+}
+.links-button {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: var(--text-12, 0.75rem);
+  min-block-size: var(--viewer-hit-target, 2.75rem);
+  padding-inline: var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+.links-button[aria-pressed='true'] {
+  border-color: color-mix(in srgb, var(--color-brand-amber-ui) 50%, var(--color-border));
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-brand-amber-ui) 18%, transparent);
 }
 .icon-button,
 .search-button,

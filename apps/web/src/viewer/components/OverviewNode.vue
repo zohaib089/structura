@@ -312,7 +312,7 @@ function onSpace(event: KeyboardEvent) {
 .overview-node:has(.kind-mark--disc) { position: relative; inline-size: max-content; padding-inline: 0; }
 .overview-node:has(.kind-mark--disc) > .aside {
   position: absolute;
-  inset-inline-start: calc(100% + var(--space-2));
+  inset-inline-start: calc(100% + var(--space-3));
   inset-block-start: 50%;
   transform: translateY(-50%);
   display: inline-flex;
@@ -322,7 +322,7 @@ function onSpace(event: KeyboardEvent) {
 }
 .overview-node:has(.kind-mark--disc) > .aside--start {
   inset-inline-start: auto;
-  inset-inline-end: calc(100% + var(--space-2));
+  inset-inline-end: calc(100% + var(--space-3));
   flex-direction: row-reverse;
 }
 .overview-node:not(:has(.kind-mark--disc)) > .aside { display: contents; }

@@ -3,7 +3,7 @@ import { useVueFlow } from '@vue-flow/core'
 import { watch } from 'vue'
 import { RADIAL_RING_GAP } from '../overview'
 import { labelsToHide, type DeclutterBox } from '../label-declutter'
-import { graphOverlaps, radialFitViewport, type FitBox } from '../radial-fit'
+import { radialFitViewport, type FitBox } from '../radial-fit'
 
 const props = defineProps<{ signature: string; duration?: number; padding?: number; ringCount?: number; focusIds?: string[] }>()
 const flow = useVueFlow()
@@ -82,7 +82,8 @@ function fitOnce() {
     center: ringCentre(canvas)
   }
   let viewport = radialFitViewport(input)
-  if (measured.coach && graphOverlaps(viewport, boxes, measured.coach)) {
+  // Always leave room for the coach when it is open so ring nodes are never under it.
+  if (measured.coach) {
     viewport = radialFitViewport({ ...input, reserve: { top: measured.top, bottom: measured.coach.bottom } })
   }
   void flow.setViewport(viewport, { duration: props.duration ?? 0 })

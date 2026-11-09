@@ -1,29 +1,37 @@
-import { describe, expect, it } from 'vitest'
-import { edgeRadialRole, radialEdgePath } from '../../src/viewer/radial-edge-path'
 
-describe('radialEdgePath', () => {
-  it('bows the control point toward the ring centre for spokes', () => {
+import { describe, expect, it } from 'vitest'
+import { edgeRadialRole, isTreeEdge, radialEdgePath } from '../../src/viewer/radial-edge-path'
+
+describe('radialEdgePath spokes', () => {
+  it('draws a pure radial line from the nucleus', () => {
     const centre = { x: 0, y: 0 }
-    const spoke = radialEdgePath(0, -100, 100, 0, centre, 'spoke')
-    expect(spoke.path.startsWith('M0,-100 Q')).toBe(true)
-    // Midpoint of (0,-100) and (100,0) is (50,-50); 18% pull toward origin → (41, -41)
-    expect(spoke.path).toContain('Q41,-41')
+    const spoke = radialEdgePath(0, 0, 0, -100, centre, 'spoke')
+    expect(spoke.path).toBe('M0,0 L0,-100')
   })
 
-  it('pulls cross-links less so they stay flatter', () => {
+  it('uses radial-then-arc for parent→child and never pulls through the centre', () => {
     const centre = { x: 0, y: 0 }
-    const cross = radialEdgePath(0, -100, 100, 0, centre, 'cross')
-    expect(cross.path).toContain('Q46,-46')
+    // parent at r=100 angle -90°, child at r=200 angle 0°
+    const path = radialEdgePath(0, -100, 200, 0, centre, 'spoke').path
+    expect(path.startsWith('M0,-100 L')).toBe(true)
+    expect(path).toContain(' A200')
+    // elbow sits at outer radius on the parent's angle: (0, -200)
+    expect(path).toContain('L0.00,-200.00')
   })
 })
 
-describe('edgeRadialRole', () => {
-  it('marks neighbouring rings as spokes and everything else as cross', () => {
-    expect(edgeRadialRole(0, 1, false)).toBe('spoke')
-    expect(edgeRadialRole(2, 3, false)).toBe('spoke')
-    expect(edgeRadialRole(1, 1, false)).toBe('cross')
-    expect(edgeRadialRole(0, 2, false)).toBe('cross')
-    expect(edgeRadialRole(0, 1, true)).toBe('cross')
-    expect(edgeRadialRole(undefined, 1, false)).toBe('cross')
+describe('BFS tree classification', () => {
+  it('marks only exact tree parent↔child pairs as spokes', () => {
+    const parentOf = new Map([
+      ['b', 'a'],
+      ['c', 'a'],
+      ['d', 'b']
+    ])
+    expect(isTreeEdge('a', 'b', parentOf)).toBe(true)
+    expect(isTreeEdge('b', 'd', parentOf)).toBe(true)
+    expect(isTreeEdge('b', 'c', parentOf)).toBe(false)
+    expect(edgeRadialRole('a', 'b', false, parentOf)).toBe('spoke')
+    expect(edgeRadialRole('b', 'c', false, parentOf)).toBe('cross')
+    expect(edgeRadialRole('a', 'b', true, parentOf)).toBe('cross')
   })
 })

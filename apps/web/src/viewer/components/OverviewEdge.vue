@@ -14,26 +14,31 @@ const path = computed(() =>
 )
 const markerId = computed(() => `marker-${props.id}`)
 const flowing = computed(() => Boolean(props.data?.flowing) && visual.value !== 'unresolved')
-const emphasized = computed(() => Boolean(props.data?.emphasized) || props.selected)
+const revealed = computed(
+  () => Boolean(props.data?.emphasized) || Boolean(props.data?.showAllCross) || props.selected
+)
+const hiddenCross = computed(() => role.value === 'cross' && !revealed.value)
 const style = computed(() => ({
   stroke: edgeStroke(visual.value),
-  strokeWidth: `calc(${edgeWidth(visual.value)} * var(--graph-disc-scale, 1) * ${role.value === 'cross' && !emphasized.value ? 0.7 : 1} * 1px)`,
+  strokeWidth: `calc(${edgeWidth(visual.value)} * var(--graph-disc-scale, 1) * 1px)`,
   strokeDasharray: flowing.value && visual.value === 'extracted'
     ? 'var(--graph-edge-dash-flow)'
     : EDGE_DASH[visual.value] === 'none' ? 'none' : EDGE_DASH[visual.value],
   strokeLinecap: visual.value === 'unresolved' ? 'round' : 'butt',
   fill: 'none',
-  opacity: role.value === 'cross' && !emphasized.value ? 0.22 : 1
+  opacity: hiddenCross.value ? 0 : 1,
+  pointerEvents: hiddenCross.value ? 'none' : 'stroke'
 }))
 </script>
 
 <template>
   <g
-    :class="[edgeClass(visual), `edge-role-${role}`, { 'is-flowing': flowing, 'is-emphasized': emphasized }]"
+    :class="[edgeClass(visual), `edge-role-${role}`, { 'is-flowing': flowing, 'is-revealed': revealed, 'is-cross-hidden': hiddenCross }]"
     :data-provenance="data?.provenance"
     :data-resolved="data?.resolved ? 'true' : 'false'"
     :data-weight="String(data?.weight ?? 1)"
     :data-role="role"
+    :data-cross-hidden="hiddenCross ? 'true' : 'false'"
   >
     <defs v-if="visual === 'unresolved'">
       <marker :id="markerId" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
@@ -45,9 +50,9 @@ const style = computed(() => ({
       :path="path.path"
       :label-x="path.labelX"
       :label-y="path.labelY"
-      :label="data?.label ?? ''"
+      :label="hiddenCross ? '' : (data?.label ?? '')"
       :style="style"
-      :marker-end="visual === 'unresolved' ? `url(#${markerId})` : undefined"
+      :marker-end="visual === 'unresolved' && !hiddenCross ? `url(#${markerId})` : undefined"
     />
   </g>
 </template>
@@ -62,10 +67,6 @@ const style = computed(() => ({
   to { stroke-dashoffset: var(--graph-flow-offset); }
 }
 .edge-role-cross :deep(.vue-flow__edge-path) {
-  transition: opacity var(--duration-fast, 120ms) ease, stroke-width var(--duration-fast, 120ms) ease;
-}
-.edge-role-cross:hover :deep(.vue-flow__edge-path),
-.is-emphasized :deep(.vue-flow__edge-path) {
-  opacity: 1 !important;
+  transition: opacity var(--duration-fast, 120ms) ease;
 }
 </style>

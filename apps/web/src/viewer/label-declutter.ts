@@ -25,7 +25,7 @@ export interface DeclutterBounds {
 function hit(
   a: { left: number; right: number; top: number; bottom: number },
   b: { left: number; right: number; top: number; bottom: number },
-  pad = 4
+  pad = 6
 ): boolean {
   return a.left < b.right + pad && a.right > b.left - pad && a.top < b.bottom + pad && a.bottom > b.top - pad
 }
@@ -33,7 +33,7 @@ function hit(
 function outside(
   r: { left: number; right: number; top: number; bottom: number },
   bounds: DeclutterBounds,
-  pad = 4
+  pad = 6
 ): boolean {
   return r.left < bounds.left + pad || r.right > bounds.right - pad || r.top < bounds.top || r.bottom > bounds.bottom
 }
