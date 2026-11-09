@@ -365,8 +365,44 @@ function onSpace(event: KeyboardEvent) {
 .overview-node[data-label-flip='end']:has(.kind-mark--disc) > .aside {
   inset-inline-start: calc(100% + var(--space-3));
   inset-inline-end: auto;
+  inset-block-start: 50%;
+  transform: translateY(-50%);
   flex-direction: row;
 }
+/* Phone collision: vertical placement cuts horizontal width demand. */
+.overview-node[data-label-flip='above']:has(.kind-mark--disc) > .aside {
+  inset-inline-start: 50%;
+  inset-inline-end: auto;
+  inset-block-start: auto;
+  inset-block-end: calc(100% + var(--space-2));
+  transform: translate(calc(-50% + var(--label-nudge-x, 0px)), 0);
+  flex-direction: column;
+  align-items: center;
+  max-inline-size: calc(7.5rem * var(--graph-mark-scale, 1));
+  text-align: center;
+}
+.overview-node[data-label-flip='below']:has(.kind-mark--disc) > .aside {
+  inset-inline-start: 50%;
+  inset-inline-end: auto;
+  inset-block-start: calc(100% + var(--space-2));
+  inset-block-end: auto;
+  transform: translate(calc(-50% + var(--label-nudge-x, 0px)), 0);
+  flex-direction: column;
+  align-items: center;
+  max-inline-size: calc(7.5rem * var(--graph-mark-scale, 1));
+  text-align: center;
+}
+.overview-node[data-label-flip='start']:has(.kind-mark--disc) > .aside,
+.overview-node[data-label-flip='end']:has(.kind-mark--disc) > .aside {
+  transform: translateY(calc(-50% + var(--label-nudge-y, 0px)));
+}
+/* Extra clearance under the ENTRY POINT stack on phone so ring discs stay clear. */
+@media (max-width: 480px) {
+  .overview-node:has(.kind-mark--disc) > .aside--nucleus {
+    inset-block-start: calc(100% + var(--space-3));
+  }
+}
+
 /* Nucleus: name + ENTRY POINT stacked under the hexagon (landing parity). */
 .overview-node:has(.kind-mark--disc) > .aside--nucleus {
   inset-inline-start: 50%;

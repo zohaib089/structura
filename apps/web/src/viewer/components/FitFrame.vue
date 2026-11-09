@@ -2,7 +2,6 @@
 import { useVueFlow } from '@vue-flow/core'
 import { watch } from 'vue'
 import { RADIAL_RING_GAP } from '../overview'
-import { labelsToHide, type DeclutterBox } from '../label-declutter'
 import { radialFitViewport, type FitBox } from '../radial-fit'
 import { isPhoneCanvas, markScaleForZoom } from '../graph-mark-scale'
 
@@ -44,7 +43,18 @@ function measuredBoxes(canvas: HTMLElement, focus: Set<string>): FitBox[] {
     const aside = node.querySelector<HTMLElement>(':scope > .aside')
     const labelEl = aside?.querySelector<HTMLElement>('.label') ?? aside
     if (withLabels && labelEl && !node.hasAttribute('data-label-hidden')) {
-      boxes.push(toFlow(labelEl.getBoundingClientRect()))
+      const rect = labelEl.getBoundingClientRect()
+      if (phone) {
+        // Cap horizontal extent so left/right labels don't crush zoom; prefer vertical placement instead.
+        const disc = node.querySelector('.kind-mark--disc')?.getBoundingClientRect()
+        const cx = disc ? (disc.left + disc.right) / 2 : (rect.left + rect.right) / 2
+        const maxHalf = 40
+        const left = Math.max(rect.left, cx - maxHalf)
+        const right = Math.min(rect.right, cx + maxHalf)
+        boxes.push(toFlow(new DOMRect(left, rect.top, Math.max(right - left, 1), rect.height)))
+      } else {
+        boxes.push(toFlow(rect))
+      }
     }
   })
   if (focus.size === 0) {
@@ -77,7 +87,7 @@ function fitOnce() {
     nodes: boxes,
     ringRadius: focus.size === 0 && (props.ringCount ?? 0) > 0 ? RADIAL_RING_GAP : null,
     // Phone: extra padding so kept labels are not clipped at the canvas edge.
-    padding: phone ? Math.max(props.padding ?? 0.2, 0.3) : (props.padding ?? 0.2),
+    padding: phone ? Math.max(props.padding ?? 0.2, 0.22) : (props.padding ?? 0.2),
     center: ringCentre(canvas)
   }
   let viewport = radialFitViewport(input)
@@ -120,6 +130,8 @@ function declutter() {
   nodes.forEach((n) => {
     n.removeAttribute('data-label-hidden')
     n.removeAttribute('data-label-flip')
+    n.style.removeProperty('--label-nudge-x')
+    n.style.removeProperty('--label-nudge-y')
   })
 
   const desktop = canvas.clientWidth >= 640
@@ -168,14 +180,11 @@ function declutter() {
     return
   }
 
-  // Phone: flip sides to clear clips/hits, then priority hide (nucleus/ring-1/findings first).
+  // Phone: try end/start/above/below at painted scale; keep nucleus + findings + ring-1.
   const centre = canvas.querySelector('.ring-guides')?.getBoundingClientRect()
   const bounds = canvas.getBoundingClientRect()
   const edgePad = 6
-  const discs = nodes.map((n) => ({
-    id: n.dataset.nodeId ?? '',
-    box: (n.querySelector('.kind-mark--disc') ?? n.querySelector('.kind-mark') ?? n).getBoundingClientRect()
-  }))
+  const cx = centre ? (centre.left + centre.right) / 2 : (bounds.left + bounds.right) / 2
 
   const labelRect = (n: HTMLElement) => {
     const el =
@@ -184,78 +193,135 @@ function declutter() {
     return el?.getBoundingClientRect() ?? null
   }
 
+  const discBoxOf = (n: HTMLElement) =>
+    (n.querySelector('.kind-mark--disc') ?? n.querySelector('.kind-mark') ?? n).getBoundingClientRect()
+
+  /** Nucleus name+ENTRY POINT stack is an obstacle (not just the disc). */
+  const obstacles = () => {
+    const list: { id: string; box: DOMRect; kind: 'disc' | 'label' }[] = []
+    for (const n of nodes) {
+      list.push({ id: n.dataset.nodeId ?? '', box: discBoxOf(n), kind: 'disc' })
+      if (n.classList.contains('is-nucleus')) {
+        const stack = n.querySelector<HTMLElement>(':scope > .aside')
+        if (stack) list.push({ id: `${n.dataset.nodeId}::nucleus-label`, box: stack.getBoundingClientRect(), kind: 'label' })
+      } else if (!n.hasAttribute('data-label-hidden')) {
+        const lab = labelRect(n)
+        if (lab) list.push({ id: `${n.dataset.nodeId}::label`, box: lab, kind: 'label' })
+      }
+    }
+    return list
+  }
+
   const outside = (r: DOMRect) =>
     r.left < bounds.left + edgePad ||
     r.right > bounds.right - edgePad ||
     r.top < bounds.top + edgePad ||
     r.bottom > bounds.bottom - edgePad
 
-  const conflicts = (n: HTMLElement, box: DOMRect) => {
+  const conflicts = (n: HTMLElement, box: DOMRect, obs: ReturnType<typeof obstacles>) => {
     if (outside(box)) return true
     const ownId = n.dataset.nodeId ?? ''
-    if (discs.some((d) => d.id !== ownId && hitRect(box, d.box))) return true
-    return nodes.some((other) => {
-      if (other === n || other.hasAttribute('data-label-hidden')) return false
-      if (other.classList.contains('is-nucleus') && n.classList.contains('is-nucleus')) return false
-      const o = labelRect(other)
-      return o ? hitRect(box, o) : false
+    return obs.some((o) => {
+      if (o.id === ownId || o.id.startsWith(`${ownId}::`)) return false
+      return hitRect(box, o.box)
     })
   }
 
-  for (const n of nodes) {
-    if (n.classList.contains('is-nucleus')) continue
-    const aside = n.querySelector<HTMLElement>(':scope > .aside')
-    const box = labelRect(n)
-    if (!aside || !box || !conflicts(n, box)) continue
-    const startNow =
-      n.getAttribute('data-label-flip') === 'start' ||
-      (n.getAttribute('data-label-flip') !== 'end' && aside.classList.contains('aside--start'))
-    n.setAttribute('data-label-flip', startNow ? 'end' : 'start')
+  const isMust = (n: HTMLElement) => {
+    if (n.classList.contains('is-nucleus') || n.classList.contains('is-selected')) return true
+    if (Number(n.dataset.depth ?? NaN) === 1) return true
+    if (n.dataset.hasFindings === 'true') return true
+    return false
   }
-  void canvas.offsetWidth
 
-  // Second flip pass for residuals (incl. must-keep ring-1 / findings).
-  for (const n of nodes) {
-    if (n.classList.contains('is-nucleus')) continue
-    const aside = n.querySelector<HTMLElement>(':scope > .aside')
-    const box = labelRect(n)
-    if (!aside || !box || !conflicts(n, box)) continue
-    const cur = n.getAttribute('data-label-flip')
-    n.setAttribute('data-label-flip', cur === 'start' ? 'end' : 'start')
+  const placementsFor = (n: HTMLElement): Array<'end' | 'start' | 'above' | 'below'> => {
+    const disc = discBoxOf(n)
+    const west = (disc.left + disc.right) / 2 < cx
+    const cy0 = centre ? (centre.top + centre.bottom) / 2 : (bounds.top + bounds.bottom) / 2
+    const south = (disc.top + disc.bottom) / 2 >= cy0
+    // Prefer outward vertical first so neighbours don't all pick the same side.
+    const vertical = south ? (['below', 'above'] as const) : (['above', 'below'] as const)
+    return west
+      ? [vertical[0], vertical[1], 'end', 'start']
+      : ['end', vertical[0], vertical[1], 'start']
   }
-  void canvas.offsetWidth
 
-  const boxes: DeclutterBox[] = nodes.map((n) => {
-    const r = n.getBoundingClientRect()
-    const disc = (n.querySelector('.kind-mark--disc') ?? n.querySelector('.kind-mark') ?? n).getBoundingClientRect()
-    const label = labelRect(n) ?? r
-    const depth = Number(n.dataset.depth ?? NaN)
-    return {
-      id: n.dataset.nodeId ?? '',
-      label: { left: label.left, right: label.right, top: label.top, bottom: label.bottom },
-      disc: { left: disc.left, right: disc.right, top: disc.top, bottom: disc.bottom },
-      nucleus: n.classList.contains('is-nucleus'),
-      selected: n.classList.contains('is-selected'),
-      hasFindings: n.dataset.hasFindings === 'true',
-      ring1: depth === 1,
-      distance: centre ? Math.hypot(r.left - centre.left, r.top - centre.top) : 0
+  const unplacedFindings: string[] = []
+
+  // Priority order: findings + ring-1 first so they claim space; outer later.
+  const ordered = [...nodes]
+    .filter((n) => !n.classList.contains('is-nucleus'))
+    .sort((a, b) => {
+      const score = (n: HTMLElement) => {
+        if (n.dataset.hasFindings === 'true') return 0
+        if (Number(n.dataset.depth ?? NaN) === 1) return 1
+        return 2 + Number(n.dataset.depth ?? 9)
+      }
+      return score(a) - score(b)
+    })
+
+  for (const n of ordered) {
+    n.removeAttribute('data-label-hidden')
+    n.style.removeProperty('--label-nudge-x')
+    n.style.removeProperty('--label-nudge-y')
+    let placed = false
+    const nudges = [0, -12, 12, -24, 24]
+    outer: for (const place of placementsFor(n)) {
+      n.setAttribute('data-label-flip', place)
+      for (const nudge of nudges) {
+        if (place === 'above' || place === 'below') {
+          n.style.setProperty('--label-nudge-x', `${nudge}px`)
+          n.style.removeProperty('--label-nudge-y')
+        } else {
+          n.style.setProperty('--label-nudge-y', `${nudge}px`)
+          n.style.removeProperty('--label-nudge-x')
+        }
+        void canvas.offsetWidth
+        const box = labelRect(n)
+        if (!box) continue
+        const obs = obstacles().filter((o) => o.id !== `${n.dataset.nodeId}::label`)
+        if (!conflicts(n, box, obs)) {
+          placed = true
+          break outer
+        }
+      }
     }
-  })
-  // Prefer keeping nucleus / ring-1 / findings; hide lower priority when still clashing or clipped.
-  // keep* flags are false so a clashing ring-1 can hide rather than overlap — ranking still prefers them.
-  const hidden = labelsToHide(
-    boxes,
-    {
-      left: bounds.left + edgePad,
-      right: bounds.right - edgePad,
-      top: bounds.top + edgePad,
-      bottom: bounds.bottom - edgePad
-    },
-    { keepRing1: false, keepFindings: false }
-  )
-  for (const n of nodes) {
-    const id = n.dataset.nodeId ?? ''
-    if (hidden.has(id) && !n.classList.contains('is-nucleus')) n.setAttribute('data-label-hidden', 'true')
+    if (placed) continue
+    if (isMust(n)) {
+      if (n.dataset.hasFindings === 'true') {
+        unplacedFindings.push(n.dataset.nodeId ?? n.querySelector('.label')?.textContent ?? '?')
+      }
+      // Last resort keep: outward vertical with zero nudge.
+      const disc = discBoxOf(n)
+      const cy0 = centre ? (centre.top + centre.bottom) / 2 : (bounds.top + bounds.bottom) / 2
+      const south = (disc.top + disc.bottom) / 2 >= cy0
+      n.setAttribute('data-label-flip', south ? 'below' : 'above')
+      n.style.removeProperty('--label-nudge-x')
+      n.style.removeProperty('--label-nudge-y')
+      void canvas.offsetWidth
+      continue
+    }
+    n.removeAttribute('data-label-flip')
+    n.style.removeProperty('--label-nudge-x')
+    n.style.removeProperty('--label-nudge-y')
+    n.setAttribute('data-label-hidden', 'true')
+  }
+
+  // Final pass: hide only non-must that still conflict/clip after must-keep settled.
+  void canvas.offsetWidth
+  const obsFinal = obstacles()
+  for (const n of ordered) {
+    if (isMust(n) || n.hasAttribute('data-label-hidden')) continue
+    const box = labelRect(n)
+    if (!box) continue
+    const obs = obsFinal.filter((o) => o.id !== `${n.dataset.nodeId}::label`)
+    if (conflicts(n, box, obs)) n.setAttribute('data-label-hidden', 'true')
+  }
+
+  if (unplacedFindings.length > 0) {
+    canvas.setAttribute('data-unplaced-findings', unplacedFindings.join(','))
+  } else {
+    canvas.removeAttribute('data-unplaced-findings')
   }
 }
 

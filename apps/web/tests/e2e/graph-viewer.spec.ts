@@ -113,32 +113,41 @@ test('dense test-only fixture: decluttered labels stay reachable, select shows d
 })
 
 
-test('phone dense: visible labels stay inside the viewport without label overlaps', async ({ page }) => {
+test('phone dense: nucleus, ring-1 and findings labels stay visible without clip/overlap', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto(pathToFileURL(builtHtml).href)
   await page.locator('[data-testid="file-input"]').setInputFiles(resolve(root, 'tests/e2e/fixtures/dense-graph.test-only.json'))
   const canvas = page.locator('[data-testid="graph-canvas"]')
   await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 20_000 })
-  await page.waitForTimeout(800)
+  await page.waitForTimeout(1000)
 
   const report = await page.evaluate(() => {
     const stage = document.querySelector('[data-testid="graph-canvas"]') as HTMLElement
     const bounds = stage.getBoundingClientRect()
     const pad = 4
-    const nodes = [...document.querySelectorAll<HTMLElement>('.overview-node')].filter(
-      (n) => n.querySelector(':scope > .aside') && !n.hasAttribute('data-label-hidden')
+    const all = [...document.querySelectorAll<HTMLElement>('.overview-node')].filter((n) =>
+      n.querySelector(':scope > .aside')
     )
     const labelOf = (n: HTMLElement) =>
       n.querySelector<HTMLElement>(':scope > .aside .label') ?? n.querySelector<HTMLElement>(':scope > .aside')
     const discOf = (n: HTMLElement) =>
       n.querySelector<HTMLElement>('.kind-mark--disc') ?? n.querySelector<HTMLElement>('.kind-mark')
-
     const hit = (a: DOMRect, b: DOMRect) =>
       a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1
 
+    const mustHidden = all
+      .filter((n) => {
+        if (n.classList.contains('is-nucleus')) return n.hasAttribute('data-label-hidden')
+        if (Number(n.dataset.depth ?? NaN) === 1) return n.hasAttribute('data-label-hidden')
+        if (n.dataset.hasFindings === 'true') return n.hasAttribute('data-label-hidden')
+        return false
+      })
+      .map((n) => n.dataset.nodeId ?? '')
+
+    const visible = all.filter((n) => !n.hasAttribute('data-label-hidden'))
     const clipped: string[] = []
     const overlaps: string[] = []
-    const boxes = nodes.map((n) => {
+    const boxes = visible.map((n) => {
       const label = labelOf(n)!.getBoundingClientRect()
       const disc = discOf(n)!.getBoundingClientRect()
       const id = n.dataset.nodeId ?? ''
@@ -150,7 +159,7 @@ test('phone dense: visible labels stay inside the viewport without label overlap
       ) {
         clipped.push(id)
       }
-      return { id, label, disc, nucleus: n.classList.contains('is-nucleus') }
+      return { id, label, disc }
     })
     for (let i = 0; i < boxes.length; i += 1) {
       for (let j = i + 1; j < boxes.length; j += 1) {
@@ -161,10 +170,29 @@ test('phone dense: visible labels stay inside the viewport without label overlap
         if (hit(boxes[i]!.label, boxes[j]!.disc)) overlaps.push(`L×D ${boxes[i]!.id}×${boxes[j]!.id}`)
       }
     }
-    return { clipped, overlaps, visible: boxes.length }
+    // Nucleus stack vs other discs
+    const nucleus = all.find((n) => n.classList.contains('is-nucleus'))
+    const nucleusAside = nucleus?.querySelector<HTMLElement>(':scope > .aside')?.getBoundingClientRect()
+    if (nucleusAside) {
+      for (const n of visible) {
+        if (n.classList.contains('is-nucleus')) continue
+        const disc = discOf(n)!.getBoundingClientRect()
+        if (hit(nucleusAside, disc)) overlaps.push(`ENTRY×D ${n.dataset.nodeId}`)
+      }
+    }
+    return {
+      mustHidden,
+      clipped,
+      overlaps,
+      visible: visible.length,
+      ring1: all.filter((n) => Number(n.dataset.depth ?? NaN) === 1).length,
+      unplacedFindings: stage.getAttribute('data-unplaced-findings')
+    }
   })
 
-  expect(report.visible, 'expected some visible labels').toBeGreaterThan(3)
+  expect(report.mustHidden, `must-keep hidden: ${report.mustHidden.join(', ')}`).toEqual([])
   expect(report.clipped, `clipped: ${report.clipped.join(', ')}`).toEqual([])
   expect(report.overlaps, report.overlaps.join('\n')).toEqual([])
+  expect(report.unplacedFindings, `unplaced findings: ${report.unplacedFindings}`).toBeNull()
+  expect(report.visible).toBeGreaterThanOrEqual(report.ring1)
 })
