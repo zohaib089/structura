@@ -938,6 +938,7 @@ const snippet = 'layers: []\nrules: []\n'
         :path-severity-counts="pathSeverityCounts"
         :nucleus-id="nucleusId"
         :ring-count="ringCount"
+        :ring-radii="overview.ringRadii"
         :fit-bump="fitSignature"
         :show-all-cross="showAllCross"
         :entry-tag="messages.entryPointTag"

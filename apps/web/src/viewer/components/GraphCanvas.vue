@@ -38,6 +38,8 @@ const props = defineProps<{
   pathSeverityCounts?: Map<string, SeverityCounts>
   nucleusId?: string | null
   ringCount?: number
+  /** Exact layout radii (disc-centre); preferred over hypot of positions. */
+  ringRadii?: number[]
   showAllCross?: boolean
   entryTag?: string
 }>()
@@ -105,14 +107,16 @@ function flowing(edge: OverviewEdgeModel): boolean {
   return ids.has(edge.source) && ids.has(edge.target)
 }
 
-/** Ring radii as laid out: one radius per populated depth, measured from the ring centre (0,0). */
+/** Ring radii: prefer the layout's shared radii so guides sit under disc centres. */
 const ringRadii = computed(() => {
+  if (props.ringRadii && props.ringRadii.length > 0) return props.ringRadii
   const byDepth = new Map<number, number>()
   for (const node of props.nodes) {
     const depth = node.depth ?? 0
     if (depth <= 0) continue
     const at = props.positions.get(node.id)
     if (!at) continue
+    // Top-left lies on the circle of radius R about the flow origin; guides use that R.
     byDepth.set(depth, Math.max(byDepth.get(depth) ?? 0, Math.round(Math.hypot(at.x, at.y))))
   }
   return [...byDepth.entries()].sort((a, b) => a[0] - b[0]).map(([, radius]) => radius)
@@ -258,7 +262,11 @@ defineExpose({ root })
       @node-mouse-leave="onNodeLeave"
     >
       <template #node-radial-guides="guideProps">
-        <RadialRingGuides :ring-count="guideProps.data?.ringCount ?? 0" :radii="guideProps.data?.radii ?? []" />
+        <RadialRingGuides
+          :key="(guideProps.data?.radii ?? []).map((r: number) => Math.round(r)).join('-')"
+          :ring-count="guideProps.data?.ringCount ?? 0"
+          :radii="guideProps.data?.radii ?? []"
+        />
       </template>
       <template #node-overview="nodeProps">
         <OverviewNode

@@ -301,6 +301,7 @@ describe('v2 viewer polish', () => {
       weight: 1,
       visual: 'unresolved',
       hierarchy: false,
+      role: 'cross',
       extracted: 0,
       inferred: 0,
       unresolved: 1,

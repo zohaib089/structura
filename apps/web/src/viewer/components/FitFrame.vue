@@ -12,8 +12,8 @@ const flow = useVueFlow()
 const LABEL_PX = 11.5
 const BASE_LABEL_PX = 11
 const MAX_MARK_SCALE = 9
-/** Discs stay a compact ~15px on screen so readable labels do not force marks to collide. */
-const DISC_PX = 24
+/** Target on-screen disc size (px); icons at ~58% stay legible like the landing marks. */
+const DISC_PX = 28
 const BASE_DISC_PX = 24
 
 function overlays(canvas: HTMLElement) {
@@ -77,7 +77,7 @@ function fitOnce() {
     height: canvas.clientHeight,
     reserve: { top: measured.top, bottom: 0 },
     nodes: boxes,
-    ringRadius: focus.size === 0 && (props.ringCount ?? 0) > 0 ? RADIAL_RING_GAP * 0.5 : null,
+    ringRadius: focus.size === 0 && (props.ringCount ?? 0) > 0 ? RADIAL_RING_GAP : null,
     padding: props.padding ?? 0.2,
     center: ringCentre(canvas)
   }

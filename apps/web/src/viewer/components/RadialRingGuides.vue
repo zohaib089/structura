@@ -9,15 +9,18 @@ const props = defineProps<{
 }>()
 
 const rings = computed(() => {
+  // Prefer exact layout radii so guides sit under nodes. Only fall back when layout has
+  // not supplied radii yet — and never invent extra outer rings beyond ringCount.
   if (props.radii && props.radii.length > 0) return props.radii
   const list: number[] = []
-  for (let ring = 1; ring <= props.ringCount; ring += 1) list.push(ring * RADIAL_RING_GAP)
+  const n = Math.max(0, props.ringCount)
+  for (let ring = 1; ring <= n; ring += 1) list.push(ring * RADIAL_RING_GAP)
   return list
 })
 </script>
 
 <template>
-  <svg class="ring-guides" aria-hidden="true">
+  <svg class="ring-guides" aria-hidden="true" :data-radii="rings.join(',')">
     <circle v-for="radius in rings" :key="radius" :r="radius" cx="0" cy="0" class="ring" />
   </svg>
 </template>

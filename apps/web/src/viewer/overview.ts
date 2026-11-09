@@ -119,6 +119,8 @@ export interface OverviewModel {
   hiddenEdges: number
   edgesOmittedByCap: number
   positions: Map<string, { x: number; y: number }>
+  /** Shared disc-centre radius per BFS depth; ring guides must use these exact values. */
+  ringRadii: number[]
 }
 
 export const LAYOUT_COLUMN = 280
@@ -509,13 +511,19 @@ export function buildOverview(
   const edgesOmittedByCap = Math.max(0, edgeModels.length - HARD_EDGE_CAP)
   edgeModels = edgeModels.slice(0, HARD_EDGE_CAP)
 
+  const laid = layoutRadialTree(nodes, nucleusId, treeParent)
+  const ringRadii = [...laid.radiiByDepth.entries()]
+    .filter(([depth]) => depth > 0)
+    .sort((a, b) => a[0] - b[0])
+    .map(([, radius]) => radius)
   return {
     nodes,
     edges: edgeModels,
     hiddenNodes: hiddenNodeIds.size,
     hiddenEdges,
     edgesOmittedByCap,
-    positions: layoutRadialNodes(nodes, nucleusId, treeParent)
+    positions: laid.positions,
+    ringRadii
   }
 }
 
@@ -882,31 +890,45 @@ export function resolveNucleusId(index: GraphIndex, preferredId: string | null |
 
 export type RadialSector = { start: number; end: number }
 
-/**
- * Classic radial-tree / sunburst placement: each node sits on its BFS ring, angled inside its
- * parent's sector. Sectors are proportional to subtree leaf weight so siblings stay contiguous
- * and tree spokes fan outward without crossing.
- */
+/** Disc centre offset from Vue Flow node top-left (half of the 1.5rem disc, flow px). */
+export const RADIAL_DISC_OFFSET = 12
+
+/** Clearance below the nucleus for the name + ENTRY POINT stack before ring 1. */
+export const RADIAL_NUCLEUS_CLEARANCE = 72
+
+/** Approximate monospace label width (flow px) for desktop spacing. */
+export function estimateLabelWidth(label: string): number {
+  const chars = Math.min(22, Math.max(4, label.length))
+  return chars * 7 + RADIAL_DISC_OFFSET * 2 + 16
+}
+
 export function layoutRadialNodes(
-  nodes: { id: string; depth: number }[],
+  nodes: { id: string; depth: number; label?: string }[],
   nucleusId: string,
   treeParent: Map<string, string> = new Map()
 ): Map<string, { x: number; y: number }> {
-  const { positions } = layoutRadialTree(nodes, nucleusId, treeParent)
-  return positions
+  return layoutRadialTree(nodes, nucleusId, treeParent).positions
 }
 
-/** Full radial-tree layout result (positions + angles/sectors for tests). */
+/**
+ * Classic Reingold–Tilford-style radial tree:
+ * - leaf-weighted wedges at every depth (children subdivide the parent wedge)
+ * - one shared radius per BFS ring, sized so neighbours clear estimated label width
+ * - positions are Vue Flow top-left at (R·cos, R·sin); disc centres sit ON guides (origin + RADIAL_DISC_OFFSET)
+ */
 export function layoutRadialTree(
-  nodes: { id: string; depth: number }[],
+  nodes: { id: string; depth: number; label?: string }[],
   nucleusId: string,
   treeParent: Map<string, string> = new Map()
 ): {
   positions: Map<string, { x: number; y: number }>
   angles: Map<string, number>
   sectors: Map<string, RadialSector>
+  /** Shared radius per depth (disc-centre distance from nucleus disc centre). Same values ring guides must use. */
+  radiiByDepth: Map<number, number>
 } {
   const visible = new Set(nodes.map((n) => n.id))
+  const labelOf = new Map(nodes.map((n) => [n.id, n.label ?? n.id]))
   const children = new Map<string, string[]>()
 
   for (const [child, parent] of treeParent) {
@@ -915,7 +937,6 @@ export function layoutRadialTree(
     list.push(child)
     children.set(parent, list)
   }
-  // Orphans (e.g. pinned) without a visible tree parent hang under the nucleus so they still get a sector.
   for (const node of nodes) {
     if (node.id === nucleusId || node.depth === 0) continue
     const parent = treeParent.get(node.id)
@@ -926,8 +947,7 @@ export function layoutRadialTree(
   }
   for (const [, list] of children) list.sort(compareUtf16)
 
-  /** Leaf counts (unweighted) then sector share = max(floor, sqrt(leaves)) so large subtrees
-   * do not swallow the circle and tiny ones still get a readable wedge. */
+  // Pure leaf counts — wedge ∝ leaves at every depth (classic radial tree).
   const leaves = new Map<string, number>()
   const leafCount = (id: string): number => {
     const cached = leaves.get(id)
@@ -944,18 +964,6 @@ export function layoutRadialTree(
   }
   if (visible.has(nucleusId)) leafCount(nucleusId)
 
-  const sectorShare = (id: string): number => Math.max(1, Math.sqrt(leafCount(id)))
-
-  /** Sibling shares with a minimum floor so ring-1 children stay spread around the nucleus. */
-  const siblingShares = (kids: string[]): number[] => {
-    const raw = kids.map((kid) => sectorShare(kid))
-    const sum = raw.reduce((a, b) => a + b, 0) || 1
-    const floor = sum / (kids.length * 1.35)
-    const bumped = raw.map((w) => Math.max(w, floor))
-    const bumpedSum = bumped.reduce((a, b) => a + b, 0) || 1
-    return bumped.map((w) => w / bumpedSum)
-  }
-
   const angles = new Map<string, number>()
   const sectors = new Map<string, RadialSector>()
   const assign = (id: string, start: number, end: number) => {
@@ -963,31 +971,27 @@ export function layoutRadialTree(
     angles.set(id, (start + end) / 2)
     const kids = children.get(id) ?? []
     if (kids.length === 0) return
-    const shares = siblingShares(kids)
-    const spanTotal = end - start
+    const total = kids.reduce((sum, kid) => sum + leafCount(kid), 0) || 1
     let cursor = start
-    kids.forEach((kid, i) => {
-      const span = spanTotal * shares[i]!
+    for (const kid of kids) {
+      const span = ((end - start) * leafCount(kid)) / total
       assign(kid, cursor, cursor + span)
       cursor += span
-    })
+    }
   }
 
   const TAU = Math.PI * 2
-  // Place the first ring-1 child's midpoint at 12 o'clock so 2-child samples sit top/bottom
-  // and denser trees still start from the top rather than clustering on one side.
   if (visible.has(nucleusId)) {
     const ring1 = children.get(nucleusId) ?? []
     if (ring1.length === 0) {
       assign(nucleusId, -Math.PI / 2, -Math.PI / 2 + TAU)
     } else {
-      const shares = siblingShares(ring1)
-      const firstSpan = TAU * shares[0]!
+      const total = ring1.reduce((sum, kid) => sum + leafCount(kid), 0) || 1
+      const firstSpan = (TAU * leafCount(ring1[0]!)) / total
       const start = -Math.PI / 2 - firstSpan / 2
       assign(nucleusId, start, start + TAU)
     }
   }
-  // Any visible node still missing an angle (should be rare) gets a deterministic leftover slot.
   for (const node of nodes) {
     if (angles.has(node.id)) continue
     const fallback = -Math.PI / 2 + (angles.size * 0.37) % TAU
@@ -1002,16 +1006,33 @@ export function layoutRadialTree(
     rings.set(node.depth, list)
   }
 
+  const radiiByDepth = new Map<number, number>()
   const positions = new Map<string, { x: number; y: number }>()
   let previousRadius = 0
+
   for (const ring of [...rings.keys()].sort((a, b) => a - b)) {
     const ids = rings.get(ring) ?? []
     if (ids.length === 0) continue
     if (ring === 0) {
+      // Nucleus top-left so its disc centre is at the ring origin (0,0) in spoke math;
+      // guides are shifted by RADIAL_DISC_OFFSET to the same point.
       for (const id of ids) positions.set(id, { x: 0, y: 0 })
+      radiiByDepth.set(0, 0)
       continue
     }
+
     const ordered = [...ids].sort((a, b) => (angles.get(a) ?? 0) - (angles.get(b) ?? 0) || compareUtf16(a, b))
+    // Minimum arc length from label widths of consecutive neighbours on this ring.
+    let minArc = RADIAL_MIN_ARC
+    if (ordered.length >= 2) {
+      for (let i = 0; i < ordered.length; i += 1) {
+        const a = ordered[i]!
+        const b = ordered[(i + 1) % ordered.length]!
+        const need = (estimateLabelWidth(labelOf.get(a) ?? '') + estimateLabelWidth(labelOf.get(b) ?? '')) / 2
+        if (need > minArc) minArc = need
+      }
+    }
+
     let minGap = TAU
     if (ordered.length >= 2) {
       for (let i = 0; i < ordered.length; i += 1) {
@@ -1022,22 +1043,32 @@ export function layoutRadialTree(
         if (gap < minGap) minGap = gap
       }
     }
-    // Widen the ring when a sector packs neighbours tighter than RADIAL_MIN_ARC.
+
     const radius = Math.max(
-      previousRadius === 0 ? RADIAL_RING_GAP : previousRadius + RADIAL_RING_GAP * 0.55,
-      ordered.length >= 2 ? RADIAL_MIN_ARC / Math.max(minGap, 1e-6) : RADIAL_RING_GAP
+      ring === 1
+        ? Math.max(RADIAL_NUCLEUS_CLEARANCE + RADIAL_DISC_OFFSET * 2, RADIAL_RING_GAP)
+        : previousRadius + RADIAL_RING_GAP * 0.55,
+      previousRadius === 0 ? RADIAL_RING_GAP : previousRadius + RADIAL_RING_GAP * 0.5,
+      ordered.length >= 2 ? minArc / Math.max(minGap, 1e-6) : RADIAL_RING_GAP
     )
     previousRadius = radius
+    radiiByDepth.set(ring, radius)
+
     for (const id of ids) {
       const a = angles.get(id) ?? -Math.PI / 2
-      positions.set(id, { x: radius * Math.cos(a), y: radius * Math.sin(a) })
+      // Top-left at (R·cos, R·sin): disc centre lands on the guide circle centred at
+      // (RADIAL_DISC_OFFSET, RADIAL_DISC_OFFSET) — same origin RadialRingGuides uses.
+      positions.set(id, {
+        x: radius * Math.cos(a),
+        y: radius * Math.sin(a)
+      })
     }
   }
 
-  return { positions, angles, sectors }
+  return { positions, angles, sectors, radiiByDepth }
 }
 
-/** True when every tree child's angle sits inside its parent's sector (within a tiny epsilon). */
+/** True when every tree child's sector lies inside its parent's sector. */
 export function childrenLieInParentSectors(
   angles: Map<string, number>,
   sectors: Map<string, RadialSector>,
@@ -1048,13 +1079,11 @@ export function childrenLieInParentSectors(
     const childSector = sectors.get(child)
     const parentSector = sectors.get(parent)
     if (a === undefined || !childSector || !parentSector) continue
-    // Layout assigns nested sectors in the same unwrapped space: child ⊂ parent.
     if (childSector.start + 1e-9 < parentSector.start || childSector.end - 1e-9 > parentSector.end) return false
     if (a + 1e-9 < childSector.start || a - 1e-9 > childSector.end) return false
   }
   return true
 }
-
 
 /** Largest empty angular gap among a set of angles on the circle (radians). */
 export function maxAngularGap(angles: number[]): number {

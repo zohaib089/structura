@@ -121,8 +121,8 @@ function onSpace(event: KeyboardEvent) {
         v-else
         :is="discGlyph"
         class="sev-glyph"
-        :size="14"
-        :stroke-width="2.4"
+        :size="16"
+        :stroke-width="2.25"
         aria-hidden="true"
       />
       <Handle type="source" :position="Position.Right" />
@@ -297,7 +297,13 @@ function onSpace(event: KeyboardEvent) {
   text-transform: lowercase;
 }
 .is-external .kind-mark--disc { border-style: dashed; color: var(--color-text-secondary); border-color: var(--color-text-secondary); }
-.kind-mark--disc .sev-glyph { color: var(--node-layer, var(--graph-layer-1)); display: block; }
+.kind-mark--disc .sev-glyph {
+  color: var(--node-layer, var(--graph-layer-1));
+  display: block;
+  /* ~58% of the 1.5rem disc — landing-like icon weight inside the mark. */
+  width: 58% !important;
+  height: 58% !important;
+}
 .is-unresolved .kind-mark--disc { border-style: dotted; border-color: var(--gray-7); color: var(--gray-8); background: transparent; }
 .overview-node:has(.kind-mark--disc) .label {
   font-family: var(--font-family-mono, ui-monospace, monospace);
