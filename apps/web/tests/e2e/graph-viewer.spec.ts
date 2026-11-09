@@ -98,8 +98,8 @@ test('dense test-only fixture: decluttered labels stay reachable, select shows d
   const hidden = page.locator('.overview-node[data-label-hidden]:not(.is-nucleus)')
   const id = (await ((await hidden.count()) > 0 ? hidden.first() : nodes.first()).getAttribute('data-node-id'))!
   const target = page.locator(`.overview-node[data-node-id="${id}"]`)
-  const path = id.replace(/^(file|dir):/, '')
-  const name = path.split('/').pop()!
+  const path = id.replace(/^(file|dir|ext):/, '')
+  const name = path.split(/[/:]/).pop()!
   await target.click()
   await expect(target).toHaveAttribute('aria-selected', 'true')
   await expect(page.locator('[data-testid="node-detail"]')).toContainText(name)
