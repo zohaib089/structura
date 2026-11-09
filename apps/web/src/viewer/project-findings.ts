@@ -1,4 +1,4 @@
-import type { ReportFinding } from '../api/scan-report-types'
+import type { ScanFinding as ReportFinding } from '../../../../packages/scan-analysis/src/report.v1.types.ts'
 import type { SeverityCounts } from '../services/scan-report-tree'
 import { buildReportPathSeverityMap } from '../services/scan-report-tree-display'
 

@@ -3,9 +3,8 @@ import { Handle, Position } from '@vue-flow/core'
 import { computed } from 'vue'
 import BrandMark from '../../components/brand/BrandMark.vue'
 import SeverityChip from '../../components/ui/SeverityChip.vue'
-import { CircleDot, HelpCircle, Package } from '@lucide/vue'
-import { SEVERITY_ICONS, SEVERITY_LABELS } from '../../services/severity-display'
-import type { ReportSeverity } from '../../api/scan-report-types'
+import { CircleAlert, CircleDot, HelpCircle, Info, OctagonAlert, Package, TriangleAlert } from '@lucide/vue'
+import { SEVERITY_LABELS } from '../../services/severity-display'
 import type { SeverityCounts } from '../../services/scan-report-tree'
 import { fileSeverityChips, folderSeverityChip } from '../../services/scan-report-tree-display'
 
@@ -48,20 +47,20 @@ const disc = computed(() => !props.more && (!props.cluster || Boolean(props.nucl
 const topSeverity = computed(() => fileChips.value?.chips[0]?.severity ?? folderChip.value?.severity ?? null)
 const discColor = computed(() => (topSeverity.value ? `var(--sev-${topSeverity.value}-fg)` : 'var(--graph-node-border)'))
 
-/** Landing-style disc glyph: severity icon when findings exist, else type glyph (file/external/unresolved). */
-const discGlyph = computed(() => {
-  if (props.kind === 'unresolved') return HelpCircle
-  if (props.kind === 'external') return Package
-  const sev = topSeverity.value as ReportSeverity | null
-  if (sev && SEVERITY_ICONS[sev]) return SEVERITY_ICONS[sev]
-  return CircleDot
+/** Landing-style disc glyph key: severity when findings exist, else type glyph. */
+const discGlyphKind = computed(() => {
+  if (props.kind === 'unresolved') return 'unresolved'
+  if (props.kind === 'external') return 'external'
+  const sev = topSeverity.value
+  if (sev === 'critical' || sev === 'high' || sev === 'medium' || sev === 'low' || sev === 'info') return sev
+  return 'file'
 })
 
 const accessible = computed(() => (props.more ? props.moreLabel : props.label))
+/** Full label text in the DOM (CSS ellipsis truncates visually; title/aria keep the name). */
 const shortLabel = computed(() => {
   if (!props.more && props.displayLabel) return props.displayLabel
-  const raw = props.more ? props.moreLabel : props.label
-  return raw.length > 22 ? `${raw.slice(0, 20)}…` : raw
+  return props.more ? props.moreLabel : props.label
 })
 
 const folderChip = computed(() =>
@@ -122,14 +121,14 @@ function onSpace(event: KeyboardEvent) {
       <BrandMark v-if="nucleus" class="nucleus-mark" size="calc(26px * var(--graph-disc-scale, 1))" />
       <template v-else-if="cluster">{{ expanded ? '▾' : '▸' }}</template>
       <template v-else-if="more">+</template>
-      <component
-        v-else
-        :is="discGlyph"
-        class="sev-glyph"
-        :size="16"
-        :stroke-width="2.25"
-        aria-hidden="true"
-      />
+      <OctagonAlert v-else-if="discGlyphKind === 'critical'" class="sev-glyph" :size="16" :stroke-width="2.25" aria-hidden="true" />
+      <TriangleAlert v-else-if="discGlyphKind === 'high'" class="sev-glyph" :size="16" :stroke-width="2.25" aria-hidden="true" />
+      <CircleAlert v-else-if="discGlyphKind === 'medium'" class="sev-glyph" :size="16" :stroke-width="2.25" aria-hidden="true" />
+      <Info v-else-if="discGlyphKind === 'low'" class="sev-glyph" :size="16" :stroke-width="2.25" aria-hidden="true" />
+      <CircleDot v-else-if="discGlyphKind === 'info'" class="sev-glyph" :size="16" :stroke-width="2.25" aria-hidden="true" />
+      <HelpCircle v-else-if="discGlyphKind === 'unresolved'" class="sev-glyph" :size="16" :stroke-width="2.25" aria-hidden="true" />
+      <Package v-else-if="discGlyphKind === 'external'" class="sev-glyph" :size="16" :stroke-width="2.25" aria-hidden="true" />
+      <CircleDot v-else class="sev-glyph" :size="16" :stroke-width="2.25" aria-hidden="true" />
       <Handle type="source" :position="Position.Right" />
     </span>
     <span class="aside" :class="{ 'aside--start': disc && labelSide === 'start', 'aside--nucleus': disc && nucleus }">
