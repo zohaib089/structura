@@ -82,8 +82,7 @@ const emit = defineEmits<{
       data-testid="graph-show-all-links"
       @click="emit('toggleShowAllCross')"
     >
-      <span class="links-button__full">{{ showAllCrossLabel }}</span>
-      <span class="links-button__compact" aria-hidden="true">⇄ {{ crossLinkCount }}</span>
+      <span aria-hidden="true">⇄ {{ crossLinkCount }}</span>
     </button>
   </div>
 </template>
@@ -106,7 +105,8 @@ const emit = defineEmits<{
   backdrop-filter: blur(10px);
   box-shadow: 0 8px 24px color-mix(in srgb, var(--color-brand-navy) 35%, transparent);
   transform: translateX(-50%);
-  inline-size: min(52rem, calc(100% - var(--space-6)));
+  inline-size: min(48rem, calc(100% - var(--space-6)));
+  max-inline-size: calc(100% - var(--space-6));
   pointer-events: none;
 }
 .icon-button,
@@ -116,22 +116,8 @@ const emit = defineEmits<{
 .entry-switcher,
 .entry-switcher select {
   pointer-events: auto;
-}
-.links-button {
-  flex-shrink: 0;
   white-space: nowrap;
-  font-size: var(--text-12, 0.75rem);
-  min-block-size: var(--viewer-hit-target, 2.75rem);
-  padding-inline: var(--space-2);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-text-secondary);
-}
-.links-button[aria-pressed='true'] {
-  border-color: color-mix(in srgb, var(--color-brand-amber-ui) 50%, var(--color-border));
-  color: var(--color-text-primary);
-  background: color-mix(in srgb, var(--color-brand-amber-ui) 18%, transparent);
+  flex-shrink: 0;
 }
 .icon-button,
 .search-button,
@@ -142,6 +128,21 @@ const emit = defineEmits<{
   border-radius: var(--r-sm);
   background: var(--color-surface);
   color: var(--color-text-primary);
+}
+.links-button {
+  min-block-size: var(--viewer-hit-target, 2.75rem);
+  padding-inline: var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--text-12, 0.75rem);
+  font-variant-numeric: tabular-nums;
+}
+.links-button[aria-pressed='true'] {
+  border-color: color-mix(in srgb, var(--color-brand-amber-ui) 50%, var(--color-border));
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-brand-amber-ui) 18%, transparent);
 }
 .entry-switcher {
   display: inline-flex;
@@ -160,24 +161,27 @@ select {
   border-radius: var(--r-sm);
   background: var(--color-surface);
   color: var(--color-text-primary);
-  max-inline-size: 12rem;
+  max-inline-size: 10rem;
 }
 .search-button {
   flex: 1 1 auto;
-  min-inline-size: 8rem;
+  min-inline-size: 6rem;
+  max-inline-size: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
   text-align: start;
   color: var(--color-text-muted);
 }
 .icon-button:focus-visible,
 .search-button:focus-visible,
 .fit-button:focus-visible,
+.links-button:focus-visible,
 .entry-switcher select:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
   border-color: var(--color-brand-amber-ui);
 }
 @media (max-width: 640px) {
-  /* One compact row on phones so the toolbar does not cover the graph. */
   .floating-bar {
     flex-wrap: nowrap;
     gap: var(--space-1);
@@ -186,9 +190,8 @@ select {
     max-inline-size: none;
   }
   .entry-prefix { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  select { max-inline-size: 6.5rem; }
-  .search-button { min-inline-size: 0; flex: 1 1 0; max-inline-size: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-inline: var(--space-2); }
+  select { max-inline-size: 5.5rem; }
+  .search-button { min-inline-size: 0; flex: 1 1 0; max-inline-size: none; padding-inline: var(--space-2); }
   .fit-button { padding-inline: var(--space-2); }
-  .fit-button { padding-inline: var(--space-2); white-space: nowrap; }
 }
 </style>

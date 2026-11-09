@@ -104,8 +104,8 @@ export function radialEdgePath(
   const rLo = Math.min(s.r, t.r)
   const rHi = Math.max(s.r, t.r)
   const innerIsSource = s.r <= t.r
-  const outR = rLo + (rHi - rLo) * 0.55
-  const inR = rLo + (rHi - rLo) * 0.45
+  const outR = rLo + (rHi - rLo) * 0.72
+  const inR = rLo + (rHi - rLo) * 0.28
   const c1 = fromPolar(innerIsSource ? outR : inR, s.a, cx, cy)
   const c2 = fromPolar(innerIsSource ? inR : outR, t.a, cx, cy)
 
