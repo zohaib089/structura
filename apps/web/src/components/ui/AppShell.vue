@@ -183,6 +183,13 @@ export default {
   overflow: hidden;
 }
 
+/* Phones: report chrome + graph cannot share one screen; let the report scroll to its full-height graph. */
+@media (max-width: 640px) {
+  .shell-content--fill {
+    overflow-y: auto;
+  }
+}
+
 .skip-link {
   position: absolute;
   inset-inline-start: var(--space-3);

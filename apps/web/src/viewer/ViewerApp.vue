@@ -37,6 +37,8 @@ import {
   type ViewState
 } from './overview'
 import { parseGraphFile, type ParseHandle } from './parse-client'
+import './graph-surface.css'
+import { SEVERITY_LABELS } from '../services/severity-display'
 import { resolveGraphNodeId } from '../services/graph-node-focus'
 import type { ViewerReportFinding } from './report-types'
 import { scanReportMessages } from '../services/scan-report-messages'
@@ -101,6 +103,7 @@ const loading = ref(false)
 const loadingVisible = ref(false)
 const loadingBytes = ref(0)
 const coachDismissed = ref(false)
+const showAllCross = ref(false)
 const fileName = ref('')
 const sample = ref(false)
 const dragging = ref(false)
@@ -141,6 +144,16 @@ const entryOptions = computed(() => (index.value ? collectEntryPoints(index.valu
 const nucleusId = computed(() =>
   index.value ? resolveNucleusId(index.value, viewState.value.nucleusId) : ''
 )
+/** Disc rings take the file's highest severity colour; explain only the severities present in this scan. */
+const SEVERITY_ORDER = ['critical', 'high', 'medium', 'low'] as const
+const severityLegend = computed(() => {
+  const present = new Set<string>()
+  for (const counts of props.pathSeverityCounts?.values() ?? []) {
+    for (const sev of SEVERITY_ORDER) if ((counts as unknown as Record<string, number>)[sev] > 0) present.add(sev)
+  }
+  return SEVERITY_ORDER.filter((sev) => present.has(sev))
+})
+
 const ringCount = computed(() => {
   if (!overview.value) return 0
   let max = 0
@@ -744,13 +757,20 @@ function exportCoverage() {
 
 const command = quickstartCommand()
 const cameraDuration = computed(() => (focus.value ? fitDurationMs() : 0))
-const cameraPadding = computed(() => (focus.value ? 0.25 : 0.2))
+const cameraPadding = computed(() => (focus.value ? 0.25 : 0.12))
 const meterTone = computed(() => budgetTone(overview.value?.nodes.length ?? 0, COMFORT_NODE_BUDGET, HARD_NODE_CAP))
 const skippedCount = computed(() => {
   const files = graph.value?.coverage.files
   if (!files) return 0
   return files.skipped + files.failed + files.partial
 })
+const crossLinkCount = computed(() => overview.value?.edges.filter((e) => e.role === 'cross').length ?? 0)
+const showAllCrossLabel = computed(() =>
+  format(showAllCross.value ? messages.hideExtraConnections : messages.showAllConnections, {
+    n: numbers.format(crossLinkCount.value)
+  })
+)
+
 const coachSteps = computed(() => [
   messages.graphGuideStep1,
   messages.graphGuideStep2,
@@ -809,7 +829,7 @@ const snippet = 'layers: []\nrules: []\n'
       </button>
     </aside>
 
-    <main class="stage">
+    <main class="stage graph-surface">
       <LoadingSkeleton
         v-if="loading"
         :label="format(messages.readingFile, { graphFile: BRAND.graphFile, size: formatByteSize(loadingBytes, locale) })"
@@ -882,10 +902,14 @@ const snippet = 'layers: []\nrules: []\n'
         :entry-options="entryOptions"
         :entry-id="nucleusId"
         search-shortcut="Control+K Meta+K /"
+        :show-all-cross-label="crossLinkCount > 0 ? showAllCrossLabel : undefined"
+        :show-all-cross="showAllCross"
+        :cross-link-count="crossLinkCount"
         @toggle-filters="railOpen = !railOpen"
         @open-search="palette = true"
         @fit="triggerFit"
         @update:entry-id="onEntryChange"
+        @toggle-show-all-cross="showAllCross = !showAllCross"
       />
       <p v-if="overview && graph && graph.nodes.length > 0" class="graph-hint" role="note">
         {{ messages.graphOverviewHint }}
@@ -914,7 +938,11 @@ const snippet = 'layers: []\nrules: []\n'
         :path-severity-counts="pathSeverityCounts"
         :nucleus-id="nucleusId"
         :ring-count="ringCount"
+        :ring-radii="overview.ringRadii"
+        :label-placements="overview.labelPlacements"
         :fit-bump="fitSignature"
+        :show-all-cross="showAllCross"
+        :entry-tag="messages.entryPointTag"
         @select="selectNode($event, true)"
         @toggle="toggleNode"
         @select-edge="selectEdge"
@@ -928,6 +956,7 @@ const snippet = 'layers: []\nrules: []\n'
         :steps="coachSteps"
         :skip-label="messages.coachSkip"
         :next-label="messages.coachNext"
+        :open-label="messages.coachOpenLabel"
         @dismiss="coachDismissed = true"
       />
     </main>
@@ -1031,7 +1060,14 @@ const snippet = 'layers: []\nrules: []\n'
 
     <footer class="status" role="contentinfo">
       <span class="status-radial">{{ radialStatus }}</span>
-      <span class="status-edges">{{ messages.provExtracted }} · {{ messages.provInferred }} · {{ messages.provUnresolved }}</span>
+      <span class="status-edges" data-testid="edge-style-legend">
+        <span class="edge-key"><i class="edge-key__line edge-key__line--extracted" aria-hidden="true"></i>{{ messages.provExtracted }}</span>
+        <span class="edge-key"><i class="edge-key__line edge-key__line--inferred" aria-hidden="true"></i>{{ messages.provInferred }}</span>
+        <span class="edge-key"><i class="edge-key__line edge-key__line--unresolved" aria-hidden="true"></i>{{ messages.provUnresolved }}</span>
+      </span>
+      <span v-if="severityLegend.length > 0" class="status-severity" data-testid="severity-colour-legend">
+        <span v-for="sev in severityLegend" :key="sev" class="sev-key"><i class="sev-key__disc" :style="{ borderColor: `var(--sev-${sev}-fg)` }" aria-hidden="true"></i>{{ SEVERITY_LABELS[sev] }}</span>
+      </span>
       <span v-if="sample" class="pill">{{ messages.samplePill }}</span>
       <span class="status-pan">{{ panStatus }}</span>
       <BudgetMeter
@@ -1165,6 +1201,24 @@ const snippet = 'layers: []\nrules: []\n'
   grid-row: 3;
 }
 .status-radial,
+.status-edges, .status-severity { display: inline-flex; gap: var(--space-3); }
+.sev-key { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--color-text-muted); white-space: nowrap; }
+.sev-key__disc { display: inline-block; inline-size: 0.625rem; block-size: 0.625rem; border: 2px solid; border-radius: 50%; }
+/* Guide card sits above the footer (embedded stage pads for it) and is measured by the fit. */
+.viewer.viewer-radial.viewer-embedded .coach { inset-block-end: calc(var(--viewer-statusbar-height) + var(--space-3)); }
+.edge-key { display: inline-flex; align-items: center; gap: var(--space-1); }
+.edge-key__line { display: inline-block; inline-size: 1.25rem; block-size: 0; border-block-start: 2px solid currentColor; }
+.edge-key__line--inferred { border-block-start-style: dashed; }
+.edge-key__line--unresolved { border-block-start-style: dotted; }
+@media (max-width: 640px) {
+  /* Phone footer wraps onto rows inside a real reserved height (stage pads for it; coach sits above it):
+   * line legend, severity legend, then the node/edge meter. Ring summary and pan hint stay for screen readers. */
+  .viewer.viewer-radial { --viewer-statusbar-height: 7.25rem; }
+  .viewer.viewer-radial .status { flex-wrap: wrap; align-content: center; gap: var(--space-1) var(--space-3); padding-block: var(--space-1); overflow: hidden; }
+  .status-edges, .status-severity { order: -1; flex-wrap: wrap; gap: var(--space-1) var(--space-3); }
+  .viewer.viewer-radial .status-radial,
+  .viewer.viewer-radial .status-pan { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
 .status-edges,
 .status-pan {
   color: var(--color-text-muted);
@@ -1176,24 +1230,17 @@ const snippet = 'layers: []\nrules: []\n'
 .viewer.viewer-radial .stage-legend {
   display: none;
 }
+/* The overview hint repeats the guide card; kept for assistive tech only so it never covers nodes. */
 .graph-hint {
   position: absolute;
-  inset-block-start: calc(var(--space-3) + 3.25rem);
-  inset-inline: var(--space-3);
-  z-index: calc(var(--z-graph-controls) - 1);
+  inline-size: 1px;
+  block-size: 1px;
   margin: 0;
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-full);
-  border: 1px solid color-mix(in srgb, var(--color-brand-amber-ui) 28%, var(--color-border));
-  background: color-mix(in srgb, var(--color-surface-raised) 82%, transparent);
-  font-size: var(--text-13);
-  line-height: var(--text-13-lh);
-  color: var(--color-text-secondary);
-  text-align: center;
-  pointer-events: none;
-  justify-self: center;
-  max-inline-size: min(36rem, calc(100% - var(--space-6)));
-  margin-inline: auto;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 .topbar {
   grid-column: 1 / -1;

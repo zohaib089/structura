@@ -5,6 +5,8 @@ import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getScanGraph, listScans } from '../../api/scans'
 import { getScanFileMeta } from '../../api/scan-file-meta'
+import { getScanReport } from '../../api/scan-report'
+import { resolveGraphFindings, resolvePathSeverityCounts } from '../../viewer/project-findings'
 import type { GraphDocument } from '../../viewer/graph-types'
 import type { ReportFinding } from '../../api/scan-report-types'
 import type { SeverityCounts } from '../../services/scan-report-tree'
@@ -43,6 +45,24 @@ const loadError = ref('')
 const graphDocument = ref<GraphDocument | null>(null)
 const resolvedScanId = ref<string | null>(null)
 
+/** Project route: no report around it, so read the same scan report payload for disc colours/legend. */
+const ownFindings = ref<ReportFinding[] | null>(null)
+const findings = computed(() =>
+  resolveGraphFindings({ passedFindings: props.scanFindings, fetchedFindings: ownFindings.value })
+)
+const severityCounts = computed(() =>
+  resolvePathSeverityCounts({ passedCounts: props.pathSeverityCounts, findings: findings.value })
+)
+async function loadFindings(scanId: string) {
+  if (props.scanFindings) return
+  try {
+    const report = await getScanReport(props.workspaceId, scanId)
+    if (resolvedScanId.value === scanId) ownFindings.value = report.findings
+  } catch {
+    ownFindings.value = null
+  }
+}
+
 const focusPath = computed(() => resolveGraphFocusQuery(route.query))
 
 async function loadFileSummary(path: string): Promise<string | null> {
@@ -78,6 +98,8 @@ async function loadGraph() {
       return
     }
     resolvedScanId.value = scanId
+    ownFindings.value = null
+    void loadFindings(scanId)
     graphDocument.value = await getScanGraph(props.workspaceId, scanId)
   } catch (cause) {
     loadError.value = cause instanceof Error ? cause.message : scanCopy.value.loadScanGraphError
@@ -109,8 +131,8 @@ watch(
       :shell-theme="shellTheme"
       :graph-document="graphDocument"
       :focus-path="focusPath"
-      :path-severity-counts="pathSeverityCounts"
-      :scan-findings="scanFindings ?? []"
+      :path-severity-counts="severityCounts"
+      :scan-findings="findings"
       :load-file-summary="loadFileSummary"
     />
   </div>

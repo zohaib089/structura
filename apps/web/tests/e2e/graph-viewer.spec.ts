@@ -82,3 +82,117 @@ test('ships a CSP whose hashes match the inline scripts', () => {
     expect(scriptHashes).toContain(digest)
   }
 })
+
+test('dense test-only fixture: decluttered labels stay reachable, select shows detail, entry expands', async ({ page }) => {
+  // tests/e2e/fixtures/dense-graph.test-only.json is an authored TEST-ONLY fixture (33 nodes), not product data.
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto(pathToFileURL(builtHtml).href)
+  await page.locator('[data-testid="file-input"]').setInputFiles(resolve(root, 'tests/e2e/fixtures/dense-graph.test-only.json'))
+  const canvas = page.locator('[data-testid="graph-canvas"]')
+  await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 20_000 })
+  await expect(canvas).toHaveAttribute('data-total-nodes', '33')
+  const nodes = page.locator('.overview-node:not(.is-nucleus)')
+  await expect.poll(() => nodes.count()).toBeGreaterThan(3)
+  // Every visible node keeps its name accessible, decluttered or not.
+  for (const label of await nodes.evaluateAll((els) => els.map((e) => e.getAttribute('aria-label') ?? ''))) expect(label.length).toBeGreaterThan(0)
+  const hidden = page.locator('.overview-node[data-label-hidden]:not(.is-nucleus)')
+  const id = (await ((await hidden.count()) > 0 ? hidden.first() : nodes.first()).getAttribute('data-node-id'))!
+  const target = page.locator(`.overview-node[data-node-id="${id}"]`)
+  const path = id.replace(/^(file|dir|ext):/, '')
+  const name = path.split(/[/:]/).pop()!
+  await target.click()
+  await expect(target).toHaveAttribute('aria-selected', 'true')
+  await expect(page.locator('[data-testid="node-detail"]')).toContainText(name)
+  await expect(target.locator(':scope > .aside')).toHaveCSS('opacity', '1')
+
+  const nucleus = page.locator('.overview-node.is-nucleus')
+  const before = Number(await canvas.getAttribute('data-visible-nodes'))
+  await nucleus.focus()
+  await nucleus.press('Enter')
+  await expect.poll(async () => Number(await canvas.getAttribute('data-visible-nodes'))).toBeGreaterThanOrEqual(before)
+})
+
+
+test('phone dense: nucleus, ring-1 and findings labels stay visible without clip/overlap', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(pathToFileURL(builtHtml).href)
+  await page.locator('[data-testid="file-input"]').setInputFiles(resolve(root, 'tests/e2e/fixtures/dense-graph.test-only.json'))
+  const canvas = page.locator('[data-testid="graph-canvas"]')
+  await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 20_000 })
+  await page.waitForTimeout(1000)
+
+  const report = await page.evaluate(() => {
+    const stage = document.querySelector('[data-testid="graph-canvas"]') as HTMLElement
+    const bounds = stage.getBoundingClientRect()
+    const pad = 4
+    const all = [...document.querySelectorAll<HTMLElement>('.overview-node')].filter((n) =>
+      n.querySelector(':scope > .aside')
+    )
+    const labelOf = (n: HTMLElement) =>
+      n.querySelector<HTMLElement>(':scope > .aside .label') ?? n.querySelector<HTMLElement>(':scope > .aside')
+    const discOf = (n: HTMLElement) =>
+      n.querySelector<HTMLElement>('.kind-mark--disc') ?? n.querySelector<HTMLElement>('.kind-mark')
+    const hit = (a: DOMRect, b: DOMRect) =>
+      a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1
+
+    const mustHidden = all
+      .filter((n) => {
+        if (n.classList.contains('is-nucleus')) return n.hasAttribute('data-label-hidden')
+        if (Number(n.dataset.depth ?? NaN) === 1) return n.hasAttribute('data-label-hidden')
+        if (n.dataset.hasFindings === 'true') return n.hasAttribute('data-label-hidden')
+        return false
+      })
+      .map((n) => n.dataset.nodeId ?? '')
+
+    const visible = all.filter((n) => !n.hasAttribute('data-label-hidden'))
+    const clipped: string[] = []
+    const overlaps: string[] = []
+    const boxes = visible.map((n) => {
+      const label = labelOf(n)!.getBoundingClientRect()
+      const disc = discOf(n)!.getBoundingClientRect()
+      const id = n.dataset.nodeId ?? ''
+      if (
+        label.left < bounds.left - pad ||
+        label.right > bounds.right + pad ||
+        label.top < bounds.top - pad ||
+        label.bottom > bounds.bottom + pad
+      ) {
+        clipped.push(id)
+      }
+      return { id, label, disc }
+    })
+    for (let i = 0; i < boxes.length; i += 1) {
+      for (let j = i + 1; j < boxes.length; j += 1) {
+        if (hit(boxes[i]!.label, boxes[j]!.label)) overlaps.push(`L×L ${boxes[i]!.id}×${boxes[j]!.id}`)
+      }
+      for (let j = 0; j < boxes.length; j += 1) {
+        if (i === j) continue
+        if (hit(boxes[i]!.label, boxes[j]!.disc)) overlaps.push(`L×D ${boxes[i]!.id}×${boxes[j]!.id}`)
+      }
+    }
+    // Nucleus stack vs other discs
+    const nucleus = all.find((n) => n.classList.contains('is-nucleus'))
+    const nucleusAside = nucleus?.querySelector<HTMLElement>(':scope > .aside')?.getBoundingClientRect()
+    if (nucleusAside) {
+      for (const n of visible) {
+        if (n.classList.contains('is-nucleus')) continue
+        const disc = discOf(n)!.getBoundingClientRect()
+        if (hit(nucleusAside, disc)) overlaps.push(`ENTRY×D ${n.dataset.nodeId}`)
+      }
+    }
+    return {
+      mustHidden,
+      clipped,
+      overlaps,
+      visible: visible.length,
+      ring1: all.filter((n) => Number(n.dataset.depth ?? NaN) === 1).length,
+      unplacedFindings: stage.getAttribute('data-unplaced-findings')
+    }
+  })
+
+  expect(report.mustHidden, `must-keep hidden: ${report.mustHidden.join(', ')}`).toEqual([])
+  expect(report.clipped, `clipped: ${report.clipped.join(', ')}`).toEqual([])
+  expect(report.overlaps, report.overlaps.join('\n')).toEqual([])
+  expect(report.unplacedFindings, `unplaced findings: ${report.unplacedFindings}`).toBeNull()
+  expect(report.visible).toBeGreaterThanOrEqual(report.ring1)
+})

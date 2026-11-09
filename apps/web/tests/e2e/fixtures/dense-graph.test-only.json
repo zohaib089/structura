@@ -1,0 +1,935 @@
+{
+ "schemaVersion": "1.0.0",
+ "summary": {
+  "nodes": 33,
+  "edges": 52,
+  "files": 18
+ },
+ "coverage": {
+  "files": {
+   "discovered": 18,
+   "parsed": 18,
+   "partial": 0,
+   "failed": 0,
+   "skipped": 0,
+   "ignored": 0
+  },
+  "byLanguage": [
+   {
+    "language": "typescript",
+    "parsed": 18,
+    "partial": 0,
+    "failed": 0,
+    "skipped": 0
+   }
+  ],
+  "skipped": [],
+  "ignored": [],
+  "unresolved": [
+   {
+    "reason": "not-found",
+    "count": 2
+   }
+  ],
+  "accounting": {
+   "discovered": 18,
+   "accounted": 18
+  }
+ },
+ "nodes": [
+  {
+   "id": "dir:.",
+   "kind": "directory",
+   "path": ".",
+   "label": "."
+  },
+  {
+   "id": "dir:src",
+   "kind": "directory",
+   "path": "src",
+   "label": "src"
+  },
+  {
+   "id": "dir:src/api",
+   "kind": "directory",
+   "path": "src/api",
+   "label": "api"
+  },
+  {
+   "id": "dir:src/components",
+   "kind": "directory",
+   "path": "src/components",
+   "label": "components"
+  },
+  {
+   "id": "dir:src/i18n",
+   "kind": "directory",
+   "path": "src/i18n",
+   "label": "i18n"
+  },
+  {
+   "id": "dir:src/router",
+   "kind": "directory",
+   "path": "src/router",
+   "label": "router"
+  },
+  {
+   "id": "dir:src/stores",
+   "kind": "directory",
+   "path": "src/stores",
+   "label": "stores"
+  },
+  {
+   "id": "dir:src/utils",
+   "kind": "directory",
+   "path": "src/utils",
+   "label": "utils"
+  },
+  {
+   "id": "dir:src/views",
+   "kind": "directory",
+   "path": "src/views",
+   "label": "views"
+  },
+  {
+   "id": "file:src/main.ts",
+   "kind": "file",
+   "path": "src/main.ts",
+   "label": "main.ts",
+   "language": "typescript",
+   "lineCount": 80,
+   "parse": {
+    "status": "parsed"
+   }
+  },
+  {
+   "id": "file:src/App.vue",
+   "kind": "file",
+   "path": "src/App.vue",
+   "label": "App.vue",
+   "language": "vue",
+   "lineCount": 80,
+   "parse": {
+    "status": "parsed"
+   }
+  },
+  {
+   "id": "file:src/router/index.ts",
+   "kind": "file",
+   "path": "src/router/index.ts",
+   "label": "index.ts",
+   "language": "typescript",
+   "lineCount": 80,
+   "parse": {
+    "status": "parsed"
+   }
+  },
+  {
+   "id": "file:src/router/guards.ts",
+   "kind": "file",
+   "path": "src/router/guards.ts",
+   "label": "guards.ts",
+   "language": "typescript",
+   "lineCount": 80,
+   "parse": {
+    "status": "parsed"
+   }
+  },
+  {
+   "id": "file:src/stores/session.ts",
+   "kind": "file",
+   "path": "src/stores/session.ts",
+   "label": "session.ts",
+   "language": "typescript",
+   "lineCount": 80,
+   "parse": {
+    "status": "parsed"
+   }
+  },
+  {
+   "id": "file:src/stores/projects.ts",
+   "kind": "file",
+   "path": "src/stores/projects.ts",
+   "label": "projects.ts",
+   "language": "typescript",
+   "lineCount": 80,
+   "parse": {
+    "status": "parsed"
+   }
+  },
+  {
+   "id": "file:src/api/client.ts",
+   "kind": "file",
+   "path": "src/api/client.ts",
+   "label": "client.ts",
+   "language": "typescript",
+   "lineCount": 80,
+   "parse": {
+    "status": "parsed"
+   }
+  },
+  {
+   "id": "file:src/api/scans.ts",
+   "kind": "file",
+   "path": "src/api/scans.ts",
+   "label": "scans.ts",
+   "language": "typescript",
+   "lineCount": 80,
+   "parse": {
+    "status": "parsed"
+   }
+  },
+  {
+   "id": "file:src/api/projects.ts",
+   "kind": "file",
+   "path": "src/api/projects.ts",
+   "label": "projects.ts",
+   "language": "typescript",
+   "lineCount": 80,
+   "parse": {
+    "status": "parsed"
+   }
+  },
+  {
+   "id": "file:src/views/HomeView.vue",
+   "kind": "file",
+   "path": "src/views/HomeView.vue",
+   "label": "HomeView.vue",
+   "language": "vue",
+   "lineCount": 80,
+   "parse": {
+    "status": "parsed"
+   }
+  },
+  {
+   "id": "file:src/views/ScanView.vue",
+   "kind": "file",
+   "path": "src/views/ScanView.vue",
+   "label": "ScanView.vue",
+   "language": "vue",
+   "lineCount": 80,
+   "parse": {
+    "status": "parsed"
+   }
+  },
+  {
+   "id": "file:src/views/SettingsView.vue",
+   "kind": "file",
+   "path": "src/views/SettingsView.vue",
+   "label": "SettingsView.vue",
+   "language": "vue",
+   "lineCount": 80,
+   "parse": {
+    "status": "parsed"
+   }
+  },
+  {
+   "id": "file:src/components/GraphCanvas.vue",
+   "kind": "file",
+   "path": "src/components/GraphCanvas.vue",
+   "label": "GraphCanvas.vue",
+   "language": "vue",
+   "lineCount": 80,
+   "parse": {
+    "status": "parsed"
+   }
+  },
+  {
+   "id": "file:src/components/NodeCard.vue",
+   "kind": "file",
+   "path": "src/components/NodeCard.vue",
+   "label": "NodeCard.vue",
+   "language": "vue",
+   "lineCount": 80,
+   "parse": {
+    "status": "parsed"
+   }
+  },
+  {
+   "id": "file:src/components/Toolbar.vue",
+   "kind": "file",
+   "path": "src/components/Toolbar.vue",
+   "label": "Toolbar.vue",
+   "language": "vue",
+   "lineCount": 80,
+   "parse": {
+    "status": "parsed"
+   }
+  },
+  {
+   "id": "file:src/utils/format.ts",
+   "kind": "file",
+   "path": "src/utils/format.ts",
+   "label": "format.ts",
+   "language": "typescript",
+   "lineCount": 80,
+   "parse": {
+    "status": "parsed"
+   }
+  },
+  {
+   "id": "file:src/utils/theme.ts",
+   "kind": "file",
+   "path": "src/utils/theme.ts",
+   "label": "theme.ts",
+   "language": "typescript",
+   "lineCount": 80,
+   "parse": {
+    "status": "parsed"
+   }
+  },
+  {
+   "id": "file:src/i18n/index.ts",
+   "kind": "file",
+   "path": "src/i18n/index.ts",
+   "label": "index.ts",
+   "language": "typescript",
+   "lineCount": 80,
+   "parse": {
+    "status": "parsed"
+   }
+  },
+  {
+   "id": "ext:npm:vue",
+   "kind": "external",
+   "ecosystem": "npm",
+   "label": "vue"
+  },
+  {
+   "id": "ext:npm:pinia",
+   "kind": "external",
+   "ecosystem": "npm",
+   "label": "pinia"
+  },
+  {
+   "id": "ext:npm:vue-router",
+   "kind": "external",
+   "ecosystem": "npm",
+   "label": "vue-router"
+  },
+  {
+   "id": "ext:npm:axios",
+   "kind": "external",
+   "ecosystem": "npm",
+   "label": "axios"
+  },
+  {
+   "id": "unresolved:src/router/index.ts::./legacy-routes",
+   "kind": "unresolved",
+   "label": "./legacy-routes",
+   "reason": "not-found"
+  },
+  {
+   "id": "unresolved:src/api/client.ts::@/generated/schema",
+   "kind": "unresolved",
+   "label": "@/generated/schema",
+   "reason": "not-found"
+  }
+ ],
+ "edges": [
+  {
+   "source": "dir:.",
+   "type": "contains",
+   "target": "dir:src",
+   "provenance": "EXTRACTED"
+  },
+  {
+   "source": "dir:src",
+   "type": "contains",
+   "target": "dir:src/api",
+   "provenance": "EXTRACTED"
+  },
+  {
+   "source": "dir:src",
+   "type": "contains",
+   "target": "dir:src/components",
+   "provenance": "EXTRACTED"
+  },
+  {
+   "source": "dir:src",
+   "type": "contains",
+   "target": "dir:src/i18n",
+   "provenance": "EXTRACTED"
+  },
+  {
+   "source": "dir:src",
+   "type": "contains",
+   "target": "dir:src/router",
+   "provenance": "EXTRACTED"
+  },
+  {
+   "source": "dir:src",
+   "type": "contains",
+   "target": "dir:src/stores",
+   "provenance": "EXTRACTED"
+  },
+  {
+   "source": "dir:src",
+   "type": "contains",
+   "target": "dir:src/utils",
+   "provenance": "EXTRACTED"
+  },
+  {
+   "source": "dir:src",
+   "type": "contains",
+   "target": "dir:src/views",
+   "provenance": "EXTRACTED"
+  },
+  {
+   "source": "dir:src",
+   "type": "contains",
+   "target": "file:src/main.ts",
+   "provenance": "EXTRACTED"
+  },
+  {
+   "source": "dir:src",
+   "type": "contains",
+   "target": "file:src/App.vue",
+   "provenance": "EXTRACTED"
+  },
+  {
+   "source": "dir:src/router",
+   "type": "contains",
+   "target": "file:src/router/index.ts",
+   "provenance": "EXTRACTED"
+  },
+  {
+   "source": "dir:src/router",
+   "type": "contains",
+   "target": "file:src/router/guards.ts",
+   "provenance": "EXTRACTED"
+  },
+  {
+   "source": "dir:src/stores",
+   "type": "contains",
+   "target": "file:src/stores/session.ts",
+   "provenance": "EXTRACTED"
+  },
+  {
+   "source": "dir:src/stores",
+   "type": "contains",
+   "target": "file:src/stores/projects.ts",
+   "provenance": "EXTRACTED"
+  },
+  {
+   "source": "dir:src/api",
+   "type": "contains",
+   "target": "file:src/api/client.ts",
+   "provenance": "EXTRACTED"
+  },
+  {
+   "source": "dir:src/api",
+   "type": "contains",
+   "target": "file:src/api/scans.ts",
+   "provenance": "EXTRACTED"
+  },
+  {
+   "source": "dir:src/api",
+   "type": "contains",
+   "target": "file:src/api/projects.ts",
+   "provenance": "EXTRACTED"
+  },
+  {
+   "source": "dir:src/views",
+   "type": "contains",
+   "target": "file:src/views/HomeView.vue",
+   "provenance": "EXTRACTED"
+  },
+  {
+   "source": "dir:src/views",
+   "type": "contains",
+   "target": "file:src/views/ScanView.vue",
+   "provenance": "EXTRACTED"
+  },
+  {
+   "source": "dir:src/views",
+   "type": "contains",
+   "target": "file:src/views/SettingsView.vue",
+   "provenance": "EXTRACTED"
+  },
+  {
+   "source": "dir:src/components",
+   "type": "contains",
+   "target": "file:src/components/GraphCanvas.vue",
+   "provenance": "EXTRACTED"
+  },
+  {
+   "source": "dir:src/components",
+   "type": "contains",
+   "target": "file:src/components/NodeCard.vue",
+   "provenance": "EXTRACTED"
+  },
+  {
+   "source": "dir:src/components",
+   "type": "contains",
+   "target": "file:src/components/Toolbar.vue",
+   "provenance": "EXTRACTED"
+  },
+  {
+   "source": "dir:src/utils",
+   "type": "contains",
+   "target": "file:src/utils/format.ts",
+   "provenance": "EXTRACTED"
+  },
+  {
+   "source": "dir:src/utils",
+   "type": "contains",
+   "target": "file:src/utils/theme.ts",
+   "provenance": "EXTRACTED"
+  },
+  {
+   "source": "dir:src/i18n",
+   "type": "contains",
+   "target": "file:src/i18n/index.ts",
+   "provenance": "EXTRACTED"
+  },
+  {
+   "source": "file:src/main.ts",
+   "type": "imports",
+   "target": "file:src/App.vue",
+   "provenance": "EXTRACTED",
+   "specifier": "src/App.vue",
+   "span": {
+    "start": {
+     "line": 1,
+     "col": 1
+    },
+    "end": {
+     "line": 1,
+     "col": 9
+    }
+   }
+  },
+  {
+   "source": "file:src/main.ts",
+   "type": "imports",
+   "target": "file:src/router/index.ts",
+   "provenance": "EXTRACTED",
+   "specifier": "src/router/index.ts",
+   "span": {
+    "start": {
+     "line": 2,
+     "col": 1
+    },
+    "end": {
+     "line": 2,
+     "col": 9
+    }
+   }
+  },
+  {
+   "source": "file:src/main.ts",
+   "type": "imports",
+   "target": "file:src/stores/session.ts",
+   "provenance": "EXTRACTED",
+   "specifier": "src/stores/session.ts",
+   "span": {
+    "start": {
+     "line": 3,
+     "col": 1
+    },
+    "end": {
+     "line": 3,
+     "col": 9
+    }
+   }
+  },
+  {
+   "source": "file:src/main.ts",
+   "type": "imports",
+   "target": "file:src/i18n/index.ts",
+   "provenance": "EXTRACTED",
+   "specifier": "src/i18n/index.ts",
+   "span": {
+    "start": {
+     "line": 4,
+     "col": 1
+    },
+    "end": {
+     "line": 4,
+     "col": 9
+    }
+   }
+  },
+  {
+   "source": "file:src/main.ts",
+   "type": "imports",
+   "target": "ext:npm:vue",
+   "provenance": "EXTRACTED",
+   "specifier": "vue",
+   "span": {
+    "start": {
+     "line": 5,
+     "col": 1
+    },
+    "end": {
+     "line": 5,
+     "col": 9
+    }
+   }
+  },
+  {
+   "source": "file:src/main.ts",
+   "type": "imports",
+   "target": "ext:npm:pinia",
+   "provenance": "EXTRACTED",
+   "specifier": "pinia",
+   "span": {
+    "start": {
+     "line": 6,
+     "col": 1
+    },
+    "end": {
+     "line": 6,
+     "col": 9
+    }
+   }
+  },
+  {
+   "source": "file:src/router/index.ts",
+   "type": "imports",
+   "target": "file:src/router/guards.ts",
+   "provenance": "EXTRACTED",
+   "specifier": "src/router/guards.ts",
+   "span": {
+    "start": {
+     "line": 7,
+     "col": 1
+    },
+    "end": {
+     "line": 7,
+     "col": 9
+    }
+   }
+  },
+  {
+   "source": "file:src/router/index.ts",
+   "type": "imports",
+   "target": "ext:npm:vue-router",
+   "provenance": "EXTRACTED",
+   "specifier": "vue-router",
+   "span": {
+    "start": {
+     "line": 8,
+     "col": 1
+    },
+    "end": {
+     "line": 8,
+     "col": 9
+    }
+   }
+  },
+  {
+   "source": "file:src/router/index.ts",
+   "type": "imports",
+   "target": "file:src/views/HomeView.vue",
+   "provenance": "EXTRACTED",
+   "specifier": "src/views/HomeView.vue",
+   "span": {
+    "start": {
+     "line": 9,
+     "col": 1
+    },
+    "end": {
+     "line": 9,
+     "col": 9
+    }
+   }
+  },
+  {
+   "source": "file:src/router/index.ts",
+   "type": "imports",
+   "target": "file:src/views/ScanView.vue",
+   "provenance": "EXTRACTED",
+   "specifier": "src/views/ScanView.vue",
+   "span": {
+    "start": {
+     "line": 10,
+     "col": 1
+    },
+    "end": {
+     "line": 10,
+     "col": 9
+    }
+   }
+  },
+  {
+   "source": "file:src/router/index.ts",
+   "type": "imports",
+   "target": "file:src/views/SettingsView.vue",
+   "provenance": "INFERRED",
+   "specifier": "src/views/SettingsView.vue",
+   "span": {
+    "start": {
+     "line": 11,
+     "col": 1
+    },
+    "end": {
+     "line": 11,
+     "col": 9
+    }
+   },
+   "confidence": 0.5,
+   "reason": "alias-heuristic"
+  },
+  {
+   "source": "file:src/router/guards.ts",
+   "type": "imports",
+   "target": "file:src/stores/session.ts",
+   "provenance": "EXTRACTED",
+   "specifier": "src/stores/session.ts",
+   "span": {
+    "start": {
+     "line": 12,
+     "col": 1
+    },
+    "end": {
+     "line": 12,
+     "col": 9
+    }
+   }
+  },
+  {
+   "source": "file:src/views/ScanView.vue",
+   "type": "imports",
+   "target": "file:src/components/GraphCanvas.vue",
+   "provenance": "EXTRACTED",
+   "specifier": "src/components/GraphCanvas.vue",
+   "span": {
+    "start": {
+     "line": 13,
+     "col": 1
+    },
+    "end": {
+     "line": 13,
+     "col": 9
+    }
+   }
+  },
+  {
+   "source": "file:src/views/ScanView.vue",
+   "type": "imports",
+   "target": "file:src/api/scans.ts",
+   "provenance": "EXTRACTED",
+   "specifier": "src/api/scans.ts",
+   "span": {
+    "start": {
+     "line": 14,
+     "col": 1
+    },
+    "end": {
+     "line": 14,
+     "col": 9
+    }
+   }
+  },
+  {
+   "source": "file:src/views/HomeView.vue",
+   "type": "imports",
+   "target": "file:src/stores/projects.ts",
+   "provenance": "EXTRACTED",
+   "specifier": "src/stores/projects.ts",
+   "span": {
+    "start": {
+     "line": 15,
+     "col": 1
+    },
+    "end": {
+     "line": 15,
+     "col": 9
+    }
+   }
+  },
+  {
+   "source": "file:src/views/HomeView.vue",
+   "type": "imports",
+   "target": "file:src/components/Toolbar.vue",
+   "provenance": "EXTRACTED",
+   "specifier": "src/components/Toolbar.vue",
+   "span": {
+    "start": {
+     "line": 16,
+     "col": 1
+    },
+    "end": {
+     "line": 16,
+     "col": 9
+    }
+   }
+  },
+  {
+   "source": "file:src/components/GraphCanvas.vue",
+   "type": "imports",
+   "target": "file:src/components/NodeCard.vue",
+   "provenance": "EXTRACTED",
+   "specifier": "src/components/NodeCard.vue",
+   "span": {
+    "start": {
+     "line": 17,
+     "col": 1
+    },
+    "end": {
+     "line": 17,
+     "col": 9
+    }
+   }
+  },
+  {
+   "source": "file:src/components/NodeCard.vue",
+   "type": "imports",
+   "target": "file:src/utils/format.ts",
+   "provenance": "INFERRED",
+   "specifier": "src/utils/format.ts",
+   "span": {
+    "start": {
+     "line": 18,
+     "col": 1
+    },
+    "end": {
+     "line": 18,
+     "col": 9
+    }
+   },
+   "confidence": 0.5,
+   "reason": "alias-heuristic"
+  },
+  {
+   "source": "file:src/stores/projects.ts",
+   "type": "imports",
+   "target": "file:src/api/projects.ts",
+   "provenance": "EXTRACTED",
+   "specifier": "src/api/projects.ts",
+   "span": {
+    "start": {
+     "line": 19,
+     "col": 1
+    },
+    "end": {
+     "line": 19,
+     "col": 9
+    }
+   }
+  },
+  {
+   "source": "file:src/api/projects.ts",
+   "type": "imports",
+   "target": "file:src/api/client.ts",
+   "provenance": "EXTRACTED",
+   "specifier": "src/api/client.ts",
+   "span": {
+    "start": {
+     "line": 20,
+     "col": 1
+    },
+    "end": {
+     "line": 20,
+     "col": 9
+    }
+   }
+  },
+  {
+   "source": "file:src/api/scans.ts",
+   "type": "imports",
+   "target": "file:src/api/client.ts",
+   "provenance": "EXTRACTED",
+   "specifier": "src/api/client.ts",
+   "span": {
+    "start": {
+     "line": 21,
+     "col": 1
+    },
+    "end": {
+     "line": 21,
+     "col": 9
+    }
+   }
+  },
+  {
+   "source": "file:src/api/client.ts",
+   "type": "imports",
+   "target": "ext:npm:axios",
+   "provenance": "EXTRACTED",
+   "specifier": "axios",
+   "span": {
+    "start": {
+     "line": 22,
+     "col": 1
+    },
+    "end": {
+     "line": 22,
+     "col": 9
+    }
+   }
+  },
+  {
+   "source": "file:src/App.vue",
+   "type": "imports",
+   "target": "file:src/utils/theme.ts",
+   "provenance": "INFERRED",
+   "specifier": "src/utils/theme.ts",
+   "span": {
+    "start": {
+     "line": 23,
+     "col": 1
+    },
+    "end": {
+     "line": 23,
+     "col": 9
+    }
+   },
+   "confidence": 0.5,
+   "reason": "alias-heuristic"
+  },
+  {
+   "source": "file:src/views/SettingsView.vue",
+   "type": "imports",
+   "target": "file:src/utils/theme.ts",
+   "provenance": "EXTRACTED",
+   "specifier": "src/utils/theme.ts",
+   "span": {
+    "start": {
+     "line": 24,
+     "col": 1
+    },
+    "end": {
+     "line": 24,
+     "col": 9
+    }
+   }
+  },
+  {
+   "source": "file:src/router/index.ts",
+   "type": "imports",
+   "target": "unresolved:src/router/index.ts::./legacy-routes",
+   "provenance": "EXTRACTED",
+   "specifier": "./legacy-routes",
+   "span": {
+    "start": {
+     "line": 25,
+     "col": 1
+    },
+    "end": {
+     "line": 25,
+     "col": 9
+    }
+   }
+  },
+  {
+   "source": "file:src/api/client.ts",
+   "type": "imports",
+   "target": "unresolved:src/api/client.ts::@/generated/schema",
+   "provenance": "EXTRACTED",
+   "specifier": "@/generated/schema",
+   "span": {
+    "start": {
+     "line": 26,
+     "col": 1
+    },
+    "end": {
+     "line": 26,
+     "col": 9
+    }
+   }
+  }
+ ]
+}

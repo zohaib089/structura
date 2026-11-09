@@ -171,6 +171,12 @@ export interface ViewerMessages {
   graphGuideStep1: string
   graphGuideStep2: string
   graphGuideStep3: string
+  /** Toolbar toggle: reveal non-tree cross-links (count is substituted). */
+  showAllConnections: string
+  hideExtraConnections: string
+  /** Small caps tag under the nucleus label (landing parity). */
+  entryPointTag: string
+  coachOpenLabel: string
   filtersTooltip: string
   searchTooltip: string
   fitTooltip: string
@@ -346,7 +352,7 @@ const en: ViewerMessages = {
   emptyFilters: 'Open a file to filter',
   emptyBody: 'Drop a {graphFile} here, or create one by running the command below in your repo. Nothing leaves your machine.',
   copyCommand: 'Copy',
-  coachExpand: 'Click a dot to open details in the side panel.',
+  coachExpand: 'Click a node to open its details.',
   coachFocus: 'On a folder, use “Show inside on map” to reveal more files.',
   coachCoverage: 'Use “Centre graph here” to redraw the graph around that file.',
   coachSkip: 'Dismiss guide',
@@ -354,9 +360,13 @@ const en: ViewerMessages = {
   graphOverviewHint:
     'You’re looking at how files depend on each other. Click a node for details; drag to pan and scroll to zoom.',
   panelSelectedHint: 'Details for your selection. Use the links below to jump to related files.',
-  graphGuideStep1: 'Click any node to open details on the right.',
+  graphGuideStep1: 'Click any node to open its details.',
   graphGuideStep2: 'On a folder, choose “Show inside on map” to reveal more on the ring.',
   graphGuideStep3: 'Choose “Centre graph here” to redraw the map around that file.',
+  showAllConnections: 'Show all connections ({n})',
+  hideExtraConnections: 'Hide extra connections ({n})',
+  entryPointTag: 'ENTRY POINT',
+  coachOpenLabel: 'Tips',
   filtersTooltip: 'Open filters to hide file types or link types',
   searchTooltip: 'Find a file or symbol by name',
   fitTooltip: 'Zoom so the whole graph fits on screen',

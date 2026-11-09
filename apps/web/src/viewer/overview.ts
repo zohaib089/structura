@@ -5,9 +5,20 @@ import {
   INITIAL_NODE_CAP
 } from './caps'
 import type { GraphDocument, GraphEdge, GraphNode, Provenance } from './graph-types'
+import {
+  measureLabelWidth,
+  resolveLabelCollisions,
+  type LabelPlacement,
+  type LabelSide
+} from './label-collision'
+export type { LabelPlacement, LabelSide }
 
 export const RADIAL_RING_GAP = 220
+/** Minimum arc (flow px) between neighbours on one ring, so compact marks + labels do not collide. */
+export const RADIAL_MIN_ARC = 220
 export const RADIAL_DEFAULT_MAX_RING = 6
+/** Minimum angular wedge for each ring-1 child (~20°) before leaf weighting. */
+export const RADIAL_RING1_MIN_WEDGE = (20 * Math.PI) / 180
 
 export interface EntryPointOption {
   id: string
@@ -80,6 +91,8 @@ export interface OverviewNodeModel {
 
 export type EdgeVisual = 'extracted' | 'inferred' | 'unresolved' | 'mixed'
 
+export type RadialEdgeRole = 'spoke' | 'cross'
+
 export interface OverviewEdgeModel {
   id: string
   source: string
@@ -89,6 +102,8 @@ export interface OverviewEdgeModel {
   weight: number
   visual: EdgeVisual
   hierarchy: boolean
+  /** Spoke = neighbouring rings (landing tree); cross = same/skip ring (de-emphasised). */
+  role: RadialEdgeRole
   extracted: number
   inferred: number
   unresolved: number
@@ -98,6 +113,12 @@ export interface OverviewEdgeModel {
   typeOnly: '' | 'true' | 'false' | 'mixed'
   label: string
   flowing?: boolean
+  /** Ring centre in flow units (disc centre of the nucleus), used to bow edge paths. */
+  radialCentre?: { x: number; y: number }
+  /** True when the edge touches the selected node — cross-links paint at full opacity. */
+  emphasized?: boolean
+  /** When true, paint every cross-link (toolbar toggle). */
+  showAllCross?: boolean
 }
 
 export interface OverviewModel {
@@ -107,6 +128,10 @@ export interface OverviewModel {
   hiddenEdges: number
   edgesOmittedByCap: number
   positions: Map<string, { x: number; y: number }>
+  /** Shared disc-centre radius per BFS depth; ring guides must use these exact values. */
+  ringRadii: number[]
+  /** Resolved label side / display text / nudged angle after collision pass. */
+  labelPlacements: Map<string, LabelPlacement>
 }
 
 export const LAYOUT_COLUMN = 280
@@ -415,7 +440,7 @@ export function buildOverview(
 ): OverviewModel {
   const nucleusId = resolveNucleusId(index, state.nucleusId)
   const maxRing = state.maxRadialRing ?? RADIAL_DEFAULT_MAX_RING
-  const ringDepths = dependencyRingDepths(index, nucleusId, filters, maxRing)
+  const { depths: ringDepths, parentOf: treeParent } = dependencyRingTree(index, nucleusId, filters, maxRing)
   const expanded = new Set(state.expanded)
   const pinned = new Set(state.pinned)
   const nodes: OverviewNodeModel[] = []
@@ -492,18 +517,25 @@ export function buildOverview(
 
   for (const node of nodes) node.internalEdges = internal.get(node.id) ?? 0
 
-  let edgeModels = [...bundles.values()].map(toEdgeModel)
+  let edgeModels = [...bundles.values()].map((b) => toEdgeModel(b, ringDepths, treeParent))
   edgeModels.sort((a, b) => b.weight - a.weight || compareUtf16(a.id, b.id))
   const edgesOmittedByCap = Math.max(0, edgeModels.length - HARD_EDGE_CAP)
   edgeModels = edgeModels.slice(0, HARD_EDGE_CAP)
 
+  const laid = layoutRadialTree(nodes, nucleusId, treeParent)
+  const ringRadii = [...laid.radiiByDepth.entries()]
+    .filter(([depth]) => depth > 0)
+    .sort((a, b) => a[0] - b[0])
+    .map(([, radius]) => radius)
   return {
     nodes,
     edges: edgeModels,
     hiddenNodes: hiddenNodeIds.size,
     hiddenEdges,
     edgesOmittedByCap,
-    positions: layoutRadialNodes(nodes, nucleusId)
+    positions: laid.positions,
+    ringRadii,
+    labelPlacements: laid.labelPlacements
   }
 }
 
@@ -531,6 +563,17 @@ export function compareUtf16(a: string, b: string): number {
   if (a < b) return -1
   if (a > b) return 1
   return 0
+}
+
+function edgeRadialRoleFromTree(
+  source: string,
+  target: string,
+  hierarchy: boolean,
+  treeParent: Map<string, string>
+): RadialEdgeRole {
+  if (hierarchy) return 'cross'
+  if (treeParent.get(source) === target || treeParent.get(target) === source) return 'spoke'
+  return 'cross'
 }
 
 export function edgeVisual(provenance: Provenance | 'MIXED', resolved: boolean): EdgeVisual {
@@ -587,7 +630,7 @@ function addBundle(
   bundles.set(key, bundle)
 }
 
-function toEdgeModel(bundle: Bundle): OverviewEdgeModel {
+function toEdgeModel(bundle: Bundle, _ringDepths: Map<string, number>, treeParent: Map<string, string>): OverviewEdgeModel {
   const weight = bundle.extracted + bundle.inferred + bundle.unresolved
   const resolved = bundle.unresolved === 0
   let provenance: Provenance | 'MIXED'
@@ -596,6 +639,7 @@ function toEdgeModel(bundle: Bundle): OverviewEdgeModel {
   else provenance = 'EXTRACTED'
   const visual = edgeVisual(provenance, resolved)
   const imported = importSummary(bundle)
+  const role: RadialEdgeRole = edgeRadialRoleFromTree(bundle.source, bundle.target, bundle.hierarchy, treeParent)
   return {
     id: `bundle:${bundle.source}>${bundle.target}:${visual}:${bundle.hierarchy ? 'h' : 'b'}`,
     source: bundle.source,
@@ -605,6 +649,7 @@ function toEdgeModel(bundle: Bundle): OverviewEdgeModel {
     weight,
     visual,
     hierarchy: bundle.hierarchy,
+    role,
     extracted: bundle.extracted,
     inferred: bundle.inferred,
     unresolved: bundle.unresolved,
@@ -855,10 +900,172 @@ export function resolveNucleusId(index: GraphIndex, preferredId: string | null |
   return index.document.nodes[0]?.id ?? 'dir:.'
 }
 
+export type RadialSector = { start: number; end: number }
+
+/** Disc centre offset from Vue Flow node top-left (half of the 1.5rem disc, flow px). */
+export const RADIAL_DISC_OFFSET = 12
+
+/** Clearance below the nucleus for the name + ENTRY POINT stack before ring 1. */
+export const RADIAL_NUCLEUS_CLEARANCE = 72
+
+/** Approximate monospace label width (flow px) for desktop spacing. */
+export function estimateLabelWidth(label: string): number {
+  const chars = Math.min(22, Math.max(4, label.length))
+  return chars * 7 + RADIAL_DISC_OFFSET * 2 + 16
+}
+
+
+/** Distribute `total` radians by weights, enforcing a per-item floor (then renormalise). */
+export function sharesWithFloor(weights: number[], total: number, floor: number): number[] {
+  const n = weights.length
+  if (n === 0) return []
+  const cappedFloor = Math.min(floor, total / n - 1e-6)
+  const sumW = weights.reduce((a, b) => a + b, 0) || 1
+  const shares = weights.map((w) => (w / sumW) * total)
+  for (let iter = 0; iter < 8; iter += 1) {
+    let deficit = 0
+    let flexible = 0
+    for (let i = 0; i < n; i += 1) {
+      if (shares[i]! < cappedFloor) {
+        deficit += cappedFloor - shares[i]!
+        shares[i] = cappedFloor
+      } else {
+        flexible += shares[i]! - cappedFloor
+      }
+    }
+    if (deficit < 1e-9 || flexible < 1e-9) break
+    for (let i = 0; i < n; i += 1) {
+      if (shares[i]! > cappedFloor) {
+        shares[i] = shares[i]! - ((shares[i]! - cappedFloor) / flexible) * deficit
+      }
+    }
+  }
+  const sum = shares.reduce((a, b) => a + b, 0) || 1
+  return shares.map((x) => (x / sum) * total)
+}
+
 export function layoutRadialNodes(
-  nodes: { id: string; depth: number }[],
-  _nucleusId: string
+  nodes: { id: string; depth: number; label?: string }[],
+  nucleusId: string,
+  treeParent: Map<string, string> = new Map()
 ): Map<string, { x: number; y: number }> {
+  return layoutRadialTree(nodes, nucleusId, treeParent).positions
+}
+
+/**
+ * Classic Reingold–Tilford-style radial tree:
+ * - leaf-weighted wedges at every depth (children subdivide the parent wedge)
+ * - one shared radius per BFS ring, sized so neighbours clear estimated label width
+ * - positions are Vue Flow top-left at (R·cos, R·sin); disc centres sit ON guides (origin + RADIAL_DISC_OFFSET)
+ */
+export function layoutRadialTree(
+  nodes: { id: string; depth: number; label?: string }[],
+  nucleusId: string,
+  treeParent: Map<string, string> = new Map()
+): {
+  positions: Map<string, { x: number; y: number }>
+  angles: Map<string, number>
+  sectors: Map<string, RadialSector>
+  /** Shared radius per depth (disc-centre distance from nucleus disc centre). Same values ring guides must use. */
+  radiiByDepth: Map<number, number>
+  labelPlacements: Map<string, LabelPlacement>
+} {
+  const visible = new Set(nodes.map((n) => n.id))
+  const labelOf = new Map(nodes.map((n) => [n.id, n.label ?? n.id]))
+  const children = new Map<string, string[]>()
+
+  for (const [child, parent] of treeParent) {
+    if (!visible.has(child) || !visible.has(parent)) continue
+    const list = children.get(parent) ?? []
+    list.push(child)
+    children.set(parent, list)
+  }
+  for (const node of nodes) {
+    if (node.id === nucleusId || node.depth === 0) continue
+    const parent = treeParent.get(node.id)
+    if (parent && visible.has(parent)) continue
+    const list = children.get(nucleusId) ?? []
+    if (!list.includes(node.id)) list.push(node.id)
+    children.set(nucleusId, list)
+  }
+  for (const [, list] of children) list.sort(compareUtf16)
+
+  // Pure leaf counts — wedge ∝ leaves at every depth (classic radial tree).
+  const leaves = new Map<string, number>()
+  const leafCount = (id: string): number => {
+    const cached = leaves.get(id)
+    if (cached !== undefined) return cached
+    const kids = children.get(id) ?? []
+    if (kids.length === 0) {
+      leaves.set(id, 1)
+      return 1
+    }
+    let sum = 0
+    for (const kid of kids) sum += leafCount(kid)
+    leaves.set(id, Math.max(1, sum))
+    return leaves.get(id)!
+  }
+  if (visible.has(nucleusId)) leafCount(nucleusId)
+
+  const angles = new Map<string, number>()
+  const sectors = new Map<string, RadialSector>()
+  const assign = (id: string, start: number, end: number) => {
+    sectors.set(id, { start, end })
+    angles.set(id, (start + end) / 2)
+    const kids = children.get(id) ?? []
+    if (kids.length === 0) return
+    const total = kids.reduce((sum, kid) => sum + leafCount(kid), 0) || 1
+    let cursor = start
+    for (const kid of kids) {
+      const span = ((end - start) * leafCount(kid)) / total
+      assign(kid, cursor, cursor + span)
+      cursor += span
+    }
+  }
+
+  const TAU = Math.PI * 2
+  if (visible.has(nucleusId)) {
+    const ring1 = children.get(nucleusId) ?? []
+    if (ring1.length === 0) {
+      assign(nucleusId, -Math.PI / 2, -Math.PI / 2 + TAU)
+    } else {
+      // Ring-1: leaf weights with a ~20° floor so tiny leaves do not bunch together.
+      const weights = ring1.map((kid) => leafCount(kid))
+      const spans = sharesWithFloor(weights, TAU, RADIAL_RING1_MIN_WEDGE)
+      const firstSpan = spans[0] ?? TAU / ring1.length
+      const start0 = -Math.PI / 2 - firstSpan / 2
+      sectors.set(nucleusId, { start: start0, end: start0 + TAU })
+      angles.set(nucleusId, -Math.PI / 2)
+      let cursor = start0
+      for (let i = 0; i < ring1.length; i += 1) {
+        const kid = ring1[i]!
+        const span = spans[i]!
+        // Recursively assign this child's subtree inside its floored wedge.
+        const assignIn = (id: string, start: number, end: number) => {
+          sectors.set(id, { start, end })
+          angles.set(id, (start + end) / 2)
+          const kids = children.get(id) ?? []
+          if (kids.length === 0) return
+          const total = kids.reduce((sum, k) => sum + leafCount(k), 0) || 1
+          let c = start
+          for (const k of kids) {
+            const s = ((end - start) * leafCount(k)) / total
+            assignIn(k, c, c + s)
+            c += s
+          }
+        }
+        assignIn(kid, cursor, cursor + span)
+        cursor += span
+      }
+    }
+  }
+  for (const node of nodes) {
+    if (angles.has(node.id)) continue
+    const fallback = -Math.PI / 2 + (angles.size * 0.37) % TAU
+    angles.set(node.id, fallback)
+    sectors.set(node.id, { start: fallback - 0.01, end: fallback + 0.01 })
+  }
+
   const rings = new Map<number, string[]>()
   for (const node of nodes) {
     const list = rings.get(node.depth) ?? []
@@ -866,38 +1073,182 @@ export function layoutRadialNodes(
     rings.set(node.depth, list)
   }
 
+  const radiiByDepth = new Map<number, number>()
   const positions = new Map<string, { x: number; y: number }>()
-  const ringNumbers = [...rings.keys()].sort((a, b) => a - b)
+  let previousRadius = 0
 
-  for (const ring of ringNumbers) {
-    const ids = (rings.get(ring) ?? []).sort(compareUtf16)
+  for (const ring of [...rings.keys()].sort((a, b) => a - b)) {
+    const ids = rings.get(ring) ?? []
     if (ids.length === 0) continue
-
     if (ring === 0) {
-      if (ids.length === 1) {
-        positions.set(ids[0]!, { x: 0, y: 0 })
-        continue
-      }
-      const miniRadius = 48
-      const step = (2 * Math.PI) / ids.length
-      const start = -Math.PI / 2
-      ids.forEach((id, index) => {
-        const angle = start + index * step
-        positions.set(id, { x: miniRadius * Math.cos(angle), y: miniRadius * Math.sin(angle) })
-      })
+      // Nucleus top-left so its disc centre is at the ring origin (0,0) in spoke math;
+      // guides are shifted by RADIAL_DISC_OFFSET to the same point.
+      for (const id of ids) positions.set(id, { x: 0, y: 0 })
+      radiiByDepth.set(0, 0)
       continue
     }
 
-    const radius = ring * RADIAL_RING_GAP
-    const step = (2 * Math.PI) / ids.length
-    const start = -Math.PI / 2
-    ids.forEach((id, index) => {
-      const angle = start + index * step
-      positions.set(id, { x: radius * Math.cos(angle), y: radius * Math.sin(angle) })
+    const ordered = [...ids].sort((a, b) => (angles.get(a) ?? 0) - (angles.get(b) ?? 0) || compareUtf16(a, b))
+    // Minimum arc length from label widths of consecutive neighbours on this ring.
+    let minArc = RADIAL_MIN_ARC
+    if (ordered.length >= 2) {
+      for (let i = 0; i < ordered.length; i += 1) {
+        const a = ordered[i]!
+        const b = ordered[(i + 1) % ordered.length]!
+        const need = (measureLabelWidth(labelOf.get(a) ?? '') + measureLabelWidth(labelOf.get(b) ?? '')) / 2
+        if (need > minArc) minArc = need
+      }
+    }
+
+    let minGap = TAU
+    if (ordered.length >= 2) {
+      for (let i = 0; i < ordered.length; i += 1) {
+        const a1 = angles.get(ordered[i]!)!
+        const a2 = angles.get(ordered[(i + 1) % ordered.length]!)!
+        let gap = a2 - a1
+        if (gap <= 0) gap += TAU
+        if (gap < minGap) minGap = gap
+      }
+    }
+
+    const radius = Math.max(
+      ring === 1
+        ? Math.max(RADIAL_NUCLEUS_CLEARANCE + RADIAL_DISC_OFFSET * 2, RADIAL_RING_GAP)
+        : previousRadius + RADIAL_RING_GAP * 0.55,
+      previousRadius === 0 ? RADIAL_RING_GAP : previousRadius + RADIAL_RING_GAP * 0.5,
+      ordered.length >= 2 ? minArc / Math.max(minGap, 1e-6) : RADIAL_RING_GAP
+    )
+    previousRadius = radius
+    radiiByDepth.set(ring, radius)
+
+    for (const id of ids) {
+      const a = angles.get(id) ?? -Math.PI / 2
+      // Top-left at (R·cos, R·sin): disc centre lands on the guide circle centred at
+      // (RADIAL_DISC_OFFSET, RADIAL_DISC_OFFSET) — same origin RadialRingGuides uses.
+      positions.set(id, {
+        x: radius * Math.cos(a),
+        y: radius * Math.sin(a)
+      })
+    }
+  }
+
+  // Collision pass: measure labels, flip/nudge/ellipsize so labels miss each other and discs.
+  const collisionNodes = nodes.map((n) => ({
+    id: n.id,
+    label: labelOf.get(n.id) ?? n.id,
+    depth: n.depth,
+    angle: angles.get(n.id) ?? -Math.PI / 2,
+    radius: radiiByDepth.get(n.depth) ?? 0,
+    nucleus: n.id === nucleusId || n.depth === 0
+  }))
+  const labelPlacements = resolveLabelCollisions(collisionNodes)
+  for (const [id, place] of labelPlacements) {
+    const node = nodes.find((n) => n.id === id)
+    if (!node || node.depth <= 0) continue
+    const radius = radiiByDepth.get(node.depth) ?? 0
+    const sector = sectors.get(id)
+    let angle = place.angle
+    if (sector && sector.end - sector.start > 0.05) {
+      const lo = sector.start + 0.02
+      const hi = sector.end - 0.02
+      if (angle < lo) angle = lo
+      if (angle > hi) angle = hi
+    }
+    place.angle = angle
+    // Recompute box after clamp so tests see consistent geometry.
+    const cx = radius * Math.cos(angle) + RADIAL_DISC_OFFSET
+    const cy = radius * Math.sin(angle) + RADIAL_DISC_OFFSET
+    const gap = 24
+    place.box =
+      place.side === 'start'
+        ? { left: cx - gap - place.width, right: cx - gap, top: cy - place.height / 2, bottom: cy + place.height / 2 }
+        : { left: cx + gap, right: cx + gap + place.width, top: cy - place.height / 2, bottom: cy + place.height / 2 }
+    angles.set(id, angle)
+    positions.set(id, {
+      x: radius * Math.cos(angle),
+      y: radius * Math.sin(angle)
     })
   }
 
-  return positions
+  return { positions, angles, sectors, radiiByDepth, labelPlacements }
+}
+
+/** True when every tree child's sector lies inside its parent's sector. */
+export function childrenLieInParentSectors(
+  angles: Map<string, number>,
+  sectors: Map<string, RadialSector>,
+  treeParent: Map<string, string>
+): boolean {
+  for (const [child, parent] of treeParent) {
+    const a = angles.get(child)
+    const childSector = sectors.get(child)
+    const parentSector = sectors.get(parent)
+    if (a === undefined || !childSector || !parentSector) continue
+    if (childSector.start + 1e-9 < parentSector.start || childSector.end - 1e-9 > parentSector.end) return false
+    if (a + 1e-9 < childSector.start || a - 1e-9 > childSector.end) return false
+  }
+  return true
+}
+
+/** Largest empty angular gap among a set of angles on the circle (radians). */
+export function maxAngularGap(angles: number[]): number {
+  if (angles.length === 0) return Math.PI * 2
+  if (angles.length === 1) return Math.PI * 2
+  const TAU = Math.PI * 2
+  const sorted = [...angles].sort((a, b) => a - b)
+  let max = 0
+  for (let i = 0; i < sorted.length; i += 1) {
+    const a = sorted[i]!
+    const b = sorted[(i + 1) % sorted.length]!
+    let gap = b - a
+    if (gap <= 0) gap += TAU
+    if (gap > max) max = gap
+  }
+  return max
+}
+
+/** True when two open tree-spoke segments improperly intersect (shared nucleus endpoint is OK). */
+export function treeSpokesCross(
+  positions: Map<string, { x: number; y: number }>,
+  treeParent: Map<string, string>
+): boolean {
+  const spokes: Array<{ a: string; b: string; x1: number; y1: number; x2: number; y2: number }> = []
+  for (const [child, parent] of treeParent) {
+    const p = positions.get(parent)
+    const c = positions.get(child)
+    if (!p || !c) continue
+    spokes.push({ a: parent, b: child, x1: p.x, y1: p.y, x2: c.x, y2: c.y })
+  }
+  const orient = (ax: number, ay: number, bx: number, by: number, cx: number, cy: number) =>
+    Math.sign((by - ay) * (cx - bx) - (bx - ax) * (cy - by))
+  const onSeg = (ax: number, ay: number, bx: number, by: number, cx: number, cy: number) =>
+    Math.min(ax, bx) - 1e-9 <= cx &&
+    cx <= Math.max(ax, bx) + 1e-9 &&
+    Math.min(ay, by) - 1e-9 <= cy &&
+    cy <= Math.max(ay, by) + 1e-9
+  const crosses = (
+    a: (typeof spokes)[number],
+    b: (typeof spokes)[number]
+  ) => {
+    // Shared vertex (usual at nucleus or along a chain) is not a crossing.
+    if (a.a === b.a || a.a === b.b || a.b === b.a || a.b === b.b) return false
+    const o1 = orient(a.x1, a.y1, a.x2, a.y2, b.x1, b.y1)
+    const o2 = orient(a.x1, a.y1, a.x2, a.y2, b.x2, b.y2)
+    const o3 = orient(b.x1, b.y1, b.x2, b.y2, a.x1, a.y1)
+    const o4 = orient(b.x1, b.y1, b.x2, b.y2, a.x2, a.y2)
+    if (o1 !== o2 && o3 !== o4) return true
+    if (o1 === 0 && onSeg(a.x1, a.y1, a.x2, a.y2, b.x1, b.y1)) return true
+    if (o2 === 0 && onSeg(a.x1, a.y1, a.x2, a.y2, b.x2, b.y2)) return true
+    if (o3 === 0 && onSeg(b.x1, b.y1, b.x2, b.y2, a.x1, a.y1)) return true
+    if (o4 === 0 && onSeg(b.x1, b.y1, b.x2, b.y2, a.x2, a.y2)) return true
+    return false
+  }
+  for (let i = 0; i < spokes.length; i += 1) {
+    for (let j = i + 1; j < spokes.length; j += 1) {
+      if (crosses(spokes[i]!, spokes[j]!)) return true
+    }
+  }
+  return false
 }
 
 function radialNodePasses(index: GraphIndex, filters: ViewFilters, id: string): boolean {
@@ -925,14 +1276,16 @@ function radialLinkPasses(filters: ViewFilters, unresolved: boolean, provenance:
   return filters.provenance.extracted
 }
 
-export function dependencyRingDepths(
+/** BFS depths from the nucleus plus the tree parent used for spoke edges. */
+export function dependencyRingTree(
   index: GraphIndex,
   nucleusId: string,
   filters: ViewFilters,
   maxRing: number
-): Map<string, number> {
+): { depths: Map<string, number>; parentOf: Map<string, string> } {
   const depths = new Map<string, number>()
-  if (!index.nodesById.has(nucleusId)) return depths
+  const parentOf = new Map<string, string>()
+  if (!index.nodesById.has(nucleusId)) return { depths, parentOf }
   depths.set(nucleusId, 0)
   const queue: string[] = [nucleusId]
   let head = 0
@@ -947,10 +1300,20 @@ export function dependencyRingDepths(
       if (!radialNodePasses(index, filters, target)) continue
       if (depths.has(target)) continue
       depths.set(target, depth + 1)
+      parentOf.set(target, current)
       queue.push(target)
     }
   }
-  return depths
+  return { depths, parentOf }
+}
+
+export function dependencyRingDepths(
+  index: GraphIndex,
+  nucleusId: string,
+  filters: ViewFilters,
+  maxRing: number
+): Map<string, number> {
+  return dependencyRingTree(index, nucleusId, filters, maxRing).depths
 }
 
 export function countDependencyEdges(index: GraphIndex, nodeId: string): { out: number; in: number } {

@@ -12,6 +12,7 @@ import OverviewEdge from './OverviewEdge.vue'
 import OverviewNode from './OverviewNode.vue'
 import RadialRingGuides from './RadialRingGuides.vue'
 import ZoomPad from './ZoomPad.vue'
+import '../graph-surface.css'
 
 const props = defineProps<{
   nodes: OverviewNodeModel[]
@@ -37,7 +38,14 @@ const props = defineProps<{
   pathSeverityCounts?: Map<string, SeverityCounts>
   nucleusId?: string | null
   ringCount?: number
+  /** Exact layout radii (disc-centre); preferred over hypot of positions. */
+  ringRadii?: number[]
+  labelPlacements?: Map<string, import('../label-collision').LabelPlacement>
+  showAllCross?: boolean
+  entryTag?: string
 }>()
+
+const hoverId = ref<string | null>(null)
 
 const emit = defineEmits<{
   select: [id: string]
@@ -100,6 +108,21 @@ function flowing(edge: OverviewEdgeModel): boolean {
   return ids.has(edge.source) && ids.has(edge.target)
 }
 
+/** Ring radii: prefer the layout's shared radii so guides sit under disc centres. */
+const ringRadii = computed(() => {
+  if (props.ringRadii && props.ringRadii.length > 0) return props.ringRadii
+  const byDepth = new Map<number, number>()
+  for (const node of props.nodes) {
+    const depth = node.depth ?? 0
+    if (depth <= 0) continue
+    const at = props.positions.get(node.id)
+    if (!at) continue
+    // Top-left lies on the circle of radius R about the flow origin; guides use that R.
+    byDepth.set(depth, Math.max(byDepth.get(depth) ?? 0, Math.round(Math.hypot(at.x, at.y))))
+  }
+  return [...byDepth.entries()].sort((a, b) => a[0] - b[0]).map(([, radius]) => radius)
+})
+
 const flowNodes = () => {
   const guide =
     props.ringCount && props.ringCount > 0
@@ -112,7 +135,7 @@ const flowNodes = () => {
           connectable: false,
           focusable: false,
           deletable: false,
-          data: { ringCount: props.ringCount }
+          data: { ringCount: props.ringCount, radii: ringRadii.value }
         } satisfies Node]
       : []
   return [
@@ -131,6 +154,7 @@ const flowNodes = () => {
       domAttributes: {
         'data-node-id': node.id,
         'data-node-kind': node.kind,
+        'data-depth': String(node.depth ?? 0),
         ...(node.cluster
           ? { 'data-cluster-size': String(node.clusterSize), 'data-expanded': node.expanded ? 'true' : 'false' }
           : {}),
@@ -140,6 +164,12 @@ const flowNodes = () => {
   ]
 }
 
+const radialCentre = computed(() => {
+  // Match RadialRingGuides: rings are centred on the nucleus disc, not its top-left corner.
+  const at = props.positions.get(props.nucleusId ?? '') ?? { x: 0, y: 0 }
+  return { x: at.x + 12, y: at.y + 12 }
+})
+
 const flowEdges = () => props.edges.map((edge): Edge<OverviewEdgeModel> => ({
   id: edge.id,
   type: FLOW_EDGE_TYPE,
@@ -148,7 +178,16 @@ const flowEdges = () => props.edges.map((edge): Edge<OverviewEdgeModel> => ({
   selectable: true,
   deletable: false,
   focusable: false,
-  data: { ...edge, flowing: flowing(edge) },
+  data: {
+    ...edge,
+    flowing: flowing(edge),
+    radialCentre: radialCentre.value,
+    emphasized: Boolean(
+      (props.selectedId && (edge.source === props.selectedId || edge.target === props.selectedId)) ||
+      (hoverId.value && (edge.source === hoverId.value || edge.target === hoverId.value))
+    ),
+    showAllCross: Boolean(props.showAllCross)
+  },
   label: edge.label,
       domAttributes: {
         'data-provenance': edge.provenance,
@@ -159,6 +198,12 @@ const flowEdges = () => props.edges.map((edge): Edge<OverviewEdgeModel> => ({
 
 function onNodeClick(payload: { node: { id: string } }) {
   emit('select', payload.node.id)
+}
+function onNodeEnter(payload: { node: { id: string } }) {
+  hoverId.value = payload.node.id
+}
+function onNodeLeave() {
+  hoverId.value = null
 }
 
 function onEdgeClick(payload: { edge: { id: string } }) {
@@ -188,7 +233,7 @@ defineExpose({ root })
   <div
     id="graph-canvas"
     ref="root"
-    class="canvas"
+    class="canvas graph-surface"
     data-testid="graph-canvas"
     role="application"
     :aria-label="label"
@@ -215,9 +260,15 @@ defineExpose({ root })
       @nodes-initialized="onInit"
       @node-click="onNodeClick"
       @edge-click="onEdgeClick"
+      @node-mouse-enter="onNodeEnter"
+      @node-mouse-leave="onNodeLeave"
     >
       <template #node-radial-guides="guideProps">
-        <RadialRingGuides :ring-count="guideProps.data?.ringCount ?? 0" />
+        <RadialRingGuides
+          :key="(guideProps.data?.radii ?? []).map((r: number) => Math.round(r)).join('-')"
+          :ring-count="guideProps.data?.ringCount ?? 0"
+          :radii="guideProps.data?.radii ?? []"
+        />
       </template>
       <template #node-overview="nodeProps">
         <OverviewNode
@@ -242,6 +293,9 @@ defineExpose({ root })
           :expand-label="expandLabel"
           :collapse-label="collapseLabel"
           :severity-counts="severityCountsForPath(nodeProps.data?.path ?? '')"
+          :label-side="labelPlacements?.get(nodeProps.id)?.side ?? ((positions.get(nodeProps.id)?.x ?? 0) < -1 ? 'start' : 'end')"
+          :display-label="labelPlacements?.get(nodeProps.id)?.displayLabel"
+          :entry-tag="entryTag"
           @select="emit('select', nodeProps.id)"
           @toggle="emit('toggle', nodeProps.id)"
         />
@@ -255,6 +309,8 @@ defineExpose({ root })
         :signature="`${fitBump ?? 0}|${nodes.map((node) => node.id).join('\n')}|${(focusIds ?? []).join(',')}`"
         :duration="fitDuration ?? 0"
         :padding="fitPadding ?? 0.2"
+        :ring-count="ringCount ?? 0"
+        :focus-ids="focusIds ?? []"
       />
       <ZoomPad :zoom-in="zoomIn" :zoom-out="zoomOut" :zoom-fit="zoomFit" />
     </VueFlow>
@@ -263,19 +319,27 @@ defineExpose({ root })
 
 <style scoped>
 .canvas { position: relative; flex: 1; block-size: 100%; min-block-size: 0; direction: ltr; }
-.canvas :deep(.vue-flow) { block-size: 100%; background: var(--color-canvas); }
+.canvas {
+  /* Navy Nucleus surface painted by the canvas itself, so Vue Flow never covers it. */
+  background:
+    radial-gradient(62% 72% at 50% 48%, #16305a 0%, #10213f 38%, #0b1628 72%, #090f1b 100%);
+}
+.canvas :deep(.vue-flow),
+.canvas :deep(.vue-flow__background) { block-size: 100%; background: transparent; }
 .canvas :deep(.vue-flow__attribution) { display: none; }
 .canvas :deep(.vue-flow__node[data-id="__radial-guides__"]) {
   pointer-events: none;
   z-index: 0 !important;
 }
 .canvas :deep(.vue-flow__handle) { opacity: 0; }
+.canvas :deep(.vue-flow__edge-textbg) { fill: #0f1d36; }
+.canvas :deep(.vue-flow__edge-text) { fill: var(--color-text-secondary); font-size: 11px; }
 .vignette {
   position: absolute;
   inset: 0;
   z-index: var(--z-graph-controls);
   pointer-events: none;
-  background: var(--color-canvas-vignette);
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(5, 9, 16, 0.55) 100%);
 }
 </style>
 

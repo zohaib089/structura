@@ -4,23 +4,34 @@ import { RADIAL_RING_GAP } from '../overview'
 
 const props = defineProps<{
   ringCount: number
+  /** Actual ring radii from the layout (rings grow with population); falls back to the fixed gap. */
+  radii?: number[]
 }>()
 
 const rings = computed(() => {
+  // Prefer exact layout radii so guides sit under nodes. Only fall back when layout has
+  // not supplied radii yet — and never invent extra outer rings beyond ringCount.
+  if (props.radii && props.radii.length > 0) return props.radii
   const list: number[] = []
-  for (let ring = 1; ring <= props.ringCount; ring += 1) list.push(ring * RADIAL_RING_GAP)
+  const n = Math.max(0, props.ringCount)
+  for (let ring = 1; ring <= n; ring += 1) list.push(ring * RADIAL_RING_GAP)
   return list
 })
 </script>
 
 <template>
-  <svg class="ring-guides" aria-hidden="true">
+  <svg class="ring-guides" aria-hidden="true" :data-radii="rings.join(',')">
     <circle v-for="radius in rings" :key="radius" :r="radius" cx="0" cy="0" class="ring" />
   </svg>
 </template>
 
 <style scoped>
 .ring-guides {
+  /* Node positions are top-left corners; centre the rings on the disc centre of a node at (0,0). */
+  display: block;
+  margin-inline-start: calc(0.75rem * var(--graph-disc-scale, 1));
+  /* Same as half the regular disc — matches Vue Flow handle / spoke centre. */
+  margin-block-start: calc(0.75rem * var(--graph-disc-scale, 1));
   overflow: visible;
   pointer-events: none;
   inline-size: 1px;
@@ -28,17 +39,17 @@ const rings = computed(() => {
 }
 .ring {
   fill: none;
-  stroke: color-mix(in srgb, var(--color-brand-navy-lift) 55%, var(--gray-4));
-  stroke-width: 1;
+  stroke: #3b5683;
+  stroke-width: calc(1.25px * var(--graph-disc-scale, 1));
   stroke-dasharray: 2 7;
-  opacity: 0.7;
+  opacity: 0.9;
 }
 .ring:nth-child(1) {
   stroke-dasharray: none;
-  opacity: 0.55;
+  opacity: 0.85;
 }
 .ring:nth-child(2) {
   stroke-dasharray: 4 6;
-  opacity: 0.62;
+  opacity: 0.85;
 }
 </style>

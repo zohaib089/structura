@@ -209,9 +209,17 @@ describe('v2 viewer polish', () => {
   it('dismisses the coach mark without writing storage', async () => {
     const before = localStorage.length
     const coach = mount(CoachMark, {
-      props: { steps: ['Expand a cluster', 'Focus a node', 'Open Coverage'], skipLabel: 'Skip', nextLabel: 'Next' },
+      props: {
+        steps: ['Expand a cluster', 'Focus a node', 'Open Coverage'],
+        skipLabel: 'Skip',
+        nextLabel: 'Next',
+        openLabel: 'Tips'
+      },
       attachTo: document.body
     })
+    // Coach starts collapsed as a Tips chip (phone + desktop).
+    expect(coach.text()).toContain('Tips')
+    await coach.get('[data-testid="coach-expand"]').trigger('click')
     expect(coach.text()).toContain('Expand a cluster')
     await coach.get('button').trigger('click')
     expect(coach.text()).toContain('Focus a node')
@@ -221,9 +229,13 @@ describe('v2 viewer polish', () => {
     coach.unmount()
 
     const skipped = mount(CoachMark, {
-      props: { steps: ['Expand a cluster'], skipLabel: 'Skip', nextLabel: 'Next' }
+      props: { steps: ['Expand a cluster'], skipLabel: 'Skip', nextLabel: 'Next', openLabel: 'Tips' }
     })
-    await skipped.findAll('button')[1].trigger('click')
+    await skipped.get('[data-testid="coach-expand"]').trigger('click')
+    // Skip is the dismiss control once expanded (Next is first among action buttons).
+    const buttons = skipped.findAll('button')
+    const skip = buttons.find((b) => b.text() === 'Skip') ?? buttons[buttons.length - 1]!
+    await skip.trigger('click')
     expect(skipped.emitted('dismiss')).toHaveLength(1)
   })
 
@@ -301,6 +313,7 @@ describe('v2 viewer polish', () => {
       weight: 1,
       visual: 'unresolved',
       hierarchy: false,
+      role: 'cross',
       extracted: 0,
       inferred: 0,
       unresolved: 1,
