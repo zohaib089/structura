@@ -47,4 +47,19 @@ describe('radial layout helpers', () => {
     expect(ringOne).toBeDefined()
     expect(Math.hypot(ringOne!.x, ringOne!.y)).toBeGreaterThan(100)
   })
+
+  it('places a 2-child sample near top and bottom (start at 12 o\'clock)', async () => {
+    const { dependencyRingTree, layoutRadialTree } = await import('../../src/viewer/overview')
+    const index = loadSample()
+    const nucleus = 'file:apps/web/main.ts'
+    const { depths, parentOf } = dependencyRingTree(index, nucleus, defaultFilters(), 6)
+    const nodes = [...depths.entries()].map(([id, depth]) => ({ id, depth }))
+    const { positions } = layoutRadialTree(nodes, nucleus, parentOf)
+    const brand = positions.get('file:packages/brand/brand.ts')!
+    const missing = positions.get('unresolved:apps/web/main.ts::./missing')!
+    // Both on ring 1; one should be above centre, one below (or nearly).
+    const ys = [brand.y, missing.y].sort((a, b) => a - b)
+    expect(ys[0]!).toBeLessThan(-50)
+    expect(ys[1]!).toBeGreaterThan(50)
+  })
 })

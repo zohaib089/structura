@@ -926,22 +926,35 @@ export function layoutRadialTree(
   }
   for (const [, list] of children) list.sort(compareUtf16)
 
-  const weight = new Map<string, number>()
-  const subtreeWeight = (id: string): number => {
-    const cached = weight.get(id)
+  /** Leaf counts (unweighted) then sector share = max(floor, sqrt(leaves)) so large subtrees
+   * do not swallow the circle and tiny ones still get a readable wedge. */
+  const leaves = new Map<string, number>()
+  const leafCount = (id: string): number => {
+    const cached = leaves.get(id)
     if (cached !== undefined) return cached
     const kids = children.get(id) ?? []
     if (kids.length === 0) {
-      weight.set(id, 1)
+      leaves.set(id, 1)
       return 1
     }
     let sum = 0
-    for (const kid of kids) sum += subtreeWeight(kid)
-    const value = Math.max(1, sum)
-    weight.set(id, value)
-    return value
+    for (const kid of kids) sum += leafCount(kid)
+    leaves.set(id, Math.max(1, sum))
+    return leaves.get(id)!
   }
-  if (visible.has(nucleusId)) subtreeWeight(nucleusId)
+  if (visible.has(nucleusId)) leafCount(nucleusId)
+
+  const sectorShare = (id: string): number => Math.max(1, Math.sqrt(leafCount(id)))
+
+  /** Sibling shares with a minimum floor so ring-1 children stay spread around the nucleus. */
+  const siblingShares = (kids: string[]): number[] => {
+    const raw = kids.map((kid) => sectorShare(kid))
+    const sum = raw.reduce((a, b) => a + b, 0) || 1
+    const floor = sum / (kids.length * 2.25)
+    const bumped = raw.map((w) => Math.max(w, floor))
+    const bumpedSum = bumped.reduce((a, b) => a + b, 0) || 1
+    return bumped.map((w) => w / bumpedSum)
+  }
 
   const angles = new Map<string, number>()
   const sectors = new Map<string, RadialSector>()
@@ -950,17 +963,30 @@ export function layoutRadialTree(
     angles.set(id, (start + end) / 2)
     const kids = children.get(id) ?? []
     if (kids.length === 0) return
-    const total = kids.reduce((sum, kid) => sum + subtreeWeight(kid), 0)
+    const shares = siblingShares(kids)
+    const spanTotal = end - start
     let cursor = start
-    for (const kid of kids) {
-      const span = ((end - start) * subtreeWeight(kid)) / total
+    kids.forEach((kid, i) => {
+      const span = spanTotal * shares[i]!
       assign(kid, cursor, cursor + span)
       cursor += span
-    }
+    })
   }
 
   const TAU = Math.PI * 2
-  if (visible.has(nucleusId)) assign(nucleusId, -Math.PI / 2, -Math.PI / 2 + TAU)
+  // Place the first ring-1 child's midpoint at 12 o'clock so 2-child samples sit top/bottom
+  // and denser trees still start from the top rather than clustering on one side.
+  if (visible.has(nucleusId)) {
+    const ring1 = children.get(nucleusId) ?? []
+    if (ring1.length === 0) {
+      assign(nucleusId, -Math.PI / 2, -Math.PI / 2 + TAU)
+    } else {
+      const shares = siblingShares(ring1)
+      const firstSpan = TAU * shares[0]!
+      const start = -Math.PI / 2 - firstSpan / 2
+      assign(nucleusId, start, start + TAU)
+    }
+  }
   // Any visible node still missing an angle (should be rare) gets a deterministic leftover slot.
   for (const node of nodes) {
     if (angles.has(node.id)) continue
@@ -1027,6 +1053,24 @@ export function childrenLieInParentSectors(
     if (a + 1e-9 < childSector.start || a - 1e-9 > childSector.end) return false
   }
   return true
+}
+
+
+/** Largest empty angular gap among a set of angles on the circle (radians). */
+export function maxAngularGap(angles: number[]): number {
+  if (angles.length === 0) return Math.PI * 2
+  if (angles.length === 1) return Math.PI * 2
+  const TAU = Math.PI * 2
+  const sorted = [...angles].sort((a, b) => a - b)
+  let max = 0
+  for (let i = 0; i < sorted.length; i += 1) {
+    const a = sorted[i]!
+    const b = sorted[(i + 1) % sorted.length]!
+    let gap = b - a
+    if (gap <= 0) gap += TAU
+    if (gap > max) max = gap
+  }
+  return max
 }
 
 /** True when two open tree-spoke segments improperly intersect (shared nucleus endpoint is OK). */

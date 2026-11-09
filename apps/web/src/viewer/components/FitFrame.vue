@@ -111,6 +111,8 @@ function declutter() {
   if (!canvas) return
   const nodes = [...canvas.querySelectorAll<HTMLElement>('.overview-node')].filter((n) => n.querySelector(':scope > .aside'))
   nodes.forEach((n) => n.removeAttribute('data-label-hidden'))
+  // Desktop keeps every label visible (landing parity); only phones hide colliding labels.
+  if (canvas.clientWidth >= 640) return
   const centre = canvas.querySelector('.ring-guides')?.getBoundingClientRect()
   const bounds = canvas.getBoundingClientRect()
   const boxes: DeclutterBox[] = nodes.map((n) => {

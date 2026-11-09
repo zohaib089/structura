@@ -1,15 +1,22 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
-const props = defineProps<{
-  steps: string[]
-  skipLabel: string
-  nextLabel: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    steps: string[]
+    skipLabel: string
+    nextLabel: string
+    /** Phone chip label when collapsed so the guide does not cover nodes at first paint. */
+    openLabel?: string
+  }>(),
+  { openLabel: 'Tips' }
+)
 
 const emit = defineEmits<{ dismiss: [] }>()
 const index = ref(0)
 const step = computed(() => props.steps[index.value] ?? '')
+/** On narrow screens start collapsed so the first paint does not cover ring nodes. */
+const expanded = ref(typeof window === 'undefined' ? true : window.matchMedia('(min-width: 641px)').matches)
 
 function next() {
   if (index.value >= props.steps.length - 1) emit('dismiss')
@@ -25,11 +32,37 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 </script>
 
 <template>
-  <aside class="coach" data-testid="coach-mark" role="note">
-    <p>{{ step }}</p>
-    <p class="progress">{{ index + 1 }} / {{ steps.length }}</p>
-    <button type="button" @click="next">{{ nextLabel }}</button>
-    <button type="button" @click="emit('dismiss')">{{ skipLabel }}</button>
+  <aside
+    class="coach"
+    :class="{ 'is-collapsed': !expanded }"
+    data-testid="coach-mark"
+    role="note"
+  >
+    <button
+      v-if="!expanded"
+      type="button"
+      class="coach-chip"
+      data-testid="coach-expand"
+      :aria-label="openLabel"
+      @click="expanded = true"
+    >
+      {{ openLabel }}
+    </button>
+    <template v-else>
+      <p>{{ step }}</p>
+      <p class="progress">{{ index + 1 }} / {{ steps.length }}</p>
+      <button type="button" @click="next">{{ nextLabel }}</button>
+      <button type="button" @click="emit('dismiss')">{{ skipLabel }}</button>
+      <button
+        type="button"
+        class="coach-minify"
+        data-testid="coach-collapse"
+        aria-label="Minimise tips"
+        @click="expanded = false"
+      >
+        –
+      </button>
+    </template>
   </aside>
 </template>
 
@@ -38,7 +71,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
   position: absolute;
   inset-block-end: var(--space-3);
   inset-inline-start: var(--space-3);
-  /* Never under the zoom pad (bottom-right). The fit reserves this card's measured height. */
   max-inline-size: min(22rem, calc(100% - var(--viewer-control-size, 2.75rem) - var(--space-8)));
   z-index: var(--z-viewer-panel);
   display: flex;
@@ -51,12 +83,30 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
   box-shadow: var(--shadow-lg);
   pointer-events: auto;
 }
+.coach.is-collapsed {
+  padding: var(--space-1);
+  max-inline-size: none;
+  background: color-mix(in srgb, var(--color-surface-raised) 92%, transparent);
+}
+.coach-chip {
+  min-block-size: 2rem;
+  padding-inline: var(--space-3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--text-12, 0.75rem);
+}
+.coach-minify {
+  min-block-size: var(--viewer-hit-target);
+  min-inline-size: 2rem;
+  padding-inline: var(--space-2);
+}
 .progress { margin: 0; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
 button { min-block-size: var(--viewer-hit-target); }
 p { margin: 0; }
 @media (max-width: 640px) {
-  /* Compact bottom sheet above the footer / zoom pad; fit reserves this height so rings stay clear. */
-  .coach {
+  .coach:not(.is-collapsed) {
     inset-block-start: auto;
     inset-block-end: var(--space-2);
     padding: var(--space-2);
@@ -64,6 +114,6 @@ p { margin: 0; }
     font-size: var(--text-13, 0.8125rem);
     max-inline-size: min(20rem, calc(100% - var(--viewer-control-size, 2.75rem) - var(--space-8)));
   }
-  .coach > p:first-child { flex-basis: 100%; }
+  .coach:not(.is-collapsed) > p:first-child { flex-basis: 100%; }
 }
 </style>

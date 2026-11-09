@@ -39,6 +39,7 @@ const props = defineProps<{
   nucleusId?: string | null
   ringCount?: number
   showAllCross?: boolean
+  entryTag?: string
 }>()
 
 const hoverId = ref<string | null>(null)
@@ -283,6 +284,7 @@ defineExpose({ root })
           :collapse-label="collapseLabel"
           :severity-counts="severityCountsForPath(nodeProps.data?.path ?? '')"
           :label-side="(positions.get(nodeProps.id)?.x ?? 0) < -1 ? 'start' : 'end'"
+          :entry-tag="entryTag"
           @select="emit('select', nodeProps.id)"
           @toggle="emit('toggle', nodeProps.id)"
         />

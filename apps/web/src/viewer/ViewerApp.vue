@@ -940,6 +940,7 @@ const snippet = 'layers: []\nrules: []\n'
         :ring-count="ringCount"
         :fit-bump="fitSignature"
         :show-all-cross="showAllCross"
+        :entry-tag="messages.entryPointTag"
         @select="selectNode($event, true)"
         @toggle="toggleNode"
         @select-edge="selectEdge"
@@ -953,6 +954,7 @@ const snippet = 'layers: []\nrules: []\n'
         :steps="coachSteps"
         :skip-label="messages.coachSkip"
         :next-label="messages.coachNext"
+        :open-label="messages.coachOpenLabel"
         @dismiss="coachDismissed = true"
       />
     </main>

@@ -3,7 +3,9 @@ import { Handle, Position } from '@vue-flow/core'
 import { computed } from 'vue'
 import BrandMark from '../../components/brand/BrandMark.vue'
 import SeverityChip from '../../components/ui/SeverityChip.vue'
+import { CircleDot, HelpCircle, Package } from '@lucide/vue'
 import { SEVERITY_ICONS, SEVERITY_LABELS } from '../../services/severity-display'
+import type { ReportSeverity } from '../../api/scan-report-types'
 import type { SeverityCounts } from '../../services/scan-report-tree'
 import { fileSeverityChips, folderSeverityChip } from '../../services/scan-report-tree-display'
 
@@ -31,6 +33,8 @@ const props = defineProps<{
   severityCounts?: SeverityCounts | null
   /** Which side of the disc the label sits on (west half of the rings: start). */
   labelSide?: 'start' | 'end'
+  /** Landing-style tag under the nucleus name (e.g. ENTRY POINT). */
+  entryTag?: string
 }>()
 
 const emit = defineEmits<{ select: []; toggle: [] }>()
@@ -42,7 +46,20 @@ const disc = computed(() => !props.more && (!props.cluster || Boolean(props.nucl
 const topSeverity = computed(() => fileChips.value?.chips[0]?.severity ?? folderChip.value?.severity ?? null)
 const discColor = computed(() => (topSeverity.value ? `var(--sev-${topSeverity.value}-fg)` : 'var(--graph-node-border)'))
 
+/** Landing-style disc glyph: severity icon when findings exist, else type glyph (file/external/unresolved). */
+const discGlyph = computed(() => {
+  if (props.kind === 'unresolved') return HelpCircle
+  if (props.kind === 'external') return Package
+  const sev = topSeverity.value as ReportSeverity | null
+  if (sev && SEVERITY_ICONS[sev]) return SEVERITY_ICONS[sev]
+  return CircleDot
+})
+
 const accessible = computed(() => (props.more ? props.moreLabel : props.label))
+const shortLabel = computed(() => {
+  const raw = props.more ? props.moreLabel : props.label
+  return raw.length > 22 ? `${raw.slice(0, 20)}…` : raw
+})
 
 const folderChip = computed(() =>
   props.severityCounts && props.kind !== 'file' ? folderSeverityChip(props.severityCounts) : null
@@ -100,22 +117,19 @@ function onSpace(event: KeyboardEvent) {
       <BrandMark v-if="nucleus" class="nucleus-mark" size="calc(26px * var(--graph-disc-scale, 1))" />
       <template v-else-if="cluster">{{ expanded ? '▾' : '▸' }}</template>
       <template v-else-if="more">+</template>
-      <template v-else-if="kind === 'unresolved'">?</template>
-      <template v-else-if="kind === 'external'">◇</template>
       <component
-        v-else-if="topSeverity && SEVERITY_ICONS[topSeverity]"
-        :is="SEVERITY_ICONS[topSeverity]"
+        v-else
+        :is="discGlyph"
         class="sev-glyph"
         :size="14"
         :stroke-width="2.4"
         aria-hidden="true"
       />
-      <template v-else-if="kind === 'file'">{{ (language || '•').slice(0, 1) }}</template>
-      <template v-else>•</template>
       <Handle type="source" :position="Position.Right" />
     </span>
-    <span class="aside" :class="{ 'aside--start': disc && labelSide === 'start' }">
-      <span class="label" dir="ltr">{{ more ? moreLabel : label }}</span>
+    <span class="aside" :class="{ 'aside--start': disc && labelSide === 'start', 'aside--nucleus': disc && nucleus }">
+      <span class="label" dir="ltr" :title="path || label || moreLabel">{{ shortLabel }}</span>
+      <span v-if="nucleus && entryTag" class="entry-tag">{{ entryTag }}</span>
       <span v-if="folderChip" class="severity-chips">
         <SeverityChip
           compact
@@ -319,11 +333,36 @@ function onSpace(event: KeyboardEvent) {
   align-items: center;
   gap: var(--space-1);
   white-space: nowrap;
+  max-inline-size: calc(9.5rem * var(--graph-mark-scale, 1));
+}
+.overview-node:has(.kind-mark--disc) > .aside .label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-inline-size: 100%;
 }
 .overview-node:has(.kind-mark--disc) > .aside--start {
   inset-inline-start: auto;
   inset-inline-end: calc(100% + var(--space-3));
   flex-direction: row-reverse;
+}
+/* Nucleus: name + ENTRY POINT stacked under the hexagon (landing parity). */
+.overview-node:has(.kind-mark--disc) > .aside--nucleus {
+  inset-inline-start: 50%;
+  inset-inline-end: auto;
+  inset-block-start: calc(100% + var(--space-1));
+  transform: translateX(-50%);
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  max-inline-size: calc(11rem * var(--graph-mark-scale, 1));
+  text-align: center;
+}
+.entry-tag {
+  font-size: calc(9px * var(--graph-mark-scale, 1));
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-semibold, 600);
 }
 .overview-node:not(:has(.kind-mark--disc)) > .aside { display: contents; }
 /* Decluttered (label would collide): name stays in aria-label/title and shows on hover/focus/selection. */

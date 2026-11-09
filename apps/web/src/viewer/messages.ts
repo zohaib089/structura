@@ -174,6 +174,9 @@ export interface ViewerMessages {
   /** Toolbar toggle: reveal non-tree cross-links (count is substituted). */
   showAllConnections: string
   hideExtraConnections: string
+  /** Small caps tag under the nucleus label (landing parity). */
+  entryPointTag: string
+  coachOpenLabel: string
   filtersTooltip: string
   searchTooltip: string
   fitTooltip: string
@@ -362,6 +365,8 @@ const en: ViewerMessages = {
   graphGuideStep3: 'Choose “Centre graph here” to redraw the map around that file.',
   showAllConnections: 'Show all connections ({n})',
   hideExtraConnections: 'Hide extra connections ({n})',
+  entryPointTag: 'ENTRY POINT',
+  coachOpenLabel: 'Tips',
   filtersTooltip: 'Open filters to hide file types or link types',
   searchTooltip: 'Find a file or symbol by name',
   fitTooltip: 'Zoom so the whole graph fits on screen',
