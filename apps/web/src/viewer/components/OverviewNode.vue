@@ -392,6 +392,14 @@ function onSpace(event: KeyboardEvent) {
 [data-label-hidden]:hover > .aside,
 [data-label-hidden]:focus-visible > .aside,
 [data-label-hidden].is-selected > .aside { opacity: 1; z-index: 2; }
+/* Phone: finding-count chips beside disc labels read as stray dashes (~6×3px); severity stays on the disc. */
+@media (max-width: 480px) {
+  .overview-node:has(.kind-mark--disc) > .aside .severity-chips,
+  .overview-node:has(.kind-mark--disc) > .aside .severity-overflow {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) { [data-label-hidden] > .aside { transition: none; } }
 </style>
 

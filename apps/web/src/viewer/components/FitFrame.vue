@@ -33,15 +33,19 @@ function measuredBoxes(canvas: HTMLElement, focus: Set<string>): FitBox[] {
     height: rect.height / vp.zoom
   })
   const boxes: FitBox[] = []
-  // Narrow canvases fit ring + marks only (labels are screen-constant, so counting them shrinks the
-  // graph without limit); declutter then hides labels that would leave the canvas.
-  const withLabels = canvas.clientWidth >= 640
+  const phone = isPhoneCanvas(canvas.clientWidth)
+  // Desktop (≥640): include labels. Phone: include visible labels so fit keeps ~11px text on-screen.
+  // Mid widths (481–639) still fit marks/rings only; declutter handles overflow.
+  const withLabels = canvas.clientWidth >= 640 || phone
   canvas.querySelectorAll<HTMLElement>('.overview-node').forEach((node) => {
     const id = node.dataset.nodeId ?? ''
     if (focus.size > 0 && !focus.has(id)) return
     boxes.push(toFlow(node.getBoundingClientRect()))
     const aside = node.querySelector<HTMLElement>(':scope > .aside')
-    if (withLabels && aside && !node.hasAttribute('data-label-hidden')) boxes.push(toFlow(aside.getBoundingClientRect()))
+    const labelEl = aside?.querySelector<HTMLElement>('.label') ?? aside
+    if (withLabels && labelEl && !node.hasAttribute('data-label-hidden')) {
+      boxes.push(toFlow(labelEl.getBoundingClientRect()))
+    }
   })
   if (focus.size === 0) {
     const rings = canvas.querySelectorAll('.ring-guides circle')
@@ -65,13 +69,15 @@ function fitOnce() {
   const boxes = measuredBoxes(canvas, focus)
   if (boxes.length === 0) return false
   const measured = overlays(canvas)
+  const phone = isPhoneCanvas(canvas.clientWidth)
   const input = {
     width: canvas.clientWidth,
     height: canvas.clientHeight,
     reserve: { top: measured.top, bottom: 0 },
     nodes: boxes,
     ringRadius: focus.size === 0 && (props.ringCount ?? 0) > 0 ? RADIAL_RING_GAP : null,
-    padding: props.padding ?? 0.2,
+    // Phone: extra padding so kept labels are not clipped at the canvas edge.
+    padding: phone ? Math.max(props.padding ?? 0.2, 0.3) : (props.padding ?? 0.2),
     center: ringCentre(canvas)
   }
   let viewport = radialFitViewport(input)
@@ -162,33 +168,94 @@ function declutter() {
     return
   }
 
+  // Phone: flip sides to clear clips/hits, then priority hide (nucleus/ring-1/findings first).
   const centre = canvas.querySelector('.ring-guides')?.getBoundingClientRect()
   const bounds = canvas.getBoundingClientRect()
+  const edgePad = 6
+  const discs = nodes.map((n) => ({
+    id: n.dataset.nodeId ?? '',
+    box: (n.querySelector('.kind-mark--disc') ?? n.querySelector('.kind-mark') ?? n).getBoundingClientRect()
+  }))
+
+  const labelRect = (n: HTMLElement) => {
+    const el =
+      n.querySelector<HTMLElement>(':scope > .aside .label') ??
+      n.querySelector<HTMLElement>(':scope > .aside')
+    return el?.getBoundingClientRect() ?? null
+  }
+
+  const outside = (r: DOMRect) =>
+    r.left < bounds.left + edgePad ||
+    r.right > bounds.right - edgePad ||
+    r.top < bounds.top + edgePad ||
+    r.bottom > bounds.bottom - edgePad
+
+  const conflicts = (n: HTMLElement, box: DOMRect) => {
+    if (outside(box)) return true
+    const ownId = n.dataset.nodeId ?? ''
+    if (discs.some((d) => d.id !== ownId && hitRect(box, d.box))) return true
+    return nodes.some((other) => {
+      if (other === n || other.hasAttribute('data-label-hidden')) return false
+      if (other.classList.contains('is-nucleus') && n.classList.contains('is-nucleus')) return false
+      const o = labelRect(other)
+      return o ? hitRect(box, o) : false
+    })
+  }
+
+  for (const n of nodes) {
+    if (n.classList.contains('is-nucleus')) continue
+    const aside = n.querySelector<HTMLElement>(':scope > .aside')
+    const box = labelRect(n)
+    if (!aside || !box || !conflicts(n, box)) continue
+    const startNow =
+      n.getAttribute('data-label-flip') === 'start' ||
+      (n.getAttribute('data-label-flip') !== 'end' && aside.classList.contains('aside--start'))
+    n.setAttribute('data-label-flip', startNow ? 'end' : 'start')
+  }
+  void canvas.offsetWidth
+
+  // Second flip pass for residuals (incl. must-keep ring-1 / findings).
+  for (const n of nodes) {
+    if (n.classList.contains('is-nucleus')) continue
+    const aside = n.querySelector<HTMLElement>(':scope > .aside')
+    const box = labelRect(n)
+    if (!aside || !box || !conflicts(n, box)) continue
+    const cur = n.getAttribute('data-label-flip')
+    n.setAttribute('data-label-flip', cur === 'start' ? 'end' : 'start')
+  }
+  void canvas.offsetWidth
+
   const boxes: DeclutterBox[] = nodes.map((n) => {
     const r = n.getBoundingClientRect()
-    const disc = (n.querySelector('.kind-mark') ?? n).getBoundingClientRect()
-    const label = n.querySelector<HTMLElement>(':scope > .aside')!.getBoundingClientRect()
-    const depth = Number(n.dataset.depth ?? n.getAttribute('data-depth') ?? NaN)
+    const disc = (n.querySelector('.kind-mark--disc') ?? n.querySelector('.kind-mark') ?? n).getBoundingClientRect()
+    const label = labelRect(n) ?? r
+    const depth = Number(n.dataset.depth ?? NaN)
     return {
       id: n.dataset.nodeId ?? '',
       label: { left: label.left, right: label.right, top: label.top, bottom: label.bottom },
       disc: { left: disc.left, right: disc.right, top: disc.top, bottom: disc.bottom },
       nucleus: n.classList.contains('is-nucleus'),
       selected: n.classList.contains('is-selected'),
-      hasFindings: Boolean(n.querySelector('.severity-chips')) || n.dataset.hasFindings === 'true',
+      hasFindings: n.dataset.hasFindings === 'true',
       ring1: depth === 1,
       distance: centre ? Math.hypot(r.left - centre.left, r.top - centre.top) : 0
     }
   })
-  // Phone: hide colliding outer labels rather than shrinking text; keep nucleus / ring-1 / findings.
+  // Prefer keeping nucleus / ring-1 / findings; hide lower priority when still clashing or clipped.
+  // keep* flags are false so a clashing ring-1 can hide rather than overlap — ranking still prefers them.
   const hidden = labelsToHide(
     boxes,
-    { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom },
-    { keepRing1: true, keepFindings: true }
+    {
+      left: bounds.left + edgePad,
+      right: bounds.right - edgePad,
+      top: bounds.top + edgePad,
+      bottom: bounds.bottom - edgePad
+    },
+    { keepRing1: false, keepFindings: false }
   )
   for (const n of nodes) {
     const id = n.dataset.nodeId ?? ''
-    if (hidden.has(id)) n.setAttribute('data-label-hidden', 'true')
+    if (hidden.has(id) && !n.classList.contains('is-nucleus')) n.setAttribute('data-label-hidden', 'true')
   }
 }
 

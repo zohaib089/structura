@@ -111,3 +111,60 @@ test('dense test-only fixture: decluttered labels stay reachable, select shows d
   await nucleus.press('Enter')
   await expect.poll(async () => Number(await canvas.getAttribute('data-visible-nodes'))).toBeGreaterThanOrEqual(before)
 })
+
+
+test('phone dense: visible labels stay inside the viewport without label overlaps', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(pathToFileURL(builtHtml).href)
+  await page.locator('[data-testid="file-input"]').setInputFiles(resolve(root, 'tests/e2e/fixtures/dense-graph.test-only.json'))
+  const canvas = page.locator('[data-testid="graph-canvas"]')
+  await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 20_000 })
+  await page.waitForTimeout(800)
+
+  const report = await page.evaluate(() => {
+    const stage = document.querySelector('[data-testid="graph-canvas"]') as HTMLElement
+    const bounds = stage.getBoundingClientRect()
+    const pad = 4
+    const nodes = [...document.querySelectorAll<HTMLElement>('.overview-node')].filter(
+      (n) => n.querySelector(':scope > .aside') && !n.hasAttribute('data-label-hidden')
+    )
+    const labelOf = (n: HTMLElement) =>
+      n.querySelector<HTMLElement>(':scope > .aside .label') ?? n.querySelector<HTMLElement>(':scope > .aside')
+    const discOf = (n: HTMLElement) =>
+      n.querySelector<HTMLElement>('.kind-mark--disc') ?? n.querySelector<HTMLElement>('.kind-mark')
+
+    const hit = (a: DOMRect, b: DOMRect) =>
+      a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1
+
+    const clipped: string[] = []
+    const overlaps: string[] = []
+    const boxes = nodes.map((n) => {
+      const label = labelOf(n)!.getBoundingClientRect()
+      const disc = discOf(n)!.getBoundingClientRect()
+      const id = n.dataset.nodeId ?? ''
+      if (
+        label.left < bounds.left - pad ||
+        label.right > bounds.right + pad ||
+        label.top < bounds.top - pad ||
+        label.bottom > bounds.bottom + pad
+      ) {
+        clipped.push(id)
+      }
+      return { id, label, disc, nucleus: n.classList.contains('is-nucleus') }
+    })
+    for (let i = 0; i < boxes.length; i += 1) {
+      for (let j = i + 1; j < boxes.length; j += 1) {
+        if (hit(boxes[i]!.label, boxes[j]!.label)) overlaps.push(`L×L ${boxes[i]!.id}×${boxes[j]!.id}`)
+      }
+      for (let j = 0; j < boxes.length; j += 1) {
+        if (i === j) continue
+        if (hit(boxes[i]!.label, boxes[j]!.disc)) overlaps.push(`L×D ${boxes[i]!.id}×${boxes[j]!.id}`)
+      }
+    }
+    return { clipped, overlaps, visible: boxes.length }
+  })
+
+  expect(report.visible, 'expected some visible labels').toBeGreaterThan(3)
+  expect(report.clipped, `clipped: ${report.clipped.join(', ')}`).toEqual([])
+  expect(report.overlaps, report.overlaps.join('\n')).toEqual([])
+})
