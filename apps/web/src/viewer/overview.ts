@@ -82,6 +82,8 @@ export interface OverviewNodeModel {
 
 export type EdgeVisual = 'extracted' | 'inferred' | 'unresolved' | 'mixed'
 
+export type RadialEdgeRole = 'spoke' | 'cross'
+
 export interface OverviewEdgeModel {
   id: string
   source: string
@@ -91,6 +93,8 @@ export interface OverviewEdgeModel {
   weight: number
   visual: EdgeVisual
   hierarchy: boolean
+  /** Spoke = neighbouring rings (landing tree); cross = same/skip ring (de-emphasised). */
+  role: RadialEdgeRole
   extracted: number
   inferred: number
   unresolved: number
@@ -100,6 +104,10 @@ export interface OverviewEdgeModel {
   typeOnly: '' | 'true' | 'false' | 'mixed'
   label: string
   flowing?: boolean
+  /** Ring centre in flow units (disc centre of the nucleus), used to bow edge paths. */
+  radialCentre?: { x: number; y: number }
+  /** True when the edge touches the selected node — cross-links paint at full opacity. */
+  emphasized?: boolean
 }
 
 export interface OverviewModel {
@@ -494,7 +502,7 @@ export function buildOverview(
 
   for (const node of nodes) node.internalEdges = internal.get(node.id) ?? 0
 
-  let edgeModels = [...bundles.values()].map(toEdgeModel)
+  let edgeModels = [...bundles.values()].map((b) => toEdgeModel(b, ringDepths))
   edgeModels.sort((a, b) => b.weight - a.weight || compareUtf16(a.id, b.id))
   const edgesOmittedByCap = Math.max(0, edgeModels.length - HARD_EDGE_CAP)
   edgeModels = edgeModels.slice(0, HARD_EDGE_CAP)
@@ -589,7 +597,7 @@ function addBundle(
   bundles.set(key, bundle)
 }
 
-function toEdgeModel(bundle: Bundle): OverviewEdgeModel {
+function toEdgeModel(bundle: Bundle, ringDepths: Map<string, number>): OverviewEdgeModel {
   const weight = bundle.extracted + bundle.inferred + bundle.unresolved
   const resolved = bundle.unresolved === 0
   let provenance: Provenance | 'MIXED'
@@ -598,6 +606,12 @@ function toEdgeModel(bundle: Bundle): OverviewEdgeModel {
   else provenance = 'EXTRACTED'
   const visual = edgeVisual(provenance, resolved)
   const imported = importSummary(bundle)
+  const sd = ringDepths.get(bundle.source)
+  const td = ringDepths.get(bundle.target)
+  const role: RadialEdgeRole =
+    bundle.hierarchy || sd === undefined || td === undefined || Math.abs(sd - td) !== 1
+      ? 'cross'
+      : 'spoke'
   return {
     id: `bundle:${bundle.source}>${bundle.target}:${visual}:${bundle.hierarchy ? 'h' : 'b'}`,
     source: bundle.source,
@@ -607,6 +621,7 @@ function toEdgeModel(bundle: Bundle): OverviewEdgeModel {
     weight,
     visual,
     hierarchy: bundle.hierarchy,
+    role,
     extracted: bundle.extracted,
     inferred: bundle.inferred,
     unresolved: bundle.unresolved,

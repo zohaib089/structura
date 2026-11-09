@@ -154,6 +154,12 @@ const flowNodes = () => {
   ]
 }
 
+const radialCentre = computed(() => {
+  // Match RadialRingGuides: rings are centred on the nucleus disc, not its top-left corner.
+  const at = props.positions.get(props.nucleusId ?? '') ?? { x: 0, y: 0 }
+  return { x: at.x + 12, y: at.y + 22 }
+})
+
 const flowEdges = () => props.edges.map((edge): Edge<OverviewEdgeModel> => ({
   id: edge.id,
   type: FLOW_EDGE_TYPE,
@@ -162,7 +168,12 @@ const flowEdges = () => props.edges.map((edge): Edge<OverviewEdgeModel> => ({
   selectable: true,
   deletable: false,
   focusable: false,
-  data: { ...edge, flowing: flowing(edge) },
+  data: {
+    ...edge,
+    flowing: flowing(edge),
+    radialCentre: radialCentre.value,
+    emphasized: Boolean(props.selectedId && (edge.source === props.selectedId || edge.target === props.selectedId))
+  },
   label: edge.label,
       domAttributes: {
         'data-provenance': edge.provenance,
