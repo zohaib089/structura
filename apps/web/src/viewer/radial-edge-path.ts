@@ -82,7 +82,7 @@ export function radialEdgePath(
   }
 
   // Nucleus → outer (or nearly centred): pure radial spoke.
-  if (s.r < 8 || t.r < 8) {
+  if (s.r < 16 || t.r < 16) {
     return {
       path: `M${sourceX},${sourceY} L${targetX},${targetY}`,
       labelX: (sourceX + targetX) / 2,
