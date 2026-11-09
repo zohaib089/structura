@@ -6,6 +6,7 @@ import {
 } from './caps'
 import type { GraphDocument, GraphEdge, GraphNode, Provenance } from './graph-types'
 import {
+  measureLabelWidth,
   resolveLabelCollisions,
   type LabelPlacement,
   type LabelSide
@@ -14,7 +15,7 @@ export type { LabelPlacement, LabelSide }
 
 export const RADIAL_RING_GAP = 220
 /** Minimum arc (flow px) between neighbours on one ring, so compact marks + labels do not collide. */
-export const RADIAL_MIN_ARC = 180
+export const RADIAL_MIN_ARC = 220
 export const RADIAL_DEFAULT_MAX_RING = 6
 /** Minimum angular wedge for each ring-1 child (~20°) before leaf weighting. */
 export const RADIAL_RING1_MIN_WEDGE = (20 * Math.PI) / 180
@@ -1094,7 +1095,7 @@ export function layoutRadialTree(
       for (let i = 0; i < ordered.length; i += 1) {
         const a = ordered[i]!
         const b = ordered[(i + 1) % ordered.length]!
-        const need = (estimateLabelWidth(labelOf.get(a) ?? '') + estimateLabelWidth(labelOf.get(b) ?? '')) / 2
+        const need = (measureLabelWidth(labelOf.get(a) ?? '') + measureLabelWidth(labelOf.get(b) ?? '')) / 2
         if (need > minArc) minArc = need
       }
     }
@@ -1157,7 +1158,7 @@ export function layoutRadialTree(
     // Recompute box after clamp so tests see consistent geometry.
     const cx = radius * Math.cos(angle) + RADIAL_DISC_OFFSET
     const cy = radius * Math.sin(angle) + RADIAL_DISC_OFFSET
-    const gap = 10
+    const gap = 24
     place.box =
       place.side === 'start'
         ? { left: cx - gap - place.width, right: cx - gap, top: cy - place.height / 2, bottom: cy + place.height / 2 }

@@ -354,6 +354,17 @@ function onSpace(event: KeyboardEvent) {
   inset-inline-end: calc(100% + var(--space-3));
   flex-direction: row-reverse;
 }
+/* DOM collision post-pass may flip side after paint. */
+.overview-node[data-label-flip='start']:has(.kind-mark--disc) > .aside {
+  inset-inline-start: auto;
+  inset-inline-end: calc(100% + var(--space-3));
+  flex-direction: row-reverse;
+}
+.overview-node[data-label-flip='end']:has(.kind-mark--disc) > .aside {
+  inset-inline-start: calc(100% + var(--space-3));
+  inset-inline-end: auto;
+  flex-direction: row;
+}
 /* Nucleus: name + ENTRY POINT stacked under the hexagon (landing parity). */
 .overview-node:has(.kind-mark--disc) > .aside--nucleus {
   inset-inline-start: 50%;

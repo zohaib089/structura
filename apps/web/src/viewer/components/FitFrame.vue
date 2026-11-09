@@ -11,7 +11,7 @@ const flow = useVueFlow()
 /** Target on-screen label size (px) and the cap on how far marks may grow in flow units. */
 const LABEL_PX = 11.5
 const BASE_LABEL_PX = 11
-const MAX_MARK_SCALE = 9
+const MAX_MARK_SCALE = 4
 /** Target on-screen disc size (px); icons at ~58% stay legible like the landing marks. */
 const DISC_PX = 30
 const BASE_DISC_PX = 24
@@ -106,13 +106,69 @@ function frame() {
  * and hide any label that would overlap an already painted label or another node's mark. Hidden names
  * stay in aria-label/title and reappear on hover, keyboard focus and selection.
  */
+function hitRect(
+  a: { left: number; right: number; top: number; bottom: number },
+  b: { left: number; right: number; top: number; bottom: number },
+  pad = 2
+) {
+  return a.left < b.right + pad && a.right > b.left - pad && a.top < b.bottom + pad && a.bottom > b.top + pad
+}
+
 function declutter() {
   const canvas = flow.vueFlowRef.value
   if (!canvas) return
   const nodes = [...canvas.querySelectorAll<HTMLElement>('.overview-node')].filter((n) => n.querySelector(':scope > .aside'))
-  nodes.forEach((n) => n.removeAttribute('data-label-hidden'))
-  // Desktop keeps every label visible (landing parity); only phones hide colliding labels.
-  if (canvas.clientWidth >= 640) return
+  nodes.forEach((n) => {
+    n.removeAttribute('data-label-hidden')
+    n.removeAttribute('data-label-flip')
+  })
+
+  const desktop = canvas.clientWidth >= 640
+  // Desktop: flip label side when the painted box still hits another disc/label; then hide residuals.
+  if (desktop) {
+    const discs = nodes.map((n) => ({
+      id: n.dataset.nodeId ?? '',
+      nucleus: n.classList.contains('is-nucleus'),
+      box: (n.querySelector('.kind-mark--disc') ?? n.querySelector('.kind-mark') ?? n).getBoundingClientRect()
+    }))
+    for (const n of nodes) {
+      if (n.classList.contains('is-nucleus')) continue
+      const aside = n.querySelector<HTMLElement>(':scope > .aside')
+      if (!aside) continue
+      const label = aside.getBoundingClientRect()
+      const ownId = n.dataset.nodeId ?? ''
+      const hitsDisc = discs.some((d) => d.id !== ownId && hitRect(label, d.box))
+      const hitsLabel = nodes.some((other) => {
+        if (other === n || other.classList.contains('is-nucleus')) return false
+        if (other.hasAttribute('data-label-hidden')) return false
+        const o = other.querySelector<HTMLElement>(':scope > .aside')?.getBoundingClientRect()
+        return o ? hitRect(label, o) : false
+      })
+      if (!hitsDisc && !hitsLabel) continue
+      const flippingToStart = !aside.classList.contains('aside--start')
+      n.setAttribute('data-label-flip', flippingToStart ? 'start' : 'end')
+    }
+    // Force layout so flipped asides reflow before the residual check.
+    void canvas.offsetWidth
+    for (const n of nodes) {
+      if (n.classList.contains('is-nucleus')) continue
+      const aside = n.querySelector<HTMLElement>(':scope > .aside')
+      if (!aside) continue
+      const label = aside.getBoundingClientRect()
+      const ownId = n.dataset.nodeId ?? ''
+      const still =
+        discs.some((d) => d.id !== ownId && hitRect(label, d.box)) ||
+        nodes.some((other) => {
+          if (other === n || other.classList.contains('is-nucleus')) return false
+          if (other.hasAttribute('data-label-hidden')) return false
+          const o = other.querySelector<HTMLElement>(':scope > .aside')?.getBoundingClientRect()
+          return o ? hitRect(label, o) : false
+        })
+      if (still) n.setAttribute('data-label-hidden', 'true')
+    }
+    return
+  }
+
   const centre = canvas.querySelector('.ring-guides')?.getBoundingClientRect()
   const bounds = canvas.getBoundingClientRect()
   const boxes: DeclutterBox[] = nodes.map((n) => {
