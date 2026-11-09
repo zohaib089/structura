@@ -3,7 +3,7 @@ import { Handle, Position } from '@vue-flow/core'
 import { computed } from 'vue'
 import BrandMark from '../../components/brand/BrandMark.vue'
 import SeverityChip from '../../components/ui/SeverityChip.vue'
-import { SEVERITY_LABELS } from '../../services/severity-display'
+import { SEVERITY_ICONS, SEVERITY_LABELS } from '../../services/severity-display'
 import type { SeverityCounts } from '../../services/scan-report-tree'
 import { fileSeverityChips, folderSeverityChip } from '../../services/scan-report-tree-display'
 
@@ -97,11 +97,19 @@ function onSpace(event: KeyboardEvent) {
   >
     <span class="kind-mark" :class="{ 'kind-mark--disc': disc }" aria-hidden="true">
       <Handle type="target" :position="Position.Left" />
-      <BrandMark v-if="nucleus" class="nucleus-mark" size="calc(22px * var(--graph-disc-scale, 1))" />
+      <BrandMark v-if="nucleus" class="nucleus-mark" size="calc(26px * var(--graph-disc-scale, 1))" />
       <template v-else-if="cluster">{{ expanded ? '▾' : '▸' }}</template>
       <template v-else-if="more">+</template>
       <template v-else-if="kind === 'unresolved'">?</template>
       <template v-else-if="kind === 'external'">◇</template>
+      <component
+        v-else-if="topSeverity && SEVERITY_ICONS[topSeverity]"
+        :is="SEVERITY_ICONS[topSeverity]"
+        class="sev-glyph"
+        :size="14"
+        :stroke-width="2.4"
+        aria-hidden="true"
+      />
       <template v-else-if="kind === 'file'">{{ (language || '•').slice(0, 1) }}</template>
       <template v-else>•</template>
       <Handle type="source" :position="Position.Right" />
@@ -265,16 +273,17 @@ function onSpace(event: KeyboardEvent) {
   display: inline-grid;
   place-items: center;
   flex-shrink: 0;
-  inline-size: calc(1.25rem * var(--graph-disc-scale, 1));
-  block-size: calc(1.25rem * var(--graph-disc-scale, 1));
+  inline-size: calc(1.5rem * var(--graph-disc-scale, 1));
+  block-size: calc(1.5rem * var(--graph-disc-scale, 1));
   border: calc(2px * var(--graph-disc-scale, 1)) solid var(--node-layer, var(--graph-layer-1));
   border-radius: 50%;
   background: #0f1d36;
   color: var(--node-layer, var(--graph-layer-1));
-  font: 600 calc(10px * var(--graph-disc-scale, 1)) / 1 var(--font-family-mono, ui-monospace, monospace);
+  font: 600 calc(12px * var(--graph-disc-scale, 1)) / 1 var(--font-family-mono, ui-monospace, monospace);
   text-transform: lowercase;
 }
 .is-external .kind-mark--disc { border-style: dashed; color: var(--color-text-secondary); border-color: var(--color-text-secondary); }
+.kind-mark--disc .sev-glyph { color: var(--node-layer, var(--graph-layer-1)); display: block; }
 .is-unresolved .kind-mark--disc { border-style: dotted; border-color: var(--gray-7); color: var(--gray-8); background: transparent; }
 .overview-node:has(.kind-mark--disc) .label {
   font-family: var(--font-family-mono, ui-monospace, monospace);
@@ -283,11 +292,11 @@ function onSpace(event: KeyboardEvent) {
   text-shadow: 0 0 3px #0b1628, 0 0 6px #0b1628;
 }
 .is-nucleus .kind-mark--disc {
-  inline-size: calc(2.25rem * var(--graph-disc-scale, 1));
-  block-size: calc(2.25rem * var(--graph-disc-scale, 1));
-  /* Same centre as a regular 1.25rem disc, so the entry sits exactly on the ring centre. */
-  margin-block: calc(-0.5rem * var(--graph-disc-scale, 1));
-  margin-inline-start: calc(-0.5rem * var(--graph-disc-scale, 1));
+  inline-size: calc(2.75rem * var(--graph-disc-scale, 1));
+  block-size: calc(2.75rem * var(--graph-disc-scale, 1));
+  /* Same centre as a regular 1.5rem disc, so the entry sits exactly on the ring centre. */
+  margin-block: calc(-0.625rem * var(--graph-disc-scale, 1));
+  margin-inline-start: calc(-0.625rem * var(--graph-disc-scale, 1));
   border: 0;
   background: var(--color-brand-amber-ui);
   box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-brand-amber-ui) 22%, transparent), 0 0 28px color-mix(in srgb, var(--color-brand-amber-ui) 45%, transparent);
@@ -303,7 +312,7 @@ function onSpace(event: KeyboardEvent) {
 .overview-node:has(.kind-mark--disc) { position: relative; inline-size: max-content; padding-inline: 0; }
 .overview-node:has(.kind-mark--disc) > .aside {
   position: absolute;
-  inset-inline-start: calc(100% + var(--space-1));
+  inset-inline-start: calc(100% + var(--space-2));
   inset-block-start: 50%;
   transform: translateY(-50%);
   display: inline-flex;
@@ -313,7 +322,7 @@ function onSpace(event: KeyboardEvent) {
 }
 .overview-node:has(.kind-mark--disc) > .aside--start {
   inset-inline-start: auto;
-  inset-inline-end: calc(100% + var(--space-1));
+  inset-inline-end: calc(100% + var(--space-2));
   flex-direction: row-reverse;
 }
 .overview-node:not(:has(.kind-mark--disc)) > .aside { display: contents; }

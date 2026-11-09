@@ -12,8 +12,8 @@ const LABEL_PX = 11.5
 const BASE_LABEL_PX = 11
 const MAX_MARK_SCALE = 9
 /** Discs stay a compact ~15px on screen so readable labels do not force marks to collide. */
-const DISC_PX = 15
-const BASE_DISC_PX = 20
+const DISC_PX = 24
+const BASE_DISC_PX = 24
 
 function overlays(canvas: HTMLElement) {
   const box = canvas.getBoundingClientRect()
@@ -121,7 +121,7 @@ function declutter() {
   const bounds = canvas.getBoundingClientRect()
   const outside = (r: DOMRect) => r.left < bounds.left + 4 || r.right > bounds.right - 4 || r.top < bounds.top || r.bottom > bounds.bottom
   const placed: DOMRect[] = []
-  const hit = (a: DOMRect, b: DOMRect, pad = 2) =>
+  const hit = (a: DOMRect, b: DOMRect, pad = 4) =>
     a.left < b.right + pad && a.right > b.left - pad && a.top < b.bottom + pad && a.bottom > b.top - pad
   for (const node of [...nodes].sort((a, b) => rank(a) - rank(b))) {
     const label = node.querySelector<HTMLElement>(':scope > .aside')!.getBoundingClientRect()

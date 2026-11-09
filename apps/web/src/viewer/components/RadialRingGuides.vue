@@ -26,8 +26,8 @@ const rings = computed(() => {
 .ring-guides {
   /* Node positions are top-left corners; centre the rings on the disc centre of a node at (0,0). */
   display: block;
-  margin-inline-start: calc(0.625rem * var(--graph-disc-scale, 1));
-  margin-block-start: max(calc(var(--viewer-hit-target, 2.75rem) / 2), calc(0.625rem * var(--graph-disc-scale, 1)));
+  margin-inline-start: calc(0.75rem * var(--graph-disc-scale, 1));
+  margin-block-start: max(calc(var(--viewer-hit-target, 2.75rem) / 2), calc(0.75rem * var(--graph-disc-scale, 1)));
   overflow: visible;
   pointer-events: none;
   inline-size: 1px;
