@@ -6,7 +6,7 @@ const props = withDefaults(
     steps: string[]
     skipLabel: string
     nextLabel: string
-    /** Phone chip label when collapsed so the guide does not cover nodes at first paint. */
+    /** Chip label when collapsed so the guide does not cover nodes at first paint. */
     openLabel?: string
   }>(),
   { openLabel: 'Tips' }
@@ -15,8 +15,8 @@ const props = withDefaults(
 const emit = defineEmits<{ dismiss: [] }>()
 const index = ref(0)
 const step = computed(() => props.steps[index.value] ?? '')
-/** On narrow screens start collapsed so the first paint does not cover ring nodes. */
-const expanded = ref(typeof window === 'undefined' ? true : window.matchMedia('(min-width: 641px)').matches)
+/** Start collapsed (Tips chip) on every viewport so the guide never covers nodes at first paint. */
+const expanded = ref(false)
 
 function next() {
   if (index.value >= props.steps.length - 1) emit('dismiss')

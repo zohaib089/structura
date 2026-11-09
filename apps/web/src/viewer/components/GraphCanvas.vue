@@ -40,6 +40,7 @@ const props = defineProps<{
   ringCount?: number
   /** Exact layout radii (disc-centre); preferred over hypot of positions. */
   ringRadii?: number[]
+  labelPlacements?: Map<string, import('../label-collision').LabelPlacement>
   showAllCross?: boolean
   entryTag?: string
 }>()
@@ -291,7 +292,8 @@ defineExpose({ root })
           :expand-label="expandLabel"
           :collapse-label="collapseLabel"
           :severity-counts="severityCountsForPath(nodeProps.data?.path ?? '')"
-          :label-side="(positions.get(nodeProps.id)?.x ?? 0) < -1 ? 'start' : 'end'"
+          :label-side="labelPlacements?.get(nodeProps.id)?.side ?? ((positions.get(nodeProps.id)?.x ?? 0) < -1 ? 'start' : 'end')"
+          :display-label="labelPlacements?.get(nodeProps.id)?.displayLabel"
           :entry-tag="entryTag"
           @select="emit('select', nodeProps.id)"
           @toggle="emit('toggle', nodeProps.id)"

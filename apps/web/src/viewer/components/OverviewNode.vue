@@ -35,6 +35,8 @@ const props = defineProps<{
   labelSide?: 'start' | 'end'
   /** Landing-style tag under the nucleus name (e.g. ENTRY POINT). */
   entryTag?: string
+  /** Collision-resolved display text (may be ellipsized). */
+  displayLabel?: string
 }>()
 
 const emit = defineEmits<{ select: []; toggle: [] }>()
@@ -57,6 +59,7 @@ const discGlyph = computed(() => {
 
 const accessible = computed(() => (props.more ? props.moreLabel : props.label))
 const shortLabel = computed(() => {
+  if (!props.more && props.displayLabel) return props.displayLabel
   const raw = props.more ? props.moreLabel : props.label
   return raw.length > 22 ? `${raw.slice(0, 20)}…` : raw
 })

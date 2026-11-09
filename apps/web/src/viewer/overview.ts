@@ -5,11 +5,19 @@ import {
   INITIAL_NODE_CAP
 } from './caps'
 import type { GraphDocument, GraphEdge, GraphNode, Provenance } from './graph-types'
+import {
+  resolveLabelCollisions,
+  type LabelPlacement,
+  type LabelSide
+} from './label-collision'
+export type { LabelPlacement, LabelSide }
 
 export const RADIAL_RING_GAP = 220
 /** Minimum arc (flow px) between neighbours on one ring, so compact marks + labels do not collide. */
 export const RADIAL_MIN_ARC = 180
 export const RADIAL_DEFAULT_MAX_RING = 6
+/** Minimum angular wedge for each ring-1 child (~20°) before leaf weighting. */
+export const RADIAL_RING1_MIN_WEDGE = (20 * Math.PI) / 180
 
 export interface EntryPointOption {
   id: string
@@ -121,6 +129,8 @@ export interface OverviewModel {
   positions: Map<string, { x: number; y: number }>
   /** Shared disc-centre radius per BFS depth; ring guides must use these exact values. */
   ringRadii: number[]
+  /** Resolved label side / display text / nudged angle after collision pass. */
+  labelPlacements: Map<string, LabelPlacement>
 }
 
 export const LAYOUT_COLUMN = 280
@@ -523,7 +533,8 @@ export function buildOverview(
     hiddenEdges,
     edgesOmittedByCap,
     positions: laid.positions,
-    ringRadii
+    ringRadii,
+    labelPlacements: laid.labelPlacements
   }
 }
 
@@ -902,6 +913,36 @@ export function estimateLabelWidth(label: string): number {
   return chars * 7 + RADIAL_DISC_OFFSET * 2 + 16
 }
 
+
+/** Distribute `total` radians by weights, enforcing a per-item floor (then renormalise). */
+export function sharesWithFloor(weights: number[], total: number, floor: number): number[] {
+  const n = weights.length
+  if (n === 0) return []
+  const cappedFloor = Math.min(floor, total / n - 1e-6)
+  const sumW = weights.reduce((a, b) => a + b, 0) || 1
+  const shares = weights.map((w) => (w / sumW) * total)
+  for (let iter = 0; iter < 8; iter += 1) {
+    let deficit = 0
+    let flexible = 0
+    for (let i = 0; i < n; i += 1) {
+      if (shares[i]! < cappedFloor) {
+        deficit += cappedFloor - shares[i]!
+        shares[i] = cappedFloor
+      } else {
+        flexible += shares[i]! - cappedFloor
+      }
+    }
+    if (deficit < 1e-9 || flexible < 1e-9) break
+    for (let i = 0; i < n; i += 1) {
+      if (shares[i]! > cappedFloor) {
+        shares[i] = shares[i]! - ((shares[i]! - cappedFloor) / flexible) * deficit
+      }
+    }
+  }
+  const sum = shares.reduce((a, b) => a + b, 0) || 1
+  return shares.map((x) => (x / sum) * total)
+}
+
 export function layoutRadialNodes(
   nodes: { id: string; depth: number; label?: string }[],
   nucleusId: string,
@@ -926,6 +967,7 @@ export function layoutRadialTree(
   sectors: Map<string, RadialSector>
   /** Shared radius per depth (disc-centre distance from nucleus disc centre). Same values ring guides must use. */
   radiiByDepth: Map<number, number>
+  labelPlacements: Map<string, LabelPlacement>
 } {
   const visible = new Set(nodes.map((n) => n.id))
   const labelOf = new Map(nodes.map((n) => [n.id, n.label ?? n.id]))
@@ -986,10 +1028,34 @@ export function layoutRadialTree(
     if (ring1.length === 0) {
       assign(nucleusId, -Math.PI / 2, -Math.PI / 2 + TAU)
     } else {
-      const total = ring1.reduce((sum, kid) => sum + leafCount(kid), 0) || 1
-      const firstSpan = (TAU * leafCount(ring1[0]!)) / total
-      const start = -Math.PI / 2 - firstSpan / 2
-      assign(nucleusId, start, start + TAU)
+      // Ring-1: leaf weights with a ~20° floor so tiny leaves do not bunch together.
+      const weights = ring1.map((kid) => leafCount(kid))
+      const spans = sharesWithFloor(weights, TAU, RADIAL_RING1_MIN_WEDGE)
+      const firstSpan = spans[0] ?? TAU / ring1.length
+      const start0 = -Math.PI / 2 - firstSpan / 2
+      sectors.set(nucleusId, { start: start0, end: start0 + TAU })
+      angles.set(nucleusId, -Math.PI / 2)
+      let cursor = start0
+      for (let i = 0; i < ring1.length; i += 1) {
+        const kid = ring1[i]!
+        const span = spans[i]!
+        // Recursively assign this child's subtree inside its floored wedge.
+        const assignIn = (id: string, start: number, end: number) => {
+          sectors.set(id, { start, end })
+          angles.set(id, (start + end) / 2)
+          const kids = children.get(id) ?? []
+          if (kids.length === 0) return
+          const total = kids.reduce((sum, k) => sum + leafCount(k), 0) || 1
+          let c = start
+          for (const k of kids) {
+            const s = ((end - start) * leafCount(k)) / total
+            assignIn(k, c, c + s)
+            c += s
+          }
+        }
+        assignIn(kid, cursor, cursor + span)
+        cursor += span
+      }
     }
   }
   for (const node of nodes) {
@@ -1065,7 +1131,45 @@ export function layoutRadialTree(
     }
   }
 
-  return { positions, angles, sectors, radiiByDepth }
+  // Collision pass: measure labels, flip/nudge/ellipsize so labels miss each other and discs.
+  const collisionNodes = nodes.map((n) => ({
+    id: n.id,
+    label: labelOf.get(n.id) ?? n.id,
+    depth: n.depth,
+    angle: angles.get(n.id) ?? -Math.PI / 2,
+    radius: radiiByDepth.get(n.depth) ?? 0,
+    nucleus: n.id === nucleusId || n.depth === 0
+  }))
+  const labelPlacements = resolveLabelCollisions(collisionNodes)
+  for (const [id, place] of labelPlacements) {
+    const node = nodes.find((n) => n.id === id)
+    if (!node || node.depth <= 0) continue
+    const radius = radiiByDepth.get(node.depth) ?? 0
+    const sector = sectors.get(id)
+    let angle = place.angle
+    if (sector && sector.end - sector.start > 0.05) {
+      const lo = sector.start + 0.02
+      const hi = sector.end - 0.02
+      if (angle < lo) angle = lo
+      if (angle > hi) angle = hi
+    }
+    place.angle = angle
+    // Recompute box after clamp so tests see consistent geometry.
+    const cx = radius * Math.cos(angle) + RADIAL_DISC_OFFSET
+    const cy = radius * Math.sin(angle) + RADIAL_DISC_OFFSET
+    const gap = 10
+    place.box =
+      place.side === 'start'
+        ? { left: cx - gap - place.width, right: cx - gap, top: cy - place.height / 2, bottom: cy + place.height / 2 }
+        : { left: cx + gap, right: cx + gap + place.width, top: cy - place.height / 2, bottom: cy + place.height / 2 }
+    angles.set(id, angle)
+    positions.set(id, {
+      x: radius * Math.cos(angle),
+      y: radius * Math.sin(angle)
+    })
+  }
+
+  return { positions, angles, sectors, radiiByDepth, labelPlacements }
 }
 
 /** True when every tree child's sector lies inside its parent's sector. */
