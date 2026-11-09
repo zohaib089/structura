@@ -101,6 +101,8 @@ function onSpace(event: KeyboardEvent) {
     :style="{ '--node-layer': discColor, animationDelay: `${enterDelay ?? 0}ms` }"
     :data-node-id="id"
     :data-node-kind="kind"
+    :data-depth="depth ?? 0"
+    :data-has-findings="topSeverity ? 'true' : undefined"
     :data-cluster-size="cluster ? clusterSize : undefined"
     :data-expanded="cluster ? (expanded ? 'true' : 'false') : undefined"
     :data-testid="more ? 'expand-more' : undefined"

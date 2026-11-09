@@ -4,17 +4,10 @@ import { watch } from 'vue'
 import { RADIAL_RING_GAP } from '../overview'
 import { labelsToHide, type DeclutterBox } from '../label-declutter'
 import { radialFitViewport, type FitBox } from '../radial-fit'
+import { isPhoneCanvas, markScaleForZoom } from '../graph-mark-scale'
 
 const props = defineProps<{ signature: string; duration?: number; padding?: number; ringCount?: number; focusIds?: string[] }>()
 const flow = useVueFlow()
-
-/** Target on-screen label size (px) and the cap on how far marks may grow in flow units. */
-const LABEL_PX = 11.5
-const BASE_LABEL_PX = 11
-const MAX_MARK_SCALE = 4
-/** Target on-screen disc size (px); icons at ~58% stay legible like the landing marks. */
-const DISC_PX = 30
-const BASE_DISC_PX = 24
 
 function overlays(canvas: HTMLElement) {
   const box = canvas.getBoundingClientRect()
@@ -175,17 +168,24 @@ function declutter() {
     const r = n.getBoundingClientRect()
     const disc = (n.querySelector('.kind-mark') ?? n).getBoundingClientRect()
     const label = n.querySelector<HTMLElement>(':scope > .aside')!.getBoundingClientRect()
+    const depth = Number(n.dataset.depth ?? n.getAttribute('data-depth') ?? NaN)
     return {
       id: n.dataset.nodeId ?? '',
       label: { left: label.left, right: label.right, top: label.top, bottom: label.bottom },
       disc: { left: disc.left, right: disc.right, top: disc.top, bottom: disc.bottom },
       nucleus: n.classList.contains('is-nucleus'),
       selected: n.classList.contains('is-selected'),
-      hasFindings: Boolean(n.querySelector('.severity-chips')),
+      hasFindings: Boolean(n.querySelector('.severity-chips')) || n.dataset.hasFindings === 'true',
+      ring1: depth === 1,
       distance: centre ? Math.hypot(r.left - centre.left, r.top - centre.top) : 0
     }
   })
-  const hidden = labelsToHide(boxes, { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom })
+  // Phone: hide colliding outer labels rather than shrinking text; keep nucleus / ring-1 / findings.
+  const hidden = labelsToHide(
+    boxes,
+    { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom },
+    { keepRing1: true, keepFindings: true }
+  )
   for (const n of nodes) {
     const id = n.dataset.nodeId ?? ''
     if (hidden.has(id)) n.setAttribute('data-label-hidden', 'true')
@@ -214,9 +214,11 @@ watch(
   (zoom) => {
     const el = flow.vueFlowRef.value
     if (!el || !(zoom > 0)) return
-    const scale = Math.min(MAX_MARK_SCALE, Math.max(1, LABEL_PX / (BASE_LABEL_PX * zoom)))
-    el.style.setProperty('--graph-mark-scale', scale.toFixed(3))
-    el.style.setProperty('--graph-disc-scale', Math.min(scale, Math.max(1, DISC_PX / (BASE_DISC_PX * zoom))).toFixed(3))
+    // Phone raises the mark-scale cap so labels stay ≈11px / discs ≥20px; desktop unchanged (a3695cd).
+    const phone = isPhoneCanvas(el.clientWidth)
+    const { mark, disc } = markScaleForZoom(zoom, phone)
+    el.style.setProperty('--graph-mark-scale', mark.toFixed(3))
+    el.style.setProperty('--graph-disc-scale', disc.toFixed(3))
     scheduleDeclutter()
   },
   { immediate: true }

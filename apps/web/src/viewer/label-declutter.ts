@@ -1,6 +1,6 @@
 /**
  * Decide which node labels to hide so the graph stays readable.
- * Priority: nucleus → selected → files with findings → closer to centre.
+ * Priority: nucleus → selected → ring-1 / findings (when kept) → closer to centre.
  * Hidden names stay in aria-label/title and reappear on hover/focus/selection.
  */
 
@@ -11,6 +11,8 @@ export interface DeclutterBox {
   nucleus?: boolean
   selected?: boolean
   hasFindings?: boolean
+  /** BFS ring depth 1 (direct children of the nucleus). */
+  ring1?: boolean
   /** Distance from ring centre (smaller = higher priority among peers). */
   distance: number
 }
@@ -20,6 +22,13 @@ export interface DeclutterBounds {
   right: number
   top: number
   bottom: number
+}
+
+export interface DeclutterOptions {
+  /** Never hide ring-1 labels (phone readability). */
+  keepRing1?: boolean
+  /** Never hide labels on nodes with findings (phone readability). */
+  keepFindings?: boolean
 }
 
 function hit(
@@ -39,18 +48,30 @@ function outside(
 }
 
 function rank(box: DeclutterBox): number {
-  if (box.nucleus) return -2
-  if (box.selected) return -1
+  if (box.nucleus) return -3
+  if (box.selected) return -2
+  if (box.ring1) return -1
   return (box.hasFindings ? 0 : 1e5) + box.distance
 }
 
+function mustKeep(box: DeclutterBox, options: DeclutterOptions): boolean {
+  if (box.nucleus || box.selected) return true
+  if (options.keepRing1 && box.ring1) return true
+  if (options.keepFindings && box.hasFindings) return true
+  return false
+}
+
 /** Returns the set of node ids whose labels should be hidden. */
-export function labelsToHide(boxes: DeclutterBox[], bounds: DeclutterBounds): Set<string> {
+export function labelsToHide(
+  boxes: DeclutterBox[],
+  bounds: DeclutterBounds,
+  options: DeclutterOptions = {}
+): Set<string> {
   const hidden = new Set<string>()
   const placed: DeclutterBox['label'][] = []
   const ordered = [...boxes].sort((a, b) => rank(a) - rank(b))
   for (const box of ordered) {
-    const must = Boolean(box.nucleus || box.selected)
+    const must = mustKeep(box, options)
     const clash =
       outside(box.label, bounds) ||
       placed.some((p) => hit(box.label, p)) ||

@@ -154,6 +154,7 @@ const flowNodes = () => {
       domAttributes: {
         'data-node-id': node.id,
         'data-node-kind': node.kind,
+        'data-depth': String(node.depth ?? 0),
         ...(node.cluster
           ? { 'data-cluster-size': String(node.clusterSize), 'data-expanded': node.expanded ? 'true' : 'false' }
           : {}),
