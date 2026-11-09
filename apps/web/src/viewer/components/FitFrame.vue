@@ -2,6 +2,7 @@
 import { useVueFlow } from '@vue-flow/core'
 import { watch } from 'vue'
 import { RADIAL_RING_GAP } from '../overview'
+import { labelsToHide, type DeclutterBox } from '../label-declutter'
 import { graphOverlaps, radialFitViewport, type FitBox } from '../radial-fit'
 
 const props = defineProps<{ signature: string; duration?: number; padding?: number; ringCount?: number; focusIds?: string[] }>()
@@ -110,25 +111,25 @@ function declutter() {
   const nodes = [...canvas.querySelectorAll<HTMLElement>('.overview-node')].filter((n) => n.querySelector(':scope > .aside'))
   nodes.forEach((n) => n.removeAttribute('data-label-hidden'))
   const centre = canvas.querySelector('.ring-guides')?.getBoundingClientRect()
-  const discs = nodes.map((n) => ({ node: n, rect: (n.querySelector('.kind-mark') ?? n).getBoundingClientRect() }))
-  const rank = (n: HTMLElement) => {
-    if (n.classList.contains('is-nucleus')) return -2
-    if (n.classList.contains('is-selected')) return -1
-    const r = n.getBoundingClientRect()
-    const d = centre ? Math.hypot(r.left - centre.left, r.top - centre.top) : 0
-    return (n.querySelector('.severity-chips') ? 0 : 1e5) + d
-  }
   const bounds = canvas.getBoundingClientRect()
-  const outside = (r: DOMRect) => r.left < bounds.left + 4 || r.right > bounds.right - 4 || r.top < bounds.top || r.bottom > bounds.bottom
-  const placed: DOMRect[] = []
-  const hit = (a: DOMRect, b: DOMRect, pad = 4) =>
-    a.left < b.right + pad && a.right > b.left - pad && a.top < b.bottom + pad && a.bottom > b.top - pad
-  for (const node of [...nodes].sort((a, b) => rank(a) - rank(b))) {
-    const label = node.querySelector<HTMLElement>(':scope > .aside')!.getBoundingClientRect()
-    const must = node.classList.contains('is-nucleus') || node.classList.contains('is-selected')
-    const clash = outside(label) || placed.some((p) => hit(label, p)) || discs.some((d) => d.node !== node && hit(label, d.rect))
-    if (clash && !must) node.setAttribute('data-label-hidden', 'true')
-    else placed.push(label)
+  const boxes: DeclutterBox[] = nodes.map((n) => {
+    const r = n.getBoundingClientRect()
+    const disc = (n.querySelector('.kind-mark') ?? n).getBoundingClientRect()
+    const label = n.querySelector<HTMLElement>(':scope > .aside')!.getBoundingClientRect()
+    return {
+      id: n.dataset.nodeId ?? '',
+      label: { left: label.left, right: label.right, top: label.top, bottom: label.bottom },
+      disc: { left: disc.left, right: disc.right, top: disc.top, bottom: disc.bottom },
+      nucleus: n.classList.contains('is-nucleus'),
+      selected: n.classList.contains('is-selected'),
+      hasFindings: Boolean(n.querySelector('.severity-chips')),
+      distance: centre ? Math.hypot(r.left - centre.left, r.top - centre.top) : 0
+    }
+  })
+  const hidden = labelsToHide(boxes, { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom })
+  for (const n of nodes) {
+    const id = n.dataset.nodeId ?? ''
+    if (hidden.has(id)) n.setAttribute('data-label-hidden', 'true')
   }
 }
 

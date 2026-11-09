@@ -17,8 +17,11 @@ describe('S3 Nucleus graph surface', () => {
     expect(surface).toMatch(/\.graph-surface \{[^}]*--gray-10: #e6e8eb;[^}]*--color-text-primary: var\(--gray-10\)/)
   })
 
-  it('uses straight radial edges and a line-style legend', () => {
-    expect(read('src/viewer/components/OverviewEdge.vue')).toContain('getStraightPath(props)')
+  it('uses bowed radial spoke/cross edges and a line-style legend', () => {
+    const edge = read('src/viewer/components/OverviewEdge.vue')
+    expect(edge).toContain('radialEdgePath')
+    expect(edge).toContain('edge-role-cross')
+    expect(edge).not.toContain('getStraightPath')
     const app = read('src/viewer/ViewerApp.vue')
     for (const k of ['extracted', 'inferred', 'unresolved']) expect(app).toContain(`edge-key__line--${k}`)
   })

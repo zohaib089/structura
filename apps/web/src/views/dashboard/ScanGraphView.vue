@@ -6,7 +6,7 @@ import { useRoute } from 'vue-router'
 import { getScanGraph, listScans } from '../../api/scans'
 import { getScanFileMeta } from '../../api/scan-file-meta'
 import { getScanReport } from '../../api/scan-report'
-import { buildReportPathSeverityMap } from '../../services/scan-report-tree-display'
+import { resolveGraphFindings, resolvePathSeverityCounts } from '../../viewer/project-findings'
 import type { GraphDocument } from '../../viewer/graph-types'
 import type { ReportFinding } from '../../api/scan-report-types'
 import type { SeverityCounts } from '../../services/scan-report-tree'
@@ -47,8 +47,12 @@ const resolvedScanId = ref<string | null>(null)
 
 /** Project route: no report around it, so read the same scan report payload for disc colours/legend. */
 const ownFindings = ref<ReportFinding[] | null>(null)
-const findings = computed(() => props.scanFindings ?? ownFindings.value ?? [])
-const severityCounts = computed(() => props.pathSeverityCounts ?? (ownFindings.value ? buildReportPathSeverityMap(ownFindings.value) : undefined))
+const findings = computed(() =>
+  resolveGraphFindings({ passedFindings: props.scanFindings, fetchedFindings: ownFindings.value })
+)
+const severityCounts = computed(() =>
+  resolvePathSeverityCounts({ passedCounts: props.pathSeverityCounts, findings: findings.value })
+)
 async function loadFindings(scanId: string) {
   if (props.scanFindings) return
   try {
