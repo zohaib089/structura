@@ -515,7 +515,7 @@ export function buildOverview(
     hiddenNodes: hiddenNodeIds.size,
     hiddenEdges,
     edgesOmittedByCap,
-    positions: layoutRadialNodes(nodes, nucleusId)
+    positions: layoutRadialNodes(nodes, nucleusId, treeParent)
   }
 }
 
@@ -880,10 +880,95 @@ export function resolveNucleusId(index: GraphIndex, preferredId: string | null |
   return index.document.nodes[0]?.id ?? 'dir:.'
 }
 
+export type RadialSector = { start: number; end: number }
+
+/**
+ * Classic radial-tree / sunburst placement: each node sits on its BFS ring, angled inside its
+ * parent's sector. Sectors are proportional to subtree leaf weight so siblings stay contiguous
+ * and tree spokes fan outward without crossing.
+ */
 export function layoutRadialNodes(
   nodes: { id: string; depth: number }[],
-  _nucleusId: string
+  nucleusId: string,
+  treeParent: Map<string, string> = new Map()
 ): Map<string, { x: number; y: number }> {
+  const { positions } = layoutRadialTree(nodes, nucleusId, treeParent)
+  return positions
+}
+
+/** Full radial-tree layout result (positions + angles/sectors for tests). */
+export function layoutRadialTree(
+  nodes: { id: string; depth: number }[],
+  nucleusId: string,
+  treeParent: Map<string, string> = new Map()
+): {
+  positions: Map<string, { x: number; y: number }>
+  angles: Map<string, number>
+  sectors: Map<string, RadialSector>
+} {
+  const visible = new Set(nodes.map((n) => n.id))
+  const children = new Map<string, string[]>()
+
+  for (const [child, parent] of treeParent) {
+    if (!visible.has(child) || !visible.has(parent)) continue
+    const list = children.get(parent) ?? []
+    list.push(child)
+    children.set(parent, list)
+  }
+  // Orphans (e.g. pinned) without a visible tree parent hang under the nucleus so they still get a sector.
+  for (const node of nodes) {
+    if (node.id === nucleusId || node.depth === 0) continue
+    const parent = treeParent.get(node.id)
+    if (parent && visible.has(parent)) continue
+    const list = children.get(nucleusId) ?? []
+    if (!list.includes(node.id)) list.push(node.id)
+    children.set(nucleusId, list)
+  }
+  for (const [, list] of children) list.sort(compareUtf16)
+
+  const weight = new Map<string, number>()
+  const subtreeWeight = (id: string): number => {
+    const cached = weight.get(id)
+    if (cached !== undefined) return cached
+    const kids = children.get(id) ?? []
+    if (kids.length === 0) {
+      weight.set(id, 1)
+      return 1
+    }
+    let sum = 0
+    for (const kid of kids) sum += subtreeWeight(kid)
+    const value = Math.max(1, sum)
+    weight.set(id, value)
+    return value
+  }
+  if (visible.has(nucleusId)) subtreeWeight(nucleusId)
+
+  const angles = new Map<string, number>()
+  const sectors = new Map<string, RadialSector>()
+  const assign = (id: string, start: number, end: number) => {
+    sectors.set(id, { start, end })
+    angles.set(id, (start + end) / 2)
+    const kids = children.get(id) ?? []
+    if (kids.length === 0) return
+    const total = kids.reduce((sum, kid) => sum + subtreeWeight(kid), 0)
+    let cursor = start
+    for (const kid of kids) {
+      const span = ((end - start) * subtreeWeight(kid)) / total
+      assign(kid, cursor, cursor + span)
+      cursor += span
+    }
+  }
+
+  const TAU = Math.PI * 2
+  if (visible.has(nucleusId)) assign(nucleusId, -Math.PI / 2, -Math.PI / 2 + TAU)
+  // Any visible node still missing an angle (should be rare) gets a deterministic leftover slot.
+  for (const node of nodes) {
+    if (angles.has(node.id)) continue
+    const fallback = -Math.PI / 2 + (angles.size * 0.37) % TAU
+    angles.set(node.id, fallback)
+    sectors.set(node.id, { start: fallback - 0.01, end: fallback + 0.01 })
+  }
+
   const rings = new Map<number, string[]>()
   for (const node of nodes) {
     const list = rings.get(node.depth) ?? []
@@ -892,45 +977,100 @@ export function layoutRadialNodes(
   }
 
   const positions = new Map<string, { x: number; y: number }>()
-  const ringNumbers = [...rings.keys()].sort((a, b) => a - b)
   let previousRadius = 0
-
-  for (const ring of ringNumbers) {
-    const ids = (rings.get(ring) ?? []).sort(compareUtf16)
+  for (const ring of [...rings.keys()].sort((a, b) => a - b)) {
+    const ids = rings.get(ring) ?? []
     if (ids.length === 0) continue
-
     if (ring === 0) {
-      if (ids.length === 1) {
-        positions.set(ids[0]!, { x: 0, y: 0 })
-        continue
-      }
-      const miniRadius = 48
-      const step = (2 * Math.PI) / ids.length
-      const start = -Math.PI / 2
-      ids.forEach((id, index) => {
-        const angle = start + index * step
-        positions.set(id, { x: miniRadius * Math.cos(angle), y: miniRadius * Math.sin(angle) })
-      })
+      for (const id of ids) positions.set(id, { x: 0, y: 0 })
       continue
     }
-
-    // Ring radius grows with the ring's population so neighbours keep a readable arc between them,
-    // and each ring is at least one gap outside the previous one (concentric, entry-centred semantics kept).
+    const ordered = [...ids].sort((a, b) => (angles.get(a) ?? 0) - (angles.get(b) ?? 0) || compareUtf16(a, b))
+    let minGap = TAU
+    if (ordered.length >= 2) {
+      for (let i = 0; i < ordered.length; i += 1) {
+        const a1 = angles.get(ordered[i]!)!
+        const a2 = angles.get(ordered[(i + 1) % ordered.length]!)!
+        let gap = a2 - a1
+        if (gap <= 0) gap += TAU
+        if (gap < minGap) minGap = gap
+      }
+    }
+    // Widen the ring when a sector packs neighbours tighter than RADIAL_MIN_ARC.
     const radius = Math.max(
       previousRadius === 0 ? RADIAL_RING_GAP : previousRadius + RADIAL_RING_GAP * 0.55,
-      (ids.length * RADIAL_MIN_ARC) / (2 * Math.PI)
+      ordered.length >= 2 ? RADIAL_MIN_ARC / Math.max(minGap, 1e-6) : RADIAL_RING_GAP
     )
     previousRadius = radius
-    const step = (2 * Math.PI) / ids.length
-    // Odd rings are rotated half a step so labels on consecutive rings do not stack on one spoke.
-    const start = -Math.PI / 2 + (ring % 2 === 0 ? step / 2 : 0)
-    ids.forEach((id, index) => {
-      const angle = start + index * step
-      positions.set(id, { x: radius * Math.cos(angle), y: radius * Math.sin(angle) })
-    })
+    for (const id of ids) {
+      const a = angles.get(id) ?? -Math.PI / 2
+      positions.set(id, { x: radius * Math.cos(a), y: radius * Math.sin(a) })
+    }
   }
 
-  return positions
+  return { positions, angles, sectors }
+}
+
+/** True when every tree child's angle sits inside its parent's sector (within a tiny epsilon). */
+export function childrenLieInParentSectors(
+  angles: Map<string, number>,
+  sectors: Map<string, RadialSector>,
+  treeParent: Map<string, string>
+): boolean {
+  for (const [child, parent] of treeParent) {
+    const a = angles.get(child)
+    const childSector = sectors.get(child)
+    const parentSector = sectors.get(parent)
+    if (a === undefined || !childSector || !parentSector) continue
+    // Layout assigns nested sectors in the same unwrapped space: child ⊂ parent.
+    if (childSector.start + 1e-9 < parentSector.start || childSector.end - 1e-9 > parentSector.end) return false
+    if (a + 1e-9 < childSector.start || a - 1e-9 > childSector.end) return false
+  }
+  return true
+}
+
+/** True when two open tree-spoke segments improperly intersect (shared nucleus endpoint is OK). */
+export function treeSpokesCross(
+  positions: Map<string, { x: number; y: number }>,
+  treeParent: Map<string, string>
+): boolean {
+  const spokes: Array<{ a: string; b: string; x1: number; y1: number; x2: number; y2: number }> = []
+  for (const [child, parent] of treeParent) {
+    const p = positions.get(parent)
+    const c = positions.get(child)
+    if (!p || !c) continue
+    spokes.push({ a: parent, b: child, x1: p.x, y1: p.y, x2: c.x, y2: c.y })
+  }
+  const orient = (ax: number, ay: number, bx: number, by: number, cx: number, cy: number) =>
+    Math.sign((by - ay) * (cx - bx) - (bx - ax) * (cy - by))
+  const onSeg = (ax: number, ay: number, bx: number, by: number, cx: number, cy: number) =>
+    Math.min(ax, bx) - 1e-9 <= cx &&
+    cx <= Math.max(ax, bx) + 1e-9 &&
+    Math.min(ay, by) - 1e-9 <= cy &&
+    cy <= Math.max(ay, by) + 1e-9
+  const crosses = (
+    a: (typeof spokes)[number],
+    b: (typeof spokes)[number]
+  ) => {
+    // Shared vertex (usual at nucleus or along a chain) is not a crossing.
+    if (a.a === b.a || a.a === b.b || a.b === b.a || a.b === b.b) return false
+    const o1 = orient(a.x1, a.y1, a.x2, a.y2, b.x1, b.y1)
+    const o2 = orient(a.x1, a.y1, a.x2, a.y2, b.x2, b.y2)
+    const o3 = orient(b.x1, b.y1, b.x2, b.y2, a.x1, a.y1)
+    const o4 = orient(b.x1, b.y1, b.x2, b.y2, a.x2, a.y2)
+    if (o1 !== o2 && o3 !== o4) return true
+    if (o1 === 0 && onSeg(a.x1, a.y1, a.x2, a.y2, b.x1, b.y1)) return true
+    if (o2 === 0 && onSeg(a.x1, a.y1, a.x2, a.y2, b.x2, b.y2)) return true
+    if (o3 === 0 && onSeg(b.x1, b.y1, b.x2, b.y2, a.x1, a.y1)) return true
+    if (o4 === 0 && onSeg(b.x1, b.y1, b.x2, b.y2, a.x2, a.y2)) return true
+    return false
+  }
+  for (let i = 0; i < spokes.length; i += 1) {
+    for (let j = i + 1; j < spokes.length; j += 1) {
+      if (crosses(spokes[i]!, spokes[j]!)) return true
+    }
+  }
+  return false
 }
 
 function radialNodePasses(index: GraphIndex, filters: ViewFilters, id: string): boolean {
