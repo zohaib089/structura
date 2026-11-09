@@ -13,7 +13,7 @@ const LABEL_PX = 11.5
 const BASE_LABEL_PX = 11
 const MAX_MARK_SCALE = 9
 /** Target on-screen disc size (px); icons at ~58% stay legible like the landing marks. */
-const DISC_PX = 28
+const DISC_PX = 30
 const BASE_DISC_PX = 24
 
 function overlays(canvas: HTMLElement) {

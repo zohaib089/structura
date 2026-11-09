@@ -300,9 +300,9 @@ function onSpace(event: KeyboardEvent) {
 .kind-mark--disc .sev-glyph {
   color: var(--node-layer, var(--graph-layer-1));
   display: block;
-  /* ~58% of the 1.5rem disc — landing-like icon weight inside the mark. */
-  width: 58% !important;
-  height: 58% !important;
+  /* ~62% of the disc (lucide viewBox padding reads closer to ~55–60% ink). */
+  width: 62% !important;
+  height: 62% !important;
 }
 .is-unresolved .kind-mark--disc { border-style: dotted; border-color: var(--gray-7); color: var(--gray-8); background: transparent; }
 .overview-node:has(.kind-mark--disc) .label {
