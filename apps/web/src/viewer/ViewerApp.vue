@@ -1194,7 +1194,12 @@ const snippet = 'layers: []\nrules: []\n'
 .edge-key__line--inferred { border-block-start-style: dashed; }
 .edge-key__line--unresolved { border-block-start-style: dotted; }
 @media (max-width: 640px) {
-  /* Phone footer wraps onto rows inside a real reserved height (stage pads for it, coach sits above it):
+  /* Phone: coach under the toolbar so it does not cover the lower graph (desktop keeps bottom-left). */
+  .viewer.viewer-radial.viewer-embedded .coach {
+    inset-block-end: auto;
+    inset-block-start: calc(var(--viewer-control-size, 2.75rem) + var(--space-3));
+  }
+  /* Phone footer wraps onto rows inside a real reserved height (stage pads for it):
    * line legend, severity legend, then the node/edge meter. Ring summary and pan hint stay for screen readers. */
   .viewer.viewer-radial { --viewer-statusbar-height: 7.25rem; }
   .viewer.viewer-radial .status { flex-wrap: wrap; align-content: center; gap: var(--space-1) var(--space-3); padding-block: var(--space-1); overflow: hidden; }

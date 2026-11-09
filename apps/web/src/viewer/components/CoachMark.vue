@@ -55,7 +55,15 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 button { min-block-size: var(--viewer-hit-target); }
 p { margin: 0; }
 @media (max-width: 640px) {
-  .coach { padding: var(--space-2); gap: var(--space-1) var(--space-2); font-size: var(--text-13, 0.8125rem); }
+  /* Sit under the floating toolbar, not over the lower rings / zoom pad. */
+  .coach {
+    inset-block-end: auto;
+    inset-block-start: calc(var(--viewer-topbar-height, 3rem) + var(--space-2));
+    padding: var(--space-2);
+    gap: var(--space-1) var(--space-2);
+    font-size: var(--text-13, 0.8125rem);
+    max-inline-size: min(22rem, calc(100% - var(--space-6)));
+  }
   .coach > p:first-child { flex-basis: 100%; }
 }
 </style>

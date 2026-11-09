@@ -346,7 +346,7 @@ const en: ViewerMessages = {
   emptyFilters: 'Open a file to filter',
   emptyBody: 'Drop a {graphFile} here, or create one by running the command below in your repo. Nothing leaves your machine.',
   copyCommand: 'Copy',
-  coachExpand: 'Click a dot to open details in the side panel.',
+  coachExpand: 'Click a node to open its details.',
   coachFocus: 'On a folder, use “Show inside on map” to reveal more files.',
   coachCoverage: 'Use “Centre graph here” to redraw the graph around that file.',
   coachSkip: 'Dismiss guide',
@@ -354,7 +354,7 @@ const en: ViewerMessages = {
   graphOverviewHint:
     'You’re looking at how files depend on each other. Click a node for details; drag to pan and scroll to zoom.',
   panelSelectedHint: 'Details for your selection. Use the links below to jump to related files.',
-  graphGuideStep1: 'Click any node to open details on the right.',
+  graphGuideStep1: 'Click any node to open its details.',
   graphGuideStep2: 'On a folder, choose “Show inside on map” to reveal more on the ring.',
   graphGuideStep3: 'Choose “Centre graph here” to redraw the map around that file.',
   filtersTooltip: 'Open filters to hide file types or link types',
