@@ -1,6 +1,6 @@
 /**
  * Radial edge geometry for the overview graph.
- * Tree/spoke edges follow a radial-then-arc route that never cuts across the nucleus.
+ * Tree/spoke edges are smooth Beziers that fan out from the nucleus like landing spokes.
  * Cross-links are classified separately and hidden until revealed.
  */
 
@@ -53,9 +53,10 @@ function normDelta(a: number, b: number) {
 }
 
 /**
- * Tree spoke: go radially out along the inner angle to the outer radius, then arc along the ring.
- * Never passes through the nucleus (paths stay at r ≥ min(inner, outer)).
- * Cross-links: shallow bow that still stays outside the nucleus disc.
+ * Tree spoke: cubic Bezier that fans out from the nucleus.
+ * c1 = parent pushed outward along parent angle; c2 = child pulled inward along child angle.
+ * Never follows the ring for long, never crosses the nucleus.
+ * Nucleus→ring1: straight radial.
  */
 export function radialEdgePath(
   sourceX: number,
@@ -70,7 +71,6 @@ export function radialEdgePath(
   const t = polar(targetX, targetY, cx, cy)
 
   if (role === 'cross') {
-    // Keep outside the nucleus: control point at mid-radius, not pulled inward.
     const midR = Math.max(Math.min(s.r, t.r) * 0.85, Math.min(s.r, t.r) - 8, 24)
     const midA = s.a + normDelta(s.a, t.a) / 2
     const c = fromPolar(midR, midA, cx, cy)
@@ -81,7 +81,7 @@ export function radialEdgePath(
     }
   }
 
-  // Nucleus → outer: pure radial spoke.
+  // Nucleus → outer (or nearly centred): pure radial spoke.
   if (s.r < 8 || t.r < 8) {
     return {
       path: `M${sourceX},${sourceY} L${targetX},${targetY}`,
@@ -90,23 +90,33 @@ export function radialEdgePath(
     }
   }
 
-  const inner = s.r <= t.r ? s : t
-  const outer = s.r <= t.r ? t : s
-  const sourceIsInner = s.r <= t.r
-  const dA = normDelta(inner.a, outer.a)
-  const elbow = fromPolar(outer.r, inner.a, cx, cy)
-  const large = Math.abs(dA) > Math.PI ? 1 : 0
-  const sweep = dA >= 0 ? 1 : 0
-
-  let path: string
-  if (Math.abs(dA) < 0.02) {
-    path = `M${sourceX},${sourceY} L${targetX},${targetY}`
-  } else if (sourceIsInner) {
-    path = `M${sourceX},${sourceY} L${elbow.x.toFixed(2)},${elbow.y.toFixed(2)} A${outer.r.toFixed(2)},${outer.r.toFixed(2)} 0 ${large} ${sweep} ${targetX},${targetY}`
-  } else {
-    path = `M${sourceX},${sourceY} A${outer.r.toFixed(2)},${outer.r.toFixed(2)} 0 ${large} ${sweep ^ 1} ${elbow.x.toFixed(2)},${elbow.y.toFixed(2)} L${targetX},${targetY}`
+  // Nearly aligned angles: straight segment.
+  if (Math.abs(normDelta(s.a, t.a)) < 0.04) {
+    return {
+      path: `M${sourceX},${sourceY} L${targetX},${targetY}`,
+      labelX: (sourceX + targetX) / 2,
+      labelY: (sourceY + targetY) / 2
+    }
   }
 
-  const label = fromPolar(outer.r, inner.a + dA / 2, cx, cy)
-  return { path, labelX: label.x, labelY: label.y }
+  // Cubic: push the inner endpoint outward along its ray, pull the outer inward along its ray.
+  // Control radii stay between the endpoints so the curve never dips through the nucleus.
+  const rLo = Math.min(s.r, t.r)
+  const rHi = Math.max(s.r, t.r)
+  const innerIsSource = s.r <= t.r
+  const outR = rLo + (rHi - rLo) * 0.55
+  const inR = rLo + (rHi - rLo) * 0.45
+  const c1 = fromPolar(innerIsSource ? outR : inR, s.a, cx, cy)
+  const c2 = fromPolar(innerIsSource ? inR : outR, t.a, cx, cy)
+
+  const label = {
+    x: sourceX * 0.125 + c1.x * 0.375 + c2.x * 0.375 + targetX * 0.125,
+    y: sourceY * 0.125 + c1.y * 0.375 + c2.y * 0.375 + targetY * 0.125
+  }
+
+  return {
+    path: `M${sourceX},${sourceY} C${c1.x.toFixed(2)},${c1.y.toFixed(2)} ${c2.x.toFixed(2)},${c2.y.toFixed(2)} ${targetX},${targetY}`,
+    labelX: label.x,
+    labelY: label.y
+  }
 }

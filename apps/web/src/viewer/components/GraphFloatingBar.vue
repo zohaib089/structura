@@ -77,11 +77,13 @@ const emit = defineEmits<{
       type="button"
       class="links-button"
       :aria-pressed="showAllCross ? 'true' : 'false'"
+      :aria-label="showAllCrossLabel"
       :title="showAllCrossLabel"
       data-testid="graph-show-all-links"
       @click="emit('toggleShowAllCross')"
     >
-      {{ showAllCrossLabel }}
+      <span class="links-button__full">{{ showAllCrossLabel }}</span>
+      <span class="links-button__compact" aria-hidden="true">⇄ {{ crossLinkCount }}</span>
     </button>
   </div>
 </template>
@@ -104,7 +106,7 @@ const emit = defineEmits<{
   backdrop-filter: blur(10px);
   box-shadow: 0 8px 24px color-mix(in srgb, var(--color-brand-navy) 35%, transparent);
   transform: translateX(-50%);
-  inline-size: min(40rem, calc(100% - var(--space-6)));
+  inline-size: min(52rem, calc(100% - var(--space-6)));
   pointer-events: none;
 }
 .icon-button,
@@ -185,7 +187,8 @@ select {
   }
   .entry-prefix { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   select { max-inline-size: 6.5rem; }
-  .search-button { min-inline-size: 0; flex: 1 1 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-inline: var(--space-2); }
+  .search-button { min-inline-size: 0; flex: 1 1 0; max-inline-size: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-inline: var(--space-2); }
+  .fit-button { padding-inline: var(--space-2); }
   .fit-button { padding-inline: var(--space-2); white-space: nowrap; }
 }
 </style>

@@ -8,7 +8,7 @@ import type { GraphDocument, GraphEdge, GraphNode, Provenance } from './graph-ty
 
 export const RADIAL_RING_GAP = 220
 /** Minimum arc (flow px) between neighbours on one ring, so compact marks + labels do not collide. */
-export const RADIAL_MIN_ARC = 168
+export const RADIAL_MIN_ARC = 180
 export const RADIAL_DEFAULT_MAX_RING = 6
 
 export interface EntryPointOption {
