@@ -54,7 +54,7 @@ describe('radial tree sector layout', () => {
     expect(ring1.length).toBeGreaterThan(2)
     const ring1Angles = ring1.map((id) => angles.get(id)!)
     // With sqrt weighting + floor, the largest empty arc among ring-1 should stay under ~half a turn.
-    expect(maxAngularGap(ring1Angles)).toBeLessThan(Math.PI * 1.05)
+    expect(maxAngularGap(ring1Angles)).toBeLessThan(Math.PI * 0.85)
     // First ring-1 child (sorted) midpoint sits near 12 o'clock.
     const first = [...ring1].sort()[0]!
     const firstDeg = ((angles.get(first)! * 180) / Math.PI + 360) % 360

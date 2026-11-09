@@ -950,7 +950,7 @@ export function layoutRadialTree(
   const siblingShares = (kids: string[]): number[] => {
     const raw = kids.map((kid) => sectorShare(kid))
     const sum = raw.reduce((a, b) => a + b, 0) || 1
-    const floor = sum / (kids.length * 2.25)
+    const floor = sum / (kids.length * 1.35)
     const bumped = raw.map((w) => Math.max(w, floor))
     const bumpedSum = bumped.reduce((a, b) => a + b, 0) || 1
     return bumped.map((w) => w / bumpedSum)
