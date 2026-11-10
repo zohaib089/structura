@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { landingPageCopy as copy } from '../../services/landing-page-copy'
+import { useLandingCopy } from '../../composables/useLandingCopy'
 import LandingSection from './LandingSection.vue'
+
+const copy = useLandingCopy()
 
 /** Line style per link kind: solid, dashed, dotted (hollow dotted ends for "couldn't confirm"). */
 const LINE: Record<string, { dash?: string; width: number; cap?: 'round'; hollow?: boolean }> = {
@@ -46,7 +48,7 @@ const LINE: Record<string, { dash?: string; width: number; cap?: 'round'; hollow
           <div>
             <h3>{{ row.title }} <span class="conn__tag">{{ row.tag }}</span></h3>
             <p>{{ row.body }}</p>
-            <code><span class="conn__comment">{{ row.commentLine }}</span><span class="conn__line">{{ row.codeLine }}</span></code>
+            <code dir="ltr"><span class="conn__comment">{{ row.commentLine }}</span><span class="conn__line">{{ row.codeLine }}</span></code>
           </div>
         </div>
       </div>

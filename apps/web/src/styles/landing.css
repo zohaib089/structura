@@ -159,7 +159,9 @@
  * Light landing: keep the sample graph on a stable navy surface with its dark-theme palette,
  * so labels, rings and outer nodes stay legible. Renderer, layout and data are untouched; dark is unchanged.
  */
-[data-theme='light'] .landing-page .landing-hero__graph {
+[data-theme='light'] .landing-page .landing-hero__graph,
+/* The navy self-host band is a dark surface in both themes: light text and commands on navy. */
+[data-theme='light'] .landing-page .landing-band--navy {
   color-scheme: dark;
 
   --gray-0: #0b0d10;
@@ -183,6 +185,8 @@
   --color-border: var(--gray-4);
 
   color: var(--gray-10);
+}
+[data-theme='light'] .landing-page .landing-hero__graph {
   background: radial-gradient(closest-side, var(--landing-navy-deep) 0%, #0b1426 88%, transparent 100%);
   border-radius: 50%;
 }
@@ -199,4 +203,24 @@
   [data-theme='light'] .landing-page .landing-hero__graph {
     background: radial-gradient(closest-side, var(--landing-navy-deep) 0%, #0b1426 100%);
   }
+}
+/* Longer locales (e.g. French) ran the hero lead under the light-theme navy disc; keep the copy column clear of it. */
+@media (min-width: 901px) {
+  [data-theme='light'] .landing-page .landing-hero__copy {
+    max-inline-size: min(600px, 38vw);
+  }
+}
+
+/* Code and commands keep left-to-right order inside right-to-left pages; surrounding copy stays RTL. */
+.landing-page [dir='ltr'] {
+  unicode-bidi: isolate;
+  direction: ltr;
+  text-align: left;
+}
+/* RTL: the headline sits on the right, so the readability fade starts from the right edge. */
+[dir='rtl'] .landing-page .landing-hero::after {
+  background: linear-gradient(270deg, var(--gray-0) 0%, color-mix(in srgb, var(--gray-0) 92%, transparent) 28%, transparent 56%);
+}
+[dir='rtl'][data-theme='light'] .landing-page .landing-hero::after {
+  background: linear-gradient(270deg, var(--gray-0) 0%, color-mix(in srgb, var(--gray-0) 85%, transparent) 30%, transparent 45%);
 }

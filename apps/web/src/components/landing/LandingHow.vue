@@ -4,11 +4,13 @@ import { onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useLandingLinks } from '../../composables/useLandingLinks'
 import { useToast } from '../../composables/useToast'
-import { landingPageCopy as copy } from '../../services/landing-page-copy'
+import { useLandingCopy } from '../../composables/useLandingCopy'
 import { SEVERITY_ICONS } from '../../services/severity-display'
 import BrandMark from '../brand/BrandMark.vue'
 import HexLoader from '../ui/HexLoader.vue'
 import LandingSection from './LandingSection.vue'
+
+const copy = useLandingCopy()
 
 const router = useRouter()
 const links = useLandingLinks()

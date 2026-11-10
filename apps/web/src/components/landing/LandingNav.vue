@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { BRAND } from '../../../../../packages/brand/src/brand'
 import { useLandingLinks } from '../../composables/useLandingLinks'
-import { landingPageCopy as copy } from '../../services/landing-page-copy'
+import { useLandingCopy } from '../../composables/useLandingCopy'
 import { navigationMessages } from '../../services/navigation-messages'
 import { useRoute } from 'vue-router'
 import { computed } from 'vue'
@@ -11,6 +11,8 @@ import LocaleSwitcher from '../layout/LocaleSwitcher.vue'
 import ThemeToggle from '../layout/ThemeToggle.vue'
 import GithubMark from './GithubMark.vue'
 import LandingCta from './LandingCta.vue'
+
+const copy = useLandingCopy()
 
 const links = useLandingLinks()
 const route = useRoute()

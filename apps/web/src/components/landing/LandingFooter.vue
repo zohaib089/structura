@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { BRAND } from '../../../../../packages/brand/src/brand'
 import { useLandingLinks } from '../../composables/useLandingLinks'
-import { landingPageCopy as copy } from '../../services/landing-page-copy'
+import { useLandingCopy } from '../../composables/useLandingCopy'
 import BrandMark from '../brand/BrandMark.vue'
+
+const copy = useLandingCopy()
 
 const links = useLandingLinks()
 const year = new Date().getFullYear()

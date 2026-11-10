@@ -7,7 +7,6 @@ import { getCurrentSession, logoutUser } from '../../services/auth'
 import ThemeToggle from '../../components/layout/ThemeToggle.vue'
 import { dashboardMessages } from '../../services/dashboard-messages'
 import { navigationMessages } from '../../services/navigation-messages'
-import { viewerMessages } from '../../viewer/messages'
 import { isSupportedWebLocale, readLocalePreference, resolvePreferredWebLocale } from '../../services/locale'
 import {
   listWorkspaces,
@@ -197,7 +196,7 @@ onMounted(loadWorkspaces)
     :skip-to-content-label="messages.skipToContent"
     :command-palette-label="messages.commandPalette"
     :command-palette-hint="messages.commandPaletteHint"
-    :close-navigation-label="viewerMessages(locale).close"
+    :close-navigation-label="navMessages.closeMenu"
     :flush-content="flushContent"
     :fill-content="fillContent"
   >

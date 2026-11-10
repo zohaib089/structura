@@ -8,7 +8,8 @@
  */
 import { computed, ref } from 'vue'
 import { SEVERITY_ICONS } from '../../services/severity-display'
-import { landingPageCopy as copy, stepsAway } from '../../services/landing-page-copy'
+import { useLandingCopy } from '../../composables/useLandingCopy'
+import { fillCopy } from '../../services/landing-page-copy'
 import {
   edgeKey,
   GRAPH_CENTER,
@@ -21,6 +22,8 @@ import {
   type SampleNode
 } from '../../services/landing-sample-graph'
 import BrandMark from '../brand/BrandMark.vue'
+
+const copy = useLandingCopy()
 
 const emit = defineEmits<{ inspect: [node: SampleNode | null] }>()
 
@@ -76,8 +79,8 @@ function nodeRadius(node: SampleNode): number {
 
 function ariaLabel(node: SampleNode): string {
   if (node.entry) return `${node.label}, where the project starts.`
-  const issue = node.severity === 'info' ? 'No issues found.' : `${copy.severity[node.severity]} issue.`
-  return `${node.label}, ${stepsAway(node.ring)} from the start. ${copy.linkKind[node.link]}. ${issue}`
+  const issue = node.severity === 'info' ? copy.a11y.noIssues : fillCopy(copy.a11y.issueSentence, { severity: copy.severity[node.severity] })
+  return fillCopy(copy.a11y.node, { label: node.label, steps: copy.stepsAway(node.ring), link: copy.linkKind[node.link], issue })
 }
 
 interface LabelPlacement {
