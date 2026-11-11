@@ -8,7 +8,7 @@ import {
   runWorkspaceScan,
   recoverWorkspaceScansOnStartup
 } from './scan-worker.js'
-import type { WorkspaceQuery } from '../routes/workspace-routes.js'
+import type { WorkspaceQuery } from '../db/types.js'
 
 function createScanStore(entries: Array<[string, Record<string, unknown>]>) {
   const scans = new Map<string, Record<string, unknown>>(entries)

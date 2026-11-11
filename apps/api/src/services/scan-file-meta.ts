@@ -1,4 +1,4 @@
-import type { WorkspaceQuery } from '../routes/workspace-routes.js'
+import type { WorkspaceQuery } from '../db/types.js'
 
 const BATCH_SIZE = 500
 

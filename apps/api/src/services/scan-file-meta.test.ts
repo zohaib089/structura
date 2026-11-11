@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { loadScanFileMeta, replaceScanFileMeta } from './scan-file-meta.js'
-import type { WorkspaceQuery } from '../routes/workspace-routes.js'
+import type { WorkspaceQuery } from '../db/types.js'
 
 test('replaceScanFileMeta stores and reloads summaries by path', async () => {
   const rows = new Map<string, string | null>()

@@ -13,7 +13,7 @@ import {
   removeQueuedWorkspaceScan
 } from '../workers/scan-worker.js'
 import { loadScanFileMeta } from '../services/scan-file-meta.js'
-import type { WorkspaceDatabase } from './workspace-routes.js'
+import type { WorkspaceDatabase } from '../db/types.js'
 
 function readRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null

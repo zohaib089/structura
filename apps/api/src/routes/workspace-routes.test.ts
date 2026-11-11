@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import Fastify from 'fastify'
-import {
-  registerWorkspaceRoutes,
-  type WorkspaceDatabase,
-  type WorkspaceQuery,
-  type WorkspaceTransaction
-} from './workspace-routes.js'
+import { registerWorkspaceRoutes } from './workspace-routes.js'
+import type {
+  WorkspaceDatabase,
+  WorkspaceQuery,
+  WorkspaceTransaction
+} from '../db/types.js'
 
 function createWorkspaceApi(initialMemberships: Record<string, string> = {}) {
   const memberships = new Map(Object.entries(initialMemberships))

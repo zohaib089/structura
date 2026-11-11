@@ -15,7 +15,7 @@ import { access } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { ScanStatus, ScanStep, WorkspaceScanRecord } from './scan-contracts.js'
 import { replaceScanFileMeta } from '../services/scan-file-meta.js'
-import type { WorkspaceQuery } from '../routes/workspace-routes.js'
+import type { WorkspaceQuery } from '../db/types.js'
 
 export interface ScanWorkerDependencies {
   query: WorkspaceQuery
