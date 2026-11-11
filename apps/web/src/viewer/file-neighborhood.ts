@@ -2,9 +2,9 @@ import type { GraphIndex } from './overview'
 
 export const FILE_NEIGHBORHOOD_GROUP_THRESHOLD = 12
 /** Angular gap left open at the top and bottom poles so the halves do not collide. */
-export const FILE_SPLIT_POLE_GAP = (20 * Math.PI) / 180
+export const FILE_SPLIT_POLE_GAP = (14 * Math.PI) / 180
 /** Wider than the bottom gap so the first use / last used-by sit clear of a top toolbar. */
-export const FILE_SPLIT_TOP_GAP = (32 * Math.PI) / 180
+export const FILE_SPLIT_TOP_GAP = (22 * Math.PI) / 180
 export const NBH_GROUP_PREFIX = 'nbh-group:'
 
 export type NeighborhoodRole = 'uses' | 'usedBy'
@@ -96,7 +96,7 @@ export function collectNeighborhoodSides(
   return { uses: uniqueSorted(uses), usedBy: uniqueSorted(usedBy) }
 }
 
-function bucketByFolder(index: GraphIndex, ids: string[], keyOf: (id: string) => string): Map<string, string[]> {
+function bucketByFolder(_index: GraphIndex, ids: string[], keyOf: (id: string) => string): Map<string, string[]> {
   const buckets = new Map<string, string[]>()
   for (const id of ids) {
     const key = keyOf(id)

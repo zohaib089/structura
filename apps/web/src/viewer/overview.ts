@@ -587,8 +587,18 @@ export function buildOverview(
       }
       continue
     }
-    const source = representative(index, edge.source, visible, state, fileNbh?.memberToGroup)
-    const target = representative(index, edge.target, visible, state, fileNbh?.memberToGroup)
+    let source = representative(index, edge.source, visible, state, fileNbh?.memberToGroup)
+    let target = representative(index, edge.target, visible, state, fileNbh?.memberToGroup)
+    if (fileNbh) {
+      // An expanded folder group's files sit on ring 2 under their group: route the nucleus link
+      // through the group (nucleus → group spoke, group → file spoke) instead of a ring-skipping spoke.
+      const viaGroup = (id: string | null) => {
+        const group = id ? fileNbh.memberToGroup.get(id) : undefined
+        return group && visible.has(group) && expanded.has(group) ? group : id
+      }
+      if (source === nucleusId) target = viaGroup(target)
+      else if (target === nucleusId) source = viaGroup(source)
+    }
     if (!source || !target) {
       hiddenEdges += 1
       continue
@@ -1133,6 +1143,43 @@ export interface RadialLayoutOptions {
 /** Open wedge at 12 o'clock on contains (folder) rings so discs and labels clear a top toolbar. */
 export const CONTAINS_TOP_GAP = (50 * Math.PI) / 180
 
+/**
+ * Order one half of the file view: single files at both ends (near the poles), folder groups in the
+ * middle with a single file between consecutive groups when there are enough, expanded groups at the
+ * very centre. Deterministic for a given input order.
+ */
+export function arrangeSplitHalf(
+  ids: string[],
+  isGroup: (id: string) => boolean,
+  isExpanded: (id: string) => boolean = () => false
+): string[] {
+  const groups = ids.filter(isGroup)
+  if (groups.length === 0) return [...ids]
+  const singles = ids.filter((id) => !isGroup(id))
+  const open = groups.filter(isExpanded)
+  const closed = groups.filter((id) => !isExpanded(id))
+  // Expanded groups in the middle of the group run.
+  const half = Math.floor(closed.length / 2)
+  const run = [...closed.slice(0, half), ...open, ...closed.slice(half)]
+  const spacerCount = Math.min(singles.length, Math.max(0, run.length - 1))
+  const headCount = Math.ceil((singles.length - spacerCount) / 2)
+  const head = singles.slice(0, headCount)
+  const spacers = singles.slice(headCount, headCount + spacerCount)
+  const tail = singles.slice(headCount + spacerCount)
+  const middle: string[] = []
+  run.forEach((id, index) => {
+    middle.push(id)
+    if (index < spacers.length) middle.push(spacers[index]!)
+  })
+  return [...head, ...middle, ...tail]
+}
+
+/** Smallest ring-1 wedge for a single file while a folder group on the same half is expanded. */
+export const FILE_SPLIT_MIN_WEDGE = (12 * Math.PI) / 180
+
+/** Ring-2 file spacing in the file view, as a fraction of the ring-1 radius (one line of label). */
+export const FILE_SPLIT_RING2_ARC = 0.15
+
 export function layoutRadialTree(
   nodes: { id: string; depth: number; label?: string }[],
   nucleusId: string,
@@ -1222,12 +1269,24 @@ export function layoutRadialTree(
       const botGap = FILE_SPLIT_POLE_GAP
       sectors.set(nucleusId, { start: -Math.PI / 2, end: -Math.PI / 2 + TAU })
       angles.set(nucleusId, -Math.PI / 2)
+      // Each half is shared by leaf weight, so an expanded folder group claims a wide wedge and its files
+      // sit on ring 2 inside it (every edge steps one ring, nothing crosses another wedge). A floor keeps
+      // a readable slot for single files. With nothing expanded every weight is 1: an even spread.
       const place = (ids: string[], start: number, end: number) => {
         if (ids.length === 0) return
-        const span = (end - start) / ids.length
+        // Folder groups carry three label lines: keep them off the poles (where neighbours sit side by
+        // side) and apart from each other, centred on the half (3 / 9 o'clock), expanded groups first.
+        ids = arrangeSplitHalf(ids, (id) => isNeighborhoodGroupId(id), (id) => leafCount(id) > 1)
+        const weights = ids.map((id) => leafCount(id))
+        const even = weights.every((w) => w === 1)
+        const spans = even
+          ? ids.map(() => (end - start) / ids.length)
+          : sharesWithFloor(weights, end - start, Math.min(FILE_SPLIT_MIN_WEDGE, (end - start) / ids.length))
+        let cursor = start
         ids.forEach((id, index) => {
-          const a0 = start + index * span
-          assignIn(id, a0, a0 + span)
+          const span = spans[index]!
+          assignIn(id, cursor, cursor + span)
+          cursor += span
         })
       }
       place(options.splitHalves.uses, -Math.PI / 2 + topGap, Math.PI / 2 - botGap)
@@ -1303,7 +1362,12 @@ export function layoutRadialTree(
       }
     }
 
-    const radius = Math.max(
+    // File split: ring 2 only holds an expanded folder group's files, whose labels sit beside their discs
+    // and stack vertically, so a fixed step out from ring 1 keeps them close to their group instead of an
+    // arc-length radius that would push them far off-screen.
+    const radius = options.splitHalves && ring >= 2 && previousRadius > 0
+      ? Math.min(previousRadius * 2, Math.max(previousRadius * 1.45, (previousRadius * FILE_SPLIT_RING2_ARC) / Math.max(minGap, 1e-6)))
+      : Math.max(
       ring === 1
         ? Math.max(RADIAL_NUCLEUS_CLEARANCE + RADIAL_DISC_OFFSET * 2, RADIAL_RING_GAP)
         : previousRadius + RADIAL_RING_GAP * 0.55,
@@ -1578,6 +1642,15 @@ function decorateOverviewNodes(
     if (node.id === nucleusId) continue
     const uses = outgoing.has(node.id)
     const usedBy = incoming.has(node.id)
+    const graphNode = index.nodesById.get(node.id)
+    if (graphNode?.kind === 'external') {
+      // A bare package name ("vue") reads like a nameless file extension; say what it is.
+      const ecosystem = 'ecosystem' in graphNode && typeof graphNode.ecosystem === 'string' ? graphNode.ecosystem : ''
+      node.roleCaption = ecosystem ? `${ecosystem} package` : 'package'
+      continue
+    }
+    // Files of an expanded folder group (ring 2) already read as part of their group: name only.
+    if (node.depth >= 2) continue
     if (uses && usedBy) node.roleCaption = 'uses and used by'
     else if (uses) node.roleCaption = 'uses'
     else if (usedBy) node.roleCaption = 'used by'

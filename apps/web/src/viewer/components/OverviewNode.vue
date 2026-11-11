@@ -85,6 +85,17 @@ const shortLabel = computed(() => {
   return props.more ? props.moreLabel : props.label
 })
 
+/** "uses" / "used by" repeat the half-ring titles; narrow embedded panels drop them to save a line. */
+const sideCaption = computed(() => ['uses', 'used by', 'uses and used by'].includes(props.roleCaption ?? ''))
+
+/** Embedded fallback when the full path cannot fit: the last path segment ("vscode-extension"). */
+const compactLabel = computed(() => {
+  if (!props.plainMarks || props.more || props.nucleus) return ''
+  const full = props.label ?? ''
+  const tail = full.split('/').filter(Boolean).pop() ?? ''
+  return tail && tail !== full ? tail : ''
+})
+
 const folderChip = computed(() =>
   props.severityCounts && props.kind !== 'file' ? folderSeverityChip(props.severityCounts) : null
 )
@@ -157,8 +168,9 @@ function onSpace(event: KeyboardEvent) {
     </span>
     <span class="aside" :class="{ 'aside--start': disc && labelSide === 'start', 'aside--nucleus': disc && nucleus }">
       <span class="label" dir="ltr" :title="path || label || moreLabel">{{ shortLabel }}</span>
+      <span v-if="compactLabel" class="label label--compact" dir="ltr" aria-hidden="true">{{ compactLabel }}</span>
       <span v-if="nucleus && entryTag" class="entry-tag">{{ entryTag }}</span>
-      <span v-if="roleCaption" class="role-caption">{{ roleCaption }}</span>
+      <span v-if="roleCaption" class="role-caption" :class="{ 'role-caption--side': sideCaption }">{{ roleCaption }}</span>
       <span v-if="folderChip" class="severity-chips">
         <SeverityChip
           compact
@@ -502,6 +514,17 @@ function onSpace(event: KeyboardEvent) {
 
 @media (prefers-reduced-motion: reduce) { [data-label-hidden] > .aside { transition: none; } }
 
+@media (max-width: 480px) {
+  .overview-node.is-plain .role-caption--side { display: none; }
+}
+
+/* Embedded declutter fallback: show the last path segment instead of hiding the name. */
+.overview-node .aside > .label--compact { display: none; }
+.overview-node[data-label-compact]:has(.label--compact) .aside > .label:not(.label--compact) { display: none; }
+.overview-node[data-label-compact] .aside > .label--compact { display: block; }
+.overview-node[data-label-compact]:has(.kind-mark--disc) > .aside { max-inline-size: calc(5.5rem * var(--graph-mark-scale, 1)); }
+.overview-node[data-label-compact] .aside > .label { overflow: hidden; text-overflow: ellipsis; max-inline-size: 100%; }
+
 /* Embedded plain marks: stack the name and the "N inside" caption so they do not run together. */
 .overview-node.is-plain:has(.kind-mark--disc) > .aside {
   flex-direction: column;
@@ -521,6 +544,27 @@ function onSpace(event: KeyboardEvent) {
 .overview-node.is-plain[data-label-flip='above']:has(.kind-mark--disc) > .aside,
 .overview-node.is-plain[data-label-flip='below']:has(.kind-mark--disc) > .aside {
   align-items: center;
+}
+/* File-view folder groups: "14 files" over one "COMPONENTS · Show files" line (two lines, not three),
+   so neighbouring group labels keep clear of each other. */
+@media (min-width: 481px) {
+.overview-node.is-plain[data-nbh-group='true']:has(.kind-mark--disc) > .aside {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: calc(5px * var(--graph-mark-scale, 1));
+  row-gap: 1px;
+  max-inline-size: none;
+  inline-size: max-content;
+}
+.overview-node.is-plain[data-nbh-group='true']:has(.kind-mark--disc) > .aside > .label { flex-basis: 100%; }
+.overview-node.is-plain[data-nbh-group='true']:has(.kind-mark--disc) > .aside > .role-caption,
+.overview-node.is-plain[data-nbh-group='true']:has(.kind-mark--disc) > .aside > .inside-toggle { max-inline-size: none; }
+.overview-node.is-plain[data-nbh-group='true']:has(.kind-mark--disc) > .aside--start,
+.overview-node.is-plain[data-nbh-group='true'][data-label-flip='start']:has(.kind-mark--disc) > .aside { justify-content: flex-end; text-align: end; flex-direction: row; }
+.overview-node.is-plain[data-nbh-group='true'][data-label-flip='end']:has(.kind-mark--disc) > .aside { flex-direction: row; }
+.overview-node.is-plain[data-nbh-group='true'][data-label-flip='above']:has(.kind-mark--disc) > .aside,
+.overview-node.is-plain[data-nbh-group='true'][data-label-flip='below']:has(.kind-mark--disc) > .aside { justify-content: center; text-align: center; flex-direction: row; }
 }
 </style>
 

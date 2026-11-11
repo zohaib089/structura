@@ -11,6 +11,8 @@ import {
   defaultFilters,
   emptyViewState,
   expandView,
+  arrangeSplitHalf,
+  layoutRadialTree,
   setFileNeighborhood,
   setNucleus
 } from '../../src/viewer/overview'
@@ -152,5 +154,93 @@ describe('file neighbourhood split and grouping', () => {
     expect(view.halfCaptions).toBeUndefined()
     expect(view.nodes.some((node) => isNeighborhoodGroupId(node.id))).toBe(false)
     expect(view.nodes).toHaveLength(1 + 15 + 3)
+  })
+
+  it('routes an expanded group through its disc: no nucleus spoke skips to ring 2', () => {
+    const { index, nucleusId } = loadBusy()
+    const closed = fileNeighborhoodTree(index, nucleusId, new Set())
+    const viewerGroup = [...closed.packedUses.groups.values()].find((group) => group.folderLabel === 'viewer')!
+    const view = buildOverview(
+      index,
+      expandView(setFileNeighborhood(emptyViewState(), nucleusId), viewerGroup.id),
+      defaultFilters()
+    )
+    const depth = new Map(view.nodes.map((node) => [node.id, node.depth]))
+    for (const edge of view.edges) {
+      const a = depth.get(edge.source) ?? 0
+      const b = depth.get(edge.target) ?? 0
+      if (edge.source === nucleusId || edge.target === nucleusId) expect(Math.abs(a - b)).toBe(1)
+    }
+    expect(view.edges.some((edge) => edge.source === nucleusId && edge.target === viewerGroup.id)).toBe(true)
+    for (const member of viewerGroup.memberIds) {
+      expect(view.edges.some((edge) => edge.source === viewerGroup.id && edge.target === member && edge.role === 'spoke')).toBe(true)
+    }
+  })
+
+  it('keeps an expanded group\'s files inside its wedge on the next ring, centred on the half', () => {
+    const { index, nucleusId } = loadBusy()
+    const closed = fileNeighborhoodTree(index, nucleusId, new Set())
+    const viewerGroup = [...closed.packedUses.groups.values()].find((group) => group.folderLabel === 'viewer')!
+    const tree = fileNeighborhoodTree(index, nucleusId, new Set([viewerGroup.id]))
+    const nodes = [
+      { id: nucleusId, depth: 0 },
+      ...[...tree.depths.entries()].filter(([id]) => id !== nucleusId).map(([id, depth]) => ({ id, depth }))
+    ]
+    const laid = layoutRadialTree(nodes, nucleusId, tree.parentOf, {
+      splitHalves: { uses: tree.packedUses.ring1, usedBy: tree.packedUsedBy.ring1 }
+    })
+    const r1 = laid.radiiByDepth.get(1)!
+    const r2 = laid.radiiByDepth.get(2)!
+    expect(r2).toBeGreaterThan(r1)
+    expect(r2).toBeLessThanOrEqual(r1 * 2 + 1e-6)
+    const wedge = laid.sectors.get(viewerGroup.id)!
+    for (const member of viewerGroup.memberIds) {
+      const angle = laid.angles.get(member)!
+      expect(angle).toBeGreaterThanOrEqual(wedge.start - 1e-9)
+      expect(angle).toBeLessThanOrEqual(wedge.end + 1e-9)
+      expect(Math.cos(angle)).toBeGreaterThan(0)
+    }
+  })
+
+  it('arranges a half with groups off the poles and apart, expanded group centred', () => {
+    const ids = ['a', 'b', 'c', 'd', 'g1', 'g2', 'g3']
+    const isGroup = (id: string) => id.startsWith('g')
+    expect(arrangeSplitHalf(ids, isGroup)).toEqual(['a', 'g1', 'b', 'g2', 'c', 'g3', 'd'])
+    expect(arrangeSplitHalf(ids, isGroup, (id) => id === 'g3')).toEqual(['a', 'g1', 'b', 'g3', 'c', 'g2', 'd'])
+    expect(arrangeSplitHalf(['a', 'b'], isGroup)).toEqual(['a', 'b'])
+  })
+
+  it('names an npm import as a package, not a bare extension-like word', () => {
+    const nucleus = fileNode('src/App.vue')
+    const local = fileNode('src/util.ts')
+    const pkg = { id: 'ext:npm:vue', kind: 'external', ecosystem: 'npm', label: 'vue' }
+    const nodes: unknown[] = [nucleus, local, pkg]
+    const edge = (target: string, specifier: string) => ({
+      source: nucleus.id,
+      type: 'imports',
+      target,
+      provenance: 'EXTRACTED',
+      specifier,
+      span: { start: { line: 1, col: 1 }, end: { line: 1, col: 8 } }
+    })
+    const edges: unknown[] = [edge(local.id, './util'), edge(pkg.id, 'vue')]
+    const result = readGraph(JSON.stringify({
+      schemaVersion: '1.0.0',
+      summary: { nodes: nodes.length, edges: edges.length, files: 2 },
+      coverage: {
+        files: { discovered: 2, parsed: 2, partial: 0, failed: 0, skipped: 0, ignored: 0 },
+        byLanguage: [{ language: 'typescript', parsed: 2, partial: 0, failed: 0, skipped: 0 }],
+        skipped: [],
+        ignored: [],
+        unresolved: [],
+        accounting: { discovered: 2, accounted: 2 }
+      },
+      nodes,
+      edges
+    }))
+    if (!result.ok) throw new Error(JSON.stringify(result.error))
+    const view = buildOverview(indexGraph(result.graph), setFileNeighborhood(emptyViewState(), nucleus.id), defaultFilters())
+    expect(view.nodes.find((node) => node.id === pkg.id)).toMatchObject({ label: 'vue', roleCaption: 'npm package' })
+    expect(view.nodes.find((node) => node.id === local.id)?.roleCaption).toBe('uses')
   })
 })

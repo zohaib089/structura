@@ -8,7 +8,7 @@ import { createReadStream, existsSync, mkdirSync, statSync } from 'node:fs'
 import { extname, resolve } from 'node:path'
 import { chromium } from '../../../apps/web/node_modules/playwright/index.mjs'
 
-const outDir = '/workspace/e1-visual/round3'
+const outDir = process.env.E1_SHOT_DIR ?? '/workspace/e1-visual/round4'
 mkdirSync(outDir, { recursive: true })
 const webviewDir = resolve(import.meta.dirname, '../dist-webview')
 const graphPath = resolve('/workspace/e1-visual', 'graph.json')
@@ -97,7 +97,7 @@ const dashboardEntry = firstEntryPath(graph)
 console.log('Dashboard / project default entry:', dashboardEntry)
 const browser = await chromium.launch({ headless: true })
 
-async function render(name, viewport, state) {
+async function render(name, viewport, state, after) {
   const page = await browser.newPage({
     viewport,
     deviceScaleFactor: 1,
@@ -118,6 +118,11 @@ async function render(name, viewport, state) {
       await page.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur())
     }
     await page.waitForTimeout(1500)
+    if (after) {
+      await after(page)
+      await page.waitForTimeout(1800)
+      await page.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur())
+    }
     const measure = await page.evaluate(() => {
       const disc = document.querySelector('.is-nucleus .kind-mark--disc, .is-nucleus.kind-mark--disc, .overview-node.is-nucleus .kind-mark')
       const path = document.querySelector('.vue-flow__edge-path, .edge-role-spoke path, path.vue-flow__edge-path')
@@ -132,7 +137,22 @@ async function render(name, viewport, state) {
       }
       const switcher = document.querySelector('[data-testid="graph-entry-switcher"]')
       const selected = switcher instanceof HTMLSelectElement ? (switcher.selectedOptions[0]?.textContent ?? '') : null
-      const labels = [...document.querySelectorAll('.overview-node .label')].map((el) => el.textContent?.trim()).filter(Boolean)
+      const labels = [...document.querySelectorAll('.overview-node')].map((el) => (el.hasAttribute('data-label-hidden') ? '[hidden] ' : '') + (el.querySelector('.label')?.textContent?.trim() ?? ''))
+      const overlaps = []
+      const nodesEl = [...document.querySelectorAll('.overview-node')]
+      const shown = nodesEl.filter((n) => !n.hasAttribute('data-label-hidden')).map((n) => ({
+        name: n.querySelector('.label')?.textContent?.trim() ?? '',
+        box: n.querySelector(':scope > .aside')?.getBoundingClientRect()
+      })).filter((x) => x.box && x.box.width > 0)
+      const discs = nodesEl.map((n) => ({ name: n.querySelector('.label')?.textContent?.trim() ?? '', box: (n.querySelector('.kind-mark--disc') ?? n).getBoundingClientRect() }))
+      const hits = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
+      for (let i = 0; i < shown.length; i += 1) {
+        for (let j = i + 1; j < shown.length; j += 1) if (hits(shown[i].box, shown[j].box)) overlaps.push(`${shown[i].name} x ${shown[j].name}`)
+        for (const d of discs) if (d.name !== shown[i].name && hits(shown[i].box, d.box)) overlaps.push(`${shown[i].name} x disc ${d.name}`)
+        for (const c of document.querySelectorAll('.half-caption')) if (hits(shown[i].box, c.getBoundingClientRect())) overlaps.push(`${shown[i].name} x caption ${c.textContent}`)
+        const b = shown[i].box
+        if (b.left < 0 || b.right > window.innerWidth || b.top < 74) overlaps.push(`${shown[i].name} clipped/under bar`)
+      }
       const zoom = document.querySelector('.zoom')
       const z = zoom?.getBoundingClientRect()
       const bar = document.querySelector('.floating-bar')?.getBoundingClientRect()
@@ -144,6 +164,7 @@ async function render(name, viewport, state) {
         switcher: selected,
         optionCount: switcher instanceof HTMLSelectElement ? switcher.options.length : 0,
         labels,
+        overlaps,
         nodeCount: document.querySelectorAll('.overview-node').length,
         zoom: z ? { x: Math.round(z.left), y: Math.round(z.top), w: Math.round(z.width), h: Math.round(z.height), found: true } : { found: false },
         bar: bar ? { bottom: Math.round(bar.bottom) } : null,
@@ -174,11 +195,31 @@ const graphBase = {
   fileSummaries: {}
 }
 
+/** Open the largest folder group ("Show files") so its files appear on the next ring. */
+async function expandFirstGroup(page) {
+  const toggles = page.locator('[data-nbh-group="true"] .inside-toggle')
+  const count = await toggles.count()
+  let best = 0
+  let bestSize = -1
+  for (let i = 0; i < count; i += 1) {
+    const size = Number(await toggles.nth(i).locator('xpath=ancestor::*[@data-nbh-group="true"][1]').getAttribute('data-cluster-size'))
+    if (size > bestSize) { best = i; bestSize = size }
+  }
+  if (count > 0) await toggles.nth(best).click({ force: true })
+  const fit = page.getByRole('button', { name: /fit to view/i })
+  await page.waitForTimeout(800)
+  if (await fit.count()) await fit.click()
+}
+
+const only = process.env.E1_ONLY ? new Set(process.env.E1_ONLY.split(',')) : null
+
 const shots = [
   ['project-desktop', { width: 1280, height: 800 }, { ...graphBase, mode: 'project', focusPath: null }],
   ['project-narrow', { width: 380, height: 800 }, { ...graphBase, mode: 'project', focusPath: null }],
   ['file-desktop', { width: 1280, height: 800 }, { ...graphBase, mode: 'file', focusPath: filePath }],
   ['file-narrow', { width: 380, height: 800 }, { ...graphBase, mode: 'file', focusPath: filePath }],
+  ['file-desktop-expanded', { width: 1280, height: 800 }, { ...graphBase, mode: 'file', focusPath: filePath }, expandFirstGroup],
+  ['file-narrow-expanded', { width: 380, height: 800 }, { ...graphBase, mode: 'file', focusPath: filePath }, expandFirstGroup],
   ['state-empty-folder', { width: 1280, height: 800 }, { kind: 'empty-folder' }],
   ['state-loading', { width: 1280, height: 800 }, { kind: 'loading' }],
   ['state-error', { width: 1280, height: 800 }, { kind: 'error', message: 'The folder could not be read.' }],
@@ -187,8 +228,9 @@ const shots = [
 ]
 
 const allErrors = []
-for (const [name, viewport, state] of shots) {
-  const errors = await render(name, viewport, state)
+for (const [name, viewport, state, after] of shots) {
+  if (only && !only.has(name)) continue
+  const errors = await render(name, viewport, state, after)
   allErrors.push(...errors)
 }
 
