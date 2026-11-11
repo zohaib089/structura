@@ -24,9 +24,9 @@ import {
   registerWorkspaceInvitationRoutes,
   registerWorkspaceRoutes,
   type WorkspaceDatabase
-} from './lib/workspace-routes.js'
-import { registerWorkspaceScanRoutes } from './lib/scan-routes.js'
-import { recoverWorkspaceScansOnStartup } from './lib/scan-worker.js'
+} from './routes/workspace-routes.js'
+import { registerWorkspaceScanRoutes } from './routes/scan-routes.js'
+import { recoverWorkspaceScansOnStartup } from './workers/scan-worker.js'
 import { AuthRateLimiter, registerAuthRateLimits, sendTooManyRequests } from './services/auth-rate-limit.js'
 import { logger } from './logger.js'
 import { limitsFromEnv } from '@atlasmith/source-ingest'
