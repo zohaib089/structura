@@ -69,6 +69,10 @@ const props = defineProps<{
   } | null
   sections: NodeDetailSections | null
   findings: ViewerReportFinding[]
+  /** Back to the previous graph view (hidden when there is none). */
+  canBack?: boolean
+  backLabel?: string
+  backTooltip?: string
 }>()
 
 const emit = defineEmits<{
@@ -77,6 +81,7 @@ const emit = defineEmits<{
   navigate: [id: string]
   expandChild: [id: string]
   retrySummary: []
+  back: []
 }>()
 
 const severityChipLabel = computed(() => {
@@ -113,6 +118,17 @@ function onExpandChild(row: DirectoryChildRow) {
 
 <template>
   <section data-testid="node-detail" class="node-detail">
+    <button
+      v-if="canBack && backLabel"
+      type="button"
+      class="back"
+      data-testid="detail-back"
+      :aria-label="backTooltip || backLabel"
+      :title="backTooltip || backLabel"
+      @click="emit('back')"
+    >
+      <span aria-hidden="true">←</span> {{ backLabel }}
+    </button>
     <p v-if="!detail">{{ empty }}</p>
     <template v-else-if="detail.kind === 'contains' || detail.kind === 'bundle'">
       <h3 dir="ltr">{{ detail.title }}</h3>
@@ -385,4 +401,21 @@ function onExpandChild(row: DirectoryChildRow) {
   display: grid;
   gap: var(--space-1);
 }
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+  align-self: flex-start;
+  margin-block-end: var(--space-2, 8px);
+  min-block-size: 2rem;
+  padding-inline: var(--space-2, 8px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 6px);
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+.back:hover { background: var(--color-surface-raised); }
+.back:focus-visible { outline: 2px solid var(--color-focus, #f5b041); outline-offset: 2px; }
 </style>

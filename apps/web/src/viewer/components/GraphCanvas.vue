@@ -43,6 +43,10 @@ const props = defineProps<{
   labelPlacements?: Map<string, import('../label-collision').LabelPlacement>
   showAllCross?: boolean
   entryTag?: string
+  /** Back: viewport to put back instead of fitting. */
+  restoreView?: { token: number; viewport: { x: number; y: number; zoom: number } | null } | null
+  /** Expand / collapse: node to keep in place when the person had zoomed or panned. */
+  keepView?: { token: number; id: string } | null
 }>()
 
 const hoverId = ref<string | null>(null)
@@ -56,6 +60,18 @@ const emit = defineEmits<{
 }>()
 
 const root = ref<HTMLElement | null>(null)
+const fitFrame = ref<InstanceType<typeof FitFrame> | null>(null)
+const zoomPad = ref<InstanceType<typeof ZoomPad> | null>(null)
+
+function getViewport() {
+  return fitFrame.value?.getViewport() ?? null
+}
+function zoomBy(factor: number) {
+  zoomPad.value?.zoomBy(factor)
+}
+function fitNow() {
+  void fitFrame.value?.fit()
+}
 const entering = ref<Set<string>>(new Set())
 const delays = ref<Map<string, number>>(new Map())
 const canvasReady = ref(false)
@@ -226,7 +242,7 @@ watch(
   { immediate: true }
 )
 
-defineExpose({ root })
+defineExpose({ root, getViewport, zoomBy, fitNow })
 </script>
 
 <template>
@@ -306,13 +322,16 @@ defineExpose({ root })
       <Background variant="dots" :gap="24" :size="1" color="var(--graph-dot)" />
       <div class="vignette" aria-hidden="true"></div>
       <FitFrame
+        ref="fitFrame"
+        :restore="restoreView ?? null"
+        :keep-view="keepView ?? null"
         :signature="`${fitBump ?? 0}|${nodes.map((node) => node.id).join('\n')}|${(focusIds ?? []).join(',')}`"
         :duration="fitDuration ?? 0"
         :padding="fitPadding ?? 0.2"
         :ring-count="ringCount ?? 0"
         :focus-ids="focusIds ?? []"
       />
-      <ZoomPad :zoom-in="zoomIn" :zoom-out="zoomOut" :zoom-fit="zoomFit" />
+      <ZoomPad ref="zoomPad" :zoom-in="zoomIn" :zoom-out="zoomOut" :zoom-fit="zoomFit" :fit="fitNow" />
     </VueFlow>
   </div>
 </template>

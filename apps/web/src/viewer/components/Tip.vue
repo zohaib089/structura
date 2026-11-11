@@ -2,7 +2,8 @@
 import { onBeforeUnmount, ref } from 'vue'
 import { motionMs } from '../motion'
 
-defineProps<{ text: string }>()
+/** `start` puts the bubble beside the control (stacked pads), default is below. */
+defineProps<{ text: string; side?: 'below' | 'start' }>()
 
 const open = ref(false)
 let timer = 0
@@ -31,7 +32,7 @@ onBeforeUnmount(() => window.clearTimeout(timer))
 <template>
   <span class="tip" @mouseenter="show(false)" @mouseleave="hide" @focusin="show(true)" @focusout="hide" @keydown="onKey">
     <slot />
-    <span v-if="open" class="bubble" role="tooltip">{{ text }}</span>
+    <span v-if="open" class="bubble" :class="{ 'bubble--start': side === 'start' }" role="tooltip">{{ text }}</span>
   </span>
 </template>
 
@@ -51,5 +52,13 @@ onBeforeUnmount(() => window.clearTimeout(timer))
   box-shadow: var(--shadow-md);
   font-size: var(--font-size-xs);
   white-space: nowrap;
+  /* A tooltip never steals the click from the control under it. */
+  pointer-events: none;
+}
+.bubble--start {
+  inset-block-start: 50%;
+  inset-inline-start: auto;
+  inset-inline-end: calc(100% + var(--space-2));
+  transform: translateY(-50%);
 }
 </style>

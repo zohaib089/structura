@@ -196,3 +196,73 @@ test('phone dense: nucleus, ring-1 and findings labels stay visible without clip
   expect(report.unplacedFindings, `unplaced findings: ${report.unplacedFindings}`).toBeNull()
   expect(report.visible).toBeGreaterThanOrEqual(report.ring1)
 })
+
+/** Screen centre of a node's mark, and the current Vue Flow zoom. */
+async function markCentre(page: import('@playwright/test').Page, id: string) {
+  return page.evaluate((nodeId) => {
+    const mark = document.querySelector(`.overview-node[data-node-id="${nodeId}"] .kind-mark`)
+    const r = mark?.getBoundingClientRect()
+    const t = document.querySelector('.vue-flow__transformationpane')?.getAttribute('style') ?? ''
+    const zoom = Number(/scale\(([\d.]+)\)/.exec(t)?.[1] ?? NaN)
+    return r ? { x: (r.left + r.right) / 2, y: (r.top + r.bottom) / 2, zoom, transform: t } : null
+  }, id)
+}
+
+test('zoom buttons keep the selected node in place', async ({ page }) => {
+  await page.goto(pathToFileURL(builtHtml).href)
+  await page.locator('[data-testid="file-input"]').setInputFiles(resolve(root, 'fixtures/sample-graph.json'))
+  const canvas = page.locator('[data-testid="graph-canvas"]')
+  await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 20_000 })
+  const id = 'file:apps/web/main.ts'
+  await page.locator(`.overview-node[data-node-id="${id}"]`).click()
+  await page.waitForTimeout(600)
+  const before = await markCentre(page, id)
+  await page.getByTestId('zoom-in').click()
+  await page.waitForTimeout(500)
+  const zoomed = await markCentre(page, id)
+  expect(zoomed!.zoom).toBeGreaterThan(before!.zoom * 1.1)
+  expect(Math.abs(zoomed!.x - before!.x)).toBeLessThan(3)
+  expect(Math.abs(zoomed!.y - before!.y)).toBeLessThan(3)
+  await page.getByTestId('zoom-out').click()
+  await page.waitForTimeout(500)
+  const out = await markCentre(page, id)
+  expect(out!.zoom).toBeLessThan(zoomed!.zoom)
+  expect(Math.abs(out!.x - before!.x)).toBeLessThan(3)
+})
+
+test('Back in the detail drawer restores the previous graph view', async ({ page }) => {
+  await page.goto(pathToFileURL(builtHtml).href)
+  await page.locator('[data-testid="file-input"]').setInputFiles(resolve(root, 'fixtures/sample-graph.json'))
+  const canvas = page.locator('[data-testid="graph-canvas"]')
+  await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 20_000 })
+  const back = page.getByTestId('detail-back')
+  await expect(back).toHaveCount(0)
+
+  const first = 'file:apps/web/main.ts'
+  await page.locator(`.overview-node[data-node-id="${first}"]`).click()
+  await expect(page.locator('[data-testid="node-detail"]')).toContainText('main.ts')
+  await expect(back).toBeVisible()
+  await expect(back).toHaveAccessibleName('Back to the previous graph view')
+  await page.waitForTimeout(600)
+  await page.getByTestId('zoom-in').click()
+  await page.waitForTimeout(500)
+  const saved = await markCentre(page, first)
+
+  const second = 'file:packages/brand/brand.ts'
+  await page.locator(`.overview-node[data-node-id="${second}"]`).click()
+  await expect(page.locator(`.overview-node[data-node-id="${second}"]`)).toHaveAttribute('aria-selected', 'true')
+  await page.waitForTimeout(600)
+
+  await back.click()
+  await expect(page.locator(`.overview-node[data-node-id="${first}"]`)).toHaveAttribute('aria-selected', 'true')
+  await expect(page.locator('[data-testid="node-detail"]')).toContainText('main.ts')
+  await page.waitForTimeout(800)
+  const restored = await markCentre(page, first)
+  expect(Math.abs(restored!.zoom - saved!.zoom)).toBeLessThan(0.01)
+  expect(Math.abs(restored!.x - saved!.x)).toBeLessThan(3)
+  expect(Math.abs(restored!.y - saved!.y)).toBeLessThan(3)
+
+  // Keyboard: Alt+ArrowLeft goes back once more, to the first view (nothing selected).
+  await page.locator('body').press('Alt+ArrowLeft')
+  await expect(back).toHaveCount(0)
+})

@@ -5,7 +5,17 @@ import { RADIAL_RING_GAP } from '../overview'
 import { radialFitViewport, type FitBox } from '../radial-fit'
 import { isPhoneCanvas, markScaleForZoom } from '../graph-mark-scale'
 
-const props = defineProps<{ signature: string; duration?: number; padding?: number; ringCount?: number; focusIds?: string[] }>()
+const props = defineProps<{
+  signature: string
+  duration?: number
+  padding?: number
+  ringCount?: number
+  focusIds?: string[]
+  /** Back: put this exact viewport back instead of fitting (token changes per request). */
+  restore?: { token: number; viewport: { x: number; y: number; zoom: number } | null } | null
+  /** Expand / collapse: keep this node where it was on screen when the person had zoomed or panned. */
+  keepView?: { token: number; id: string } | null
+}>()
 const flow = useVueFlow()
 
 function overlays(canvas: HTMLElement) {
@@ -325,21 +335,111 @@ function declutter() {
   }
 }
 
+let fitGen = 0
+/** Signature already settled by a Back restore or a kept anchor: a late nodes-initialized must not refit it. */
+let settledSignature = ''
+let restoredToken = 0
+let keptToken = 0
+/** Viewport the last automatic fit produced; anything else means the person zoomed or panned. */
+let lastFit: { x: number; y: number; zoom: number } | null = null
+
+function sameViewport(a: { x: number; y: number; zoom: number } | null, b: { x: number; y: number; zoom: number }) {
+  return Boolean(a) && Math.abs(a!.x - b.x) < 1 && Math.abs(a!.y - b.y) < 1 && Math.abs(a!.zoom - b.zoom) < 1e-3
+}
+
+function markScreenPoint(id: string): { x: number; y: number } | null {
+  const canvas = flow.vueFlowRef.value
+  const mark = canvas?.querySelector(`.overview-node[data-node-id="${CSS.escape(id)}"] .kind-mark`)
+  if (!canvas || !mark) return null
+  const box = canvas.getBoundingClientRect()
+  const r = mark.getBoundingClientRect()
+  return { x: (r.left + r.right) / 2 - box.left, y: (r.top + r.bottom) / 2 - box.top }
+}
+
+/** Remember where a node sits before the graph changes (expand / collapse). */
+let anchorBefore: { token: number; id: string; point: { x: number; y: number } } | null = null
+watch(
+  () => props.keepView?.token,
+  () => {
+    const keep = props.keepView
+    if (!keep) return
+    const point = markScreenPoint(keep.id)
+    const moved = !sameViewport(lastFit, flow.viewport.value)
+    anchorBefore = point && moved ? { token: keep.token, id: keep.id, point } : null
+  },
+  { flush: 'sync' }
+)
+
 async function fit() {
+  settledSignature = ''
+  const gen = ++fitGen
+  const stale = () => gen !== fitGen
+  const restore = props.restore
+  if (restore && restore.token !== restoredToken && restore.viewport) {
+    // Consumed only once applied: a fit that starts meanwhile (nodes initialised) takes this branch too.
+    const viewport = restore.viewport
+    await frame(); await frame()
+    if (stale()) return
+    restoredToken = restore.token
+    await flow.setViewport(viewport, { duration: 0 })
+    settledSignature = props.signature
+    lastFit = null
+    await frame(); await frame()
+    if (stale()) return
+    declutter()
+    return
+  }
+  const anchor = anchorBefore
+  if (anchor && props.keepView?.token === anchor.token && anchor.token !== keptToken) {
+    await frame(); await frame()
+    if (stale()) return
+    keptToken = anchor.token
+    anchorBefore = null
+    const now = markScreenPoint(anchor.id)
+    if (now) {
+      const vp = flow.viewport.value
+      await flow.setViewport({ zoom: vp.zoom, x: vp.x + anchor.point.x - now.x, y: vp.y + anchor.point.y - now.y }, { duration: 0 })
+      settledSignature = props.signature
+      await frame(); await frame()
+      if (stale()) return
+      declutter()
+      return
+    }
+  }
   if (!fitOnce()) {
     void flow.fitView({ duration: 0, padding: props.padding ?? 0.2, maxZoom: 1.15 })
   }
   await frame(); await frame()
+  if (stale()) return
   fitOnce()
   await frame(); await frame()
+  if (stale()) return
   fitOnce()
   await frame(); await frame()
+  if (stale()) return
   declutter()
   // Second pass: fit the ring bounds plus only the labels that stay visible, then re-place labels.
   await frame()
+  if (stale()) return
   fitOnce()
   await frame(); await frame()
+  if (stale()) return
   declutter()
+  lastFit = { ...flow.viewport.value }
+}
+
+let fitQueued = false
+function queueFit() {
+  if (fitQueued) return
+  fitQueued = true
+  queueMicrotask(() => {
+    fitQueued = false
+    void fit()
+  })
+}
+
+function getViewport() {
+  return { ...flow.viewport.value }
 }
 
 watch(
@@ -357,10 +457,14 @@ watch(
   { immediate: true }
 )
 
-watch(() => props.signature, () => void fit())
+watch(() => props.signature, () => queueFit())
+watch(() => props.restore?.token, () => queueFit())
 flow.onNodeClick(() => scheduleDeclutter())
-flow.onNodesInitialized(() => void fit())
-defineExpose({ fit })
+flow.onNodesInitialized(() => {
+  if (props.signature === settledSignature) return
+  queueFit()
+})
+defineExpose({ fit, getViewport })
 </script>
 
 <template>

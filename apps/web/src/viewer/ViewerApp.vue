@@ -17,6 +17,7 @@ import { fitDurationMs } from './motion'
 import { formatByteSize } from './text'
 import type { GraphDocument, GraphError, GraphNode } from './graph-types'
 import { formatMessage, viewerMessages } from './messages'
+import { GraphHistory, type GraphSnapshot } from './graph-history'
 import {
   buildOverview,
   collapseView,
@@ -119,6 +120,49 @@ const selection = ref<{ kind: 'node' | 'edge'; id: string } | null>(null)
 const activeId = ref<string | null>(null)
 const announce = ref('')
 const viewState = ref<ViewState>(emptyViewState())
+const graphCanvas = ref<InstanceType<typeof GraphCanvas> | null>(null)
+/** Back stack of graph views: nucleus / selection, expanded nodes, focus and viewport. */
+const history = new GraphHistory()
+const canGoBack = ref(false)
+const restoreView = ref<{ token: number; viewport: GraphSnapshot['viewport'] } | null>(null)
+const keepView = ref<{ token: number; id: string } | null>(null)
+let viewToken = 0
+let rememberedThisTick = false
+
+/** Record the view the person is about to leave (once per user action). */
+function remember() {
+  if (!index.value || rememberedThisTick) return
+  rememberedThisTick = true
+  queueMicrotask(() => { rememberedThisTick = false })
+  history.push({
+    viewState: viewState.value,
+    selection: selection.value,
+    focus: focus.value,
+    viewport: graphCanvas.value?.getViewport() ?? null,
+    inspectorOpen: inspectorOpen.value
+  })
+  canGoBack.value = history.canGoBack
+}
+
+function forgetHistory() {
+  history.clear()
+  canGoBack.value = false
+}
+
+/** Back: put the previous graph view back (focus, selection, expanded nodes, zoom and pan). */
+function goBack() {
+  const previous = history.back()
+  canGoBack.value = history.canGoBack
+  if (!previous) return
+  restoreView.value = { token: ++viewToken, viewport: previous.viewport }
+  viewState.value = previous.viewState
+  focus.value = previous.focus
+  selection.value = previous.selection
+  if (previous.selection?.kind === 'node') activeId.value = previous.selection.id
+  inspectorOpen.value = previous.inspectorOpen
+  tab.value = 'details'
+  announce.value = messages.announceBack
+}
 const filters = ref<ViewFilters>(defaultFilters())
 const focus = ref<FocusQuery | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -229,11 +273,13 @@ function recenterOnNode(id: string, quiet = false) {
 }
 
 function onEntryChange(id: string) {
+  remember()
   recenterOnNode(id)
   selectNode(id, false)
 }
 
 function onRecentreDetail() {
+  remember()
   if (selection.value?.kind === 'node') recenterOnNode(selection.value.id)
 }
 
@@ -243,6 +289,7 @@ function onNavigateDetail(id: string) {
 
 function onExpandChildDetail(id: string) {
   if (!index.value) return
+  remember()
   const node = index.value.nodesById.get(id)
   if (node?.kind === 'directory' && !atCap.value) {
     viewState.value = expandView(viewState.value, id)
@@ -302,6 +349,7 @@ async function loadGraphDocument(document: GraphDocument) {
   ready.value = false
   selection.value = null
   focus.value = null
+  forgetHistory()
   viewState.value = emptyViewState()
   filters.value = defaultFilters()
   sample.value = false
@@ -317,7 +365,7 @@ function applyFocusPath(path: string | null) {
   const id = resolveGraphNodeId(index.value, path)
   if (!id) return
   viewState.value = pinPath(index.value, viewState.value, id)
-  selectNode(id, true)
+  selectNode(id, true, false)
   activeId.value = id
 }
 
@@ -345,6 +393,7 @@ async function openBlob(file: File, asSample: boolean) {
   ready.value = false
   selection.value = null
   focus.value = null
+  forgetHistory()
   viewState.value = emptyViewState()
   filters.value = defaultFilters()
   sample.value = asSample
@@ -405,6 +454,9 @@ function toggleNode(id: string) {
   if (!index.value || !overview.value) return
   const node = overview.value.nodes.find((item) => item.id === id)
   if (!node) return
+  remember()
+  // Keep the toggled node where it is on screen when the person has zoomed or panned.
+  keepView.value = { token: ++viewToken, id }
   if (node.more) {
     if (atCap.value) return
     viewState.value = expandView(viewState.value, id)
@@ -426,7 +478,8 @@ function toggleNode(id: string) {
   announce.value = format(messages.announceExpanded, { name: node.label, n: numbers.format(node.clusterSize) })
 }
 
-function selectNode(id: string, fromClick: boolean) {
+function selectNode(id: string, fromClick: boolean, record = fromClick) {
+  if (record) remember()
   if (fromClick) recenterOnNode(id, true)
   selection.value = { kind: 'node', id }
   activeId.value = id
@@ -444,12 +497,14 @@ function selectEdge(id: string) {
 
 function enterFocus() {
   if (!selection.value || selection.value.kind !== 'node' || !index.value) return
+  remember()
   focus.value = { nodeId: selection.value.id, direction: 'out', depth: 1, confirmedOnly: false }
   viewState.value = pinPath(index.value, viewState.value, selection.value.id)
 }
 
 function jumpTo(id: string) {
   if (!index.value) return
+  remember()
   viewState.value = pinPath(index.value, viewState.value, id)
   palette.value = false
   query.value = ''
@@ -685,6 +740,18 @@ function onKeydown(event: KeyboardEvent) {
     return
   }
   if (typing) return
+  if (event.altKey && event.key === 'ArrowLeft') {
+    if (canGoBack.value) {
+      event.preventDefault()
+      goBack()
+    }
+    return
+  }
+  if (!event.ctrlKey && !event.metaKey && !event.altKey && (event.key === '+' || event.key === '=' || event.key === '-')) {
+    event.preventDefault()
+    graphCanvas.value?.zoomBy(event.key === '-' ? 1 / 1.25 : 1.25)
+    return
+  }
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
     event.preventDefault()
     palette.value = true
@@ -780,7 +847,7 @@ const snippet = 'layers: []\nrules: []\n'
 </script>
 
 <template>
-  <div class="viewer viewer-radial" :class="{ 'viewer-embedded': embedded }" :dir="direction">
+  <div class="viewer viewer-radial" :class="{ 'viewer-embedded': embedded, 'is-inspector-open': inspectorOpen }" :dir="direction">
     <a v-if="!embedded" class="skip" href="#graph-canvas">{{ messages.skip }}</a>
     <header v-if="!embedded" class="topbar" role="banner">
       <BrandMark :size="24" />
@@ -916,6 +983,9 @@ const snippet = 'layers: []\nrules: []\n'
       </p>
       <GraphCanvas
         v-if="overview && graph && graph.nodes.length > 0"
+        ref="graphCanvas"
+        :restore-view="restoreView"
+        :keep-view="keepView"
         :nodes="overview.nodes"
         :edges="overview.edges"
         :positions="overview.positions"
@@ -1027,6 +1097,10 @@ const snippet = 'layers: []\nrules: []\n'
         @navigate="onNavigateDetail"
         @expand-child="onExpandChildDetail"
         @retry-summary="retryFileSummary"
+        :can-back="canGoBack"
+        :back-label="messages.backLabel"
+        :back-tooltip="messages.backTooltip"
+        @back="goBack"
       />
       <CoveragePanel
         v-else-if="tab === 'coverage'"
@@ -1120,6 +1194,8 @@ const snippet = 'layers: []\nrules: []\n'
   display: block;
   position: relative;
   overflow: hidden;
+  /* clip, not just hide: focus / scrollIntoView must never scroll the app shell and shift the graph. */
+  overflow: clip;
   isolation: isolate;
   block-size: 100vh;
   background:
@@ -1179,6 +1255,14 @@ const snippet = 'layers: []\nrules: []\n'
 .viewer.viewer-radial .rail.is-open,
 .viewer.viewer-radial .inspector.is-open {
   transform: none;
+}
+/* The open drawer overlays the stage: move the zoom controls beside it so they stay usable. */
+.viewer.viewer-radial.is-inspector-open :deep(.vue-flow__panel.zoom) {
+  margin-inline-end: calc(min(var(--viewer-inspector-width), 92vw) + var(--space-3));
+  transition: margin var(--dur-2) var(--easing-standard);
+}
+@media (prefers-reduced-motion: reduce) {
+  .viewer.viewer-radial.is-inspector-open :deep(.vue-flow__panel.zoom) { transition: none; }
 }
 .viewer.viewer-radial .status {
   display: flex;
