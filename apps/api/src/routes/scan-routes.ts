@@ -5,15 +5,15 @@ import {
   assertAllowlistedGitHttpsUrl,
   limitsFromEnv
 } from '@atlasmith/source-ingest'
-import { serializeScan } from './scan-contracts.js'
+import { serializeScan } from '../workers/scan-contracts.js'
 import {
   abortRunningWorkspaceScan,
   encodeUploadPayload,
   enqueueWorkspaceScan,
   removeQueuedWorkspaceScan
-} from './scan-worker.js'
-import { loadScanFileMeta } from './scan-file-meta.js'
-import type { WorkspaceDatabase } from './workspace-routes.js'
+} from '../workers/scan-worker.js'
+import { loadScanFileMeta } from '../services/scan-file-meta.js'
+import type { WorkspaceDatabase } from '../db/types.js'
 
 function readRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null

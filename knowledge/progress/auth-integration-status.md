@@ -40,7 +40,7 @@ Resend requires a verified sending domain/address. For local Mailpit, leave thes
 ## Implementation references
 
 - API routes, password hashing, code expiration, and session records: `apps/api/src/index.ts`
-- Reusable HTML/text templates and SMTP sender: `apps/api/src/lib/auth-email.ts`
+- Reusable HTML/text templates and SMTP sender: `apps/api/src/services/auth-email.ts`
 - Frontend API client and session persistence: `apps/web/src/services/auth.ts`
 - Auth forms including password-reset completion: `apps/web/src/views/AuthView.vue`
 - Local PostgreSQL, Mailpit, API, and frontend services: `docker-compose.yml`

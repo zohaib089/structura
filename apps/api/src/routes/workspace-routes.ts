@@ -1,24 +1,14 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import type { FastifyInstance } from 'fastify'
 
-export interface WorkspaceQueryResult {
-  rows: Array<Record<string, unknown>>
-  rowCount?: number | null
-}
+import type { WorkspaceDatabase } from '../db/types.js'
 
-export type WorkspaceQuery = (
-  text: string,
-  params?: unknown[]
-) => Promise<WorkspaceQueryResult>
-
-export type WorkspaceTransaction = <T>(
-  operation: (query: WorkspaceQuery) => Promise<T>
-) => Promise<T>
-
-export interface WorkspaceDatabase {
-  query: WorkspaceQuery
-  transaction: WorkspaceTransaction
-}
+export type {
+  WorkspaceQueryResult,
+  WorkspaceQuery,
+  WorkspaceTransaction,
+  WorkspaceDatabase
+} from '../db/types.js'
 
 export interface WorkspaceInvitationDependencies {
   frontendUrl: string

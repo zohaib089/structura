@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import Fastify from 'fastify'
 import { registerWorkspaceScanRoutes } from './scan-routes.js'
-import type { WorkspaceDatabase, WorkspaceQuery } from './workspace-routes.js'
+import type { WorkspaceDatabase, WorkspaceQuery } from '../db/types.js'
 
 function createScanApi() {
   const scans = new Map<string, Record<string, unknown>>()

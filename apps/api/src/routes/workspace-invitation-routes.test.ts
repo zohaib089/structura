@@ -2,12 +2,12 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createHash } from 'node:crypto'
 import Fastify from 'fastify'
-import {
-  registerWorkspaceInvitationRoutes,
-  type WorkspaceDatabase,
-  type WorkspaceQuery,
-  type WorkspaceTransaction
-} from './workspace-routes.js'
+import { registerWorkspaceInvitationRoutes } from './workspace-routes.js'
+import type {
+  WorkspaceDatabase,
+  WorkspaceQuery,
+  WorkspaceTransaction
+} from '../db/types.js'
 
 function createInvitationApi(options: {
   role?: string

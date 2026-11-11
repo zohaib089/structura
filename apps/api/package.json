@@ -10,7 +10,7 @@
     "pretypecheck": "npm --prefix ../../packages/engine run build && npm --prefix ../../packages/source-ingest run build && npm --prefix ../../packages/scan-analysis run build",
     "start": "node dist/index.js",
     "pretest": "npm --prefix ../../packages/engine run build && npm --prefix ../../packages/source-ingest run build && npm --prefix ../../packages/scan-analysis run build",
-    "test": "tsx --test src/lib/*.test.ts"
+    "test": "tsx --test \"src/**/*.test.ts\""
   },
   "keywords": [
     "structura",
