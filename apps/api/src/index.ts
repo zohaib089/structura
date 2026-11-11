@@ -17,7 +17,7 @@ import {
   sendAuthEmail,
   verificationEmail,
   workspaceInvitationEmail
-} from './lib/auth-email.js'
+} from './services/auth-email.js'
 import { closeDatabase, query, testDatabaseConnection, withTransaction } from './db/db.js'
 import { applyMigrations } from './db/migrations.js'
 import {
@@ -27,7 +27,7 @@ import {
 } from './lib/workspace-routes.js'
 import { registerWorkspaceScanRoutes } from './lib/scan-routes.js'
 import { recoverWorkspaceScansOnStartup } from './lib/scan-worker.js'
-import { AuthRateLimiter, registerAuthRateLimits, sendTooManyRequests } from './lib/auth-rate-limit.js'
+import { AuthRateLimiter, registerAuthRateLimits, sendTooManyRequests } from './services/auth-rate-limit.js'
 import { logger } from './logger.js'
 import { limitsFromEnv } from '@atlasmith/source-ingest'
 
