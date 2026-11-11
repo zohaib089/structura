@@ -65,6 +65,10 @@ import GraphSourcePicker from './components/GraphSourcePicker.vue'
 import NodeDetail, { type FileSummaryState } from './components/NodeDetail.vue'
 import SearchPalette from './components/SearchPalette.vue'
 
+const emit = defineEmits<{
+  openFile: [path: string]
+}>()
+
 const props = withDefaults(
   defineProps<{
     embedded?: boolean
@@ -77,6 +81,11 @@ const props = withDefaults(
     pathSeverityCounts?: Map<string, SeverityCounts>
     scanFindings?: ViewerReportFinding[]
     loadFileSummary?: (path: string) => Promise<string | null>
+    /**
+     * When false, applying focusPath selects the node without opening the inspector.
+     * Default true keeps the dashboard and web app behaviour unchanged.
+     */
+    openInspectorOnFocus?: boolean
   }>(),
   {
     embedded: false,
@@ -86,7 +95,8 @@ const props = withDefaults(
     focusPath: null,
     pathSeverityCounts: undefined,
     scanFindings: () => [],
-    loadFileSummary: undefined
+    loadFileSummary: undefined,
+    openInspectorOnFocus: true
   }
 )
 
@@ -388,7 +398,8 @@ function applyFocusPath(path: string | null) {
   const id = resolveGraphNodeId(index.value, path)
   if (!id) return
   viewState.value = pinPath(index.value, viewState.value, id)
-  selectNode(id, true, false)
+  viewState.value = setNucleus(viewState.value, id)
+  selectNode(id, props.openInspectorOnFocus, false)
   activeId.value = id
 }
 
@@ -517,6 +528,21 @@ function selectNode(id: string, fromClick: boolean, record = fromClick) {
   if (fromClick) inspectorOpen.value = true
   const node = overview.value?.nodes.find((item) => item.id === id)
   announce.value = format(messages.announceSelected, { name: node?.label || id, path: node?.path || '' })
+}
+
+function filePathForNode(id: string): string | null {
+  const node = index.value?.nodesById.get(id)
+  if (!node) return null
+  if (node.kind === 'file' && 'path' in node) return node.path
+  if (node.kind === 'symbol' && 'file' in node) return node.file
+  return null
+}
+
+/** User click on the canvas. Optional openFile is a no-op when nothing listens (web app). */
+function onCanvasSelect(id: string) {
+  selectNode(id, true)
+  const path = filePathForNode(id)
+  if (path) emit('openFile', path)
 }
 
 function selectEdge(id: string) {
