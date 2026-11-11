@@ -8,7 +8,7 @@ import { createReadStream, existsSync, mkdirSync, statSync } from 'node:fs'
 import { extname, resolve } from 'node:path'
 import { chromium } from '../../../apps/web/node_modules/playwright/index.mjs'
 
-const outDir = '/workspace/e1-visual/round2'
+const outDir = '/workspace/e1-visual/round3'
 mkdirSync(outDir, { recursive: true })
 const webviewDir = resolve(import.meta.dirname, '../dist-webview')
 const graphPath = resolve('/workspace/e1-visual', 'graph.json')
@@ -149,7 +149,8 @@ async function render(name, viewport, state) {
         bar: bar ? { bottom: Math.round(bar.bottom) } : null,
         tips: tips ? { x: Math.round(tips.left), y: Math.round(tips.top), w: Math.round(tips.width) } : null,
         fitReserve: document.querySelector('.vue-flow')?.getAttribute('data-fit-reserve'),
-        fitVp: document.querySelector('.vue-flow')?.getAttribute('data-fit-vp')
+        fitVp: document.querySelector('.vue-flow')?.getAttribute('data-fit-vp'),
+        transform: document.querySelector('.vue-flow__viewport')?.getAttribute('style') ?? document.querySelector('.vue-flow__transformationpane')?.getAttribute('style') ?? null
       }
     })
     console.log(`${name} measure:`, JSON.stringify(measure))

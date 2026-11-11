@@ -12,6 +12,15 @@ import {
   type LabelSide
 } from './label-collision'
 export type { LabelPlacement, LabelSide }
+import {
+  FILE_SPLIT_POLE_GAP,
+  FILE_SPLIT_TOP_GAP,
+  fileNeighborhoodTree,
+  isNeighborhoodGroupId,
+  type HalfRingCaption,
+  type NeighborhoodGroup
+} from './file-neighborhood'
+export { FILE_NEIGHBORHOOD_GROUP_THRESHOLD, isNeighborhoodGroupId } from './file-neighborhood'
 
 export const RADIAL_RING_GAP = 220
 /** Minimum arc (flow px) between neighbours on one ring, so compact marks + labels do not collide. */
@@ -78,6 +87,8 @@ export interface ViewState {
    * Default `out` (what the nucleus imports). File focus uses `both`.
    */
   ringWalk?: RingWalk
+  /** Embedded file neighbourhood: split uses / used-by and group oversized sides. Web app stays unset. */
+  fileSplit?: boolean
 }
 
 /** Walk direction for dependencyRingTree. */
@@ -108,6 +119,8 @@ export interface OverviewNodeModel {
   roleCaption?: string
   /** Direct contains children, used for the "N inside" affordance. */
   childCount?: number
+  /** Embedded group discs: "Show files" / "Hide files". */
+  expandCaption?: string
 }
 
 export type EdgeVisual = 'extracted' | 'inferred' | 'unresolved' | 'mixed'
@@ -158,6 +171,8 @@ export interface OverviewModel {
   ringRadii: number[]
   /** Resolved label side / display text / nudged angle after collision pass. */
   labelPlacements: Map<string, LabelPlacement>
+  /** File-neighbourhood half-ring titles ("Uses", "Used by") with counts. */
+  halfCaptions?: HalfRingCaption[]
 }
 
 export const LAYOUT_COLUMN = 280
@@ -175,6 +190,7 @@ export function setNucleus(state: ViewState, nucleusId: string): ViewState {
   }
   next.maxRadialRing = next.maxRadialRing ?? RADIAL_DEFAULT_MAX_RING
   next.ringWalk = 'out'
+  next.fileSplit = undefined
   return next
 }
 
@@ -184,6 +200,7 @@ export function setFileNeighborhood(state: ViewState, nucleusId: string): ViewSt
   next.nucleusId = nucleusId
   next.maxRadialRing = FILE_NEIGHBORHOOD_MAX_RING
   next.ringWalk = 'both'
+  next.fileSplit = true
   next.pinned = []
   return next
 }
@@ -194,6 +211,7 @@ export function setFolderOverview(state: ViewState, nucleusId = 'dir:.'): ViewSt
   next.nucleusId = nucleusId
   next.maxRadialRing = 1
   next.ringWalk = 'contains'
+  next.fileSplit = undefined
   next.pinned = []
   next.expanded = []
   return next
@@ -493,10 +511,17 @@ export function buildOverview(
   const maxRing = state.maxRadialRing ?? RADIAL_DEFAULT_MAX_RING
   const walk = state.ringWalk ?? 'out'
   const expanded = new Set(state.expanded)
-  const { depths: ringDepths, parentOf: treeParent } =
-    walk === 'contains'
+  const fileSplit = Boolean(state.fileSplit)
+  const fileNbh = fileSplit ? fileNeighborhoodTree(index, nucleusId, expanded) : null
+  const { depths: ringDepths, parentOf: treeParent } = fileNbh
+    ? { depths: fileNbh.depths, parentOf: fileNbh.parentOf }
+    : walk === 'contains'
       ? containsRingTree(index, nucleusId, maxRing, expanded)
       : dependencyRingTree(index, nucleusId, filters, maxRing, walk)
+  const groups = new Map<string, NeighborhoodGroup>([
+    ...(fileNbh?.packedUses.groups ?? new Map()),
+    ...(fileNbh?.packedUsedBy.groups ?? new Map())
+  ])
   const pinned = new Set(state.pinned)
   const nodes: OverviewNodeModel[] = []
   const visible = new Set<string>()
@@ -511,6 +536,7 @@ export function buildOverview(
       const members = index.clusterMembers.get(id) ?? []
       return members.some((member) => passes(member))
     }
+    if (isNeighborhoodGroupId(id)) return true
     const node = index.nodesById.get(id)
     if (!node) return false
     if (filters.kinds && !filters.kinds.includes(node.kind)) return false
@@ -532,7 +558,11 @@ export function buildOverview(
     if (nodes.length >= HARD_NODE_CAP) break
     if (!passes(id) && id !== nucleusId) continue
     if (visible.has(id)) continue
-    nodes.push(nodeModel(index, id, depth, expanded.has(id), focusIds))
+    nodes.push(
+      groups.has(id)
+        ? neighborhoodGroupModel(groups.get(id)!, depth, expanded.has(id), focusIds)
+        : nodeModel(index, id, depth, expanded.has(id), focusIds)
+    )
     visible.add(id)
   }
   for (const pinnedId of pinned) {
@@ -557,8 +587,8 @@ export function buildOverview(
       }
       continue
     }
-    const source = representative(index, edge.source, visible, state)
-    const target = representative(index, edge.target, visible, state)
+    const source = representative(index, edge.source, visible, state, fileNbh?.memberToGroup)
+    const target = representative(index, edge.target, visible, state, fileNbh?.memberToGroup)
     if (!source || !target) {
       hiddenEdges += 1
       continue
@@ -570,7 +600,7 @@ export function buildOverview(
     addBundle(bundles, source, target, edge, false, index)
   }
 
-  if (walk === 'contains') {
+  if (walk === 'contains' || fileSplit) {
     for (const [child, parent] of treeParent) {
       if (!visible.has(child) || !visible.has(parent)) continue
       const exists = [...bundles.values()].some(
@@ -598,12 +628,17 @@ export function buildOverview(
   for (const node of nodes) node.internalEdges = internal.get(node.id) ?? 0
   decorateOverviewNodes(index, nodes, nucleusId, walk)
 
-  let edgeModels = [...bundles.values()].map((b) => toEdgeModel(b, ringDepths, treeParent, walk === 'contains'))
+  let edgeModels = [...bundles.values()].map((b) => toEdgeModel(b, ringDepths, treeParent, walk === 'contains' || fileSplit))
   edgeModels.sort((a, b) => b.weight - a.weight || compareUtf16(a.id, b.id))
   const edgesOmittedByCap = Math.max(0, edgeModels.length - HARD_EDGE_CAP)
   edgeModels = edgeModels.slice(0, HARD_EDGE_CAP)
 
-  const laid = layoutRadialTree(nodes, nucleusId, treeParent)
+  const laid = layoutRadialTree(nodes, nucleusId, treeParent, {
+    topGap: walk === 'contains',
+    splitHalves: fileNbh
+      ? { uses: fileNbh.packedUses.ring1, usedBy: fileNbh.packedUsedBy.ring1 }
+      : undefined
+  })
   const ringRadii = [...laid.radiiByDepth.entries()]
     .filter(([depth]) => depth > 0)
     .sort((a, b) => a[0] - b[0])
@@ -616,7 +651,8 @@ export function buildOverview(
     edgesOmittedByCap,
     positions: laid.positions,
     ringRadii,
-    labelPlacements: laid.labelPlacements
+    labelPlacements: laid.labelPlacements,
+    halfCaptions: fileNbh?.halfCaptions
   }
 }
 
@@ -768,7 +804,10 @@ function edgeLabel(visual: EdgeVisual, weight: number): string {
   return weight > 1 ? String(weight) : ''
 }
 
-function representative(index: GraphIndex, id: string, visible: Set<string>, state: ViewState): string | null {
+function representative(index: GraphIndex, id: string, visible: Set<string>, state: ViewState, memberToGroup?: Map<string, string>): string | null {
+  if (visible.has(id)) return id
+  const grouped = memberToGroup?.get(id)
+  if (grouped && visible.has(grouped)) return grouped
   let current: string | undefined = id
   const seen = new Set<string>()
   while (current && !seen.has(current)) {
@@ -796,6 +835,31 @@ function isRootPagedOut(index: GraphIndex, state: ViewState, id: string): boolea
   const cap = state.revealed.root ?? INITIAL_NODE_CAP
   const indexInList = index.topLevel.indexOf(id)
   return indexInList >= cap && !state.pinned.includes(id)
+}
+
+function neighborhoodGroupModel(
+  group: NeighborhoodGroup,
+  depth: number,
+  expanded: boolean,
+  focusIds: ReadonlySet<string> | null
+): OverviewNodeModel {
+  return {
+    id: group.id,
+    label: group.label,
+    kind: 'directory',
+    cluster: true,
+    clusterSize: group.memberIds.length,
+    expanded,
+    depth,
+    path: group.folder,
+    more: false,
+    remainder: 0,
+    internalEdges: 0,
+    dimmed: focusIds !== null && !focusIds.has(group.id),
+    childCount: group.memberIds.length,
+    roleCaption: group.folderLabel,
+    expandCaption: expanded ? 'Hide files' : 'Show files'
+  }
 }
 
 export function nodeModel(
@@ -907,7 +971,8 @@ function cloneState(state: ViewState): ViewState {
     nucleusId: state.nucleusId,
     maxRadialRing: state.maxRadialRing,
     layout: state.layout,
-    ringWalk: state.ringWalk
+    ringWalk: state.ringWalk,
+    fileSplit: state.fileSplit
   }
 }
 
@@ -1058,10 +1123,21 @@ export function layoutRadialNodes(
  * - one shared radius per BFS ring, sized so neighbours clear estimated label width
  * - positions are Vue Flow top-left at (R·cos, R·sin); disc centres sit ON guides (origin + RADIAL_DISC_OFFSET)
  */
+export interface RadialLayoutOptions {
+  /** Leave a gap at 12 o'clock so no disc sits under a top toolbar. */
+  topGap?: boolean
+  /** Place these ring-1 ids on the right (uses) and left (used by) halves. */
+  splitHalves?: { uses: string[]; usedBy: string[] }
+}
+
+/** Open wedge at 12 o'clock on contains (folder) rings so discs and labels clear a top toolbar. */
+export const CONTAINS_TOP_GAP = (50 * Math.PI) / 180
+
 export function layoutRadialTree(
   nodes: { id: string; depth: number; label?: string }[],
   nucleusId: string,
-  treeParent: Map<string, string> = new Map()
+  treeParent: Map<string, string> = new Map(),
+  options: RadialLayoutOptions = {}
 ): {
   positions: Map<string, { x: number; y: number }>
   angles: Map<string, number>
@@ -1124,36 +1200,52 @@ export function layoutRadialTree(
   }
 
   const TAU = Math.PI * 2
+  const assignIn = (id: string, start: number, end: number) => {
+    sectors.set(id, { start, end })
+    angles.set(id, (start + end) / 2)
+    const kids = children.get(id) ?? []
+    if (kids.length === 0) return
+    const total = kids.reduce((sum, k) => sum + leafCount(k), 0) || 1
+    let c = start
+    for (const k of kids) {
+      const s = ((end - start) * leafCount(k)) / total
+      assignIn(k, c, c + s)
+      c += s
+    }
+  }
   if (visible.has(nucleusId)) {
     const ring1 = children.get(nucleusId) ?? []
     if (ring1.length === 0) {
       assign(nucleusId, -Math.PI / 2, -Math.PI / 2 + TAU)
+    } else if (options.splitHalves) {
+      const topGap = FILE_SPLIT_TOP_GAP
+      const botGap = FILE_SPLIT_POLE_GAP
+      sectors.set(nucleusId, { start: -Math.PI / 2, end: -Math.PI / 2 + TAU })
+      angles.set(nucleusId, -Math.PI / 2)
+      const place = (ids: string[], start: number, end: number) => {
+        if (ids.length === 0) return
+        const span = (end - start) / ids.length
+        ids.forEach((id, index) => {
+          const a0 = start + index * span
+          assignIn(id, a0, a0 + span)
+        })
+      }
+      place(options.splitHalves.uses, -Math.PI / 2 + topGap, Math.PI / 2 - botGap)
+      place(options.splitHalves.usedBy, Math.PI / 2 + botGap, (3 * Math.PI) / 2 - topGap)
     } else {
       // Ring-1: leaf weights with a ~20° floor so tiny leaves do not bunch together.
       const weights = ring1.map((kid) => leafCount(kid))
-      const spans = sharesWithFloor(weights, TAU, RADIAL_RING1_MIN_WEDGE)
-      const firstSpan = spans[0] ?? TAU / ring1.length
-      const start0 = -Math.PI / 2 - firstSpan / 2
-      sectors.set(nucleusId, { start: start0, end: start0 + TAU })
+      const gap = options.topGap ? CONTAINS_TOP_GAP : 0
+      const spans = sharesWithFloor(weights, TAU - gap, RADIAL_RING1_MIN_WEDGE)
+      const firstSpan = spans[0] ?? (TAU - gap) / ring1.length
+      // topGap: leave an open wedge centred at 12 o'clock so no disc sits under a top toolbar.
+      const start0 = options.topGap ? -Math.PI / 2 + gap / 2 : -Math.PI / 2 - firstSpan / 2
+      sectors.set(nucleusId, { start: start0, end: start0 + TAU - gap })
       angles.set(nucleusId, -Math.PI / 2)
       let cursor = start0
       for (let i = 0; i < ring1.length; i += 1) {
         const kid = ring1[i]!
         const span = spans[i]!
-        // Recursively assign this child's subtree inside its floored wedge.
-        const assignIn = (id: string, start: number, end: number) => {
-          sectors.set(id, { start, end })
-          angles.set(id, (start + end) / 2)
-          const kids = children.get(id) ?? []
-          if (kids.length === 0) return
-          const total = kids.reduce((sum, k) => sum + leafCount(k), 0) || 1
-          let c = start
-          for (const k of kids) {
-            const s = ((end - start) * leafCount(k)) / total
-            assignIn(k, c, c + s)
-            c += s
-          }
-        }
         assignIn(kid, cursor, cursor + span)
         cursor += span
       }

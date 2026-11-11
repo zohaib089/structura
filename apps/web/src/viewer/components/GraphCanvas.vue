@@ -57,6 +57,7 @@ const props = defineProps<{
   hideOverlappingRing1?: boolean
   insideOpenCaption?: string
   insideCloseCaption?: string
+  halfCaptions?: import('../file-neighborhood').HalfRingCaption[]
 }>()
 
 const hoverId = ref<string | null>(null)
@@ -293,6 +294,7 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
           :key="(guideProps.data?.radii ?? []).map((r: number) => Math.round(r)).join('-')"
           :ring-count="guideProps.data?.ringCount ?? 0"
           :radii="guideProps.data?.radii ?? []"
+          :half-captions="halfCaptions"
         />
       </template>
       <template #node-overview="nodeProps">
@@ -326,6 +328,7 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
           :child-count="nodeProps.data?.childCount"
           :inside-open-caption="insideOpenCaption"
           :inside-close-caption="insideCloseCaption"
+          :expand-caption="nodeProps.data?.expandCaption"
           @select="emit('select', nodeProps.id)"
           @toggle="emit('toggle', nodeProps.id)"
         />

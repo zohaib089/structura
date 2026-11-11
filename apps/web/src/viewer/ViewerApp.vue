@@ -560,6 +560,7 @@ function selectNode(id: string, fromClick: boolean, record = fromClick) {
   if (fromClick) inspectorOpen.value = true
   const node = overview.value?.nodes.find((item) => item.id === id)
   announce.value = format(messages.announceSelected, { name: node?.label || id, path: node?.path || '' })
+  if (fromClick && props.fileNeighborhood && node?.expandCaption) toggleNode(id)
 }
 
 function filePathForNode(id: string): string | null {
@@ -1103,6 +1104,7 @@ const snippet = 'layers: []\nrules: []\n'
         :nucleus-id="nucleusId"
         :ring-count="ringCount"
         :ring-radii="overview.ringRadii"
+        :half-captions="overview.halfCaptions"
         :label-placements="overview.labelPlacements"
         :fit-bump="fitSignature"
         :show-all-cross="showAllCross"

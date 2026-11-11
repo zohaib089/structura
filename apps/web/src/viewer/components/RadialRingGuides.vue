@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { RADIAL_RING_GAP } from '../overview'
+import type { HalfRingCaption } from '../file-neighborhood'
 
 const props = defineProps<{
   ringCount: number
   /** Actual ring radii from the layout (rings grow with population); falls back to the fixed gap. */
   radii?: number[]
+  halfCaptions?: HalfRingCaption[]
 }>()
 
 const rings = computed(() => {
@@ -17,11 +19,33 @@ const rings = computed(() => {
   for (let ring = 1; ring <= n; ring += 1) list.push(ring * RADIAL_RING_GAP)
   return list
 })
+
+const captionMarks = computed(() => {
+  const radius = rings.value[0]
+  if (!radius || !props.halfCaptions?.length) return []
+  const r = radius * 0.58
+  return props.halfCaptions.map((caption) => ({
+    ...caption,
+    x: r * Math.cos(caption.angle),
+    y: r * Math.sin(caption.angle),
+    anchor: 'middle',
+    text: `${caption.title} · ${caption.count}`
+  }))
+})
 </script>
 
 <template>
   <svg class="ring-guides" aria-hidden="true" :data-radii="rings.join(',')">
     <circle v-for="radius in rings" :key="radius" :r="radius" cx="0" cy="0" class="ring" />
+    <text
+      v-for="mark in captionMarks"
+      :key="mark.side"
+      class="half-caption"
+      :x="mark.x"
+      :y="mark.y"
+      :text-anchor="mark.anchor"
+      dominant-baseline="middle"
+    >{{ mark.text }}</text>
   </svg>
 </template>
 
@@ -51,5 +75,16 @@ const rings = computed(() => {
 .ring:nth-child(2) {
   stroke-dasharray: 4 6;
   opacity: 0.85;
+}
+.half-caption {
+  fill: var(--color-text-secondary, #c5d0e0);
+  font-size: calc(11px * var(--graph-mark-scale, 1));
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  paint-order: stroke fill;
+  stroke: var(--color-surface, #07111f);
+  stroke-width: calc(4px * var(--graph-mark-scale, 1));
+  stroke-linejoin: round;
 }
 </style>

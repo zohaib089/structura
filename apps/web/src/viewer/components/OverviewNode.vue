@@ -42,6 +42,7 @@ const props = defineProps<{
   childCount?: number
   insideOpenCaption?: string
   insideCloseCaption?: string
+  expandCaption?: string
 }>()
 
 const emit = defineEmits<{ select: []; toggle: [] }>()
@@ -54,6 +55,7 @@ const disc = computed(() => {
 })
 
 const insideLabel = computed(() => {
+  if (props.expandCaption) return props.expandCaption
   if (!props.plainMarks || !props.cluster || props.nucleus || props.more) return ''
   if (!props.insideOpenCaption) return ''
   const n = props.childCount ?? props.clusterSize
@@ -122,6 +124,7 @@ function onSpace(event: KeyboardEvent) {
     :data-node-id="id"
     :data-node-kind="kind"
     :data-depth="depth ?? 0"
+    :data-nbh-group="expandCaption ? 'true' : undefined"
     :data-has-findings="topSeverity ? 'true' : undefined"
     :data-cluster-size="cluster ? clusterSize : undefined"
     :data-expanded="cluster ? (expanded ? 'true' : 'false') : undefined"
