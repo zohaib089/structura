@@ -71,7 +71,11 @@ export interface ViewState {
   nucleusId?: string
   /** Radial layout: max outbound dependency ring depth from nucleus. */
   maxRadialRing?: number
+  /** Graph layout; radial when unset. Lives in the view state so Back restores it. */
+  layout?: GraphLayout
 }
+
+export type GraphLayout = 'radial' | 'linear'
 
 export interface OverviewNodeModel {
   id: string
@@ -87,6 +91,8 @@ export interface OverviewNodeModel {
   internalEdges: number
   dimmed: boolean
   language?: string | null
+  /** Linear layout: column (negative = used by, positive = uses, 0 = current file). */
+  column?: number
 }
 
 export type EdgeVisual = 'extracted' | 'inferred' | 'unresolved' | 'mixed'
@@ -119,6 +125,8 @@ export interface OverviewEdgeModel {
   emphasized?: boolean
   /** When true, paint every cross-link (toolbar toggle). */
   showAllCross?: boolean
+  /** Linear layout routing: next column = bezier; skip / back / same column = quiet route around the pills. */
+  linear?: { route: 'adjacent' | 'around'; top: number; bottom: number; gutter: number; lane: number }
 }
 
 export interface OverviewModel {
@@ -349,7 +357,10 @@ export function collapseView(index: GraphIndex, state: ViewState, id: string): V
   return {
     expanded: state.expanded.filter((item) => !drop.has(item)),
     revealed: Object.fromEntries(Object.entries(state.revealed).filter(([key]) => !drop.has(key))),
-    pinned: state.pinned.filter((item) => !drop.has(item))
+    pinned: state.pinned.filter((item) => !drop.has(item)),
+    nucleusId: state.nucleusId,
+    maxRadialRing: state.maxRadialRing,
+    layout: state.layout
   }
 }
 
@@ -583,7 +594,7 @@ export function edgeVisual(provenance: Provenance | 'MIXED', resolved: boolean):
   return 'extracted'
 }
 
-interface Bundle {
+export interface Bundle {
   source: string
   target: string
   hierarchy: boolean
@@ -596,7 +607,7 @@ interface Bundle {
   typeOnlyCount: number
 }
 
-function addBundle(
+export function addBundle(
   bundles: Map<string, Bundle>,
   source: string,
   target: string,
@@ -630,7 +641,7 @@ function addBundle(
   bundles.set(key, bundle)
 }
 
-function toEdgeModel(bundle: Bundle, _ringDepths: Map<string, number>, treeParent: Map<string, string>): OverviewEdgeModel {
+export function toEdgeModel(bundle: Bundle, _ringDepths: Map<string, number>, treeParent: Map<string, string>): OverviewEdgeModel {
   const weight = bundle.extracted + bundle.inferred + bundle.unresolved
   const resolved = bundle.unresolved === 0
   let provenance: Provenance | 'MIXED'
@@ -711,7 +722,7 @@ function isRootPagedOut(index: GraphIndex, state: ViewState, id: string): boolea
   return indexInList >= cap && !state.pinned.includes(id)
 }
 
-function nodeModel(
+export function nodeModel(
   index: GraphIndex,
   id: string,
   depth: number,
@@ -804,7 +815,7 @@ function descendantTouchesUnresolved(index: GraphIndex, id: string): boolean {
   return false
 }
 
-function edgePasses(index: GraphIndex, filters: ViewFilters, edge: GraphEdge): boolean {
+export function edgePasses(index: GraphIndex, filters: ViewFilters, edge: GraphEdge): boolean {
   const target = index.nodesById.get(edge.target)
   if (target?.kind === 'unresolved') return filters.provenance.unresolved
   if (edge.provenance === 'INFERRED') return filters.provenance.inferred
@@ -817,7 +828,8 @@ function cloneState(state: ViewState): ViewState {
     revealed: { ...state.revealed },
     pinned: [...state.pinned],
     nucleusId: state.nucleusId,
-    maxRadialRing: state.maxRadialRing
+    maxRadialRing: state.maxRadialRing,
+    layout: state.layout
   }
 }
 
@@ -1251,7 +1263,7 @@ export function treeSpokesCross(
   return false
 }
 
-function radialNodePasses(index: GraphIndex, filters: ViewFilters, id: string): boolean {
+export function radialNodePasses(index: GraphIndex, filters: ViewFilters, id: string): boolean {
   const provenanceOpen = filters.provenance.extracted || filters.provenance.inferred || filters.provenance.unresolved
   if (!provenanceOpen) return false
   if (id.startsWith('cluster:')) {
@@ -1270,7 +1282,7 @@ function radialNodePasses(index: GraphIndex, filters: ViewFilters, id: string): 
   return true
 }
 
-function radialLinkPasses(filters: ViewFilters, unresolved: boolean, provenance: Provenance): boolean {
+export function radialLinkPasses(filters: ViewFilters, unresolved: boolean, provenance: Provenance): boolean {
   if (unresolved) return filters.provenance.unresolved
   if (provenance === 'INFERRED') return filters.provenance.inferred
   return filters.provenance.extracted

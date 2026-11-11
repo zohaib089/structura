@@ -3,6 +3,7 @@ import { BaseEdge, type EdgeProps } from '@vue-flow/core'
 import { computed } from 'vue'
 import { EDGE_DASH, edgeClass, edgeStroke, edgeWidth } from '../edge-style'
 import type { EdgeVisual, OverviewEdgeModel, RadialEdgeRole } from '../overview'
+import { linearEdgePath } from '../linear'
 import { radialEdgePath } from '../radial-edge-path'
 
 const props = defineProps<EdgeProps<OverviewEdgeModel>>()
@@ -10,8 +11,12 @@ const visual = computed<EdgeVisual>(() => props.data?.visual ?? 'extracted')
 const role = computed<RadialEdgeRole>(() => props.data?.role ?? 'spoke')
 const centre = computed(() => props.data?.radialCentre ?? { x: 0, y: 0 })
 const path = computed(() =>
-  radialEdgePath(props.sourceX, props.sourceY, props.targetX, props.targetY, centre.value, role.value)
+  props.data?.linear
+    ? linearEdgePath(props.sourceX, props.sourceY, props.targetX, props.targetY, props.data.linear)
+    : radialEdgePath(props.sourceX, props.sourceY, props.targetX, props.targetY, centre.value, role.value)
 )
+/** Skip-column / back edges in the linear layout stay quiet until their file is selected or hovered. */
+const quiet = computed(() => props.data?.linear?.route === 'around' && !props.data?.emphasized && !props.selected)
 const markerId = computed(() => `marker-${props.id}`)
 const flowing = computed(() => Boolean(props.data?.flowing) && visual.value !== 'unresolved')
 const revealed = computed(
@@ -20,13 +25,13 @@ const revealed = computed(
 const hiddenCross = computed(() => role.value === 'cross' && !revealed.value)
 const style = computed(() => ({
   stroke: edgeStroke(visual.value),
-  strokeWidth: `calc(${edgeWidth(visual.value)} * var(--graph-disc-scale, 1) * 1px)`,
+  strokeWidth: `calc(${edgeWidth(visual.value)} * ${quiet.value ? 0.7 : 1} * var(--graph-disc-scale, 1) * 1px)`,
   strokeDasharray: flowing.value && visual.value === 'extracted'
     ? 'var(--graph-edge-dash-flow)'
     : EDGE_DASH[visual.value] === 'none' ? 'none' : EDGE_DASH[visual.value],
   strokeLinecap: visual.value === 'unresolved' ? 'round' : 'butt',
   fill: 'none',
-  opacity: hiddenCross.value ? 0 : 1,
+  opacity: hiddenCross.value ? 0 : quiet.value ? 0.22 : 1,
   pointerEvents: hiddenCross.value ? 'none' : 'stroke'
 }))
 </script>
@@ -38,6 +43,7 @@ const style = computed(() => ({
     :data-resolved="data?.resolved ? 'true' : 'false'"
     :data-weight="String(data?.weight ?? 1)"
     :data-role="role"
+    :data-route="data?.linear?.route"
     :data-cross-hidden="hiddenCross ? 'true' : 'false'"
   >
     <defs v-if="visual === 'unresolved'">

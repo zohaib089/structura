@@ -123,6 +123,14 @@ export interface ViewerMessages {
   zoomIn: string
   zoomOut: string
   zoomFit: string
+  backLabel: string
+  layoutLabel: string
+  layoutRadial: string
+  layoutLinear: string
+  linearGroupFiles: string
+  statusLinear: string
+  backTooltip: string
+  announceBack: string
   shortcutsTitle: string
   shortcutsClose: string
   toastCopied: string
@@ -217,7 +225,7 @@ const en: ViewerMessages = {
   themeToLight: 'Switch to light theme',
   themeToDark: 'Switch to dark theme',
   openFile: 'Open another file',
-  choose: 'Choose fileâ¦',
+  choose: 'Choose file…',
   sample: 'Try the sample graph',
   close: 'Close',
   emptyTitle: 'Open your architecture map.',
@@ -226,8 +234,8 @@ const en: ViewerMessages = {
   emptyNoFile: 'No file yet? Create one:',
   dropOverlay: 'Release to open',
   dropMultiple: 'Only one file at a time. Opened {file}.',
-  loadingReading: 'Readingâ¦ {percent}%',
-  loadingBuilding: 'Building overviewâ¦',
+  loadingReading: 'Reading… {percent}%',
+  loadingBuilding: 'Building overview…',
   loadingSr: 'Loading graph…',
   loadingCancel: 'Cancel',
   errorNotJson: 'This file is not valid JSON ({where})',
@@ -325,6 +333,14 @@ const en: ViewerMessages = {
   zoomIn: 'Zoom in',
   zoomOut: 'Zoom out',
   zoomFit: 'Fit to view',
+  backLabel: 'Back',
+  layoutLabel: 'Layout',
+  layoutRadial: 'Radial',
+  layoutLinear: 'Linear',
+  linearGroupFiles: '{n} files',
+  statusLinear: 'Linear · used by on the left, uses on the right · centre {name}',
+  backTooltip: 'Back to the previous graph view',
+  announceBack: 'Back to the previous graph view',
   shortcutsTitle: 'Keyboard shortcuts',
   shortcutsClose: 'Close shortcuts',
   toastCopied: 'Copied',
