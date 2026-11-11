@@ -21,7 +21,7 @@ COPY packages/scan-analysis/schema packages/scan-analysis/schema
 COPY packages/scan-analysis/configs packages/scan-analysis/configs
 COPY packages/scan-analysis/src packages/scan-analysis/src
 
-COPY apps/api/tsconfig.json apps/api/
+COPY apps/api/tsconfig.json apps/api/tsconfig.build.json apps/api/
 COPY apps/api/src apps/api/src
 
 RUN npm ci -w api -w @atlasmith/engine -w @atlasmith/source-ingest -w @atlasmith/scan-analysis --include=dev --ignore-scripts
