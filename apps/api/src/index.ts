@@ -18,8 +18,8 @@ import {
   verificationEmail,
   workspaceInvitationEmail
 } from './lib/auth-email.js'
-import { closeDatabase, query, testDatabaseConnection, withTransaction } from './lib/db.js'
-import { applyMigrations } from './lib/migrations.js'
+import { closeDatabase, query, testDatabaseConnection, withTransaction } from './db/db.js'
+import { applyMigrations } from './db/migrations.js'
 import {
   registerWorkspaceInvitationRoutes,
   registerWorkspaceRoutes,
