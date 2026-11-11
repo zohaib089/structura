@@ -18,6 +18,8 @@ import { formatByteSize } from './text'
 import type { GraphDocument, GraphError, GraphNode } from './graph-types'
 import { formatMessage, viewerMessages } from './messages'
 import { GraphHistory, type GraphSnapshot } from './graph-history'
+import { buildLinearOverview, isLinearControlId, toggleLinear } from './linear'
+import { readLayoutPreference, writeLayoutPreference } from './layout-preference'
 import {
   buildOverview,
   collapseView,
@@ -35,7 +37,8 @@ import {
   setNucleus,
   type FocusQuery,
   type ViewFilters,
-  type ViewState
+  type ViewState,
+  type GraphLayout
 } from './overview'
 import { parseGraphFile, type ParseHandle } from './parse-client'
 import './graph-surface.css'
@@ -120,6 +123,25 @@ const selection = ref<{ kind: 'node' | 'edge'; id: string } | null>(null)
 const activeId = ref<string | null>(null)
 const announce = ref('')
 const viewState = ref<ViewState>(emptyViewState())
+/** Linear / Radial choice, remembered across loads in this browser. */
+const preferredLayout = ref<GraphLayout>(readLayoutPreference())
+const layout = computed<GraphLayout>(() => viewState.value.layout ?? 'radial')
+function freshViewState(): ViewState {
+  return { ...emptyViewState(), layout: preferredLayout.value }
+}
+/** Switch layout; the same file stays the centre and selection, and Back can undo it. */
+function setLayout(next: GraphLayout) {
+  if (next === layout.value) return
+  remember()
+  viewState.value = { ...viewState.value, layout: next }
+  preferredLayout.value = next
+  writeLayoutPreference(next)
+  fitSignature.value += 1
+}
+function onCanvasSelect(id: string) {
+  if (isLinearControlId(id)) toggleNode(id)
+  else selectNode(id, true)
+}
 const graphCanvas = ref<InstanceType<typeof GraphCanvas> | null>(null)
 /** Back stack of graph views: nucleus / selection, expanded nodes, focus and viewport. */
 const history = new GraphHistory()
@@ -182,6 +204,7 @@ const focusMembers = computed(() => {
 })
 const overview = computed(() => {
   if (!index.value) return null
+  if (layout.value === 'linear') return buildLinearOverview(index.value, viewState.value, filters.value, focusMembers.value)
   return buildOverview(index.value, viewState.value, filters.value, focusMembers.value)
 })
 const entryOptions = computed(() => (index.value ? collectEntryPoints(index.value) : []))
@@ -199,7 +222,7 @@ const severityLegend = computed(() => {
 })
 
 const ringCount = computed(() => {
-  if (!overview.value) return 0
+  if (!overview.value || layout.value === 'linear') return 0
   let max = 0
   for (const node of overview.value.nodes) max = Math.max(max, node.depth)
   return max
@@ -209,7 +232,7 @@ const nucleusLabel = computed(() => {
   return entryLabelForNode(index.value.nodesById.get(nucleusId.value), nucleusId.value)
 })
 const radialStatus = computed(() =>
-  format(messages.statusRadial, { rings: numbers.format(ringCount.value), name: nucleusLabel.value })
+  layout.value === 'linear' ? format(messages.statusLinear, { name: nucleusLabel.value }) : format(messages.statusRadial, { rings: numbers.format(ringCount.value), name: nucleusLabel.value })
 )
 const panStatus = computed(() =>
   format(messages.statusPanZoom, { nodes: numbers.format(overview.value?.nodes.length ?? 0) })
@@ -350,7 +373,7 @@ async function loadGraphDocument(document: GraphDocument) {
   selection.value = null
   focus.value = null
   forgetHistory()
-  viewState.value = emptyViewState()
+  viewState.value = freshViewState()
   filters.value = defaultFilters()
   sample.value = false
   fileName.value = 'scan-graph.json'
@@ -394,7 +417,7 @@ async function openBlob(file: File, asSample: boolean) {
   selection.value = null
   focus.value = null
   forgetHistory()
-  viewState.value = emptyViewState()
+  viewState.value = freshViewState()
   filters.value = defaultFilters()
   sample.value = asSample
   fileName.value = file.name
@@ -457,6 +480,13 @@ function toggleNode(id: string) {
   remember()
   // Keep the toggled node where it is on screen when the person has zoomed or panned.
   keepView.value = { token: ++viewToken, id }
+  if (isLinearControlId(id)) {
+    viewState.value = toggleLinear(viewState.value, id)
+    announce.value = node.more
+      ? format(messages.moreNext, { n: numbers.format(Math.min(node.remainder, 14)) })
+      : format(node.expanded ? messages.announceCollapsed : messages.announceExpanded, { name: node.label, n: numbers.format(node.clusterSize) })
+    return
+  }
   if (node.more) {
     if (atCap.value) return
     viewState.value = expandView(viewState.value, id)
@@ -977,6 +1007,11 @@ const snippet = 'layers: []\nrules: []\n'
         @fit="triggerFit"
         @update:entry-id="onEntryChange"
         @toggle-show-all-cross="showAllCross = !showAllCross"
+        :layout="layout"
+        :layout-label="messages.layoutLabel"
+        :radial-label="messages.layoutRadial"
+        :linear-label="messages.layoutLinear"
+        @update:layout="setLayout"
       />
       <p v-if="overview && graph && graph.nodes.length > 0" class="graph-hint" role="note">
         {{ messages.graphOverviewHint }}
@@ -1013,7 +1048,9 @@ const snippet = 'layers: []\nrules: []\n'
         :fit-bump="fitSignature"
         :show-all-cross="showAllCross"
         :entry-tag="messages.entryPointTag"
-        @select="selectNode($event, true)"
+        :layout="layout"
+        :group-label="(count) => format(messages.linearGroupFiles, { n: numbers.format(count) })"
+        @select="onCanvasSelect"
         @toggle="toggleNode"
         @select-edge="selectEdge"
         @ready="ready = true"

@@ -124,6 +124,11 @@ export interface ViewerMessages {
   zoomOut: string
   zoomFit: string
   backLabel: string
+  layoutLabel: string
+  layoutRadial: string
+  layoutLinear: string
+  linearGroupFiles: string
+  statusLinear: string
   backTooltip: string
   announceBack: string
   shortcutsTitle: string
@@ -329,6 +334,11 @@ const en: ViewerMessages = {
   zoomOut: 'Zoom out',
   zoomFit: 'Fit to view',
   backLabel: 'Back',
+  layoutLabel: 'Layout',
+  layoutRadial: 'Radial',
+  layoutLinear: 'Linear',
+  linearGroupFiles: '{n} files',
+  statusLinear: 'Linear · used by on the left, uses on the right · centre {name}',
   backTooltip: 'Back to the previous graph view',
   announceBack: 'Back to the previous graph view',
   shortcutsTitle: 'Keyboard shortcuts',

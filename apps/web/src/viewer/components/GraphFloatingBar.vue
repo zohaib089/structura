@@ -14,6 +14,11 @@ const props = defineProps<{
   showAllCrossLabel?: string
   showAllCross?: boolean
   crossLinkCount?: number
+  /** Linear / Radial switch; hidden when the host does not pass labels. */
+  layout?: 'radial' | 'linear'
+  layoutLabel?: string
+  radialLabel?: string
+  linearLabel?: string
 }>()
 
 const emit = defineEmits<{
@@ -22,6 +27,7 @@ const emit = defineEmits<{
   fit: []
   'update:entryId': [id: string]
   toggleShowAllCross: []
+  'update:layout': [layout: 'radial' | 'linear']
 }>()
 </script>
 
@@ -37,6 +43,18 @@ const emit = defineEmits<{
     >
       <span aria-hidden="true">☰</span>
     </button>
+    <div v-if="layoutLabel" class="layout-switch" role="group" :aria-label="layoutLabel" data-testid="layout-switch">
+      <button
+        v-for="option in (['radial', 'linear'] as const)"
+        :key="option"
+        type="button"
+        :aria-pressed="(layout ?? 'radial') === option"
+        :data-testid="`layout-${option}`"
+        @click="emit('update:layout', option)"
+      >
+        {{ option === 'radial' ? radialLabel : linearLabel }}
+      </button>
+    </div>
     <label class="entry-switcher" :title="entryTooltip">
       <span class="entry-prefix">{{ entryLabel }}</span>
       <select
@@ -113,6 +131,28 @@ const emit = defineEmits<{
 .search-button,
 .fit-button,
 .links-button,
+.layout-switch {
+  display: inline-flex;
+  flex-shrink: 0;
+  pointer-events: auto;
+  border: 1px solid var(--viewer-control-border, var(--color-border));
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+.layout-switch button {
+  min-block-size: var(--viewer-hit-target);
+  padding-inline: var(--space-3);
+  border: 0;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--text-13);
+}
+.layout-switch button + button { border-inline-start: 1px solid var(--viewer-control-border, var(--color-border)); }
+.layout-switch button[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--color-brand-amber, #e9a53a) 22%, var(--color-surface));
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
 .entry-switcher,
 .entry-switcher select {
   pointer-events: auto;

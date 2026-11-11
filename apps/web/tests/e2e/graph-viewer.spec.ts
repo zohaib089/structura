@@ -266,3 +266,28 @@ test('Back in the detail drawer restores the previous graph view', async ({ page
   await page.locator('body').press('Alt+ArrowLeft')
   await expect(back).toHaveCount(0)
 })
+
+test('Linear / Radial switch keeps the same file as the centre', async ({ page }) => {
+  await page.goto(pathToFileURL(builtHtml).href)
+  await page.locator('[data-testid="file-input"]').setInputFiles(resolve(root, 'fixtures/sample-graph.json'))
+  const canvas = page.locator('[data-testid="graph-canvas"]')
+  await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 20_000 })
+  const file = 'file:apps/web/main.ts'
+  await page.locator(`.overview-node[data-node-id="${file}"]`).click()
+  await page.getByTestId('layout-linear').click()
+  await expect(page.getByTestId('layout-linear')).toHaveAttribute('aria-pressed', 'true')
+  await expect(canvas).toHaveAttribute('data-layout', 'linear')
+  const nucleus = page.getByTestId('linear-nucleus')
+  await expect(nucleus).toHaveAttribute('data-node-id', file)
+  // Labels stay inside their pills.
+  const spill = await page.evaluate(() => [...document.querySelectorAll('.linear-pill')].filter((p) => {
+    const t = p.querySelector('.text')!.getBoundingClientRect()
+    return t.right > p.getBoundingClientRect().right + 0.5
+  }).length)
+  expect(spill).toBe(0)
+  await page.getByTestId('layout-radial').click()
+  await expect(canvas).toHaveAttribute('data-layout', 'radial')
+  await expect(page.locator(`.overview-node.is-nucleus[data-node-id="${file}"]`)).toHaveCount(1)
+  await page.getByTestId('detail-back').click()
+  await expect(canvas).toHaveAttribute('data-layout', 'linear')
+})

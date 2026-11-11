@@ -9,6 +9,7 @@ import type { SeverityCounts } from '../../services/scan-report-tree'
 import { lookupPathSeverityCounts } from '../../services/scan-report-tree-display'
 import FitFrame from './FitFrame.vue'
 import OverviewEdge from './OverviewEdge.vue'
+import LinearPill from './LinearPill.vue'
 import OverviewNode from './OverviewNode.vue'
 import RadialRingGuides from './RadialRingGuides.vue'
 import ZoomPad from './ZoomPad.vue'
@@ -47,6 +48,10 @@ const props = defineProps<{
   restoreView?: { token: number; viewport: { x: number; y: number; zoom: number } | null } | null
   /** Expand / collapse: node to keep in place when the person had zoomed or panned. */
   keepView?: { token: number; id: string } | null
+  /** Linear = two-sided columns; radial (default) = rings. */
+  layout?: 'radial' | 'linear'
+  /** Linear group pill caption, e.g. "{n} files". */
+  groupLabel?: (count: number) => string
 }>()
 
 const hoverId = ref<string | null>(null)
@@ -158,7 +163,7 @@ const flowNodes = () => {
     ...guide,
     ...props.nodes.map((node): Node<OverviewNodeModel> => ({
   id: node.id,
-  type: FLOW_NODE_TYPE,
+  type: props.layout === 'linear' ? 'linear' : FLOW_NODE_TYPE,
   position: props.positions.get(node.id) ?? { x: 0, y: 0 },
   draggable: false,
   selectable: true,
@@ -256,6 +261,7 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
     tabindex="-1"
     dir="ltr"
     :data-ready="displayReady ? 'true' : 'false'"
+    :data-layout="layout ?? 'radial'"
     :data-total-nodes="totalNodes"
     :data-total-edges="totalEdges"
     :data-visible-nodes="visibleFlowNodeCount"
@@ -316,6 +322,27 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
           @toggle="emit('toggle', nodeProps.id)"
         />
       </template>
+      <template #node-linear="pillProps">
+        <LinearPill
+          :id="pillProps.id"
+          :label="pillProps.data?.label ?? ''"
+          :path="pillProps.data?.path ?? ''"
+          :kind="pillProps.data?.kind ?? ''"
+          :cluster="Boolean(pillProps.data?.cluster)"
+          :cluster-size="pillProps.data?.clusterSize ?? 0"
+          :expanded="Boolean(pillProps.data?.expanded)"
+          :more="Boolean(pillProps.data?.more)"
+          :remainder="pillProps.data?.remainder ?? 0"
+          :selected="selectedId === pillProps.id"
+          :nucleus="nucleusId === pillProps.id"
+          :dimmed="Boolean(pillProps.data?.dimmed)"
+          :tab-index="activeId === pillProps.id ? 0 : -1"
+          :more-label="moreLabel(pillProps.data?.remainder ?? 0)"
+          :group-label="groupLabel ? groupLabel(pillProps.data?.clusterSize ?? 0) : String(pillProps.data?.clusterSize ?? 0)"
+          @select="emit('select', pillProps.id)"
+          @toggle="emit('toggle', pillProps.id)"
+        />
+      </template>
       <template #edge-overview="edgeProps">
         <OverviewEdge v-bind="edgeProps" />
       </template>
@@ -325,7 +352,7 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
         ref="fitFrame"
         :restore="restoreView ?? null"
         :keep-view="keepView ?? null"
-        :signature="`${fitBump ?? 0}|${nodes.map((node) => node.id).join('\n')}|${(focusIds ?? []).join(',')}`"
+        :signature="`${layout ?? 'radial'}|${fitBump ?? 0}|${nodes.map((node) => node.id).join('\n')}|${(focusIds ?? []).join(',')}`"
         :duration="fitDuration ?? 0"
         :padding="fitPadding ?? 0.2"
         :ring-count="ringCount ?? 0"
@@ -351,6 +378,9 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
   z-index: 0 !important;
 }
 .canvas :deep(.vue-flow__handle) { opacity: 0; }
+/* Linear: the hovered / focused pill (and its full-name tip) paints above its neighbours. */
+.canvas[data-layout='linear'] :deep(.vue-flow__node:hover),
+.canvas[data-layout='linear'] :deep(.vue-flow__node:focus-within) { z-index: 1000 !important; }
 .canvas :deep(.vue-flow__edge-textbg) { fill: #0f1d36; }
 .canvas :deep(.vue-flow__edge-text) { fill: var(--color-text-secondary); font-size: 11px; }
 .vignette {
