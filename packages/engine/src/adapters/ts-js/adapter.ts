@@ -3,10 +3,17 @@ import { type AdapterFileInput, type AdapterParseOutcome, type LanguageAdapter }
 import { grammarFor, parseSource } from '../parse-source.js'
 import { ParsePool, type PoolLimits } from '../pool.js'
 import { TreeSitterRuntime, type RuntimeOverrides as WasmOverrides } from '../tree-sitter-runtime.js'
+import {
+  emptyParseResult,
+  extractVueScripts,
+  isVueSource,
+  mergeParseResults,
+  shiftParseResult
+} from './vue-script.js'
 
 export const TS_JS_ADAPTER_ID = 'typescript-javascript'
 /** Bump when the same source text can produce a different extraction. */
-export const TS_JS_ADAPTER_VERSION = '1'
+export const TS_JS_ADAPTER_VERSION = '2'
 
 export interface TypeScriptJavaScriptAdapterOptions {
   /** Test hook: load WASM in-process with overridden paths. Production scans leave this unset and use workers. */
@@ -43,7 +50,7 @@ export function createTypeScriptJavaScriptAdapter(options: TypeScriptJavaScriptA
   return {
     id: TS_JS_ADAPTER_ID,
     version: TS_JS_ADAPTER_VERSION,
-    languageIds: ['typescript', 'javascript'],
+    languageIds: ['typescript', 'javascript', 'vue'],
     async load(): Promise<void> {
       const probe: AdapterFileInput = {
         path: 'probe.ts',
@@ -60,9 +67,37 @@ export function createTypeScriptJavaScriptAdapter(options: TypeScriptJavaScriptA
     parse(input: AdapterFileInput): Promise<AdapterParseOutcome> {
       const timeoutMs = input.timeoutMs ?? LIMITS.parseTimeoutMs.default
       const memoryLimitBytes = input.memoryLimitBytes ?? LIMITS.workerMaxMemoryBytes.default
-      const grammar = grammarFor(input.path, input.language)
-      if (runtime) return parseSource(runtime, grammar, input.content, input.limits, timeoutMs, memoryLimitBytes)
-      return pool!.parse({ grammar, content: input.content, limits: input.limits, timeoutMs, memoryLimitBytes })
+      const parseBlock = (content: string, language: string) => {
+        const grammar = grammarFor(input.path, language)
+        if (runtime) return parseSource(runtime, grammar, content, input.limits, timeoutMs, memoryLimitBytes)
+        return pool!.parse({ grammar, content, limits: input.limits, timeoutMs, memoryLimitBytes })
+      }
+      if (isVueSource(input.path, input.language)) {
+        return parseVueFile(input, parseBlock)
+      }
+      return parseBlock(input.content, input.language)
     }
   }
+}
+
+async function parseVueFile(
+  input: AdapterFileInput,
+  parseBlock: (content: string, language: string) => Promise<AdapterParseOutcome>
+): Promise<AdapterParseOutcome> {
+  const blocks = extractVueScripts(input.content)
+  if (blocks.length === 0) return { ok: true, result: emptyParseResult() }
+  let merged = emptyParseResult()
+  let lastFailure: AdapterParseOutcome | undefined
+  let parsed = 0
+  for (const block of blocks) {
+    const outcome = await parseBlock(block.content, block.language)
+    if (!outcome.ok) {
+      lastFailure = outcome
+      continue
+    }
+    parsed += 1
+    merged = mergeParseResults(merged, shiftParseResult(outcome.result, block.startLine, block.startCol))
+  }
+  if (parsed === 0 && lastFailure) return lastFailure
+  return { ok: true, result: merged }
 }

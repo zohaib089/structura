@@ -3,6 +3,7 @@ const props = defineProps<{
   filtersLabel: string
   filtersTooltip: string
   searchLabel: string
+  searchShortLabel?: string
   searchTooltip: string
   fitLabel: string
   fitTooltip: string
@@ -32,7 +33,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="floating-bar" role="toolbar" aria-label="Graph controls">
+  <div class="floating-bar" :class="{ 'is-compact': Boolean(searchShortLabel) }" role="toolbar" aria-label="Graph controls">
     <button
       type="button"
       class="icon-button"
@@ -72,13 +73,15 @@ const emit = defineEmits<{
     <button
       type="button"
       class="search-button"
+      :class="{ 'has-short': Boolean(searchShortLabel) }"
       :aria-label="searchTooltip"
       :title="searchTooltip"
       :aria-keyshortcuts="searchShortcut"
       data-testid="graph-search-open"
       @click="emit('openSearch')"
     >
-      {{ searchLabel }}
+      <span class="search-label-full">{{ searchLabel }}</span>
+      <span v-if="searchShortLabel" class="search-label-short">{{ searchShortLabel }}</span>
     </button>
     <button
       type="button"
@@ -203,6 +206,7 @@ select {
   color: var(--color-text-primary);
   max-inline-size: 10rem;
 }
+.search-label-short { display: none; }
 .search-button {
   flex: 1 1 auto;
   min-inline-size: 6rem;
@@ -232,6 +236,10 @@ select {
   .entry-prefix { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   select { max-inline-size: 5.5rem; }
   .search-button { min-inline-size: 0; flex: 1 1 0; max-inline-size: none; padding-inline: var(--space-2); }
+  .search-button.has-short .search-label-full { display: none; }
+  .search-button.has-short .search-label-short { display: inline; }
   .fit-button { padding-inline: var(--space-2); }
+  .floating-bar.is-compact .entry-switcher { display: none; }
 }
+
 </style>

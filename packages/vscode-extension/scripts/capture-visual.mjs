@@ -4,13 +4,14 @@
  * Screenshots are written to /workspace/e1-visual/.
  */
 import { createServer } from 'node:http'
-import { createReadStream, existsSync, statSync } from 'node:fs'
+import { createReadStream, existsSync, mkdirSync, statSync } from 'node:fs'
 import { extname, resolve } from 'node:path'
 import { chromium } from '../../../apps/web/node_modules/playwright/index.mjs'
 
-const outDir = '/workspace/e1-visual'
+const outDir = '/workspace/e1-visual/round2'
+mkdirSync(outDir, { recursive: true })
 const webviewDir = resolve(import.meta.dirname, '../dist-webview')
-const graphPath = resolve(outDir, 'graph.json')
+const graphPath = resolve('/workspace/e1-visual', 'graph.json')
 if (!existsSync(resolve(webviewDir, 'assets/webview.js'))) {
   throw new Error('Build the webview first: npm run build:webview')
 }
@@ -132,6 +133,10 @@ async function render(name, viewport, state) {
       const switcher = document.querySelector('[data-testid="graph-entry-switcher"]')
       const selected = switcher instanceof HTMLSelectElement ? (switcher.selectedOptions[0]?.textContent ?? '') : null
       const labels = [...document.querySelectorAll('.overview-node .label')].map((el) => el.textContent?.trim()).filter(Boolean)
+      const zoom = document.querySelector('.zoom')
+      const z = zoom?.getBoundingClientRect()
+      const bar = document.querySelector('.floating-bar')?.getBoundingClientRect()
+      const tips = document.querySelector('[data-testid="coach-mark"]')?.getBoundingClientRect()
       return {
         viewport: { w: window.innerWidth, h: window.innerHeight },
         disc: { x: Math.round(cx), y: Math.round(cy), w: Math.round(d.width), h: Math.round(d.height) },
@@ -139,7 +144,12 @@ async function render(name, viewport, state) {
         switcher: selected,
         optionCount: switcher instanceof HTMLSelectElement ? switcher.options.length : 0,
         labels,
-        nodeCount: document.querySelectorAll('.overview-node').length
+        nodeCount: document.querySelectorAll('.overview-node').length,
+        zoom: z ? { x: Math.round(z.left), y: Math.round(z.top), w: Math.round(z.width), h: Math.round(z.height), found: true } : { found: false },
+        bar: bar ? { bottom: Math.round(bar.bottom) } : null,
+        tips: tips ? { x: Math.round(tips.left), y: Math.round(tips.top), w: Math.round(tips.width) } : null,
+        fitReserve: document.querySelector('.vue-flow')?.getAttribute('data-fit-reserve'),
+        fitVp: document.querySelector('.vue-flow')?.getAttribute('data-fit-vp')
       }
     })
     console.log(`${name} measure:`, JSON.stringify(measure))

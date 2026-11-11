@@ -36,12 +36,32 @@ const props = defineProps<{
   entryTag?: string
   /** Collision-resolved display text (may be ellipsized). */
   displayLabel?: string
+  /** Embedded marks: always a disc, with plain-language expand captions instead of a raw count and "+". */
+  plainMarks?: boolean
+  roleCaption?: string
+  childCount?: number
+  insideOpenCaption?: string
+  insideCloseCaption?: string
 }>()
 
 const emit = defineEmits<{ select: []; toggle: [] }>()
 
 /** Compact landing-style mark: a disc with a glyph, label beside it (files, externals, unresolved). */
-const disc = computed(() => !props.more && (!props.cluster || Boolean(props.nucleus)))
+const disc = computed(() => {
+  if (props.more) return false
+  if (props.plainMarks) return true
+  return !props.cluster || Boolean(props.nucleus)
+})
+
+const insideLabel = computed(() => {
+  if (!props.plainMarks || !props.cluster || props.nucleus || props.more) return ''
+  if (!props.insideOpenCaption) return ''
+  const n = props.childCount ?? props.clusterSize
+  if (n <= 0) return ''
+  if (props.expanded) return props.insideCloseCaption || 'Hide inside'
+  return props.insideOpenCaption.replace('{n}', String(n))
+})
+
 
 /** Disc colour carries meaning: the file's highest finding severity (with the chip/word beside it), else neutral. */
 const topSeverity = computed(() => fileChips.value?.chips[0]?.severity ?? folderChip.value?.severity ?? null)
@@ -95,7 +115,8 @@ function onSpace(event: KeyboardEvent) {
       'is-external': kind === 'external',
       'is-unresolved': kind === 'unresolved',
       'is-expanded': expanded,
-      'is-entering': entering
+      'is-entering': entering,
+      'is-plain': plainMarks
     }"
     :style="{ '--node-layer': discColor, animationDelay: `${enterDelay ?? 0}ms` }"
     :data-node-id="id"
@@ -134,6 +155,7 @@ function onSpace(event: KeyboardEvent) {
     <span class="aside" :class="{ 'aside--start': disc && labelSide === 'start', 'aside--nucleus': disc && nucleus }">
       <span class="label" dir="ltr" :title="path || label || moreLabel">{{ shortLabel }}</span>
       <span v-if="nucleus && entryTag" class="entry-tag">{{ entryTag }}</span>
+      <span v-if="roleCaption" class="role-caption">{{ roleCaption }}</span>
       <span v-if="folderChip" class="severity-chips">
         <SeverityChip
           compact
@@ -153,9 +175,20 @@ function onSpace(event: KeyboardEvent) {
         />
         <span v-if="fileChips.overflow > 0" class="severity-overflow">+{{ fileChips.overflow }}</span>
       </span>
-      <span v-if="cluster" class="count tnum">{{ clusterSize }}</span>
+      <span v-if="cluster && !plainMarks" class="count tnum">{{ clusterSize }}</span>
       <button
-        v-if="cluster || more"
+        v-if="insideLabel"
+        type="button"
+        class="nodrag nopan inside-toggle"
+        tabindex="-1"
+        :aria-label="insideLabel"
+        @click.stop="emit('toggle')"
+        @dblclick.stop.prevent
+      >
+        {{ insideLabel }}
+      </button>
+      <button
+        v-else-if="(cluster || more) && !plainMarks"
         type="button"
         class="nodrag nopan node-toggle"
         tabindex="-1"
@@ -429,6 +462,27 @@ function onSpace(event: KeyboardEvent) {
   color: var(--color-text-muted);
   font-weight: var(--font-weight-semibold, 600);
 }
+.role-caption, .inside-toggle {
+  font-size: calc(9px * var(--graph-mark-scale, 1));
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-semibold, 600);
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: inherit;
+  max-inline-size: 11rem;
+  white-space: nowrap;
+  line-height: 1.25;
+}
+.role-caption { cursor: default; text-transform: uppercase; }
+.inside-toggle { text-transform: none; letter-spacing: 0.02em; text-decoration: underline;
+  text-underline-offset: 2px; }
+
 .overview-node:not(:has(.kind-mark--disc)) > .aside { display: contents; }
 /* Decluttered (label would collide): name stays in aria-label/title and shows on hover/focus/selection. */
 [data-label-hidden] > .aside { opacity: 0; transition: opacity var(--duration-fast, 120ms) ease; }
@@ -444,6 +498,27 @@ function onSpace(event: KeyboardEvent) {
 }
 
 @media (prefers-reduced-motion: reduce) { [data-label-hidden] > .aside { transition: none; } }
+
+/* Embedded plain marks: stack the name and the "N inside" caption so they do not run together. */
+.overview-node.is-plain:has(.kind-mark--disc) > .aside {
+  flex-direction: column;
+  align-items: flex-start;
+  white-space: nowrap;
+  gap: 1px;
+}
+.overview-node.is-plain:has(.kind-mark--disc) > .aside--start,
+.overview-node.is-plain[data-label-flip='start']:has(.kind-mark--disc) > .aside {
+  flex-direction: column;
+  align-items: flex-end;
+}
+.overview-node.is-plain[data-label-flip='end']:has(.kind-mark--disc) > .aside {
+  flex-direction: column;
+  align-items: flex-start;
+}
+.overview-node.is-plain[data-label-flip='above']:has(.kind-mark--disc) > .aside,
+.overview-node.is-plain[data-label-flip='below']:has(.kind-mark--disc) > .aside {
+  align-items: center;
+}
 </style>
 
 

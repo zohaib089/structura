@@ -73,6 +73,8 @@ watch(
       :graph-document="graphDocument"
       :focus-path="focusPath"
       :open-inspector-on-focus="false"
+      :file-neighborhood="state.kind === 'graph' && state.mode === 'file'"
+      :overview-layout="state.kind === 'graph' && state.mode === 'project' ? 'folders' : 'entry'"
       :load-file-summary="loadFileSummary"
       @open-file="openFile"
     />

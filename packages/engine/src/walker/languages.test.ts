@@ -9,6 +9,7 @@ test('detects languages by extension', () => {
   assert.equal(detectLanguage('a.mjs').id, 'javascript')
   assert.equal(detectLanguage('a.JSX').id, 'javascript')
   assert.equal(detectLanguage('pkg/mod.py').id, 'python')
+  assert.equal(detectLanguage('src/Widget.vue').id, 'vue')
   assert.deepEqual(detectLanguage('package.json'), { id: 'json', category: 'data' })
   assert.equal(detectLanguage('README.md').category, 'doc')
 })

@@ -81,7 +81,7 @@ export interface ViewState {
 }
 
 /** Walk direction for dependencyRingTree. */
-export type RingWalk = 'out' | 'in' | 'both'
+export type RingWalk = 'out' | 'in' | 'both' | 'contains'
 
 export type GraphLayout = 'radial' | 'linear'
 
@@ -104,6 +104,10 @@ export interface OverviewNodeModel {
   language?: string | null
   /** Linear layout: column (negative = used by, positive = uses, 0 = current file). */
   column?: number
+  /** Short caption under the label (e.g. "uses", "used by") for file neighbourhood. */
+  roleCaption?: string
+  /** Direct contains children, used for the "N inside" affordance. */
+  childCount?: number
 }
 
 export type EdgeVisual = 'extracted' | 'inferred' | 'unresolved' | 'mixed'
@@ -181,6 +185,17 @@ export function setFileNeighborhood(state: ViewState, nucleusId: string): ViewSt
   next.maxRadialRing = FILE_NEIGHBORHOOD_MAX_RING
   next.ringWalk = 'both'
   next.pinned = []
+  return next
+}
+
+/** Nucleate the repo root on a contains-tree folder / package overview. */
+export function setFolderOverview(state: ViewState, nucleusId = 'dir:.'): ViewState {
+  const next = cloneState(state)
+  next.nucleusId = nucleusId
+  next.maxRadialRing = 1
+  next.ringWalk = 'contains'
+  next.pinned = []
+  next.expanded = []
   return next
 }
 
@@ -382,14 +397,11 @@ export function collapseView(index: GraphIndex, state: ViewState, id: string): V
       stack.push(child)
     }
   }
-  return {
-    expanded: state.expanded.filter((item) => !drop.has(item)),
-    revealed: Object.fromEntries(Object.entries(state.revealed).filter(([key]) => !drop.has(key))),
-    pinned: state.pinned.filter((item) => !drop.has(item)),
-    nucleusId: state.nucleusId,
-    maxRadialRing: state.maxRadialRing,
-    layout: state.layout
-  }
+  const next = cloneState(state)
+  next.expanded = state.expanded.filter((item) => !drop.has(item))
+  next.revealed = Object.fromEntries(Object.entries(state.revealed).filter(([key]) => !drop.has(key)))
+  next.pinned = state.pinned.filter((item) => !drop.has(item))
+  return next
 }
 
 export function pinPath(index: GraphIndex, state: ViewState, id: string): ViewState {
@@ -480,8 +492,11 @@ export function buildOverview(
   const nucleusId = resolveNucleusId(index, state.nucleusId)
   const maxRing = state.maxRadialRing ?? RADIAL_DEFAULT_MAX_RING
   const walk = state.ringWalk ?? 'out'
-  const { depths: ringDepths, parentOf: treeParent } = dependencyRingTree(index, nucleusId, filters, maxRing, walk)
   const expanded = new Set(state.expanded)
+  const { depths: ringDepths, parentOf: treeParent } =
+    walk === 'contains'
+      ? containsRingTree(index, nucleusId, maxRing, expanded)
+      : dependencyRingTree(index, nucleusId, filters, maxRing, walk)
   const pinned = new Set(state.pinned)
   const nodes: OverviewNodeModel[] = []
   const visible = new Set<string>()
@@ -555,9 +570,35 @@ export function buildOverview(
     addBundle(bundles, source, target, edge, false, index)
   }
 
-  for (const node of nodes) node.internalEdges = internal.get(node.id) ?? 0
+  if (walk === 'contains') {
+    for (const [child, parent] of treeParent) {
+      if (!visible.has(child) || !visible.has(parent)) continue
+      const exists = [...bundles.values()].some(
+        (bundle) =>
+          bundle.hierarchy &&
+          ((bundle.source === parent && bundle.target === child) ||
+            (bundle.source === child && bundle.target === parent))
+      )
+      if (exists) continue
+      bundles.set(`${parent}\u0000${child}\u0000h`, {
+        source: parent,
+        target: child,
+        hierarchy: true,
+        extracted: 1,
+        inferred: 0,
+        unresolved: 0,
+        staticCount: 0,
+        dynamicCount: 0,
+        requireCount: 0,
+        typeOnlyCount: 0
+      })
+    }
+  }
 
-  let edgeModels = [...bundles.values()].map((b) => toEdgeModel(b, ringDepths, treeParent))
+  for (const node of nodes) node.internalEdges = internal.get(node.id) ?? 0
+  decorateOverviewNodes(index, nodes, nucleusId, walk)
+
+  let edgeModels = [...bundles.values()].map((b) => toEdgeModel(b, ringDepths, treeParent, walk === 'contains'))
   edgeModels.sort((a, b) => b.weight - a.weight || compareUtf16(a.id, b.id))
   const edgesOmittedByCap = Math.max(0, edgeModels.length - HARD_EDGE_CAP)
   edgeModels = edgeModels.slice(0, HARD_EDGE_CAP)
@@ -609,9 +650,10 @@ function edgeRadialRoleFromTree(
   source: string,
   target: string,
   hierarchy: boolean,
-  treeParent: Map<string, string>
+  treeParent: Map<string, string>,
+  containsAsSpokes = false
 ): RadialEdgeRole {
-  if (hierarchy) return 'cross'
+  if (hierarchy && !containsAsSpokes) return 'cross'
   if (treeParent.get(source) === target || treeParent.get(target) === source) return 'spoke'
   return 'cross'
 }
@@ -670,7 +712,12 @@ export function addBundle(
   bundles.set(key, bundle)
 }
 
-export function toEdgeModel(bundle: Bundle, _ringDepths: Map<string, number>, treeParent: Map<string, string>): OverviewEdgeModel {
+export function toEdgeModel(
+  bundle: Bundle,
+  _ringDepths: Map<string, number>,
+  treeParent: Map<string, string>,
+  containsAsSpokes = false
+): OverviewEdgeModel {
   const weight = bundle.extracted + bundle.inferred + bundle.unresolved
   const resolved = bundle.unresolved === 0
   let provenance: Provenance | 'MIXED'
@@ -679,7 +726,7 @@ export function toEdgeModel(bundle: Bundle, _ringDepths: Map<string, number>, tr
   else provenance = 'EXTRACTED'
   const visual = edgeVisual(provenance, resolved)
   const imported = importSummary(bundle)
-  const role: RadialEdgeRole = edgeRadialRoleFromTree(bundle.source, bundle.target, bundle.hierarchy, treeParent)
+  const role: RadialEdgeRole = edgeRadialRoleFromTree(bundle.source, bundle.target, bundle.hierarchy, treeParent, containsAsSpokes)
   return {
     id: `bundle:${bundle.source}>${bundle.target}:${visual}:${bundle.hierarchy ? 'h' : 'b'}`,
     source: bundle.source,
@@ -794,7 +841,8 @@ export function nodeModel(
     remainder: 0,
     internalEdges: 0,
     dimmed: focusIds !== null && !focusIds.has(id),
-    language: node?.kind === 'file' && 'language' in node ? node.language : null
+    language: node?.kind === 'file' && 'language' in node ? node.language : null,
+    childCount: children.length
   }
 }
 
@@ -1326,6 +1374,122 @@ export function radialLinkPasses(filters: ViewFilters, unresolved: boolean, prov
   if (unresolved) return filters.provenance.unresolved
   if (provenance === 'INFERRED') return filters.provenance.inferred
   return filters.provenance.extracted
+}
+
+
+/** A directory is a package when it directly contains a package.json file. */
+export function isPackageDirectory(index: GraphIndex, id: string): boolean {
+  for (const child of index.children.get(id) ?? []) {
+    const node = index.nodesById.get(child)
+    if (node?.kind === 'file' && 'path' in node) {
+      const base = node.path.split('/').pop() ?? node.path
+      if (base === 'package.json') return true
+    }
+  }
+  return false
+}
+
+/**
+ * Ring-1 nodes for a folder overview: top-level directories, with workspace
+ * package parents (apps/*, packages/*) expanded so each package is a disc.
+ * Loose root files are omitted.
+ */
+export function folderOverviewRing1(index: GraphIndex, rootId: string): string[] {
+  const out: string[] = []
+  for (const id of index.children.get(rootId) ?? []) {
+    const node = index.nodesById.get(id)
+    if (node?.kind !== 'directory') continue
+    const dirChildren = (index.children.get(id) ?? []).filter((child) => index.nodesById.get(child)?.kind === 'directory')
+    const packages = dirChildren.filter((child) => isPackageDirectory(index, child))
+    if (packages.length >= 2) out.push(...packages)
+    else out.push(id)
+  }
+  out.sort((a, b) => {
+    const pathA = nodePath(index.nodesById.get(a))
+    const pathB = nodePath(index.nodesById.get(b))
+    return compareUtf16(pathA, pathB)
+  })
+  return out
+}
+
+function containsChildren(index: GraphIndex, id: string, expanded: ReadonlySet<string>, atRoot: boolean): string[] {
+  if (atRoot) {
+    const promoted = folderOverviewRing1(index, id)
+    if (promoted.length > 0) return promoted
+  }
+  const parent = index.nodesById.get(id)
+  const kids: string[] = []
+  for (const child of index.children.get(id) ?? []) {
+    const node = index.nodesById.get(child)
+    if (!node) continue
+    if (node.kind === 'symbol' && (parent?.kind !== 'file' || !expanded.has(id))) continue
+    kids.push(child)
+  }
+  return kids
+}
+
+/** BFS along contains edges. Expanded nodes may grow one ring past maxRing. */
+export function containsRingTree(
+  index: GraphIndex,
+  nucleusId: string,
+  maxRing: number,
+  expanded: ReadonlySet<string> = new Set()
+): { depths: Map<string, number>; parentOf: Map<string, string> } {
+  const depths = new Map<string, number>()
+  const parentOf = new Map<string, string>()
+  if (!index.nodesById.has(nucleusId)) return { depths, parentOf }
+  depths.set(nucleusId, 0)
+  const queue: string[] = [nucleusId]
+  let head = 0
+  while (head < queue.length) {
+    const current = queue[head]!
+    head += 1
+    const depth = depths.get(current)!
+    if (depth >= maxRing && !expanded.has(current)) continue
+    for (const child of containsChildren(index, current, expanded, depth === 0)) {
+      if (depths.has(child)) continue
+      depths.set(child, depth + 1)
+      parentOf.set(child, current)
+      queue.push(child)
+    }
+  }
+  return { depths, parentOf }
+}
+
+function folderOverviewLabel(node: GraphNode | undefined, id: string): string {
+  if (!node) return id
+  if (id === 'dir:.' || (node.kind === 'directory' && 'path' in node && (node.path === '.' || node.path === ''))) {
+    return 'Repository'
+  }
+  if ((node.kind === 'directory' || node.kind === 'file') && 'path' in node && node.path.includes('/')) {
+    return node.path
+  }
+  return node.label || id
+}
+
+function decorateOverviewNodes(
+  index: GraphIndex,
+  nodes: OverviewNodeModel[],
+  nucleusId: string,
+  walk: RingWalk
+): void {
+  if (walk === 'contains') {
+    for (const node of nodes) {
+      node.label = folderOverviewLabel(index.nodesById.get(node.id), node.id)
+    }
+    return
+  }
+  if (walk !== 'both') return
+  const outgoing = new Set((index.outgoing.get(nucleusId) ?? []).map((link) => link.other))
+  const incoming = new Set((index.incoming.get(nucleusId) ?? []).map((link) => link.other))
+  for (const node of nodes) {
+    if (node.id === nucleusId) continue
+    const uses = outgoing.has(node.id)
+    const usedBy = incoming.has(node.id)
+    if (uses && usedBy) node.roleCaption = 'uses and used by'
+    else if (uses) node.roleCaption = 'uses'
+    else if (usedBy) node.roleCaption = 'used by'
+  }
 }
 
 /** BFS depths from the nucleus plus the tree parent used for spoke edges. */

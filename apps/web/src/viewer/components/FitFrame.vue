@@ -15,6 +15,8 @@ const props = defineProps<{
   restore?: { token: number; viewport: { x: number; y: number; zoom: number } | null } | null
   /** Expand / collapse: keep this node where it was on screen when the person had zoomed or panned. */
   keepView?: { token: number; id: string } | null
+  reserveZoomPad?: boolean
+  hideOverlappingRing1?: boolean
 }>()
 const flow = useVueFlow()
 
@@ -23,8 +25,15 @@ function overlays(canvas: HTMLElement) {
   const stage = canvas.closest('.stage') ?? canvas.parentElement
   const bar = stage?.querySelector('.floating-bar')?.getBoundingClientRect()
   const coach = stage?.querySelector('[data-testid="coach-mark"]')?.getBoundingClientRect()
+  const zoomEl = stage?.querySelector('.zoom') ?? canvas.querySelector('.zoom') ?? document.querySelector('.vue-flow__panel.zoom, .zoom')
+  const zoom = zoomEl?.getBoundingClientRect()
+  const reserveZoom = Boolean(props.reserveZoomPad) && zoom && zoom.width > 0 && zoom.height > 0
   return {
     top: bar && bar.height > 0 ? Math.max(0, bar.bottom - box.top) : 0,
+    bottom: reserveZoom ? Math.max(0, box.bottom - zoom.top) : 0,
+    right: reserveZoom ? Math.max(0, box.right - zoom.left) : 0,
+    bar: bar && bar.height > 0 ? bar : null,
+    zoom: reserveZoom ? zoom : null,
     coach: coach && coach.height > 0
       ? { left: coach.left - box.left, right: coach.right - box.left, top: coach.top - box.top, bottom: box.bottom - coach.top }
       : null
@@ -93,18 +102,24 @@ function fitOnce() {
   const input = {
     width: canvas.clientWidth,
     height: canvas.clientHeight,
-    reserve: { top: measured.top, bottom: 0 },
+    reserve: {
+      top: measured.top,
+      bottom: Math.max(
+        measured.bottom,
+        measured.coach?.bottom ?? 0,
+        props.reserveZoomPad ? 150 : 0
+      ),
+      right: Math.max(measured.right, props.reserveZoomPad ? 56 : 0),
+      left: 0
+    },
     nodes: boxes,
     ringRadius: focus.size === 0 && (props.ringCount ?? 0) > 0 ? RADIAL_RING_GAP : null,
     // Phone: extra padding so kept labels are not clipped at the canvas edge.
     padding: phone ? Math.max(props.padding ?? 0.2, 0.22) : (props.padding ?? 0.2),
-    center: ringCentre(canvas)
+    center: ringCentre(canvas),
+    minZoom: props.reserveZoomPad ? 0.05 : undefined
   }
   let viewport = radialFitViewport(input)
-  // Always leave room for the coach when it is open so ring nodes are never under it.
-  if (measured.coach) {
-    viewport = radialFitViewport({ ...input, reserve: { top: measured.top, bottom: measured.coach.bottom } })
-  }
   void flow.setViewport(viewport, { duration: props.duration ?? 0 })
   return true
 }
@@ -131,6 +146,18 @@ function hitRect(
   pad = 2
 ) {
   return a.left < b.right + pad && a.right > b.left - pad && a.top < b.bottom + pad && a.bottom > b.top + pad
+}
+
+function overlayScreenBoxes(canvas: HTMLElement): DOMRect[] {
+  const measured = overlays(canvas)
+  const boxes: DOMRect[] = []
+  if (measured.bar) boxes.push(measured.bar)
+  if (measured.zoom) boxes.push(measured.zoom)
+  const stage = canvas.closest('.stage') ?? canvas.parentElement
+  const coachEl = stage?.querySelector('[data-testid="coach-mark"]')
+  const coachBox = coachEl?.getBoundingClientRect()
+  if (coachBox && coachBox.width > 0 && coachBox.height > 0) boxes.push(coachBox)
+  return boxes
 }
 
 function declutter() {
@@ -187,6 +214,16 @@ function declutter() {
         })
       if (still) n.setAttribute('data-label-hidden', 'true')
     }
+    if (props.reserveZoomPad || props.hideOverlappingRing1) {
+      const overlayBoxes = overlayScreenBoxes(canvas)
+      for (const n of nodes) {
+        if (n.classList.contains('is-nucleus')) continue
+        const aside = n.querySelector<HTMLElement>(':scope > .aside')
+        if (!aside || n.hasAttribute('data-label-hidden')) continue
+        const label = aside.getBoundingClientRect()
+        if (overlayBoxes.some((box) => hitRect(label, box, 4))) n.setAttribute('data-label-hidden', 'true')
+      }
+    }
     return
   }
 
@@ -197,9 +234,7 @@ function declutter() {
   const cx = centre ? (centre.left + centre.right) / 2 : (bounds.left + bounds.right) / 2
 
   const labelRect = (n: HTMLElement) => {
-    const el =
-      n.querySelector<HTMLElement>(':scope > .aside .label') ??
-      n.querySelector<HTMLElement>(':scope > .aside')
+    const el = n.querySelector<HTMLElement>(':scope > .aside')
     return el?.getBoundingClientRect() ?? null
   }
 
@@ -222,11 +257,13 @@ function declutter() {
     return list
   }
 
+  const overlayBoxes = (props.reserveZoomPad || props.hideOverlappingRing1) ? overlayScreenBoxes(canvas) : []
   const outside = (r: DOMRect) =>
     r.left < bounds.left + edgePad ||
     r.right > bounds.right - edgePad ||
     r.top < bounds.top + edgePad ||
-    r.bottom > bounds.bottom - edgePad
+    r.bottom > bounds.bottom - edgePad ||
+    overlayBoxes.some((box) => hitRect(r, box, 4))
 
   const conflicts = (n: HTMLElement, box: DOMRect, obs: ReturnType<typeof obstacles>) => {
     if (outside(box)) return true
@@ -239,6 +276,7 @@ function declutter() {
 
   const isMust = (n: HTMLElement) => {
     if (n.classList.contains('is-nucleus') || n.classList.contains('is-selected')) return true
+    if (props.hideOverlappingRing1) return false
     if (Number(n.dataset.depth ?? NaN) === 1) return true
     if (n.dataset.hasFindings === 'true') return true
     return false

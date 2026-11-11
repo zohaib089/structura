@@ -50,4 +50,17 @@ describe('radial fit (S3 mobile)', () => {
     expect(report).not.toMatch(/translateY\(-|margin-top: -/)
     expect(read('src/components/ui/AppShell.vue')).toMatch(/@media \(max-width: 640px\)\s*\{\s*\.shell-content--fill\s*\{\s*overflow-y: auto/)
   })
+
+  it('keeps a right-hand node left of a reserved zoom pad', () => {
+    const vp = radialFitViewport({
+      width: 380,
+      height: 800,
+      reserve: { top: 60, bottom: 130, right: 56 },
+      nodes,
+      ringRadius: 110,
+      padding: 0.12
+    })
+    const rightmost = Math.max(...nodes.map((n) => vp.x + (n.x + n.width) * vp.zoom))
+    expect(rightmost).toBeLessThanOrEqual(380 - 56 + 1)
+  })
 })

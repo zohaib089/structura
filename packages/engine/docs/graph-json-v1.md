@@ -86,7 +86,7 @@ Kinds: `directory`, `file`, `symbol`, `external`, `unresolved`.
 - external: `id`, `kind`, `ecosystem`, `label`.
 - unresolved: `id`, `kind`, `label`, `reason`.
 
-`language` is `typescript`, `javascript`, `python`, or `null`.
+`language` is `typescript`, `javascript`, `python`, `vue`, or `null`.
 
 `parse.status` is `parsed`, `partial`, `failed`, or `skipped`. `parsed` has no reason. The other statuses require one.
 
@@ -218,7 +218,7 @@ Comments, JSDoc `@example` blocks and commented-out code never create edges. Onl
 
 ## Strict mode
 
-`--strict` exits 4 after writing the graph when the default thresholds fail. Those defaults fail on failed files (`maxFailed` 0), timeouts (`maxTimeout` 0), and when a recognised language (`typescript`, `javascript`, `python`) has files in the scan but none were parsed because every file was skipped as `unsupported-language`. Partial files and unresolved imports are reported and do not fail the default thresholds (`maxPartial` and `maxUnresolved` are unbounded). The thresholds live in `packages/engine/src/report/strict.ts`.
+`--strict` exits 4 after writing the graph when the default thresholds fail. Those defaults fail on failed files (`maxFailed` 0), timeouts (`maxTimeout` 0), and when a recognised language (`typescript`, `javascript`, `python`, `vue`) has files in the scan but none were parsed because every file was skipped as `unsupported-language`. Partial files and unresolved imports are reported and do not fail the default thresholds (`maxPartial` and `maxUnresolved` are unbounded). The thresholds live in `packages/engine/src/report/strict.ts`.
 
 ## Tech Lead rulings (2026-11)
 
@@ -228,7 +228,7 @@ Comments, JSDoc `@example` blocks and commented-out code never create edges. Onl
 
 3. **Module augmentation:** `declare module '…' { … }` blocks do not emit symbol nodes (the string module name is not a path-named symbol).
 
-4. **Strict on recognised-but-unsupported:** With `--strict`, if the scan sees `typescript`, `javascript`, or `python` files and every one is skipped as `unsupported-language` (so `parsed + partial` is 0), the CLI exits 4 after writing the graph.
+4. **Strict on recognised-but-unsupported:** With `--strict`, if the scan sees `typescript`, `javascript`, `python`, or `vue` files and every one is skipped as `unsupported-language` (so `parsed + partial` is 0), the CLI exits 4 after writing the graph.
 
 ### Symbol labels and ids
 

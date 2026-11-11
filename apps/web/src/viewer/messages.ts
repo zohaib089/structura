@@ -184,6 +184,13 @@ export interface ViewerMessages {
   hideExtraConnections: string
   /** Small caps tag under the nucleus label (landing parity). */
   entryPointTag: string
+  thisFileTag: string
+  repositoryTag: string
+  usesCaption: string
+  usedByCaption: string
+  searchShort: string
+  insideOpenCaption: string
+  insideCloseCaption: string
   coachOpenLabel: string
   filtersTooltip: string
   searchTooltip: string
@@ -382,6 +389,13 @@ const en: ViewerMessages = {
   showAllConnections: 'Show all connections ({n})',
   hideExtraConnections: 'Hide extra connections ({n})',
   entryPointTag: 'ENTRY POINT',
+  thisFileTag: 'This file',
+  repositoryTag: 'Repository',
+  usesCaption: 'uses',
+  usedByCaption: 'used by',
+  searchShort: 'Search',
+  insideOpenCaption: '{n} inside',
+  insideCloseCaption: 'Hide inside',
   coachOpenLabel: 'Tips',
   filtersTooltip: 'Open filters to hide file types or link types',
   searchTooltip: 'Find a file or symbol by name',

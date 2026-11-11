@@ -36,6 +36,7 @@ import {
   resolveNucleusId,
   searchGraph,
   setFileNeighborhood,
+  setFolderOverview,
   setNucleus,
   type FocusQuery,
   type ViewFilters,
@@ -88,6 +89,16 @@ const props = withDefaults(
      * Default true keeps the dashboard and web app behaviour unchanged.
      */
     openInspectorOnFocus?: boolean
+    /**
+     * Embedded file mode: focusPath uses the import/importer neighbourhood
+     * rather than pinning ancestor folders. Default false keeps the web app unchanged.
+     */
+    fileNeighborhood?: boolean
+    /**
+     * Embedded project mode: nucleate the repo root and show top-level folders
+     * and workspace packages. Default 'entry' keeps the web dashboard unchanged.
+     */
+    overviewLayout?: 'entry' | 'folders'
   }>(),
   {
     embedded: false,
@@ -98,7 +109,9 @@ const props = withDefaults(
     pathSeverityCounts: undefined,
     scanFindings: () => [],
     loadFileSummary: undefined,
-    openInspectorOnFocus: true
+    openInspectorOnFocus: true,
+    fileNeighborhood: false,
+    overviewLayout: 'entry'
   }
 )
 
@@ -222,6 +235,11 @@ const overview = computed(() => {
 const entryOptions = computed(() =>
   index.value ? entryOptionsForNucleus(index.value, viewState.value.nucleusId) : []
 )
+const nucleusTag = computed(() => {
+  if (props.fileNeighborhood) return messages.thisFileTag
+  if (props.overviewLayout === 'folders') return messages.repositoryTag
+  return messages.entryPointTag
+})
 const nucleusId = computed(() =>
   index.value ? resolveNucleusId(index.value, viewState.value.nucleusId) : ''
 )
@@ -391,8 +409,14 @@ async function loadGraphDocument(document: GraphDocument) {
   filters.value = defaultFilters()
   sample.value = false
   fileName.value = 'scan-graph.json'
-  const entries = collectEntryPoints(indexGraph(document))
-  if (entries[0]) viewState.value = setNucleus(viewState.value, entries[0].id)
+  const indexed = indexGraph(document)
+  if (props.overviewLayout === 'folders' && !props.focusPath) {
+    const root = indexed.nodesById.has('dir:.') ? 'dir:.' : resolveNucleusId(indexed, null)
+    viewState.value = setFolderOverview(viewState.value, root)
+  } else {
+    const entries = collectEntryPoints(indexed)
+    if (entries[0]) viewState.value = setNucleus(viewState.value, entries[0].id)
+  }
   if (document.nodes.length === 0) ready.value = true
   applyFocusPath(props.focusPath)
 }
@@ -401,8 +425,12 @@ function applyFocusPath(path: string | null) {
   if (!path || !index.value) return
   const id = resolveGraphNodeId(index.value, path)
   if (!id) return
-  // File-focused view: imports and importers around the file, not ancestor folder clusters.
-  viewState.value = setFileNeighborhood(viewState.value, id)
+  if (props.fileNeighborhood) {
+    viewState.value = setFileNeighborhood(viewState.value, id)
+  } else {
+    viewState.value = pinPath(index.value, viewState.value, id)
+    viewState.value = setNucleus(viewState.value, id)
+  }
   selectNode(id, props.openInspectorOnFocus, false)
   activeId.value = id
 }
@@ -525,7 +553,7 @@ function toggleNode(id: string) {
 
 function selectNode(id: string, fromClick: boolean, record = fromClick) {
   if (record) remember()
-  if (fromClick) recenterOnNode(id, true)
+  if (fromClick && !props.fileNeighborhood && props.overviewLayout !== 'folders') recenterOnNode(id, true)
   selection.value = { kind: 'node', id }
   activeId.value = id
   tab.value = 'details'
@@ -1021,12 +1049,13 @@ const snippet = 'layers: []\nrules: []\n'
         :filters-label="messages.railToggle"
         :filters-tooltip="messages.filtersTooltip"
         :search-label="messages.searchPlaceholder"
+        :search-short-label="embedded ? messages.searchShort : undefined"
         :search-tooltip="messages.searchTooltip"
         :fit-label="messages.zoomFit"
         :fit-tooltip="messages.fitTooltip"
         :entry-label="messages.entryLabel"
         :entry-tooltip="messages.entryTooltip"
-        :entry-options="entryOptions"
+        :entry-options="overviewLayout === 'folders' ? [] : entryOptions"
         :entry-id="nucleusId"
         search-shortcut="Control+K Meta+K /"
         :show-all-cross-label="crossLinkCount > 0 ? showAllCrossLabel : undefined"
@@ -1077,7 +1106,12 @@ const snippet = 'layers: []\nrules: []\n'
         :label-placements="overview.labelPlacements"
         :fit-bump="fitSignature"
         :show-all-cross="showAllCross"
-        :entry-tag="messages.entryPointTag"
+        :entry-tag="nucleusTag"
+        :plain-marks="embedded"
+        :reserve-zoom-pad="embedded"
+        :hide-overlapping-ring1="embedded"
+        :inside-open-caption="embedded && overviewLayout === 'folders' ? messages.insideOpenCaption : undefined"
+        :inside-close-caption="embedded && overviewLayout === 'folders' ? messages.insideCloseCaption : undefined"
         :layout="layout"
         :group-label="(count) => format(messages.linearGroupFiles, { n: numbers.format(count) })"
         @select="onCanvasSelect"

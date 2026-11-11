@@ -52,6 +52,11 @@ const props = defineProps<{
   layout?: 'radial' | 'linear'
   /** Linear group pill caption, e.g. "{n} files". */
   groupLabel?: (count: number) => string
+  plainMarks?: boolean
+  reserveZoomPad?: boolean
+  hideOverlappingRing1?: boolean
+  insideOpenCaption?: string
+  insideCloseCaption?: string
 }>()
 
 const hoverId = ref<string | null>(null)
@@ -275,7 +280,7 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
       :delete-key-code="null"
       :only-render-visible-elements="false"
       :fit-view-on-init="false"
-      :min-zoom="0.1"
+      :min-zoom="reserveZoomPad ? 0.05 : 0.1"
       :max-zoom="2.5"
       @nodes-initialized="onInit"
       @node-click="onNodeClick"
@@ -316,6 +321,11 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
           :label-side="labelPlacements?.get(nodeProps.id)?.side ?? ((positions.get(nodeProps.id)?.x ?? 0) < -1 ? 'start' : 'end')"
           :display-label="labelPlacements?.get(nodeProps.id)?.displayLabel"
           :entry-tag="entryTag"
+          :plain-marks="plainMarks"
+          :role-caption="nodeProps.data?.roleCaption"
+          :child-count="nodeProps.data?.childCount"
+          :inside-open-caption="insideOpenCaption"
+          :inside-close-caption="insideCloseCaption"
           @select="emit('select', nodeProps.id)"
           @toggle="emit('toggle', nodeProps.id)"
         />
@@ -355,6 +365,8 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
         :padding="fitPadding ?? 0.2"
         :ring-count="ringCount ?? 0"
         :focus-ids="focusIds ?? []"
+        :reserve-zoom-pad="reserveZoomPad"
+        :hide-overlapping-ring1="hideOverlappingRing1"
       />
       <ZoomPad ref="zoomPad" :zoom-in="zoomIn" :zoom-out="zoomOut" :zoom-fit="zoomFit" :fit="fitNow" />
     </VueFlow>
