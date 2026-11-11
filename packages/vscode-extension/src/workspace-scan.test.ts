@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { Graph } from '@atlasmith/engine'
-import { chooseProjectFocus, fileInGraph, toGraphPayload } from './workspace-scan.js'
+import { fileInGraph, toGraphPayload } from './workspace-scan.js'
 
 /** Test-only fixture: a two-node graph shaped like engine output. */
 function fixtureGraph(): Graph {
@@ -47,23 +47,4 @@ test('toGraphPayload keeps the fields the viewer needs and drops run metadata', 
   assert.equal(payload.nodes.length, 2)
   assert.equal(payload.edges.length, 1)
   assert.equal('run' in payload, false)
-})
-
-test('chooseProjectFocus prefers the file with the most non-contains edges (test-only fixture)', () => {
-  const graph = fixtureGraph()
-  graph.nodes.push({
-    id: 'file:src/other.ts',
-    kind: 'file',
-    path: 'src/other.ts',
-    label: 'other.ts',
-    language: 'typescript',
-    lineCount: 2,
-    parse: { status: 'parsed' }
-  })
-  graph.edges.push(
-    { source: 'file:src/app.ts', type: 'imports', target: 'file:src/other.ts', provenance: 'EXTRACTED', span: { start: { line: 1, col: 1 }, end: { line: 1, col: 10 } }, specifier: './other' },
-    { source: 'file:src/app.ts', type: 'imports', target: 'file:src/other.ts', provenance: 'EXTRACTED', span: { start: { line: 1, col: 1 }, end: { line: 1, col: 10 } }, specifier: './other' }
-  )
-  graph.summary = { nodes: 3, edges: 3, files: 2 }
-  assert.equal(chooseProjectFocus(graph), 'src/app.ts')
 })

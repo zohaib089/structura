@@ -7,12 +7,19 @@ import {
   buildOverview,
   collapseView,
   defaultFilters,
+  dependencyRingTree,
+  discCentre,
   emptyViewState,
+  entryOptionsForNucleus,
   expandView,
+  FILE_NEIGHBORHOOD_MAX_RING,
   indexGraph,
   layoutRadialNodes,
   layoutNodes,
+  pinPath,
+  RADIAL_DISC_OFFSET,
   searchGraph,
+  setFileNeighborhood,
   setNucleus
 } from '../../src/viewer/overview'
 import { readGraph } from '../../src/viewer/read-graph'
@@ -138,4 +145,105 @@ describe('overview', () => {
     const hostile = searchGraph(index, '__proto__')
     expect(hostile.hits.length).toBe(0)
   })
+  it('walks inbound neighbours when ringWalk is both', () => {
+    const text = JSON.stringify({
+      schemaVersion: '1.0.0',
+      summary: { nodes: 5, edges: 6, files: 3 },
+      coverage: {
+        files: { discovered: 3, parsed: 3, partial: 0, failed: 0, skipped: 0, ignored: 0 },
+        byLanguage: [],
+        skipped: [],
+        ignored: [],
+        unresolved: [],
+        accounting: { discovered: 3, accounted: 3 }
+      },
+      nodes: [
+        { id: 'dir:.', kind: 'directory', path: '.', label: '.' },
+        { id: 'dir:src', kind: 'directory', path: 'src', label: 'src' },
+        {
+          id: 'file:src/app.ts',
+          kind: 'file',
+          path: 'src/app.ts',
+          label: 'app.ts',
+          language: 'typescript',
+          lineCount: 4,
+          parse: { status: 'parsed' }
+        },
+        {
+          id: 'file:src/main.ts',
+          kind: 'file',
+          path: 'src/main.ts',
+          label: 'main.ts',
+          language: 'typescript',
+          lineCount: 4,
+          parse: { status: 'parsed' },
+          entryCandidate: { reason: 'conventional-name', provenance: 'INFERRED' }
+        },
+        {
+          id: 'file:src/app.test.ts',
+          kind: 'file',
+          path: 'src/app.test.ts',
+          label: 'app.test.ts',
+          language: 'typescript',
+          lineCount: 4,
+          parse: { status: 'parsed' }
+        }
+      ],
+      edges: [
+        { source: 'dir:.', type: 'contains', target: 'dir:src', provenance: 'EXTRACTED' },
+        { source: 'dir:src', type: 'contains', target: 'file:src/app.ts', provenance: 'EXTRACTED' },
+        { source: 'dir:src', type: 'contains', target: 'file:src/main.ts', provenance: 'EXTRACTED' },
+        { source: 'dir:src', type: 'contains', target: 'file:src/app.test.ts', provenance: 'EXTRACTED' },
+        {
+          source: 'file:src/main.ts',
+          type: 'imports',
+          target: 'file:src/app.ts',
+          provenance: 'EXTRACTED',
+          specifier: './app',
+          span: { start: { line: 1, col: 1 }, end: { line: 1, col: 8 } }
+        },
+        {
+          source: 'file:src/app.test.ts',
+          type: 'imports',
+          target: 'file:src/app.ts',
+          provenance: 'EXTRACTED',
+          specifier: './app',
+          span: { start: { line: 1, col: 1 }, end: { line: 1, col: 8 } }
+        }
+      ]
+    })
+    const index = load(text)
+    const outbound = dependencyRingTree(index, 'file:src/app.ts', defaultFilters(), 6)
+    expect([...outbound.depths.keys()]).toEqual(['file:src/app.ts'])
+
+    const both = dependencyRingTree(index, 'file:src/app.ts', defaultFilters(), FILE_NEIGHBORHOOD_MAX_RING, 'both')
+    expect(new Set(both.depths.keys())).toEqual(new Set([
+      'file:src/app.ts',
+      'file:src/main.ts',
+      'file:src/app.test.ts'
+    ]))
+
+    const pinned = buildOverview(index, pinPath(index, setNucleus(emptyViewState(), 'file:src/app.ts'), 'file:src/app.ts'), defaultFilters())
+    expect(pinned.nodes.some((node) => node.kind === 'directory')).toBe(true)
+
+    const neighborhood = buildOverview(index, setFileNeighborhood(emptyViewState(), 'file:src/app.ts'), defaultFilters())
+    const ids = neighborhood.nodes.map((node) => node.id)
+    expect(ids).toEqual(expect.arrayContaining(['file:src/app.ts', 'file:src/main.ts', 'file:src/app.test.ts']))
+    expect(ids.some((id) => id.startsWith('dir:'))).toBe(false)
+    expect(neighborhood.nodes).toHaveLength(3)
+
+    const options = entryOptionsForNucleus(index, 'file:src/app.ts')
+    expect(options[0]).toMatchObject({ id: 'file:src/app.ts', label: 'app.ts', path: 'src/app.ts' })
+    expect(options.some((option) => option.id === 'file:src/main.ts')).toBe(true)
+
+    const recentred = setNucleus(setFileNeighborhood(emptyViewState(), 'file:src/app.ts'), 'file:src/main.ts')
+    expect(recentred.ringWalk).toBe('out')
+    expect(recentred.maxRadialRing).toBeGreaterThan(FILE_NEIGHBORHOOD_MAX_RING)
+  })
+
+  it('places a disc centre one radius from the node top-left', () => {
+    expect(discCentre({ x: 10, y: 20 })).toEqual({ x: 10 + RADIAL_DISC_OFFSET, y: 20 + RADIAL_DISC_OFFSET })
+    expect(discCentre(undefined)).toEqual({ x: RADIAL_DISC_OFFSET, y: RADIAL_DISC_OFFSET })
+  })
+
 })

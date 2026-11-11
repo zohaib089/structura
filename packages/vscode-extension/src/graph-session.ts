@@ -165,10 +165,9 @@ export class GraphSession {
   }
 
   private renderGraph(cache: CachedScan): void {
-    const focusPath =
-      this.mode === 'file'
-        ? this.ref?.activeRelativePath ?? null
-        : this.deps.scanner.chooseProjectFocus(cache.graph)
+    // Project mode leaves focusPath null so ViewerApp uses the same default
+    // entry as the web dashboard (collectEntryPoints()[0]).
+    const focusPath = this.mode === 'file' ? this.ref?.activeRelativePath ?? null : null
     if (this.mode === 'file' && focusPath) {
       const lookup = this.deps.scanner.fileInGraph(cache.graph, focusPath)
       if (!lookup.found) {

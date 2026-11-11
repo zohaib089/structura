@@ -284,8 +284,16 @@ function onSpace(event: KeyboardEvent) {
 .kind-mark { position: relative; }
 .kind-mark :deep(.vue-flow__handle) {
   inset-inline-start: 50% !important;
+  inset-inline-end: auto !important;
   inset-block-start: 50% !important;
-  transform: translate(-50%, -50%) !important;
+  inset-block-end: auto !important;
+  width: 0 !important;
+  height: 0 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  transform: none !important;
 }
 .kind-mark--disc {
   display: inline-grid;

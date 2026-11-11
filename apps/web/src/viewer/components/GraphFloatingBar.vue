@@ -55,7 +55,7 @@ const emit = defineEmits<{
         {{ option === 'radial' ? radialLabel : linearLabel }}
       </button>
     </div>
-    <label class="entry-switcher" :title="entryTooltip">
+    <label v-if="entryOptions.length > 0" class="entry-switcher" :title="entryTooltip">
       <span class="entry-prefix">{{ entryLabel }}</span>
       <select
         :value="entryId"

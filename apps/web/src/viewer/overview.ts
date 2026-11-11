@@ -73,9 +73,20 @@ export interface ViewState {
   maxRadialRing?: number
   /** Graph layout; radial when unset. Lives in the view state so Back restores it. */
   layout?: GraphLayout
+  /**
+   * Which non-contains edges to walk when building rings.
+   * Default `out` (what the nucleus imports). File focus uses `both`.
+   */
+  ringWalk?: RingWalk
 }
 
+/** Walk direction for dependencyRingTree. */
+export type RingWalk = 'out' | 'in' | 'both'
+
 export type GraphLayout = 'radial' | 'linear'
+
+/** Direct neighbours only: imports and importers of a focused file. */
+export const FILE_NEIGHBORHOOD_MAX_RING = 1
 
 export interface OverviewNodeModel {
   id: string
@@ -121,6 +132,9 @@ export interface OverviewEdgeModel {
   flowing?: boolean
   /** Ring centre in flow units (disc centre of the nucleus), used to bow edge paths. */
   radialCentre?: { x: number; y: number }
+  /** Disc-centre endpoints in flow units, used instead of Vue Flow handle bounds. */
+  sourceDisc?: { x: number; y: number }
+  targetDisc?: { x: number; y: number }
   /** True when the edge touches the selected node — cross-links paint at full opacity. */
   emphasized?: boolean
   /** When true, paint every cross-link (toolbar toggle). */
@@ -152,7 +166,21 @@ export function emptyViewState(): ViewState {
 export function setNucleus(state: ViewState, nucleusId: string): ViewState {
   const next = cloneState(state)
   next.nucleusId = nucleusId
+  if (next.ringWalk && next.ringWalk !== 'out') {
+    next.maxRadialRing = RADIAL_DEFAULT_MAX_RING
+  }
   next.maxRadialRing = next.maxRadialRing ?? RADIAL_DEFAULT_MAX_RING
+  next.ringWalk = 'out'
+  return next
+}
+
+/** Nucleate a file on its import + importer neighbourhood (no ancestor pins). */
+export function setFileNeighborhood(state: ViewState, nucleusId: string): ViewState {
+  const next = cloneState(state)
+  next.nucleusId = nucleusId
+  next.maxRadialRing = FILE_NEIGHBORHOOD_MAX_RING
+  next.ringWalk = 'both'
+  next.pinned = []
   return next
 }
 
@@ -451,7 +479,8 @@ export function buildOverview(
 ): OverviewModel {
   const nucleusId = resolveNucleusId(index, state.nucleusId)
   const maxRing = state.maxRadialRing ?? RADIAL_DEFAULT_MAX_RING
-  const { depths: ringDepths, parentOf: treeParent } = dependencyRingTree(index, nucleusId, filters, maxRing)
+  const walk = state.ringWalk ?? 'out'
+  const { depths: ringDepths, parentOf: treeParent } = dependencyRingTree(index, nucleusId, filters, maxRing, walk)
   const expanded = new Set(state.expanded)
   const pinned = new Set(state.pinned)
   const nodes: OverviewNodeModel[] = []
@@ -829,7 +858,8 @@ function cloneState(state: ViewState): ViewState {
     pinned: [...state.pinned],
     nucleusId: state.nucleusId,
     maxRadialRing: state.maxRadialRing,
-    layout: state.layout
+    layout: state.layout,
+    ringWalk: state.ringWalk
   }
 }
 
@@ -903,6 +933,16 @@ export function collectEntryPoints(index: GraphIndex): EntryPointOption[] {
   }
   files.sort((a, b) => compareUtf16(a.path, b.path))
   return files.slice(0, 1)
+}
+
+/** Official entries, plus the current nucleus so the switcher is never blank. */
+export function entryOptionsForNucleus(index: GraphIndex, nucleusId: string | undefined): EntryPointOption[] {
+  const options = collectEntryPoints(index)
+  if (!nucleusId || options.some((option) => option.id === nucleusId)) return options
+  const node = index.nodesById.get(nucleusId)
+  if (!node) return options
+  const path = nodePath(node)
+  return [{ id: node.id, label: entryLabelForNode(node, node.id), path: path || node.id }, ...options]
 }
 
 export function resolveNucleusId(index: GraphIndex, preferredId: string | null | undefined): string {
@@ -1293,7 +1333,8 @@ export function dependencyRingTree(
   index: GraphIndex,
   nucleusId: string,
   filters: ViewFilters,
-  maxRing: number
+  maxRing: number,
+  walk: RingWalk = 'out'
 ): { depths: Map<string, number>; parentOf: Map<string, string> } {
   const depths = new Map<string, number>()
   const parentOf = new Map<string, string>()
@@ -1301,12 +1342,18 @@ export function dependencyRingTree(
   depths.set(nucleusId, 0)
   const queue: string[] = [nucleusId]
   let head = 0
+  const linksOf = (current: string) => {
+    const links: FocusLink[] = []
+    if (walk !== 'in') links.push(...(index.outgoing.get(current) ?? []))
+    if (walk !== 'out') links.push(...(index.incoming.get(current) ?? []))
+    return links
+  }
   while (head < queue.length) {
     const current = queue[head]!
     head += 1
     const depth = depths.get(current)!
     if (depth >= maxRing) continue
-    for (const link of index.outgoing.get(current) ?? []) {
+    for (const link of linksOf(current)) {
       if (!radialLinkPasses(filters, link.unresolved, link.provenance)) continue
       const target = link.other
       if (!radialNodePasses(index, filters, target)) continue
@@ -1323,9 +1370,16 @@ export function dependencyRingDepths(
   index: GraphIndex,
   nucleusId: string,
   filters: ViewFilters,
-  maxRing: number
+  maxRing: number,
+  walk: RingWalk = 'out'
 ): Map<string, number> {
-  return dependencyRingTree(index, nucleusId, filters, maxRing).depths
+  return dependencyRingTree(index, nucleusId, filters, maxRing, walk).depths
+}
+
+/** Layout top-left plus the 1.5rem disc radius — the painted disc centre in flow units. */
+export function discCentre(position: { x: number; y: number } | undefined): { x: number; y: number } {
+  const at = position ?? { x: 0, y: 0 }
+  return { x: at.x + RADIAL_DISC_OFFSET, y: at.y + RADIAL_DISC_OFFSET }
 }
 
 export function countDependencyEdges(index: GraphIndex, nodeId: string): { out: number; in: number } {

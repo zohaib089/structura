@@ -79,10 +79,6 @@ function fakeScanner(opts: { fail?: boolean; scans?: ScanOutput[] } = {}): Scann
         nodes: g.nodes,
         edges: g.edges
       }
-    },
-    chooseProjectFocus(g) {
-      const file = g.nodes.find((node) => node.kind === 'file' && 'path' in node)
-      return file && 'path' in file ? file.path : null
     }
   }
   return scanner
@@ -158,14 +154,14 @@ test('file mode focuses the active file after a granted scan', async () => {
   assert.match(vs._panels[0]?.title ?? '', /this file/)
 })
 
-test("project mode nucleates on the scanner project focus file", async () => {
+test('project mode leaves focusPath empty so the viewer uses the dashboard entry', async () => {
   const { vs } = setup({ pregranted: true })
   await vs.commands.executeCommand(COMMANDS.showProjectGraph)
   const state = latestState(vs)
   assert.equal(state?.kind, 'graph')
   if (state?.kind !== 'graph') return
   assert.equal(state.mode, 'project')
-  assert.equal(state.focusPath, 'src/app.ts')
+  assert.equal(state.focusPath, null)
   assert.match(vs._panels[0]?.title ?? '', /whole project/)
 })
 

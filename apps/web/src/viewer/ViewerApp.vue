@@ -27,6 +27,7 @@ import {
   defaultFilters,
   emptyViewState,
   entryLabelForNode,
+  entryOptionsForNucleus,
   expandRadialRing,
   expandView,
   focusHits,
@@ -34,6 +35,7 @@ import {
   pinPath,
   resolveNucleusId,
   searchGraph,
+  setFileNeighborhood,
   setNucleus,
   type FocusQuery,
   type ViewFilters,
@@ -217,7 +219,9 @@ const overview = computed(() => {
   if (layout.value === 'linear') return buildLinearOverview(index.value, viewState.value, filters.value, focusMembers.value)
   return buildOverview(index.value, viewState.value, filters.value, focusMembers.value)
 })
-const entryOptions = computed(() => (index.value ? collectEntryPoints(index.value) : []))
+const entryOptions = computed(() =>
+  index.value ? entryOptionsForNucleus(index.value, viewState.value.nucleusId) : []
+)
 const nucleusId = computed(() =>
   index.value ? resolveNucleusId(index.value, viewState.value.nucleusId) : ''
 )
@@ -397,8 +401,8 @@ function applyFocusPath(path: string | null) {
   if (!path || !index.value) return
   const id = resolveGraphNodeId(index.value, path)
   if (!id) return
-  viewState.value = pinPath(index.value, viewState.value, id)
-  viewState.value = setNucleus(viewState.value, id)
+  // File-focused view: imports and importers around the file, not ancestor folder clusters.
+  viewState.value = setFileNeighborhood(viewState.value, id)
   selectNode(id, props.openInspectorOnFocus, false)
   activeId.value = id
 }

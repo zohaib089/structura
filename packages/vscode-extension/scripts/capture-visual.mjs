@@ -85,39 +85,23 @@ const graph = JSON.parse(await new Response(createReadStream(graphPath)).text().
 }))
 
 
-function chooseProjectFocus(graph) {
-  const filePathById = new Map()
-  for (const node of graph.nodes) {
-    if (node.kind === 'file' && node.path) filePathById.set(node.id, node.path)
-    else if (node.kind === 'symbol' && node.file) filePathById.set(node.id, node.file)
-  }
-  const degree = new Map()
-  for (const edge of graph.edges) {
-    if (edge.type === 'contains') continue
-    for (const end of [edge.source, edge.target]) {
-      const path = filePathById.get(end)
-      if (!path) continue
-      degree.set(path, (degree.get(path) ?? 0) + 1)
-    }
-  }
-  let best = null
-  let bestScore = -1
-  for (const [path, score] of degree) {
-    if (score > bestScore || (score === bestScore && best !== null && path < best)) {
-      best = path
-      bestScore = score
-    }
-  }
-  return best
+function firstEntryPath(graph) {
+  const entries = graph.nodes.filter((node) => node.kind === 'file' && node.entryCandidate && node.path)
+  entries.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))
+  return entries[0]?.path ?? null
 }
 
 const filePath = 'apps/web/src/viewer/ViewerApp.vue'
-const projectFocus = chooseProjectFocus(graph)
-console.log('Project focus:', projectFocus)
+const dashboardEntry = firstEntryPath(graph)
+console.log('Dashboard / project default entry:', dashboardEntry)
 const browser = await chromium.launch({ headless: true })
 
 async function render(name, viewport, state) {
-  const page = await browser.newPage({ viewport, colorScheme: 'dark' })
+  const page = await browser.newPage({
+    viewport,
+    deviceScaleFactor: 1,
+    colorScheme: 'dark'
+  })
   const errors = []
   page.on('pageerror', (error) => errors.push(String(error)))
   await page.goto(origin, { waitUntil: 'domcontentloaded' })
@@ -127,14 +111,44 @@ async function render(name, viewport, state) {
     await page.waitForSelector('.vue-flow, .viewer-embedded', { timeout: 20000 })
     await page.waitForTimeout(1500)
     const fit = page.getByRole('button', { name: /fit to view/i })
-    if (await fit.count()) await fit.click()
+    if (await fit.count()) {
+      await fit.click()
+      // Blur so the Fit tip does not stay open and clip the frame.
+      await page.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur())
+    }
     await page.waitForTimeout(1500)
+    const measure = await page.evaluate(() => {
+      const disc = document.querySelector('.is-nucleus .kind-mark--disc, .is-nucleus.kind-mark--disc, .overview-node.is-nucleus .kind-mark')
+      const path = document.querySelector('.vue-flow__edge-path, .edge-role-spoke path, path.vue-flow__edge-path')
+      if (!disc) return { error: 'no nucleus disc' }
+      const d = disc.getBoundingClientRect()
+      const cx = d.left + d.width / 2
+      const cy = d.top + d.height / 2
+      let start = null
+      if (path) {
+        const m = (path.getAttribute('d') || '').match(/^M\s*([\d.-]+)[,\s]+([\d.-]+)/)
+        if (m) start = { x: Number(m[1]), y: Number(m[2]) }
+      }
+      const switcher = document.querySelector('[data-testid="graph-entry-switcher"]')
+      const selected = switcher instanceof HTMLSelectElement ? (switcher.selectedOptions[0]?.textContent ?? '') : null
+      const labels = [...document.querySelectorAll('.overview-node .label')].map((el) => el.textContent?.trim()).filter(Boolean)
+      return {
+        viewport: { w: window.innerWidth, h: window.innerHeight },
+        disc: { x: Math.round(cx), y: Math.round(cy), w: Math.round(d.width), h: Math.round(d.height) },
+        pathStart: start,
+        switcher: selected,
+        optionCount: switcher instanceof HTMLSelectElement ? switcher.options.length : 0,
+        labels,
+        nodeCount: document.querySelectorAll('.overview-node').length
+      }
+    })
+    console.log(`${name} measure:`, JSON.stringify(measure))
   } else {
     await page.waitForSelector('.state-screen', { timeout: 10000 })
     await page.waitForTimeout(300)
   }
   const file = resolve(outDir, `${name}.png`)
-  await page.screenshot({ path: file, fullPage: false })
+  await page.screenshot({ path: file, fullPage: false, animations: 'disabled' })
   const kind = await page.getAttribute('.extension-app', 'data-kind')
   console.log(`${name}: ${file} kind=${kind} errors=${errors.length ? errors.join(' | ') : 'none'}`)
   if (errors.length) console.error(errors)
@@ -150,8 +164,8 @@ const graphBase = {
 }
 
 const shots = [
-  ['project-desktop', { width: 1280, height: 800 }, { ...graphBase, mode: 'project', focusPath: projectFocus }],
-  ['project-narrow', { width: 380, height: 800 }, { ...graphBase, mode: 'project', focusPath: projectFocus }],
+  ['project-desktop', { width: 1280, height: 800 }, { ...graphBase, mode: 'project', focusPath: null }],
+  ['project-narrow', { width: 380, height: 800 }, { ...graphBase, mode: 'project', focusPath: null }],
   ['file-desktop', { width: 1280, height: 800 }, { ...graphBase, mode: 'file', focusPath: filePath }],
   ['file-narrow', { width: 380, height: 800 }, { ...graphBase, mode: 'file', focusPath: filePath }],
   ['state-empty-folder', { width: 1280, height: 800 }, { kind: 'empty-folder' }],

@@ -4,7 +4,7 @@ import { VueFlow, type Edge, type Node } from '@vue-flow/core'
 import { computed, nextTick, ref, watch } from 'vue'
 import { FLOW_EDGE_TYPE, FLOW_NODE_TYPE } from '../caps'
 import { motionMs, prefersReducedMotion } from '../motion'
-import type { OverviewEdgeModel, OverviewNodeModel } from '../overview'
+import { discCentre, type OverviewEdgeModel, type OverviewNodeModel } from '../overview'
 import type { SeverityCounts } from '../../services/scan-report-tree'
 import { lookupPathSeverityCounts } from '../../services/scan-report-tree-display'
 import FitFrame from './FitFrame.vue'
@@ -185,11 +185,7 @@ const flowNodes = () => {
   ]
 }
 
-const radialCentre = computed(() => {
-  // Match RadialRingGuides: rings are centred on the nucleus disc, not its top-left corner.
-  const at = props.positions.get(props.nucleusId ?? '') ?? { x: 0, y: 0 }
-  return { x: at.x + 12, y: at.y + 12 }
-})
+const radialCentre = computed(() => discCentre(props.positions.get(props.nucleusId ?? '')))
 
 const flowEdges = () => props.edges.map((edge): Edge<OverviewEdgeModel> => ({
   id: edge.id,
@@ -202,6 +198,8 @@ const flowEdges = () => props.edges.map((edge): Edge<OverviewEdgeModel> => ({
   data: {
     ...edge,
     flowing: flowing(edge),
+    sourceDisc: discCentre(props.positions.get(edge.source)),
+    targetDisc: discCentre(props.positions.get(edge.target)),
     radialCentre: radialCentre.value,
     emphasized: Boolean(
       (props.selectedId && (edge.source === props.selectedId || edge.target === props.selectedId)) ||
