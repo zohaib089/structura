@@ -75,6 +75,7 @@ test('no architecture config and a deleted file use the base graph for impact', 
   const report = buildPrReport({ headGraph: head, baseGraph: base, changed: [{ path: 'src/db/query.ts', status: 'deleted' }] })
   assert.deepEqual(report.affected.map(file => file.path), ['src/services/users.ts', 'src/ui/view.ts', 'src/main.ts'])
   const body = renderPrComment(report)
+  assert.match(body, /1 file changed\. 3 other files depend on it /)
   assert.match(body, /No architecture rules are declared yet/)
   assert.match(body, /`src\/db\/query\.ts` deleted/)
 })

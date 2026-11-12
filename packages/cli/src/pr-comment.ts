@@ -4,10 +4,13 @@
  * Pure functions only: no file, process, or network access. The CI script in
  * scripts/pr-check/ reads graph.json files and the git diff, calls
  * buildPrReport and renderPrComment, and writes Markdown. Impact uses the same
- * engine walk as `atlasmith impact` (graphImpact), downstream direction only.
+ * engine walk as the CLI `impact` command (graphImpact), downstream direction only.
  */
 import {
+  CLI_BIN,
   CONFIG_FILE,
+  PRODUCT_NAME,
+  PRODUCT_SLUG,
   ImpactTargetAmbiguousError,
   ImpactTargetNotFoundError,
   graphImpact,
@@ -17,7 +20,8 @@ import {
 } from '@atlasmith/engine'
 
 /** Hidden marker that identifies the one sticky comment the workflow edits. */
-export const PR_COMMENT_MARKER = '<!-- atlasmith-pr-check -->'
+/** Built from PRODUCT_SLUG; .github/workflows/pr-check.yml matches the same literal marker. */
+export const PR_COMMENT_MARKER = `<!-- ${PRODUCT_SLUG}-pr-check -->`
 
 /** GitHub rejects comment bodies over 65,536 characters; stay well below. */
 export const PR_COMMENT_MAX_CHARS = 60_000
@@ -164,7 +168,6 @@ export function buildPrReport(input: PrReportInput): PrReport {
 
 /** Inline code span that cannot break out of itself or the comment (paths come from the PR). */
 export function code(text: string): string {
-  // eslint-disable-next-line no-control-regex
   const clean = text.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, '?').replace(/`/g, "'")
   const clipped = clean.length > 200 ? `${clean.slice(0, 197)}...` : clean
   return `\`${clipped}\``
@@ -234,7 +237,7 @@ export function renderPrComment(report: PrReport, options: RenderOptions = {}): 
   const configPath = report.architectureConfig ?? CONFIG_FILE
   const findings = report.findings
   const newCount = findings.filter(finding => finding.isNew).length
-  const lines: string[] = [PR_COMMENT_MARKER, '## Atlasmith architecture check', '']
+  const lines: string[] = [PR_COMMENT_MARKER, `## ${PRODUCT_NAME} architecture check`, '']
 
   if (findings.length === 0) {
     if (report.architectureConfig === undefined) {
@@ -267,7 +270,7 @@ export function renderPrComment(report: PrReport, options: RenderOptions = {}): 
   } else {
     const dependents = report.affected.length === 0
       ? 'No other files depend on them.'
-      : `${plural(report.affected.length, 'other file')} depend${report.affected.length === 1 ? 's' : ''} on them (up to ${report.depthLimit} import hops away).`
+      : `${plural(report.affected.length, 'other file')} depend${report.affected.length === 1 ? 's' : ''} on ${report.changed.length === 1 ? 'it' : 'them'} (up to ${report.depthLimit} import hops away).`
     lines.push(`${plural(report.changed.length, 'file')} changed. ${dependents}`)
     lines.push('', '**Changed**', '')
     lines.push(...capped(report.changed, max, file => {
@@ -285,7 +288,7 @@ export function renderPrComment(report: PrReport, options: RenderOptions = {}): 
   }
 
   const commit = options.headSha && /^[0-9a-f]{7,64}$/i.test(options.headSha) ? ` for commit ${code(options.headSha.slice(0, 12))}` : ''
-  lines.push('', '---', `<sub>Scanned on the CI runner with ${code('atlasmith scan --strict-architecture')}${commit}. No source code was uploaded anywhere. This comment updates on every push.</sub>`)
+  lines.push('', '---', `<sub>Scanned on the CI runner with ${code(`${CLI_BIN} scan --strict-architecture`)}${commit}. No source code was uploaded anywhere. This comment updates on every push.</sub>`)
 
   let body = `${lines.join('\n')}\n`
   if (body.length > PR_COMMENT_MAX_CHARS) {
