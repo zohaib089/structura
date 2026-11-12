@@ -165,6 +165,9 @@ const emit = defineEmits<{
   flex-shrink: 0;
 }
 .icon-button,
+.search-button .search-label-full,
+.search-button .search-label-short { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.search-button { white-space: nowrap; }
 .search-button,
 .fit-button {
   min-block-size: var(--viewer-hit-target);
@@ -217,6 +220,10 @@ select {
   text-overflow: ellipsis;
   text-align: start;
   color: var(--color-text-muted);
+}
+/* Wide panes have room for the whole placeholder on one line. */
+@media (min-width: 960px) {
+  .search-button { flex: 0 0 auto; min-inline-size: max-content; max-inline-size: none; }
 }
 .icon-button:focus-visible,
 .search-button:focus-visible,

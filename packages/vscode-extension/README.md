@@ -27,8 +27,10 @@ npm test -w packages/vscode-extension
 npm run build -w packages/vscode-extension
 ```
 
-The webview bundle also needs `apps/web` dependencies (it imports the viewer source, it does not copy it). Open this folder in VS Code / Cursor / VSCodium and use **Run Extension** once a launch config is added; until then, build the package and use **Install from VSIX** only if you package it yourself. This package is not published.
+The webview bundle also needs `apps/web` dependencies (it imports the viewer source, it does not copy it). Open this folder in VS Code / Cursor / VSCodium and use **Run Extension** once a launch config is added; until then, build the package and use **Install from VSIX** only if you package it yourself. This package is not published. `npm run package:vsix` builds a local `.vsix` (via a staged copy in `.package/`); nothing is ever published by the scripts.
 
 ## Privacy
 
-Scans write cache and `graph.json` under the extension's storage directory (or a temporary directory), not into the project, unless you later choose otherwise.
+- **Local after consent.** Atlasmith asks before the first scan of a workspace. After you agree, the scan runs entirely on your machine inside the extension host: files are parsed locally with bundled tree-sitter grammars and nothing is uploaded.
+- **No telemetry.** The extension sends no usage data, analytics, or crash reports, and makes no network requests of its own.
+- **Your project stays untouched.** Scans write cache and `graph.json` under the extension's storage directory (or a temporary directory), not into the project, unless you later choose otherwise.

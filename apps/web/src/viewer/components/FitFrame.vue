@@ -137,7 +137,8 @@ function fitOnce() {
     // Phone with an expanded group: ring 2 fans out on one side only, so a fit centred on the
     // nucleus would push that fan off the panel. Fit the painted bounds instead.
     center: openFan ? undefined : ringCentre(canvas),
-    minZoom: props.reserveZoomPad ? LABEL_PX / (BASE_LABEL_PX * EMBEDDED_MAX_MARK_SCALE) : undefined
+    // An open fan on a phone may zoom out past the label floor a little, so the current file stays in frame.
+    minZoom: props.reserveZoomPad ? (LABEL_PX / (BASE_LABEL_PX * EMBEDDED_MAX_MARK_SCALE)) * (openFan ? 0.62 : 1) : undefined
   }
   let viewport = radialFitViewport(input)
   // Hard clamp: after a width-limited or minZoom fit, shift or shrink so no disc

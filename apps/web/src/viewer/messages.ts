@@ -270,7 +270,7 @@ const en: ViewerMessages = {
   announceCollapsed: '{name} collapsed',
   announceSelected: '{name} selected, in {path}',
   crumbRoot: 'All',
-  searchPlaceholder: 'Search files, symbols, layers…',
+  searchPlaceholder: 'Search files and symbols',
   searchNone: 'No matches for “{q}”',
   searchHint: 'Try a file name or layer id',
   searchMore: '{n} more matches. Keep typing.',
