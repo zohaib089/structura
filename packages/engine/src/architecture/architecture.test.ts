@@ -212,3 +212,29 @@ test('workspace package-name imports (entry and subpath) are checked against mod
   assert.deepEqual(out.strictFailures, [`architecture drift: ${findings.length} violation(s)`])
   assert.equal(validateStrict(out.graph).ok, true)
 })
+
+test('only workspace-package INFERRED reasons are checked; every other INFERRED edge stays unchecked', async () => {
+  const { INFERRED_REASONS } = await import('../graph/types.js')
+  const { PACKAGE_IMPORT_REASONS } = await import('./drift.js')
+  assert.deepEqual([...PACKAGE_IMPORT_REASONS].sort(), ['build-output-mapping', 'conventional-entry', 'src-subpath'])
+  for (const reason of INFERRED_REASONS) {
+    const builder = new GraphBuilder()
+    builder.addNode({ id: 'file:src/a.py', kind: 'file', path: 'src/a.py', label: 'a.py', language: 'python', lineCount: 1, parse: { status: 'parsed' } })
+    builder.addNode({ id: 'file:src/b.py', kind: 'file', path: 'src/b.py', label: 'b.py', language: 'python', lineCount: 1, parse: { status: 'parsed' } })
+    builder.addEdge({
+      source: 'file:src/a.py', type: 'imports', target: 'file:src/b.py', provenance: 'INFERRED', confidence: 0.6, reason,
+      span: { start: { line: 1, col: 1 }, end: { line: 1, col: 9 } }, specifier: 'b'
+    })
+    const graph = builder.build({
+      files: { discovered: 2, parsed: 2, partial: 0, failed: 0, skipped: 0, ignored: 0 },
+      byLanguage: [], skipped: [], failed: [], ignored: [], unresolved: [], accounting: { discovered: 2, accounted: 2 }
+    })
+    const modules = [{ name: 'a', paths: ['src/a.py'], deny: ['b'] }, { name: 'b', paths: ['src/b.py'] }]
+    const { byPath } = buildModuleMap(['src/a.py', 'src/b.py'], modules)
+    const findings = detectArchitectureDrift(graph, { configPath: CONFIG_FILE, modules }, byPath)
+    const expected = PACKAGE_IMPORT_REASONS.has(reason) ? 1 : 0
+    assert.equal(findings.length, expected, `INFERRED reason ${reason}`)
+    if (expected) assert.equal(findings[0]?.provenance, 'INFERRED')
+    assert.equal(findings.some(finding => 'reason' in finding || 'confidence' in finding), false)
+  }
+})
