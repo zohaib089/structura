@@ -11,6 +11,7 @@ import {
   ImpactTargetAmbiguousError,
   ImpactTargetNotFoundError,
   graphImpact,
+  readGraph,
   type ArchitectureFinding,
   type Graph
 } from '@atlasmith/engine'
@@ -61,6 +62,11 @@ export interface PrReportInput {
   baseGraph?: Graph
   changed: readonly ChangedFile[]
   depth?: number
+}
+
+/** Parse graph.json text with the engine reader (schema-checked). */
+export function parseGraphJson(text: string): Graph {
+  return readGraph(text).graph
 }
 
 function compare(a: string, b: string): number {
