@@ -792,7 +792,8 @@ function readArchitectureFindings(value: unknown, paths: string[]): Architecture
       failed = true
       return
     }
-    if (entry.provenance !== 'EXTRACTED') {
+    // graph.json v1 minor change: INFERRED only for workspace-package resolutions.
+    if (entry.provenance !== 'EXTRACTED' && entry.provenance !== 'INFERRED') {
       push(paths, `${base}/provenance`)
       failed = true
       return
@@ -804,7 +805,7 @@ function readArchitectureFindings(value: unknown, paths: string[]): Architecture
       file,
       line: entry.line,
       rule,
-      provenance: 'EXTRACTED'
+      provenance: entry.provenance
     })
   })
   return failed ? null : findings
