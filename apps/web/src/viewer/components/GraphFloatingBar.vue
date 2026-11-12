@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Search } from '@lucide/vue'
 const props = defineProps<{
   filtersLabel: string
   filtersTooltip: string
@@ -80,6 +81,7 @@ const emit = defineEmits<{
       data-testid="graph-search-open"
       @click="emit('openSearch')"
     >
+      <Search class="search-icon" :size="16" aria-hidden="true" />
       <span class="search-label-full">{{ searchLabel }}</span>
       <span v-if="searchShortLabel" class="search-label-short">{{ searchShortLabel }}</span>
     </button>
@@ -239,6 +241,17 @@ select {
   .search-button.has-short .search-label-full { display: none; }
   .search-button.has-short .search-label-short { display: inline; }
   .fit-button { padding-inline: var(--space-2); }
+  .layout-switch button { padding-inline: var(--space-2); }
+  .layout-switch { flex-shrink: 1; }
+  .search-button { min-inline-size: 2.5rem; }
+}
+.search-icon { display: none; }
+/* Narrow panes (side bar): the search button becomes an icon so Radial / Linear keep their names. */
+@media (max-width: 480px) {
+  .search-icon { display: inline-block; vertical-align: middle; }
+  .search-button .search-label-full,
+  .search-button.has-short .search-label-short { display: none; }
+  .search-button { flex: 0 0 auto; }
   .floating-bar.is-compact .entry-switcher { display: none; }
 }
 

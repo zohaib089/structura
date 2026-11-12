@@ -60,16 +60,20 @@ function measuredBoxes(canvas: HTMLElement, focus: Set<string>): FitBox[] {
   // Desktop (≥640): include labels. Phone: include visible labels so fit keeps ~11px text on-screen.
   // Mid widths (481–639) still fit marks/rings only; declutter handles overflow.
   const withLabels = canvas.clientWidth >= 640 || phone
+  // Phone with an expanded group: frame the open group, its files and the current file; the
+  // other ring-1 neighbours may sit at the edge (pan or Fit to see them).
+  const openFan = phone && Boolean(props.reserveZoomPad) && Boolean(canvas.querySelector('.overview-node[data-depth="2"]'))
   canvas.querySelectorAll<HTMLElement>('.overview-node').forEach((node) => {
     const id = node.dataset.nodeId ?? ''
     if (focus.size > 0 && !focus.has(id)) return
+    if (openFan && node.dataset.depth === '1' && node.dataset.expanded !== 'true') return
     boxes.push(toFlow(node.getBoundingClientRect()))
     const aside = node.querySelector<HTMLElement>(':scope > .aside')
     // The compact (last-segment) label and the full label swap with display:none; measure the painted one.
     const labelEl = [...(aside?.querySelectorAll<HTMLElement>('.label') ?? [])].find((el) => el.getClientRects().length > 0) ?? aside
     if (withLabels && labelEl && !node.hasAttribute('data-label-hidden')) {
       const rect = labelEl.getBoundingClientRect()
-      if (phone) {
+      if (phone && !(openFan && node.classList.contains('is-nucleus'))) {
         // Cap horizontal extent so left/right labels don't crush zoom; prefer vertical placement instead.
         const disc = node.querySelector('.kind-mark--disc')?.getBoundingClientRect()
         const cx = disc ? (disc.left + disc.right) / 2 : (rect.left + rect.right) / 2
@@ -82,7 +86,7 @@ function measuredBoxes(canvas: HTMLElement, focus: Set<string>): FitBox[] {
       }
     }
   })
-  if (focus.size === 0) {
+  if (focus.size === 0 && !openFan) {
     const rings = canvas.querySelectorAll('.ring-guides circle')
     // Embedded: an expanded group only fills part of the outer ring; fit ring 1 plus the real nodes
     // so the panel is not sized for an empty dashed circle.
@@ -107,6 +111,7 @@ function fitOnce() {
   if (boxes.length === 0) return false
   const measured = overlays(canvas)
   const phone = isPhoneCanvas(canvas.clientWidth)
+  const openFan = phone && Boolean(props.reserveZoomPad) && Boolean(canvas.querySelector('.overview-node[data-depth="2"]'))
   const input = {
     width: canvas.clientWidth,
     height: canvas.clientHeight,
@@ -125,11 +130,13 @@ function fitOnce() {
       left: 0
     },
     nodes: boxes,
-    ringRadius: focus.size === 0 && (props.ringCount ?? 0) > 0 ? RADIAL_RING_GAP : null,
+    ringRadius: focus.size === 0 && (props.ringCount ?? 0) > 0 && !openFan ? RADIAL_RING_GAP : null,
     // Phone: extra padding so kept labels are not clipped at the canvas edge.
     // Embedded desktop: slightly tighter than 0.2 so ring-1 labels keep more screen arc.
     padding: phone ? Math.max(props.padding ?? 0.2, 0.22) : props.reserveZoomPad ? Math.min(props.padding ?? 0.2, 0.12) : (props.padding ?? 0.2),
-    center: ringCentre(canvas),
+    // Phone with an expanded group: ring 2 fans out on one side only, so a fit centred on the
+    // nucleus would push that fan off the panel. Fit the painted bounds instead.
+    center: openFan ? undefined : ringCentre(canvas),
     minZoom: props.reserveZoomPad ? LABEL_PX / (BASE_LABEL_PX * EMBEDDED_MAX_MARK_SCALE) : undefined
   }
   let viewport = radialFitViewport(input)
@@ -473,6 +480,7 @@ function overlapArea(a: Rect, b: Rect, pad: number): number {
 function declutterEmbedded(canvas: HTMLElement, nodes: HTMLElement[]) {
   for (const n of nodes) {
     n.removeAttribute('data-label-compact')
+    n.removeAttribute('data-label-tight')
   }
   const bounds = canvas.getBoundingClientRect()
   const guide = canvas.querySelector('.ring-guides')?.getBoundingClientRect()
@@ -531,10 +539,14 @@ function declutterEmbedded(canvas: HTMLElement, nodes: HTMLElement[]) {
   }
   const ordered = nodes.filter((n) => !n.classList.contains('is-nucleus')).sort((a, b) => score(a) - score(b))
 
-  const apply = (n: HTMLElement, place: Place, nudge: number, compact: boolean) => {
+  // Narrow panes get a third, tighter label: a short name with an ellipsis and no side captions
+  // ("COMPONENTS · Show files", "N inside"); the full name stays on hover / focus and in the drawer.
+  const apply = (n: HTMLElement, place: Place, nudge: number, compact: boolean, tight = false) => {
     n.setAttribute('data-label-flip', place)
     if (compact) n.setAttribute('data-label-compact', 'true')
     else n.removeAttribute('data-label-compact')
+    if (tight) n.setAttribute('data-label-tight', 'true')
+    else n.removeAttribute('data-label-tight')
     if (place === 'above' || place === 'below') {
       n.style.setProperty('--label-nudge-x', `${nudge}px`)
       n.style.removeProperty('--label-nudge-y')
@@ -544,10 +556,11 @@ function declutterEmbedded(canvas: HTMLElement, nodes: HTMLElement[]) {
     }
   }
 
-  type Choice = { place: Place; nudge: number; compact: boolean; hidden: boolean; cost: number }
+  type Choice = { place: Place; nudge: number; compact: boolean; tight: boolean; hidden: boolean; cost: number }
   const reset = (n: HTMLElement) => {
     n.removeAttribute('data-label-flip')
     n.removeAttribute('data-label-compact')
+    n.removeAttribute('data-label-tight')
     n.removeAttribute('data-label-hidden')
     n.style.removeProperty('--label-nudge-x')
     n.style.removeProperty('--label-nudge-y')
@@ -580,12 +593,13 @@ function declutterEmbedded(canvas: HTMLElement, nodes: HTMLElement[]) {
       ? [38, 26, 16, 8, 0].map((v) => v * toward)
       : [0, -8, 8, -16, 16, -26, 26, -38, 38]
     let best: Choice | null = null
-    search: for (const compact of [false, true]) {
+    const levels: [boolean, boolean][] = narrow ? [[false, false], [true, false], [true, true]] : [[false, false], [true, false]]
+    search: for (const [compact, tight] of levels) {
       for (const place of places) {
         for (const nudge of nudges) {
-          apply(n, place, nudge, compact)
+          apply(n, place, nudge, compact, tight)
           const c = cost(n, aside.getBoundingClientRect())
-          if (!best || c < best.cost - 0.5) best = { place, nudge, compact, hidden: false, cost: c }
+          if (!best || c < best.cost - 0.5) best = { place, nudge, compact, tight, hidden: false, cost: c }
           if (c <= 0) break search
         }
       }
@@ -596,7 +610,7 @@ function declutterEmbedded(canvas: HTMLElement, nodes: HTMLElement[]) {
       n.setAttribute('data-label-hidden', 'true')
       return { ...best, hidden: true }
     }
-    apply(n, best.place, best.nudge, best.compact)
+    apply(n, best.place, best.nudge, best.compact, best.tight)
     placed.push({ id: `${n.dataset.nodeId}::label`, box: aside.getBoundingClientRect(), pad: labelPad })
     return best
   }

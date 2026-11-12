@@ -524,6 +524,10 @@ function onSpace(event: KeyboardEvent) {
 .overview-node[data-label-compact] .aside > .label--compact { display: block; }
 .overview-node[data-label-compact]:has(.kind-mark--disc) > .aside { max-inline-size: calc(5.5rem * var(--graph-mark-scale, 1)); }
 .overview-node[data-label-compact] .aside > .label { overflow: hidden; text-overflow: ellipsis; max-inline-size: 100%; }
+/* Narrow panes: tightest label — a short name, no captions; full name on hover / focus / in the drawer. */
+.overview-node[data-label-tight]:has(.kind-mark--disc) > .aside { max-inline-size: calc(4.25rem * var(--graph-mark-scale, 1)); }
+.overview-node[data-label-tight] .aside > .role-caption,
+.overview-node[data-label-tight]:not([data-nbh-group='true']) .aside > .inside-toggle { display: none; }
 
 /* Embedded plain marks: stack the name and the "N inside" caption so they do not run together. */
 .overview-node.is-plain:has(.kind-mark--disc) > .aside {

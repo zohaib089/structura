@@ -8,7 +8,8 @@ import { createReadStream, existsSync, mkdirSync, statSync } from 'node:fs'
 import { extname, resolve } from 'node:path'
 import { chromium } from '../../../apps/web/node_modules/playwright/index.mjs'
 
-const outDir = process.env.E1_SHOT_DIR ?? '/workspace/e1-visual/round4'
+const outDir = process.env.E1_SHOT_DIR ?? '/workspace/e1-visual/round5'
+const theme = process.env.E1_THEME === 'light' ? 'light' : 'dark'
 mkdirSync(outDir, { recursive: true })
 const webviewDir = resolve(import.meta.dirname, '../dist-webview')
 const graphPath = resolve('/workspace/e1-visual', 'graph.json')
@@ -35,9 +36,9 @@ const capturePage = `<!DOCTYPE html>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="/assets/webview.css" />
     <title>Atlasmith graph capture</title>
-    <style>html,body,#app{margin:0;width:100%;height:100%;background:#07111f;}</style>
+    <style>html,body,#app{margin:0;width:100%;height:100%;background:${theme === 'light' ? '#ffffff' : '#07111f'};}</style>
   </head>
-  <body class="vscode-dark">
+  <body class="vscode-${theme}">
     <div id="app"></div>
     <script>
       window.__posted = []
@@ -101,7 +102,7 @@ async function render(name, viewport, state, after) {
   const page = await browser.newPage({
     viewport,
     deviceScaleFactor: 1,
-    colorScheme: 'dark'
+    colorScheme: theme
   })
   const errors = []
   page.on('pageerror', (error) => errors.push(String(error)))
@@ -191,7 +192,7 @@ async function render(name, viewport, state, after) {
 const graphBase = {
   kind: 'graph',
   graph,
-  theme: 'dark',
+  theme,
   fileSummaries: {}
 }
 
