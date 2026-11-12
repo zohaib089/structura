@@ -163,10 +163,6 @@ function setLayout(next: GraphLayout) {
   writeLayoutPreference(next)
   fitSignature.value += 1
 }
-function onCanvasSelect(id: string) {
-  if (isLinearControlId(id)) toggleNode(id)
-  else selectNode(id, true)
-}
 const graphCanvas = ref<InstanceType<typeof GraphCanvas> | null>(null)
 /** Back stack of graph views: nucleus / selection, expanded nodes, focus and viewport. */
 const history = new GraphHistory()
@@ -573,6 +569,11 @@ function filePathForNode(id: string): string | null {
 
 /** User click on the canvas. Optional openFile is a no-op when nothing listens (web app). */
 function onCanvasSelect(id: string) {
+  // Linear group / "+N more" pills expand in place; they are not files.
+  if (isLinearControlId(id)) {
+    toggleNode(id)
+    return
+  }
   selectNode(id, true)
   const path = filePathForNode(id)
   if (path) emit('openFile', path)
