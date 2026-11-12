@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { GRAPH_STRING_MAX, JSON_MAX_ERRORS } from '../../src/viewer/caps'
 import { readGraph } from '../../src/viewer/read-graph'
+import { scanReportMessages } from '../../src/services/scan-report-messages'
 
 function coverage(files: number, skipped = 0) {
   const discovered = files + skipped
@@ -242,5 +243,23 @@ describe('readGraph', () => {
       provenance: 'EXTRACTED'
     })
     expect(result.graph.summary).toEqual({ nodes: 5, edges: 4, files: 1 })
+  })
+
+  it('reads an engine-written INFERRED architecture finding (workspace package import)', () => {
+    const result = readGraph(readFileSync(resolve('fixtures/graph-inferred-finding.json'), 'utf8'))
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.graph.architecture?.findings).toEqual([
+        { from: 'tool', to: 'core', edgeKind: 'imports', file: 'packages/tool/src/index.ts', line: 1, rule: 'deny-list', provenance: 'INFERRED' }
+      ])
+    }
+    const bad = readGraph(readFileSync(resolve('fixtures/graph-inferred-finding.json'), 'utf8').replace('"provenance": "INFERRED"\n', '"provenance": "GUESSED"\n'))
+    expect(bad.ok).toBe(false)
+  })
+
+  it('report FindingsTable tooltip explains INFERRED provenance', () => {
+    const messages = scanReportMessages('en')
+    expect(messages.provenanceTooltip('INFERRED')).toBe('Inferred: our best guess from patterns, not read directly')
+    expect(messages.provenanceTooltip('EXTRACTED')).toBe('Read directly from your code')
   })
 })
