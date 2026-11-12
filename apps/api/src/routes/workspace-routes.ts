@@ -327,18 +327,20 @@ export function registerWorkspaceRoutes(app: FastifyInstance, database: Workspac
         if (!actorRole) {
           return { status: 404 as const, message: 'Workspace not found.' }
         }
-        if (actorRole !== 'owner' && actorRole !== 'admin') {
-          return {
-            status: 403 as const,
-            message: "You don't have permission to manage members."
-          }
-        }
 
         const targetRole = memberRoleOf(locked.rows, request.params.memberId)
         if (!targetRole) {
           return { status: 404 as const, message: 'Member not found.' }
         }
-        if (!canManageWorkspaceMember(actorRole, targetRole)) {
+        // Self-leave: any member, including admins and owners, may remove
+        // themselves via DELETE /api/workspaces/:workspaceId/members/:memberId
+        // when memberId equals their own user id. This bypasses the role
+        // permission check but keeps last-owner protection in this same
+        // locked transaction. A separate /leave route is unnecessary.
+        if (
+          request.params.memberId !== userId &&
+          !canManageWorkspaceMember(actorRole, targetRole)
+        ) {
           return {
             status: 403 as const,
             message: "You don't have permission to manage members."

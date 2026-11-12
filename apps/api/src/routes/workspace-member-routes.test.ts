@@ -351,3 +351,102 @@ test('allows demoting an owner when another owner exists', async () => {
     await api.app.close()
   }
 })
+
+test('allows an owner to demote themselves when another owner exists', async () => {
+  const api = createMemberApi([
+    { userId: 'owner-1', role: 'owner' },
+    { userId: 'owner-2', role: 'owner' }
+  ])
+  try {
+    const changed = await api.app.inject({
+      method: 'PATCH',
+      url: `${workspaceMembers}/owner-1`,
+      headers: { authorization: 'Bearer owner-session' },
+      payload: { role: 'admin' }
+    })
+    assert.equal(changed.statusCode, 200)
+    assert.equal(changed.json().member.id, 'owner-1')
+    assert.equal(changed.json().member.role, 'admin')
+    assert.equal(api.memberships.get('workspace-1:owner-1'), 'admin')
+    assert.equal(api.memberships.get('workspace-1:owner-2'), 'owner')
+  } finally {
+    await api.app.close()
+  }
+})
+
+test('a member can leave a workspace', async () => {
+  const api = createMemberApi([
+    { userId: 'owner-1', role: 'owner' },
+    { userId: 'member-1', role: 'member' }
+  ])
+  try {
+    const left = await api.app.inject({
+      method: 'DELETE',
+      url: `${workspaceMembers}/member-1`,
+      headers: { authorization: 'Bearer member-session' }
+    })
+    assert.equal(left.statusCode, 200)
+    assert.deepEqual(left.json(), { success: true })
+    assert.equal(api.memberships.has('workspace-1:member-1'), false)
+  } finally {
+    await api.app.close()
+  }
+})
+
+test('an admin can leave a workspace', async () => {
+  const api = createMemberApi([
+    { userId: 'owner-1', role: 'owner' },
+    { userId: 'admin-1', role: 'admin' }
+  ])
+  try {
+    const left = await api.app.inject({
+      method: 'DELETE',
+      url: `${workspaceMembers}/admin-1`,
+      headers: { authorization: 'Bearer admin-session' }
+    })
+    assert.equal(left.statusCode, 200)
+    assert.deepEqual(left.json(), { success: true })
+    assert.equal(api.memberships.has('workspace-1:admin-1'), false)
+  } finally {
+    await api.app.close()
+  }
+})
+
+test('a non-last owner can leave a workspace', async () => {
+  const api = createMemberApi([
+    { userId: 'owner-1', role: 'owner' },
+    { userId: 'owner-2', role: 'owner' }
+  ])
+  try {
+    const left = await api.app.inject({
+      method: 'DELETE',
+      url: `${workspaceMembers}/owner-1`,
+      headers: { authorization: 'Bearer owner-session' }
+    })
+    assert.equal(left.statusCode, 200)
+    assert.deepEqual(left.json(), { success: true })
+    assert.equal(api.memberships.has('workspace-1:owner-1'), false)
+    assert.equal(api.memberships.get('workspace-1:owner-2'), 'owner')
+  } finally {
+    await api.app.close()
+  }
+})
+
+test('the last owner cannot leave a workspace', async () => {
+  const api = createMemberApi([
+    { userId: 'owner-1', role: 'owner' },
+    { userId: 'admin-1', role: 'admin' }
+  ])
+  try {
+    const left = await api.app.inject({
+      method: 'DELETE',
+      url: `${workspaceMembers}/owner-1`,
+      headers: { authorization: 'Bearer owner-session' }
+    })
+    assert.equal(left.statusCode, 409)
+    assert.equal(left.json().message, 'A workspace must keep at least one owner.')
+    assert.equal(api.memberships.get('workspace-1:owner-1'), 'owner')
+  } finally {
+    await api.app.close()
+  }
+})
