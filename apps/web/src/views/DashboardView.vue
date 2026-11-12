@@ -7,6 +7,7 @@ import { useToast } from '../composables/useToast'
 import DashboardScansHub from '../components/dashboard/DashboardScansHub.vue'
 import ProjectsHomePanel from '../components/dashboard/ProjectsHomePanel.vue'
 import OpenProjectPanel from '../components/dashboard/OpenProjectPanel.vue'
+import WorkspaceSettingsPanel from '../components/dashboard/WorkspaceSettingsPanel.vue'
 import { isSupportedWebLocale, readLocalePreference, resolvePreferredWebLocale } from '../services/locale'
 import { dashboardMessages } from '../services/dashboard-messages'
 import {
@@ -18,15 +19,9 @@ import {
   createProject,
   createWorkspace,
   acceptWorkspaceInvitation,
-  inviteWorkspaceMember,
   listProjects,
-  listWorkspaceInvitations,
-  listWorkspaceMembers,
   listWorkspaces,
-  revokeWorkspaceInvitation,
   type Project,
-  type WorkspaceInvitation,
-  type WorkspaceMember,
   type Workspace
 } from '../services/workspaces'
 
@@ -83,12 +78,6 @@ const submitting = ref(false)
 const error = ref('')
 const dashboardLoadError = ref('')
 const projectsError = ref('')
-const teamLoading = ref(false)
-const teamError = ref('')
-const teamSubmitting = ref(false)
-const inviteEmail = ref('')
-const teamMembers = ref<WorkspaceMember[]>([])
-const pendingInvitations = ref<WorkspaceInvitation[]>([])
 const workspaceName = ref('')
 const projectName = ref('')
 const projectDescription = ref('')
@@ -164,49 +153,6 @@ async function handleCreateProject() {
   }
 }
 
-async function loadTeam() {
-  if (!selectedWorkspaceId.value) return
-  teamLoading.value = true
-  teamError.value = ''
-  try {
-    teamMembers.value = await listWorkspaceMembers(selectedWorkspaceId.value)
-    pendingInvitations.value = selectedWorkspace.value?.role === 'owner' || selectedWorkspace.value?.role === 'admin'
-      ? await listWorkspaceInvitations(selectedWorkspaceId.value)
-      : []
-  } catch (cause) {
-    teamError.value = cause instanceof Error ? cause.message : messages.value.loadProjectsError
-  } finally {
-    teamLoading.value = false
-  }
-}
-
-async function handleInviteMember() {
-  if (!selectedWorkspaceId.value) return
-  teamSubmitting.value = true
-  teamError.value = ''
-  try {
-    const invitation = await inviteWorkspaceMember(selectedWorkspaceId.value, inviteEmail.value)
-    pendingInvitations.value = [...pendingInvitations.value, invitation]
-    inviteEmail.value = ''
-    showToast(messages.value.inviteSuccess)
-  } catch (cause) {
-    teamError.value = cause instanceof Error ? cause.message : messages.value.createProjectError
-  } finally {
-    teamSubmitting.value = false
-  }
-}
-
-async function handleRevokeInvitation(invitationId: string) {
-  if (!selectedWorkspaceId.value) return
-  teamError.value = ''
-  try {
-    await revokeWorkspaceInvitation(selectedWorkspaceId.value, invitationId)
-    pendingInvitations.value = pendingInvitations.value.filter(invitation => invitation.id !== invitationId)
-  } catch (cause) {
-    teamError.value = cause instanceof Error ? cause.message : messages.value.loadProjectsError
-  }
-}
-
 async function loadDashboard() {
   loading.value = true
   error.value = ''
@@ -233,24 +179,19 @@ async function loadDashboard() {
         query,
         hash: route.hash
       })
-      await loadTeam()
+      workspaces.value = await listWorkspaces()
       return
     }
 
     projects.value = selectedWorkspaceId.value
       ? await listProjects(selectedWorkspaceId.value)
       : []
-    if (activeSection.value === 'settings') await loadTeam()
   } catch (cause) {
     dashboardLoadError.value = cause instanceof Error ? cause.message : messages.value.loadWorkspaceError
   } finally {
     loading.value = false
   }
 }
-
-watch([activeSection, selectedWorkspaceId], ([section]) => {
-  if (section === 'settings' && !loading.value) void loadTeam()
-})
 
 watch(
   () => route.params.workspace,
@@ -384,63 +325,14 @@ onMounted(loadDashboard)
             :initial-insight-view="routeScanId ? 'report' : 'graph'"
           />
 
-          <section v-else-if="activeSection === 'settings'" class="team-section">
-            <p class="eyebrow">{{ selectedWorkspace?.name }}</p>
-            <p v-if="selectedWorkspace" class="role-summary">
-              <strong>{{ messages.workspaceRole }}:</strong>
-              {{ selectedWorkspace.role === 'owner' ? messages.roleOwner : selectedWorkspace.role === 'admin' ? messages.roleAdmin : messages.roleMember }}
-            </p>
-            <div v-if="teamError" class="state-card error-state" role="alert">
-              <p>{{ teamError }}</p>
-              <button class="primary-button" type="button" @click="loadTeam">{{ messages.retry }}</button>
-            </div>
-            <div v-else-if="teamLoading" class="state-card" role="status">{{ messages.loadingWorkspaces }}</div>
-
-            <template v-else-if="!teamError">
-              <section class="team-panel">
-                <h2>{{ messages.teamMembers }}</h2>
-                <p v-if="teamMembers.length === 0">{{ messages.noTeamMembers }}</p>
-                <ul v-else class="team-list">
-                  <li v-for="member in teamMembers" :key="member.id" class="team-item">
-                    <div><strong>{{ member.full_name }}</strong><span>{{ member.email }}</span></div>
-                    <span class="member-role">{{ member.role === 'owner' ? messages.roleOwner : member.role === 'admin' ? messages.roleAdmin : messages.roleMember }}</span>
-                  </li>
-                </ul>
-              </section>
-
-              <form
-                v-if="selectedWorkspace?.role === 'owner' || selectedWorkspace?.role === 'admin'"
-                class="team-panel invite-form"
-                @submit.prevent="handleInviteMember"
-              >
-                <h2>{{ messages.sendInvitation }}</h2>
-                <label>
-                  {{ messages.inviteEmailLabel }}
-                  <input v-model="inviteEmail" type="email" maxlength="254" autocomplete="email" required>
-                </label>
-                <button class="primary-button" type="submit" :disabled="teamSubmitting">
-                  <HexLoader v-if="teamSubmitting" size="sm" :label="messages.sendInvitation" hide-label inline :delay="0" :min-visible="0" />
-                  {{ messages.sendInvitation }}
-                </button>
-              </form>
-
-              <section v-if="selectedWorkspace?.role === 'owner' || selectedWorkspace?.role === 'admin'" class="team-panel">
-                <h2>{{ messages.pendingInvitations }}</h2>
-                <p v-if="pendingInvitations.length === 0">{{ messages.noPendingInvitations }}</p>
-                <ul v-else class="team-list">
-                  <li v-for="invitation in pendingInvitations" :key="invitation.id" class="team-item">
-                    <div>
-                      <strong>{{ invitation.email }}</strong>
-                      <span>{{ messages.invitedBy }} {{ invitation.inviter_name }} · {{ messages.expiresAt }} {{ new Date(invitation.expires_at).toLocaleDateString(locale) }}</span>
-                    </div>
-                    <button class="secondary-button" type="button" @click="handleRevokeInvitation(invitation.id)">
-                      {{ messages.revokeInvitation }}
-                    </button>
-                  </li>
-                </ul>
-              </section>
-            </template>
-          </section>
+          <WorkspaceSettingsPanel
+            v-else-if="activeSection === 'settings' && selectedWorkspaceId"
+            :locale="locale"
+            :workspace-id="selectedWorkspaceId"
+            :workspace-name="selectedWorkspace?.name ?? ''"
+            :role="selectedWorkspace?.role ?? 'member'"
+            :created-at="selectedWorkspace?.created_at ?? ''"
+          />
 
         </template>
       </section>
@@ -580,10 +472,6 @@ onMounted(loadDashboard)
   margin: 0;
 }
 
-.role-summary {
-  color: var(--color-text-secondary);
-}
-
 .feature-state {
   display: grid;
   gap: var(--space-3);
@@ -592,78 +480,6 @@ onMounted(loadDashboard)
 .feature-state h2,
 .feature-state p {
   margin: 0;
-}
-
-.team-section {
-  display: grid;
-  gap: var(--space-4);
-}
-
-.team-section > p {
-  margin: 0;
-}
-
-.team-panel {
-  display: grid;
-  gap: var(--space-3);
-  padding-block: var(--space-5);
-  border-block: 1px solid var(--color-border);
-}
-
-.team-panel h2 {
-  margin: 0;
-  font-size: var(--text-16);
-  line-height: var(--text-16-lh);
-}
-
-.team-panel label {
-  display: grid;
-  gap: var(--space-2);
-  color: var(--color-text-secondary);
-}
-
-.team-list {
-  display: grid;
-  gap: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border: 1px solid var(--color-border);
-  border-radius: var(--r-md);
-  overflow: hidden;
-}
-
-.team-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  padding: var(--space-3) var(--space-4);
-  border-block-end: 1px solid var(--color-border);
-}
-
-.team-item:last-child {
-  border-block-end: 0;
-}
-
-.team-item > div {
-  display: grid;
-  gap: var(--space-1);
-  min-width: 0;
-}
-
-.team-item span {
-  color: var(--color-text-secondary);
-  overflow-wrap: anywhere;
-}
-
-.member-role {
-  flex: 0 0 auto;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--r-full);
-  border: 1px solid var(--color-border);
-  font-size: var(--text-12);
-  line-height: var(--text-12-lh);
 }
 
 .section-heading {
@@ -812,11 +628,6 @@ onMounted(loadDashboard)
   }
 
   .project-item-heading {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .team-item {
     align-items: flex-start;
     flex-direction: column;
   }
