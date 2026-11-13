@@ -388,7 +388,7 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
 .canvas :deep(.vue-flow__attribution) { display: none; }
 .canvas :deep(.vue-flow__node[data-id="__radial-guides__"]) {
   pointer-events: none;
-  z-index: 0 !important;
+  z-index: 1 !important;
 }
 .canvas :deep(.vue-flow__handle) { opacity: 0; }
 /* Linear: the hovered / focused pill (and its full-name tip) paints above its neighbours. */

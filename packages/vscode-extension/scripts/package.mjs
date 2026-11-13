@@ -82,6 +82,16 @@ const grammarFiles = new Set(Object.values(JSON.parse(readFileSync(join(engineRo
 const wasmDir = join(engineOut, 'node_modules/@vscode/tree-sitter-wasm/wasm')
 for (const file of readdirSync(wasmDir)) if (!grammarFiles.has(file)) rmSync(join(wasmDir, file))
 rmSync(join(engineOut, 'node_modules/web-tree-sitter/debug'), { recursive: true, force: true })
+// Runtime-unused parts of the vendored deps: sources, tests, benchmarks, browser builds, the CJS
+// copy of web-tree-sitter (the engine imports the ESM build) and type files.
+for (const rel of [
+  'ajv/lib',
+  'yaml/browser', 'yaml/bin.mjs',
+  'fast-uri/benchmark', 'fast-uri/test', 'fast-uri/types', 'fast-uri/eslint.config.js', 'fast-uri/tsconfig.json',
+  'json-schema-traverse/spec',
+  'web-tree-sitter/web-tree-sitter.cjs', 'web-tree-sitter/web-tree-sitter.d.cts', 'web-tree-sitter/web-tree-sitter.d.ts',
+  '@vscode/tree-sitter-wasm/cgmanifest.json'
+]) rmSync(join(engineOut, 'node_modules', rel), { recursive: true, force: true })
 
 // 4. Webview, media, docs, and a publish-safe manifest (no workspace / file: dependencies).
 cpSync(join(root, 'dist-webview'), join(stage, 'dist-webview'), { recursive: true })
@@ -94,7 +104,7 @@ delete staged.dependencies
 delete staged.devDependencies
 delete staged.scripts
 writeFileSync(join(stage, 'package.json'), `${JSON.stringify(staged, null, 2)}\n`)
-writeFileSync(join(stage, '.vscodeignore'), '**/*.map\n**/*.ts\n!**/*.d.ts\n')
+writeFileSync(join(stage, '.vscodeignore'), ['**/*.map', '**/*.ts', '**/*.cts', '**/*.mts', '**/*.yml', '**/*.yaml', '**/.github/**', '**/tsconfig.json', '**/.eslintrc*', '**/test/**', '**/tests/**', ''].join('\n'))
 
 console.log('staged', stage, 'vendored', [...copied].sort().join(', '))
 if (stageOnly) process.exit(0)

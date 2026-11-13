@@ -128,8 +128,10 @@ const emit = defineEmits<{
   backdrop-filter: blur(10px);
   box-shadow: 0 8px 24px color-mix(in srgb, var(--color-brand-navy) 35%, transparent);
   transform: translateX(-50%);
-  inline-size: min(48rem, calc(100% - var(--space-6)));
+  /* Size to the controls (never wider than the pane), so the last button stays inside the border. */
+  inline-size: max-content;
   max-inline-size: calc(100% - var(--space-6));
+  box-sizing: border-box;
   pointer-events: none;
 }
 .icon-button,
@@ -178,6 +180,11 @@ const emit = defineEmits<{
   color: var(--color-text-primary);
 }
 .links-button {
+  /* Same height as the other controls and centred, so it never pokes out of the bar. */
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
   min-block-size: var(--viewer-hit-target, 2.75rem);
   padding-inline: var(--space-2);
   border-radius: var(--radius-sm);
@@ -247,7 +254,8 @@ select {
   .search-button { min-inline-size: 0; flex: 1 1 0; max-inline-size: none; padding-inline: var(--space-2); }
   .search-button.has-short .search-label-full { display: none; }
   .search-button.has-short .search-label-short { display: inline; }
-  .fit-button { padding-inline: var(--space-2); }
+  .fit-button { padding-inline: var(--space-2); white-space: nowrap; flex-shrink: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; }
+  .links-button { padding-inline: var(--space-1); }
   .layout-switch button { padding-inline: var(--space-2); }
   .layout-switch { flex-shrink: 1; }
   .search-button { min-inline-size: 2.5rem; }

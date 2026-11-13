@@ -138,7 +138,7 @@ async function render(name, viewport, state, after) {
       }
       const switcher = document.querySelector('[data-testid="graph-entry-switcher"]')
       const selected = switcher instanceof HTMLSelectElement ? (switcher.selectedOptions[0]?.textContent ?? '') : null
-      const labels = [...document.querySelectorAll('.overview-node')].map((el) => (el.hasAttribute('data-label-hidden') ? '[hidden] ' : '') + (el.querySelector('.label')?.textContent?.trim() ?? ''))
+      const labels = [...document.querySelectorAll('.overview-node')].map((el) => (el.hasAttribute('data-label-hidden') ? '[hidden] ' : '') + (el.hasAttribute('data-label-mini') ? '[mini] ' : el.hasAttribute('data-label-tight') ? '[tight] ' : '') + (el.querySelector('.label')?.textContent?.trim() ?? '') + (el.hasAttribute('data-label-mini') ? ` w=${Math.round(el.querySelector(':scope > .aside')?.getBoundingClientRect().width ?? 0)}` : ''))
       const overlaps = []
       const nodesEl = [...document.querySelectorAll('.overview-node')]
       const shown = nodesEl.filter((n) => !n.hasAttribute('data-label-hidden')).map((n) => ({
@@ -157,9 +157,11 @@ async function render(name, viewport, state, after) {
       const zoom = document.querySelector('.zoom')
       const z = zoom?.getBoundingClientRect()
       const bar = document.querySelector('.floating-bar')?.getBoundingClientRect()
+      const barOverflow = bar ? [...document.querySelectorAll('.floating-bar > *')].filter((c) => getComputedStyle(c).display !== 'none' && getComputedStyle(c).position !== 'absolute').map((c) => ({ c: c.className || c.tagName, r: c.getBoundingClientRect() })).filter(({ r }) => r.width > 0 && (r.right > bar.right - 1 || r.left < bar.left + 1 || r.bottom > bar.bottom - 1 || r.top < bar.top + 1)).map(({ c }) => c) : []
       const tips = document.querySelector('[data-testid="coach-mark"]')?.getBoundingClientRect()
       return {
         viewport: { w: window.innerWidth, h: window.innerHeight },
+        barOverflow,
         disc: { x: Math.round(cx), y: Math.round(cy), w: Math.round(d.width), h: Math.round(d.height) },
         pathStart: start,
         switcher: selected,

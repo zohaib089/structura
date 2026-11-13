@@ -526,6 +526,9 @@ function onSpace(event: KeyboardEvent) {
 .overview-node[data-label-compact] .aside > .label { overflow: hidden; text-overflow: ellipsis; max-inline-size: 100%; }
 /* Narrow panes: tightest label — a short name, no captions; full name on hover / focus / in the drawer. */
 .overview-node[data-label-tight]:has(.kind-mark--disc) > .aside { max-inline-size: calc(4.25rem * var(--graph-mark-scale, 1)); }
+.overview-node[data-label-mini]:has(.kind-mark--disc) > .aside { max-inline-size: calc(4.25rem * var(--graph-mark-scale, 1)); min-inline-size: calc(3rem * var(--graph-mark-scale, 1)); }
+.overview-node[data-label-mini] .aside > .label { font-size: calc(var(--font-size-xs) * 0.86 * var(--graph-mark-scale, 1)); }
+.overview-node[data-label-mini]:not([data-nbh-group='true']) .aside > .inside-toggle { display: none; }
 .overview-node[data-label-tight] .aside > .role-caption,
 .overview-node[data-label-tight]:not([data-nbh-group='true']) .aside > .inside-toggle { display: none; }
 

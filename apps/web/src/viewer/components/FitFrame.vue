@@ -482,6 +482,7 @@ function declutterEmbedded(canvas: HTMLElement, nodes: HTMLElement[]) {
   for (const n of nodes) {
     n.removeAttribute('data-label-compact')
     n.removeAttribute('data-label-tight')
+    n.removeAttribute('data-label-mini')
   }
   const bounds = canvas.getBoundingClientRect()
   const guide = canvas.querySelector('.ring-guides')?.getBoundingClientRect()
@@ -542,8 +543,11 @@ function declutterEmbedded(canvas: HTMLElement, nodes: HTMLElement[]) {
 
   // Narrow panes get a third, tighter label: a short name with an ellipsis and no side captions
   // ("COMPONENTS · Show files", "N inside"); the full name stays on hover / focus and in the drawer.
-  const apply = (n: HTMLElement, place: Place, nudge: number, compact: boolean, tight = false) => {
+  // A fourth narrow-only level (mini) drops the name a size and trims it further before hiding.
+  const apply = (n: HTMLElement, place: Place, nudge: number, compact: boolean, tight = false, mini = false) => {
     n.setAttribute('data-label-flip', place)
+    if (mini) n.setAttribute('data-label-mini', 'true')
+    else n.removeAttribute('data-label-mini')
     if (compact) n.setAttribute('data-label-compact', 'true')
     else n.removeAttribute('data-label-compact')
     if (tight) n.setAttribute('data-label-tight', 'true')
@@ -557,11 +561,12 @@ function declutterEmbedded(canvas: HTMLElement, nodes: HTMLElement[]) {
     }
   }
 
-  type Choice = { place: Place; nudge: number; compact: boolean; tight: boolean; hidden: boolean; cost: number }
+  type Choice = { place: Place; nudge: number; compact: boolean; tight: boolean; mini: boolean; hidden: boolean; cost: number }
   const reset = (n: HTMLElement) => {
     n.removeAttribute('data-label-flip')
     n.removeAttribute('data-label-compact')
     n.removeAttribute('data-label-tight')
+    n.removeAttribute('data-label-mini')
     n.removeAttribute('data-label-hidden')
     n.style.removeProperty('--label-nudge-x')
     n.style.removeProperty('--label-nudge-y')
@@ -594,13 +599,15 @@ function declutterEmbedded(canvas: HTMLElement, nodes: HTMLElement[]) {
       ? [38, 26, 16, 8, 0].map((v) => v * toward)
       : [0, -8, 8, -16, 16, -26, 26, -38, 38]
     let best: Choice | null = null
-    const levels: [boolean, boolean][] = narrow ? [[false, false], [true, false], [true, true]] : [[false, false], [true, false]]
-    search: for (const [compact, tight] of levels) {
+    const levels: [boolean, boolean, boolean][] = narrow
+      ? [[false, false, false], [true, false, false], [true, true, false], [true, true, true]]
+      : [[false, false, false], [true, false, false]]
+    search: for (const [compact, tight, mini] of levels) {
       for (const place of places) {
         for (const nudge of nudges) {
-          apply(n, place, nudge, compact, tight)
+          apply(n, place, nudge, compact, tight, mini)
           const c = cost(n, aside.getBoundingClientRect())
-          if (!best || c < best.cost - 0.5) best = { place, nudge, compact, tight, hidden: false, cost: c }
+          if (!best || c < best.cost - 0.5) best = { place, nudge, compact, tight, mini, hidden: false, cost: c }
           if (c <= 0) break search
         }
       }
@@ -611,7 +618,7 @@ function declutterEmbedded(canvas: HTMLElement, nodes: HTMLElement[]) {
       n.setAttribute('data-label-hidden', 'true')
       return { ...best, hidden: true }
     }
-    apply(n, best.place, best.nudge, best.compact, best.tight)
+    apply(n, best.place, best.nudge, best.compact, best.tight, best.mini)
     placed.push({ id: `${n.dataset.nodeId}::label`, box: aside.getBoundingClientRect(), pad: labelPad })
     return best
   }
