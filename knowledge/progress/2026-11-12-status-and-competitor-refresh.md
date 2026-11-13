@@ -2,6 +2,8 @@
 
 **Date:** 2026-11-12 (Lisbon)
 
+**Later status:** Open-work status as of 2026-11-13 (Lisbon) is in [`2026-11-13-open-prs-64-69.md`](./2026-11-13-open-prs-64-69.md). The competitor findings below are still the Nov 12 pass.
+
 Full working copy, with tables and sources: [Atlasmith competitor comparison and feature plan](https://cursor.com/canvas/store-99ca53d4-ef87-4dc3-acb8-ced305d5ac67/89e45de6-cab1-4362-be92-175fc2428055) (sections 4a to 4e). The durable version is in [`strategy/competitor-analysis.md`](../strategy/competitor-analysis.md).
 
 ## Status of main

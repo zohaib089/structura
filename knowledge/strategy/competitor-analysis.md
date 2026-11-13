@@ -1,6 +1,6 @@
 # Competitor analysis
 
-**Last updated:** 2026-11-12 (Lisbon). Live working copy: [Atlasmith competitor comparison and feature plan](https://cursor.com/canvas/store-99ca53d4-ef87-4dc3-acb8-ced305d5ac67/89e45de6-cab1-4362-be92-175fc2428055).
+**Last updated:** 2026-11-13 (Lisbon). Open PRs #64–#69 and local E1 work are in review or local only; nothing from that set is on main. Live working copy: [Atlasmith competitor comparison and feature plan](https://cursor.com/canvas/store-99ca53d4-ef87-4dc3-acb8-ced305d5ac67/89e45de6-cab1-4362-be92-175fc2428055).
 
 This file is the lasting summary. Update it when the market or Atlasmith changes. "Unknown" means a fetched source did not confirm it.
 
@@ -48,9 +48,9 @@ Atlasmith turns a codebase into a map that anyone can read.
 
 ## Gaps, ranked
 
-1. IDE extension (E1 is local and not published)
-2. Full roles and permissions
-3. PR / CI comment
+1. IDE extension (E1 is local only: vsix built, not a PR, not published; publisher still needs registering)
+2. Full roles and permissions (step 1 in review, PR #66, not merged)
+3. PR / CI comment (in review, PRs #67 and #68, not merged)
 4. Git hotspots and co-change
 5. More languages
 6. Duplicates and quality scores
