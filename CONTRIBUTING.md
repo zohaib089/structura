@@ -102,4 +102,6 @@ Hostile fixtures for the offline scan, when they exist, are only these directori
 
 GitHub Actions runs on free GitHub-hosted runners only (no larger runners, no self-hosted runners, no paid services). Workflows are pinned to full action SHAs. Jobs include API/web/skills checks, engine/CLI offline proof, and the import guard / corpus excludes. Prefer extending root workspace scripts rather than inventing parallel install paths.
 
+The PR architecture check (`.github/workflows/pr-check.yml`) scans each pull request with `atlasmith scan --strict-architecture` and keeps one plain-English comment up to date, listing affected files and any broken architecture rules. It uses `pull_request`, never `pull_request_target`. The job that runs PR code has `contents: read` only, and a separate job that never checks out PR code posts the comment with `pull-requests: write`. Fork PRs get the text in the job summary instead. Details: `docs/engineering/pr-check.md`.
+
 `.gitattributes` forces LF for text (including fixture sources) and marks `*.wasm` binary so `graph.json` output does not change across operating systems because of line endings.
