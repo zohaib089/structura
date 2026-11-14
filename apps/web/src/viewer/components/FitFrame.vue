@@ -399,6 +399,7 @@ function declutter() {
 
   for (const n of ordered) {
     n.removeAttribute('data-label-hidden')
+    n.removeAttribute('data-label-mid')
     n.style.removeProperty('--label-nudge-x')
     n.style.removeProperty('--label-nudge-y')
     let placed = false
@@ -529,10 +530,17 @@ function declutterEmbedded(canvas: HTMLElement, nodes: HTMLElement[]) {
   // groups stay; a ring-1 file that has no clean spot may hide (name on hover / focus / tap).
   const fileView = Boolean(canvas.querySelector('.half-caption'))
   const narrow = isPhoneCanvas(canvas.clientWidth)
+  // A crowded first ring (real file graphs reach 40+) cannot keep every name: there a ring-1 name that
+  // has no clean spot hides too (full name on hover / focus / in the inspector) instead of overlapping.
+  const ring1Count = nodes.filter((n) => Number(n.dataset.depth ?? NaN) === 1).length
+  // Phones drop a crowded ring-1 name only when the "Files in view" list names it (G02: a name only
+  // goes when a group or a visible list replaces it).
+  const listed = canvas.closest('.graph-canvas, [data-testid="graph-canvas"]')?.querySelector('[data-testid="graph-file-list"]')
+  const crowdedRing1 = ring1Count > 24 && (!isPhoneCanvas(canvas.clientWidth) || Boolean(listed))
   const isMust = (n: HTMLElement) =>
     n.classList.contains('is-selected') ||
     n.dataset.nbhGroup === 'true' ||
-    (Number(n.dataset.depth ?? NaN) === 1 && !(fileView && narrow))
+    (Number(n.dataset.depth ?? NaN) === 1 && !(fileView && narrow) && !crowdedRing1)
   const score = (n: HTMLElement) => {
     if (n.classList.contains('is-selected')) return -1
     if (n.dataset.nbhGroup === 'true') return 0
@@ -599,7 +607,7 @@ function declutterEmbedded(canvas: HTMLElement, nodes: HTMLElement[]) {
     const nudges = openGroup
       ? [38, 26, 16, 8, 0].map((v) => v * toward)
       : narrow && isMust(n)
-        ? [0, -8, 8, -16, 16, -26, 26, -38, 38, -50, 50, -64, 64]
+        ? [0, -8, 8, -16, 16, -26, 26, -38, 38, -50, 50, -64, 64, -80, 80, -96, 96]
         : [0, -8, 8, -16, 16, -26, 26, -38, 38]
     let best: Choice | null = null
     const levels: [boolean, boolean, boolean][] = narrow
@@ -652,6 +660,16 @@ function declutterEmbedded(canvas: HTMLElement, nodes: HTMLElement[]) {
     placed.length = 0
     for (const n of bestRun.order) reset(n)
     for (const n of bestRun.order) placeOne(n)
+  }
+  // A name that still runs past its box would end in a CSS "…" and lose the extension: swap in the
+  // middle-truncated form ("ScanGra…w.vue") instead. It is never wider, so placements stay valid.
+  for (const n of ordered) {
+    n.removeAttribute('data-label-mid')
+    if (n.hasAttribute('data-label-hidden') || n.hasAttribute('data-label-tight') || n.hasAttribute('data-label-mini')) continue
+    const shown = [...n.querySelectorAll<HTMLElement>(':scope > .aside > .label')].find((el) => el.offsetParent !== null)
+    if (shown && shown.scrollWidth > shown.clientWidth + 1 && n.querySelector(':scope > .aside > .label--midw')) {
+      n.setAttribute('data-label-mid', 'true')
+    }
   }
 }
 

@@ -1372,7 +1372,10 @@ export function layoutRadialTree(
         ? Math.max(RADIAL_NUCLEUS_CLEARANCE + RADIAL_DISC_OFFSET * 2, RADIAL_RING_GAP)
         : previousRadius + RADIAL_RING_GAP * 0.55,
       previousRadius === 0 ? RADIAL_RING_GAP : previousRadius + RADIAL_RING_GAP * 0.5,
-      ordered.length >= 2 ? minArc / Math.max(minGap, 1e-6) : RADIAL_RING_GAP
+      // Two neighbours that share (almost) the same angle would otherwise blow the ring up ~10x
+      // (seen on a real 72-node file graph: ring 2 at 30,900 vs ring 1 at 3,160). Floor the gap at a
+      // third of an even share; the label pass and declutter separate the rest.
+      ordered.length >= 2 ? minArc / Math.max(minGap, TAU / (ordered.length * 3), 1e-6) : RADIAL_RING_GAP
     )
     previousRadius = radius
     radiiByDepth.set(ring, radius)

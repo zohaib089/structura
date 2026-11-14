@@ -147,6 +147,10 @@ const emit = defineEmits<{
   overflow: hidden;
 }
 .layout-switch button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   min-block-size: var(--viewer-hit-target);
   padding-inline: var(--space-3);
   border: 0;
@@ -172,6 +176,9 @@ const emit = defineEmits<{
 .search-button { white-space: nowrap; }
 .search-button,
 .fit-button {
+  /* G09: labels centred on both axes inside the hit target. */
+  align-items: center;
+  line-height: 1;
   min-block-size: var(--viewer-hit-target);
   padding-inline: var(--space-3);
   border: 1px solid var(--viewer-control-border, var(--color-border));
@@ -179,6 +186,7 @@ const emit = defineEmits<{
   background: var(--color-surface);
   color: var(--color-text-primary);
 }
+.fit-button { justify-content: center; }
 .links-button {
   /* Same height as the other controls and centred, so it never pokes out of the bar. */
   box-sizing: border-box;
