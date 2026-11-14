@@ -200,9 +200,9 @@ const listedFiles = computed(() =>
   props.layout === 'linear'
     ? []
     : props.nodes
-      .filter((n) => !n.more && n.id !== props.nucleusId)
+      .filter((n) => !n.more)
       .map((n) => ({ id: n.id, depth: n.depth ?? 9, label: uniqueLabels.value.get(n.id) ?? n.label }))
-      .sort((a, b) => a.depth - b.depth || a.label.localeCompare(b.label))
+      .sort((a, b) => (a.id === props.nucleusId ? -1 : b.id === props.nucleusId ? 1 : a.depth - b.depth || a.label.localeCompare(b.label)))
 )
 const uniqueLabels = computed(() => disambiguatedLabels(props.nodes.map((n) => ({ id: n.id, label: n.label, kind: n.kind }))))
 // Phone discs keep the short name (room); the files list below always carries the folder.
