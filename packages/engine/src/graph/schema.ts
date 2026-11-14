@@ -229,7 +229,7 @@ export function buildGraphJsonSchema(): Schema {
           file: str({ minLength: 1 }),
           line: { type: 'integer', minimum: 1 },
           rule: str({ minLength: 1 }),
-          provenance: { const: 'EXTRACTED' }
+          provenance: { type: 'string', enum: ['EXTRACTED', 'INFERRED'] }
         },
         ['from', 'to', 'edgeKind', 'file', 'line', 'rule', 'provenance']
       ),
