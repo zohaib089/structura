@@ -1,9 +1,11 @@
 /*
- * Stable navy graph surface (S3). The project and scan-report graph canvases always paint the
- * dark-surface palette, in both shell themes, matching the landing Nucleus radial graph.
- * Values mirror the dark tokens in styles/variables.css; generated from the tokens the light theme overrides.
+ * Graph surface (G05, reverses S3). In the dark theme the project and scan-report canvases paint
+ * this navy dark-surface palette (values mirror the dark tokens in styles/variables.css). In the
+ * light theme the canvas follows the shell: no override here, so the light tokens in
+ * styles/variables.css apply (light surface, dark labels, the same amber path/selection, AA-checked
+ * edge and severity colours). The navy hero stays on the marketing landing only.
  */
-.graph-surface {
+:root:not([data-theme='light']) .graph-surface {
   --gray-0: #0b0d10;
   --gray-1: #111317;
   --gray-2: #181b20;
@@ -101,6 +103,18 @@
   --viewer-control-border: var(--color-border-strong);
   --graph-budget-track: var(--color-border);
   --color-canvas-vignette: radial-gradient(ellipse at center, transparent 42%, color-mix(in srgb, var(--color-surface) var(--alpha-40), var(--color-canvas)) 100%);
-  --graph-dot: color-mix(in srgb, var(--color-text-muted) var(--alpha-12), transparent);  color-scheme: dark;
+  --graph-dot: color-mix(in srgb, var(--color-text-muted) var(--alpha-12), transparent);
+  color-scheme: dark;
   color: var(--color-text-primary);
 }
+
+/* Light theme: brand-navy tints that build the dark well become light-blue tints. */
+[data-theme='light'] .graph-surface {
+  --color-brand-navy: var(--color-brand-navy-lift);
+  color-scheme: light;
+  color: var(--color-text-primary);
+}
+[data-theme='light'] .canvas.graph-surface {
+  background: radial-gradient(62% 72% at 50% 48%, #f3f8ff 0%, #f7f9fc 55%, var(--color-canvas) 100%);
+}
+[data-theme='light'] .canvas.graph-surface .vignette { background: none; }

@@ -516,7 +516,8 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
 <style scoped>
 .canvas { position: relative; flex: 1; block-size: 100%; min-block-size: 0; direction: ltr; }
 .canvas {
-  /* Navy Nucleus surface painted by the canvas itself, so Vue Flow never covers it. */
+  /* Canvas surface painted by the canvas itself, so Vue Flow never covers it: navy well in the dark
+     theme, a light surface with a faint blue centre in the light theme (G05). */
   background:
     radial-gradient(62% 72% at 50% 48%, #16305a 0%, #10213f 38%, #0b1628 72%, #090f1b 100%);
 }
