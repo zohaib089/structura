@@ -220,6 +220,7 @@ async function expandFirstGroup(page) {
   const fit = page.getByRole('button', { name: /fit to view/i })
   await page.waitForTimeout(800)
   if (await fit.count()) await fit.click()
+  await page.waitForTimeout(Number(process.env.E1_SETTLE ?? 0))
 }
 
 const only = process.env.E1_ONLY ? new Set(process.env.E1_ONLY.split(',')) : null
