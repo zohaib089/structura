@@ -81,8 +81,33 @@ button {
   inline-size: 100%;
   min-inline-size: var(--viewer-control-size, 2.75rem);
   min-block-size: var(--viewer-hit-target, 2.75rem);
+  margin: 0;
+  padding: 0;
+  appearance: none;
+  border: 0;
+  /* One hairline between buttons; none above the first. */
+  border-block-start: 1px solid var(--viewer-control-border, var(--color-border));
+  border-radius: 0;
   background: transparent;
   color: var(--color-text-primary);
+  font: inherit;
+  cursor: pointer;
 }
-.zoom :deep(.tip:first-child) button { border-block-start: 0; }
+.zoom :deep(.tip:first-child) button {
+  border-block-start: 0;
+  border-start-start-radius: var(--radius-md);
+  border-start-end-radius: var(--radius-md);
+}
+.zoom :deep(.tip:last-child) button {
+  border-end-start-radius: var(--radius-md);
+  border-end-end-radius: var(--radius-md);
+}
+/* Same surface states as the floating toolbar buttons, in both themes. */
+button:hover { background: var(--color-surface); }
+button:focus-visible {
+  outline: none;
+  position: relative;
+  z-index: 1;
+  box-shadow: var(--focus-ring);
+}
 </style>
