@@ -216,6 +216,7 @@ const flowNodes = () => {
   focusable: false,
   deletable: false,
   data: node,
+  class: hotPath.value.nodes.has(node.id) ? (node.id === activeId.value ? 'is-path is-path-active' : 'is-path') : undefined,
       ariaLabel: node.more ? props.moreLabel(node.remainder) : node.label,
       domAttributes: {
         'data-node-id': node.id,
@@ -232,6 +233,62 @@ const flowNodes = () => {
 
 const radialCentre = computed(() => discCentre(props.positions.get(props.nucleusId ?? '')))
 
+/**
+ * Path highlight, matched to the landing graph (RadialSampleGraph.vue): hovering, focusing or
+ * selecting a node lights the path back to the centre file in amber, everything else dims
+ * (edges 0.28, nodes 0.45), transitions run --dur-2 (160ms) on --easing-product.
+ */
+const focusedId = ref<string | null>(null)
+const activeId = computed(() => hoverId.value ?? focusedId.value ?? props.selectedId ?? null)
+const hotPath = computed(() => {
+  const nodes = new Set<string>()
+  const edges = new Set<string>()
+  const target = activeId.value
+  const start = props.nucleusId ?? null
+  if (!target || props.layout === 'linear') return { nodes, edges }
+  nodes.add(target)
+  if (!start || start === target) return { nodes, edges }
+  // Shortest path (undirected) from the centre file to the active node over the drawn edges.
+  const adj = new Map<string, { to: string; id: string }[]>()
+  for (const e of props.edges) {
+    if (!adj.has(e.source)) adj.set(e.source, [])
+    if (!adj.has(e.target)) adj.set(e.target, [])
+    adj.get(e.source)!.push({ to: e.target, id: e.id })
+    adj.get(e.target)!.push({ to: e.source, id: e.id })
+  }
+  const prev = new Map<string, { from: string; id: string }>()
+  const queue = [start]
+  const seen = new Set([start])
+  while (queue.length) {
+    const cur = queue.shift()!
+    if (cur === target) break
+    for (const { to, id } of adj.get(cur) ?? []) {
+      if (seen.has(to)) continue
+      seen.add(to)
+      prev.set(to, { from: cur, id })
+      queue.push(to)
+    }
+  }
+  if (!prev.has(target)) return { nodes, edges }
+  let cur = target
+  while (cur !== start) {
+    const step = prev.get(cur)!
+    edges.add(step.id)
+    nodes.add(step.from)
+    cur = step.from
+  }
+  return { nodes, edges }
+})
+const pathActive = computed(() => hotPath.value.nodes.size > 0)
+function onFocusIn(event: FocusEvent) {
+  const el = (event.target as HTMLElement | null)?.closest<HTMLElement>('.vue-flow__node')
+  const id = el?.dataset.id
+  focusedId.value = id && id !== '__radial-guides__' ? id : null
+}
+function onFocusOut() {
+  focusedId.value = null
+}
+
 const flowEdges = () => props.edges.filter((edge) => !foldedIds.value.has(edge.source) && !foldedIds.value.has(edge.target)).map((edge): Edge<OverviewEdgeModel> => ({
   id: edge.id,
   type: FLOW_EDGE_TYPE,
@@ -240,6 +297,7 @@ const flowEdges = () => props.edges.filter((edge) => !foldedIds.value.has(edge.s
   selectable: true,
   deletable: false,
   focusable: false,
+  class: hotPath.value.edges.has(edge.id) ? 'is-path' : undefined,
   data: {
     ...edge,
     flowing: flowing(edge),
@@ -298,7 +356,10 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
     id="graph-canvas"
     ref="root"
     class="canvas graph-surface"
+    :data-path-active="pathActive ? 'true' : undefined"
     data-testid="graph-canvas"
+    @focusin="onFocusIn"
+    @focusout="onFocusOut"
     role="application"
     :aria-label="label"
     tabindex="-1"
@@ -430,6 +491,29 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
   z-index: 1 !important;
 }
 .canvas :deep(.vue-flow__handle) { opacity: 0; }
+/* Path highlight (landing graph values). Non-colour cues: thicker path, amber ring round the active
+   node, and everything off the path dims. Reduced motion: --dur-2 is 0ms, so it switches instantly. */
+.canvas :deep(.vue-flow__node:not([data-id="__radial-guides__"])),
+.canvas :deep(.vue-flow__edge) {
+  transition: opacity var(--dur-2, 160ms) var(--easing-product, cubic-bezier(0.2, 0, 0, 1));
+}
+.canvas[data-path-active='true'] :deep(.vue-flow__edge:not(.is-path)) { opacity: 0.28; }
+.canvas[data-path-active='true'] :deep(.vue-flow__node:not(.is-path):not([data-id="__radial-guides__"])) { opacity: 0.45; }
+.canvas :deep(.vue-flow__edge.is-path .vue-flow__edge-path) {
+  stroke: var(--color-brand-amber-ui) !important;
+  stroke-width: calc(1.9px * var(--graph-disc-scale, 1)) !important;
+  opacity: 1 !important;
+}
+.canvas :deep(.vue-flow__node.is-path-active .kind-mark) {
+  outline: calc(2px * var(--graph-disc-scale, 1)) solid var(--color-brand-amber-ui);
+  outline-offset: calc(7px * var(--graph-disc-scale, 1));
+  border-radius: 50%;
+}
+@media (prefers-reduced-motion: reduce) {
+  .canvas :deep(.vue-flow__node),
+  .canvas :deep(.vue-flow__edge),
+  .canvas :deep(.vue-flow__edge-path) { transition: none; }
+}
 /* Linear: the hovered / focused pill (and its full-name tip) paints above its neighbours. */
 .canvas[data-layout='linear'] :deep(.vue-flow__node:hover),
 .canvas[data-layout='linear'] :deep(.vue-flow__node:focus-within) { z-index: 1000 !important; }

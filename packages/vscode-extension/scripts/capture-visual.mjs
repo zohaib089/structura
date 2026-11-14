@@ -124,6 +124,14 @@ async function render(name, viewport, state, after) {
       await page.waitForTimeout(1800)
       await page.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur())
     }
+    // E1_HOVER=<label>: hover that node so the path highlight shows in the shot.
+    if (process.env.E1_HOVER) {
+      const target = page.locator('.vue-flow__node', { has: page.locator('.label', { hasText: process.env.E1_HOVER }) }).first()
+      if (await target.count()) {
+        await target.locator('.kind-mark').first().hover({ force: true })
+        await page.waitForTimeout(600)
+      }
+    }
     const measure = await page.evaluate(() => {
       const disc = document.querySelector('.is-nucleus .kind-mark--disc, .is-nucleus.kind-mark--disc, .overview-node.is-nucleus .kind-mark')
       const path = document.querySelector('.vue-flow__edge-path, .edge-role-spoke path, path.vue-flow__edge-path')
