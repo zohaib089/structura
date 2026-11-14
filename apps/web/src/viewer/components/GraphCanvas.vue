@@ -15,6 +15,7 @@ import RadialRingGuides from './RadialRingGuides.vue'
 import ZoomPad from './ZoomPad.vue'
 import '../graph-surface.css'
 import { isPhoneCanvas } from '../graph-mark-scale'
+import { disambiguatedLabels } from '../label-disambiguate'
 
 const props = defineProps<{
   nodes: OverviewNodeModel[]
@@ -189,6 +190,13 @@ const ringRadii = computed(() => {
   return [...byDepth.entries()].sort((a, b) => a[0] - b[0]).map(([, radius]) => radius)
 })
 
+/** G01: duplicate file names in one view carry a distinguishing folder. */
+// Phones keep the short names (the longer ones did not fit the dense phone ring); the full path is in
+// the hover title and the inspector there.
+const labelOverrides = computed(() =>
+  isPhoneCanvas(rootWidth.value) ? new Map<string, string>() : disambiguatedLabels(props.nodes.map((n) => ({ id: n.id, label: n.label, kind: n.kind })))
+)
+
 const flowNodes = () => {
   const guide =
     props.ringCount && props.ringCount > 0
@@ -215,7 +223,7 @@ const flowNodes = () => {
   connectable: false,
   focusable: false,
   deletable: false,
-  data: node,
+  data: labelOverrides.value.has(node.id) ? { ...node, label: labelOverrides.value.get(node.id)! } : node,
   class: hotPath.value.nodes.has(node.id) ? (node.id === activeId.value ? 'is-path is-path-active' : 'is-path') : undefined,
       ariaLabel: node.more ? props.moreLabel(node.remainder) : node.label,
       domAttributes: {
@@ -246,8 +254,9 @@ const hotPath = computed(() => {
   const target = activeId.value
   const start = props.nucleusId ?? null
   if (!target || props.layout === 'linear') return { nodes, edges }
-  nodes.add(target)
+  // The centre file on its own (e.g. selected by a deep link) has no path: keep the graph undimmed.
   if (!start || start === target) return { nodes, edges }
+  nodes.add(target)
   // Shortest path (undirected) from the centre file to the active node over the drawn edges.
   const adj = new Map<string, { to: string; id: string }[]>()
   for (const e of props.edges) {
@@ -421,7 +430,7 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
           :collapse-label="collapseLabel"
           :severity-counts="severityCountsForPath(nodeProps.data?.path ?? '')"
           :label-side="labelPlacements?.get(nodeProps.id)?.side ?? ((positions.get(nodeProps.id)?.x ?? 0) < -1 ? 'start' : 'end')"
-          :display-label="labelPlacements?.get(nodeProps.id)?.displayLabel"
+          :display-label="labelOverrides.get(nodeProps.id) ?? labelPlacements?.get(nodeProps.id)?.displayLabel"
           :entry-tag="entryTag"
           :plain-marks="plainMarks"
           :role-caption="nodeProps.data?.roleCaption"
