@@ -415,6 +415,7 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
           :ring-count="guideProps.data?.ringCount ?? 0"
           :radii="guideProps.data?.radii ?? []"
           :half-captions="guideCaptions"
+          :stacked-captions="isPhoneCanvas(rootWidth)"
         />
       </template>
       <template #node-overview="nodeProps">

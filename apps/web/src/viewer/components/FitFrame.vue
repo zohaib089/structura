@@ -399,6 +399,7 @@ function declutter() {
 
   for (const n of ordered) {
     n.removeAttribute('data-label-hidden')
+    n.removeAttribute('data-label-mid')
     n.style.removeProperty('--label-nudge-x')
     n.style.removeProperty('--label-nudge-y')
     let placed = false
@@ -659,6 +660,16 @@ function declutterEmbedded(canvas: HTMLElement, nodes: HTMLElement[]) {
     placed.length = 0
     for (const n of bestRun.order) reset(n)
     for (const n of bestRun.order) placeOne(n)
+  }
+  // A name that still runs past its box would end in a CSS "…" and lose the extension: swap in the
+  // middle-truncated form ("ScanGra…w.vue") instead. It is never wider, so placements stay valid.
+  for (const n of ordered) {
+    n.removeAttribute('data-label-mid')
+    if (n.hasAttribute('data-label-hidden') || n.hasAttribute('data-label-tight') || n.hasAttribute('data-label-mini')) continue
+    const shown = [...n.querySelectorAll<HTMLElement>(':scope > .aside > .label')].find((el) => el.offsetParent !== null)
+    if (shown && shown.scrollWidth > shown.clientWidth + 1 && n.querySelector(':scope > .aside > .label--midw')) {
+      n.setAttribute('data-label-mid', 'true')
+    }
   }
 }
 
