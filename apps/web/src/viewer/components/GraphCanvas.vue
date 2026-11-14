@@ -26,6 +26,8 @@ const props = defineProps<{
   clusterCount: number
   ready: boolean
   label: string
+  /** Heading of the files-in-view list (G02). */
+  fileListLabel?: string
   selectedId: string | null
   activeId: string | null
   moreLabel: (count: number) => string
@@ -193,9 +195,18 @@ const ringRadii = computed(() => {
 /** G01: duplicate file names in one view carry a distinguishing folder. */
 // Phones keep the short names (the longer ones did not fit the dense phone ring); the full path is in
 // the hover title and the inspector there.
-const labelOverrides = computed(() =>
-  isPhoneCanvas(rootWidth.value) ? new Map<string, string>() : disambiguatedLabels(props.nodes.map((n) => ({ id: n.id, label: n.label, kind: n.kind })))
+const fileListOpen = ref(false)
+const listedFiles = computed(() =>
+  props.layout === 'linear'
+    ? []
+    : props.nodes
+      .filter((n) => !n.more && n.id !== props.nucleusId)
+      .map((n) => ({ id: n.id, depth: n.depth ?? 9, label: uniqueLabels.value.get(n.id) ?? n.label }))
+      .sort((a, b) => a.depth - b.depth || a.label.localeCompare(b.label))
 )
+const uniqueLabels = computed(() => disambiguatedLabels(props.nodes.map((n) => ({ id: n.id, label: n.label, kind: n.kind }))))
+// Phone discs keep the short name (room); the files list below always carries the folder.
+const labelOverrides = computed(() => (isPhoneCanvas(rootWidth.value) ? new Map<string, string>() : uniqueLabels.value))
 
 const flowNodes = () => {
   const guide =
@@ -482,6 +493,22 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
       />
       <ZoomPad ref="zoomPad" :zoom-in="zoomIn" :zoom-out="zoomOut" :zoom-fit="zoomFit" :fit="fitNow" />
     </VueFlow>
+    <!-- G02: every file in the view by name, for assistive tech always and as a tappable list on phones
+         (dense phone rings hide some names; the list replaces them). -->
+    <div v-if="listedFiles.length > 0" class="file-list" :class="{ 'is-phone': isPhoneCanvas(rootWidth) }" data-testid="graph-file-list">
+      <button
+        type="button"
+        class="file-list-toggle"
+        :aria-expanded="fileListOpen ? 'true' : 'false'"
+        aria-controls="graph-file-list-items"
+        @click="fileListOpen = !fileListOpen"
+      >{{ fileListLabel ?? 'Files in view' }} ({{ listedFiles.length }})</button>
+      <ul id="graph-file-list-items" class="file-list-items" :class="{ 'is-open': fileListOpen }" :aria-label="fileListLabel ?? 'Files in view'">
+        <li v-for="file in listedFiles" :key="file.id">
+          <button type="button" :data-node-id="file.id" :aria-current="selectedId === file.id ? 'true' : undefined" @click="emit('select', file.id); fileListOpen = false">{{ file.label }}</button>
+        </li>
+      </ul>
+    </div>
   </div>
 </template>
 
@@ -500,6 +527,31 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
   z-index: 1 !important;
 }
 .canvas :deep(.vue-flow__handle) { opacity: 0; }
+.file-list { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.file-list.is-phone {
+  position: absolute; clip: auto; overflow: visible; inline-size: auto; block-size: auto; white-space: normal;
+  inset-inline-start: var(--space-3, 12px); inset-block-start: calc(var(--space-3, 12px) + var(--viewer-hit-target, 2.75rem) + var(--space-4, 16px));
+  z-index: var(--z-graph-controls, 5); max-inline-size: calc(100% - 2 * var(--space-3, 12px));
+}
+.file-list:not(.is-phone) .file-list-toggle { display: none; }
+.file-list.is-phone .file-list-toggle {
+  display: inline-flex; align-items: center; min-block-size: 2rem; padding-inline: var(--space-2, 8px);
+  border: 1px solid var(--viewer-control-border, var(--color-border)); border-radius: var(--r-sm, 6px);
+  background: var(--color-surface); color: var(--color-text-primary); font-size: var(--text-12, 0.75rem);
+}
+.file-list-items { list-style: none; margin: 0; padding: 0; }
+.file-list.is-phone .file-list-items { display: none; }
+.file-list.is-phone .file-list-items.is-open {
+  display: block; margin-block-start: var(--space-1, 4px); max-block-size: 50vh; overflow: auto;
+  padding: var(--space-1, 4px); border: 1px solid var(--viewer-control-border, var(--color-border));
+  border-radius: var(--r-sm, 6px); background: var(--color-surface-raised, var(--color-surface));
+}
+.file-list-items button {
+  display: block; inline-size: 100%; min-block-size: 2.75rem; text-align: start; padding-inline: var(--space-2, 8px);
+  border: 0; background: transparent; color: var(--color-text-primary);
+  font-family: var(--font-family-mono, ui-monospace, monospace); font-size: var(--text-12, 0.75rem);
+}
+.file-list-items button[aria-current='true'] { color: var(--color-brand-amber-ui); }
 /* Path highlight (landing graph values). Non-colour cues: thicker path, amber ring round the active
    node, and everything off the path dims. Reduced motion: --dur-2 is 0ms, so it switches instantly. */
 .canvas :deep(.vue-flow__node:not([data-id="__radial-guides__"])),

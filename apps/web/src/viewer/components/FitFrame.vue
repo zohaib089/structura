@@ -532,8 +532,10 @@ function declutterEmbedded(canvas: HTMLElement, nodes: HTMLElement[]) {
   // A crowded first ring (real file graphs reach 40+) cannot keep every name: there a ring-1 name that
   // has no clean spot hides too (full name on hover / focus / in the inspector) instead of overlapping.
   const ring1Count = nodes.filter((n) => Number(n.dataset.depth ?? NaN) === 1).length
-  // Phones keep every ring-1 name (G02: a name only goes when a group or list replaces it).
-  const crowdedRing1 = ring1Count > 24 && !isPhoneCanvas(canvas.clientWidth)
+  // Phones drop a crowded ring-1 name only when the "Files in view" list names it (G02: a name only
+  // goes when a group or a visible list replaces it).
+  const listed = canvas.closest('.graph-canvas, [data-testid="graph-canvas"]')?.querySelector('[data-testid="graph-file-list"]')
+  const crowdedRing1 = ring1Count > 24 && (!isPhoneCanvas(canvas.clientWidth) || Boolean(listed))
   const isMust = (n: HTMLElement) =>
     n.classList.contains('is-selected') ||
     n.dataset.nbhGroup === 'true' ||
