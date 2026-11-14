@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "node_modules",
+    "dist",
+    "../../packages/test-fixtures",
+    "../../test-fixtures",
+    "**/golden-corpus/**",
+    "src/**/*.test.ts"
+  ]
+}

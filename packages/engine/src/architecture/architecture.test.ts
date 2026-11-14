@@ -150,3 +150,91 @@ test('invalid architecture config fails before writing graph', async () => {
     (error: unknown) => error instanceof ArchitectureConfigError && error.exitCode === 2
   )
 })
+
+function writeTree(root: string, files: Record<string, string>): void {
+  for (const [rel, text] of Object.entries(files)) {
+    mkdirSync(join(root, rel, '..'), { recursive: true })
+    writeFileSync(join(root, rel), text)
+  }
+}
+
+test('workspace package-name imports (entry and subpath) are checked against module rules; unknown packages stay external', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'arch-pkg-'))
+  writeTree(root, {
+    [CONFIG_FILE]: [
+      'architecture:',
+      '  modules:',
+      '    - name: core',
+      '      paths: ["packages/core/**"]',
+      '      policy: deny-undeclared',
+      '    - name: app',
+      '      paths: ["packages/app/**"]',
+      '      allow: [app, core]',
+      '    - name: tool',
+      '      paths: ["packages/tool/**"]',
+      '      deny: [app, core]',
+      ''
+    ].join('\n'),
+    'package.json': JSON.stringify({ private: true, workspaces: ['packages/*'] }),
+    'packages/core/package.json': JSON.stringify({ name: '@demo/core', main: 'dist/index.js' }),
+    'packages/core/src/index.ts': 'export const core = 1\n',
+    'packages/core/src/deep.ts': 'export const deep = 2\n',
+    'packages/core/src/leak.ts': "import { tool } from '@demo/tool'\nexport const leak = tool\n",
+    'packages/tool/package.json': JSON.stringify({ name: '@demo/tool', main: 'src/index.ts' }),
+    'packages/tool/src/index.ts': "import { app } from '@demo/app/src/main'\nimport { deep } from '@demo/core/deep'\nexport const tool = [app, deep]\n",
+    'packages/app/package.json': JSON.stringify({ name: '@demo/app' }),
+    'packages/app/src/main.ts': [
+      "import { core } from '@demo/core'",
+      "import { deep } from '@demo/core/deep'",
+      "import pad from 'left-pad'",
+      'export const app = [core, deep, pad]',
+      ''
+    ].join('\n')
+  })
+  const out = await scanRepository(root, { outDir: mkdtempSync(join(tmpdir(), 'arch-pkg-out-')), noCache: true, strictArchitecture: true })
+  const edges = out.graph.edges.filter(edge => edge.type === 'imports' && edge.source === 'file:packages/app/src/main.ts')
+  const targets = edges.map(edge => `${edge.target} ${edge.provenance}`).sort()
+  assert.deepEqual(targets, [
+    'ext:npm:left-pad EXTRACTED',
+    'file:packages/core/src/deep.ts INFERRED',
+    'file:packages/core/src/index.ts INFERRED'
+  ])
+  const findings = (out.graph.architecture?.findings ?? []).map(f => `${f.file}:${f.line} ${f.from}->${f.to} ${f.rule} ${f.provenance}`)
+  assert.deepEqual(findings, [
+    // EXTRACTED: @demo/tool's main is a real source file (already checked before package-import support).
+    'packages/core/src/leak.ts:1 core->tool deny-undeclared EXTRACTED',
+    // EXTRACTED: subpath that exists as written.
+    'packages/tool/src/index.ts:1 tool->app deny-list EXTRACTED',
+    // INFERRED: @demo/core/deep maps to src/deep.ts (src-subpath). Ignored by the rules before this change.
+    'packages/tool/src/index.ts:2 tool->core deny-list INFERRED'
+  ])
+  assert.ok(!findings.some(f => f.startsWith('packages/app/')), 'app -> core is allowed; left-pad is external and never checked')
+  assert.deepEqual(out.strictFailures, [`architecture drift: ${findings.length} violation(s)`])
+  assert.equal(validateStrict(out.graph).ok, true)
+})
+
+test('only workspace-package INFERRED reasons are checked; every other INFERRED edge stays unchecked', async () => {
+  const { INFERRED_REASONS } = await import('../graph/types.js')
+  const { PACKAGE_IMPORT_REASONS } = await import('./drift.js')
+  assert.deepEqual([...PACKAGE_IMPORT_REASONS].sort(), ['build-output-mapping', 'conventional-entry', 'src-subpath'])
+  for (const reason of INFERRED_REASONS) {
+    const builder = new GraphBuilder()
+    builder.addNode({ id: 'file:src/a.py', kind: 'file', path: 'src/a.py', label: 'a.py', language: 'python', lineCount: 1, parse: { status: 'parsed' } })
+    builder.addNode({ id: 'file:src/b.py', kind: 'file', path: 'src/b.py', label: 'b.py', language: 'python', lineCount: 1, parse: { status: 'parsed' } })
+    builder.addEdge({
+      source: 'file:src/a.py', type: 'imports', target: 'file:src/b.py', provenance: 'INFERRED', confidence: 0.6, reason,
+      span: { start: { line: 1, col: 1 }, end: { line: 1, col: 9 } }, specifier: 'b'
+    })
+    const graph = builder.build({
+      files: { discovered: 2, parsed: 2, partial: 0, failed: 0, skipped: 0, ignored: 0 },
+      byLanguage: [], skipped: [], failed: [], ignored: [], unresolved: [], accounting: { discovered: 2, accounted: 2 }
+    })
+    const modules = [{ name: 'a', paths: ['src/a.py'], deny: ['b'] }, { name: 'b', paths: ['src/b.py'] }]
+    const { byPath } = buildModuleMap(['src/a.py', 'src/b.py'], modules)
+    const findings = detectArchitectureDrift(graph, { configPath: CONFIG_FILE, modules }, byPath)
+    const expected = PACKAGE_IMPORT_REASONS.has(reason) ? 1 : 0
+    assert.equal(findings.length, expected, `INFERRED reason ${reason}`)
+    if (expected) assert.equal(findings[0]?.provenance, 'INFERRED')
+    assert.equal(findings.some(finding => 'reason' in finding || 'confidence' in finding), false)
+  }
+})

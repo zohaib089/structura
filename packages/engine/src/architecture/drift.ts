@@ -4,6 +4,20 @@ import type { ArchitectureDriftRule, ArchitectureFinding, ArchitectureModuleDecl
 
 const EXTERNAL_MODULE = 'external'
 
+/**
+ * INFERRED reasons the TS/JS resolver only produces for an import of a workspace
+ * package by name (`@scope/pkg`, `@scope/pkg/sub`), after matching the specifier
+ * to a package.json `name` in the scanned repo. The package directory is known;
+ * only the exact file inside it (dist -> src mapping, conventional entry) is a
+ * guess, so the module boundary is still reliable and the rules apply.
+ */
+export const PACKAGE_IMPORT_REASONS: ReadonlySet<string> = new Set(['build-output-mapping', 'src-subpath', 'conventional-entry'])
+
+function checkedEdge(edge: GraphEdge): boolean {
+  if (edge.provenance === 'EXTRACTED') return true
+  return edge.provenance === 'INFERRED' && 'reason' in edge && PACKAGE_IMPORT_REASONS.has(edge.reason)
+}
+
 function filePathFromId(id: string): string | undefined {
   return id.startsWith('file:') ? id.slice('file:'.length) : undefined
 }
@@ -57,7 +71,7 @@ export function detectArchitectureDrift(
 
   for (const edge of graph.edges) {
     if (edge.type !== 'imports' && edge.type !== 'reexports') continue
-    if (edge.provenance !== 'EXTRACTED') continue
+    if (!checkedEdge(edge)) continue
     if (!('span' in edge)) continue
     const sourcePath = filePathFromId(edge.source)
     if (!sourcePath) continue
@@ -72,7 +86,7 @@ export function detectArchitectureDrift(
       file: sourcePath,
       line: edge.span.start.line,
       rule,
-      provenance: 'EXTRACTED'
+      provenance: edge.provenance === 'INFERRED' ? 'INFERRED' : 'EXTRACTED'
     })
   }
 

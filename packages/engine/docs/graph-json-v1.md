@@ -280,12 +280,16 @@ Top-level `layers:` is accepted as an alias for `modules:` (merged in order). Ea
 - **`architecture.findings`**: optional drift violations (see below).
 - **`architecture.summary`**: `{ violations, unassignedFiles }`.
 
-Drift findings (when rules fail) are **EXTRACTED** `imports` / `reexports` edges only (no `calls` in v1). Each finding has:
+Drift findings (when rules fail) come from `imports` / `reexports` edges only (no `calls` in v1): every **EXTRACTED** edge, plus **INFERRED** edges whose reason is a workspace-package resolution (`build-output-mapping`, `src-subpath`, `conventional-entry`), so `@scope/pkg` imports between workspace packages are checked. Other INFERRED edges (for example the Python `src-root-guess` and `submodule-heuristic`) are never checked. Each finding has:
 
-`from`, `to` (module names; unassigned files use `unassigned`), `edgeKind`, `file`, `line`, `rule` (`deny-list`, `allow-list`, `deny-undeclared`), `provenance` (`EXTRACTED`).
+`from`, `to` (module names; unassigned files use `unassigned`), `edgeKind`, `file`, `line`, `rule` (`deny-list`, `allow-list`, `deny-undeclared`), `provenance` (`EXTRACTED` or `INFERRED`, copied from the edge). Findings carry no inference reason or confidence.
 
 `--strict-architecture` exits **4** after writing the graph when `architecture.findings` is non-empty (same exit code as `--strict` coverage failures).
 
 Pass `--config <path>` to use a config file other than the default at the scan root.
 
 `run.json` may be written outside `--out` with `--meta`. That path uses the same output safety as `graph.json`: a symlink is never followed, and an existing file is overwritten only when its JSON shape is a previous run (`command` `"scan"` plus the run counters). Any other file is refused.
+
+## Changelog
+
+- **2026-11-12, minor contract change, still schemaVersion 1.0.0** (Tech Lead sign-off): `architecture.findings[].provenance` widened from `EXTRACTED` to `EXTRACTED|INFERRED`. `INFERRED` is used only for workspace-package resolutions. No new fields. Every graph reader accepts any 1.x version (engine `readGraph`, viewer `read-graph.ts`), so the version was not bumped. The viewer reader and its types accept both values.

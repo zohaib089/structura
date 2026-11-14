@@ -1,0 +1,12 @@
+architecture:
+  modules:
+    - name: ui
+      paths: ["src/ui/**"]
+      deny: [db]
+    - name: services
+      paths: ["src/services/**"]
+      allow: [db]
+    - name: db
+      paths: ["src/db/**"]
+    - name: app
+      paths: ["src/*.ts"]

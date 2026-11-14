@@ -28,7 +28,8 @@ export interface ArchitectureFinding {
   file: string
   line: number
   rule: ArchitectureDriftRule | string
-  provenance: 'EXTRACTED'
+  /** INFERRED when the import names a workspace package whose entry file was mapped (e.g. dist -> src). */
+  provenance: 'EXTRACTED' | 'INFERRED'
 }
 
 export interface ArchitectureSummary {

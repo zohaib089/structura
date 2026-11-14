@@ -60,6 +60,37 @@ function unauthenticated(reply: {
   return reply.code(401).send({ success: false, message: 'An active session is required.' })
 }
 
+
+const WORKSPACE_ROLES = ['owner', 'admin', 'member'] as const
+type WorkspaceRole = (typeof WORKSPACE_ROLES)[number]
+
+function isWorkspaceRole(value: unknown): value is WorkspaceRole {
+  return value === 'owner' || value === 'admin' || value === 'member'
+}
+
+/**
+ * Member-management rule (RBAC step 1):
+ * - Owners may change any member's role (including promoting someone to owner)
+ *   and may remove any member, subject only to last-owner protection.
+ * - Admins may change or remove members and admins, but may not change or
+ *   remove owners and may not promote anyone to owner. Only owners manage owners.
+ */
+function canManageWorkspaceMember(
+  actorRole: WorkspaceRole,
+  targetRole: WorkspaceRole,
+  nextRole?: WorkspaceRole
+): boolean {
+  if (actorRole === 'owner') return true
+  if (actorRole !== 'admin') return false
+  if (targetRole === 'owner' || nextRole === 'owner') return false
+  return true
+}
+
+function memberRoleOf(rows: Array<Record<string, unknown>>, userId: string): WorkspaceRole | null {
+  const role = rows.find(row => row.user_id === userId)?.role
+  return isWorkspaceRole(role) ? role : null
+}
+
 export function registerWorkspaceRoutes(app: FastifyInstance, database: WorkspaceDatabase) {
   app.get('/api/workspaces', async (request, reply) => {
     const userId = await authenticatedUserId(request.headers.authorization, database)
@@ -198,6 +229,146 @@ export function registerWorkspaceRoutes(app: FastifyInstance, database: Workspac
         })
       }
       return reply.code(201).send({ success: true, project })
+    }
+  )
+
+  app.patch<{ Params: { workspaceId: string; memberId: string } }>(
+    '/api/workspaces/:workspaceId/members/:memberId',
+    async (request, reply) => {
+      const userId = await authenticatedUserId(request.headers.authorization, database)
+      if (!userId) return unauthenticated(reply)
+
+      const body = readRecord(request.body)
+      const role = typeof body?.role === 'string' ? body.role.trim() : ''
+      if (!isWorkspaceRole(role)) {
+        return reply.code(400).send({
+          success: false,
+          message: 'Role must be owner, admin, or member.'
+        })
+      }
+
+      const result = await database.transaction(async query => {
+        const locked = await query(
+          `SELECT user_id, role
+           FROM workspace_members
+           WHERE workspace_id = $1
+             AND (role = 'owner' OR user_id IN ($2, $3))
+           FOR UPDATE`,
+          [request.params.workspaceId, userId, request.params.memberId]
+        )
+        const actorRole = memberRoleOf(locked.rows, userId)
+        if (!actorRole) {
+          return { status: 404 as const, message: 'Workspace not found.' }
+        }
+        if (actorRole !== 'owner' && actorRole !== 'admin') {
+          return {
+            status: 403 as const,
+            message: "You don't have permission to manage members."
+          }
+        }
+
+        const targetRole = memberRoleOf(locked.rows, request.params.memberId)
+        if (!targetRole) {
+          return { status: 404 as const, message: 'Member not found.' }
+        }
+        if (!canManageWorkspaceMember(actorRole, targetRole, role)) {
+          return {
+            status: 403 as const,
+            message: "You don't have permission to manage members."
+          }
+        }
+        if (targetRole === 'owner' && role !== 'owner') {
+          const ownerCount = locked.rows.filter(row => row.role === 'owner').length
+          if (ownerCount <= 1) {
+            return { status: 409 as const, message: 'A workspace must keep at least one owner.' }
+          }
+        }
+
+        const updated = await query(
+          `UPDATE workspace_members
+           SET role = $3
+           WHERE workspace_id = $1 AND user_id = $2
+           RETURNING user_id, role, created_at`,
+          [request.params.workspaceId, request.params.memberId, role]
+        )
+        const member = updated.rows[0]
+        if (!member) {
+          return { status: 404 as const, message: 'Member not found.' }
+        }
+        return {
+          status: 200 as const,
+          member: { id: member.user_id, role: member.role, created_at: member.created_at }
+        }
+      })
+
+      if (result.status !== 200) {
+        return reply.code(result.status).send({ success: false, message: result.message })
+      }
+      return { success: true, member: result.member }
+    }
+  )
+
+  app.delete<{ Params: { workspaceId: string; memberId: string } }>(
+    '/api/workspaces/:workspaceId/members/:memberId',
+    async (request, reply) => {
+      const userId = await authenticatedUserId(request.headers.authorization, database)
+      if (!userId) return unauthenticated(reply)
+
+      const result = await database.transaction(async query => {
+        const locked = await query(
+          `SELECT user_id, role
+           FROM workspace_members
+           WHERE workspace_id = $1
+             AND (role = 'owner' OR user_id IN ($2, $3))
+           FOR UPDATE`,
+          [request.params.workspaceId, userId, request.params.memberId]
+        )
+        const actorRole = memberRoleOf(locked.rows, userId)
+        if (!actorRole) {
+          return { status: 404 as const, message: 'Workspace not found.' }
+        }
+
+        const targetRole = memberRoleOf(locked.rows, request.params.memberId)
+        if (!targetRole) {
+          return { status: 404 as const, message: 'Member not found.' }
+        }
+        // Self-leave: any member, including admins and owners, may remove
+        // themselves via DELETE /api/workspaces/:workspaceId/members/:memberId
+        // when memberId equals their own user id. This bypasses the role
+        // permission check but keeps last-owner protection in this same
+        // locked transaction. A separate /leave route is unnecessary.
+        if (
+          request.params.memberId !== userId &&
+          !canManageWorkspaceMember(actorRole, targetRole)
+        ) {
+          return {
+            status: 403 as const,
+            message: "You don't have permission to manage members."
+          }
+        }
+        if (targetRole === 'owner') {
+          const ownerCount = locked.rows.filter(row => row.role === 'owner').length
+          if (ownerCount <= 1) {
+            return { status: 409 as const, message: 'A workspace must keep at least one owner.' }
+          }
+        }
+
+        const removed = await query(
+          `DELETE FROM workspace_members
+           WHERE workspace_id = $1 AND user_id = $2
+           RETURNING user_id`,
+          [request.params.workspaceId, request.params.memberId]
+        )
+        if (removed.rows.length === 0) {
+          return { status: 404 as const, message: 'Member not found.' }
+        }
+        return { status: 200 as const }
+      })
+
+      if (result.status !== 200) {
+        return reply.code(result.status).send({ success: false, message: result.message })
+      }
+      return { success: true }
     }
   )
 }

@@ -1,0 +1,82 @@
+# Declared architecture rules for `atlasmith scan --strict-architecture`.
+# The PR architecture check (.github/workflows/pr-check.yml) fails a pull request
+# that breaks one of these rules and explains the break in a PR comment.
+#
+# Every rule below already holds on main (896260b). Sources:
+# docs/engineering/standards-and-structure.md ("cli -> engine OK; engine -/-> cli")
+# and knowledge/decisions/012-local-first-engine-pivot.md.
+#
+# How the engine reads this file (packages/engine/src/architecture):
+# - Each file belongs to the FIRST module whose paths glob matches it.
+# - Only imports the scanner resolved to a real file path (relative imports) are
+#   checked. Imports by package name, such as '@atlasmith/engine', are recorded as
+#   INFERRED edges and are not checked yet. Imports of npm packages and Node
+#   built-ins are never checked.
+# - deny: imports of these modules are always a break.
+# - allow: the only modules this one may import. The module must list itself,
+#   because the engine checks allow lists before it allows same-module imports.
+# - policy deny-undeclared: the module may import only itself and its allow list.
+architecture:
+  defaultPolicy: allow-undeclared
+  modules:
+    # Test inputs, including QA's golden corpus. They are scan inputs, not product
+    # code, so they get no rules. Listed first so they never fall into a package module.
+    - name: fixtures
+      paths:
+        - "packages/test-fixtures/**"
+        - "**/golden-corpus/**"
+        - "**/fixtures/**"
+        - "**/schema-fixtures/**"
+
+    # Engine: the local-first core. It depends on no app, CLI, or other package,
+    # so it can run and ship on its own.
+    - name: engine
+      paths: ["packages/engine/**"]
+      policy: deny-undeclared
+      deny: [cli, web, api]
+
+    # CLI: a thin front-end over the engine and the two offline helper packages
+    # (CONTRIBUTING.md "Active packages"). It must not reach into the apps.
+    - name: cli
+      paths: ["packages/cli/**"]
+      allow: [cli, engine, scan-analysis, source-ingest]
+      deny: [web, api]
+
+    # Offline report analysis. It may use source-ingest only.
+    - name: scan-analysis
+      paths: ["packages/scan-analysis/**"]
+      allow: [scan-analysis, source-ingest]
+
+    # Source acquisition (local path, archive, git URL). It is a leaf.
+    - name: source-ingest
+      paths: ["packages/source-ingest/**"]
+      policy: deny-undeclared
+
+    # Brand constants for the web app. It is a leaf.
+    - name: brand
+      paths: ["packages/brand/**"]
+      policy: deny-undeclared
+
+    # Legacy hosted-era skills package, frozen. It stays a leaf.
+    - name: skills
+      paths: ["packages/skills/**"]
+      policy: deny-undeclared
+
+    # Web app (dashboard, landing, static viewer). It reads brand constants and the
+    # scan-analysis report schema, and never imports the API's code. It talks to
+    # the API over HTTP. Its sample viewer graph and unit tests read apps/web/fixtures.
+    - name: web
+      paths: ["apps/web/**"]
+      allow: [web, brand, scan-analysis, fixtures]
+      deny: [api]
+
+    # Frozen SaaS API. It may use the engine and the offline packages, never the
+    # web app or the CLI.
+    - name: api
+      paths: ["apps/api/**"]
+      allow: [api, engine, scan-analysis, source-ingest]
+      deny: [web, cli]
+
+    # CI and corpus scripts. Not product code, so no rules.
+    - name: scripts
+      paths: ["scripts/**"]

@@ -1,0 +1,393 @@
+{
+  "schemaVersion": "1.0.0",
+  "summary": {
+    "nodes": 16,
+    "edges": 16,
+    "files": 7,
+    "entryCandidates": {
+      "files": 1,
+      "candidates": 1
+    }
+  },
+  "coverage": {
+    "files": {
+      "discovered": 7,
+      "parsed": 3,
+      "partial": 0,
+      "failed": 0,
+      "skipped": 4,
+      "ignored": 0
+    },
+    "byLanguage": [
+      {
+        "language": null,
+        "parsed": 0,
+        "partial": 0,
+        "failed": 0,
+        "skipped": 4
+      },
+      {
+        "language": "typescript",
+        "parsed": 3,
+        "partial": 0,
+        "failed": 0,
+        "skipped": 0
+      }
+    ],
+    "skipped": [
+      {
+        "reason": "unsupported-language",
+        "count": 4
+      }
+    ],
+    "failed": [],
+    "ignored": [],
+    "unresolved": [],
+    "accounting": {
+      "discovered": 7,
+      "accounted": 7
+    }
+  },
+  "nodes": [
+    {
+      "id": "dir:.",
+      "kind": "directory",
+      "path": ".",
+      "label": "."
+    },
+    {
+      "id": "dir:packages",
+      "kind": "directory",
+      "path": "packages",
+      "label": "packages"
+    },
+    {
+      "id": "dir:packages/core",
+      "kind": "directory",
+      "path": "packages/core",
+      "label": "core"
+    },
+    {
+      "id": "dir:packages/core/src",
+      "kind": "directory",
+      "path": "packages/core/src",
+      "label": "src"
+    },
+    {
+      "id": "dir:packages/tool",
+      "kind": "directory",
+      "path": "packages/tool",
+      "label": "tool"
+    },
+    {
+      "id": "dir:packages/tool/src",
+      "kind": "directory",
+      "path": "packages/tool/src",
+      "label": "src"
+    },
+    {
+      "id": "file:atlasmith.yml",
+      "kind": "file",
+      "path": "atlasmith.yml",
+      "label": "atlasmith.yml",
+      "language": null,
+      "lineCount": null,
+      "parse": {
+        "status": "skipped",
+        "reason": "unsupported-language"
+      }
+    },
+    {
+      "id": "file:package.json",
+      "kind": "file",
+      "path": "package.json",
+      "label": "package.json",
+      "language": null,
+      "lineCount": null,
+      "parse": {
+        "status": "skipped",
+        "reason": "unsupported-language"
+      }
+    },
+    {
+      "id": "file:packages/core/package.json",
+      "kind": "file",
+      "path": "packages/core/package.json",
+      "label": "package.json",
+      "language": null,
+      "lineCount": null,
+      "parse": {
+        "status": "skipped",
+        "reason": "unsupported-language"
+      },
+      "module": "core"
+    },
+    {
+      "id": "file:packages/core/src/deep.ts",
+      "kind": "file",
+      "path": "packages/core/src/deep.ts",
+      "label": "deep.ts",
+      "language": "typescript",
+      "lineCount": 2,
+      "parse": {
+        "status": "parsed"
+      },
+      "module": "core"
+    },
+    {
+      "id": "file:packages/core/src/index.ts",
+      "kind": "file",
+      "path": "packages/core/src/index.ts",
+      "label": "index.ts",
+      "language": "typescript",
+      "lineCount": 2,
+      "parse": {
+        "status": "parsed"
+      },
+      "module": "core"
+    },
+    {
+      "id": "file:packages/tool/package.json",
+      "kind": "file",
+      "path": "packages/tool/package.json",
+      "label": "package.json",
+      "language": null,
+      "lineCount": null,
+      "parse": {
+        "status": "skipped",
+        "reason": "unsupported-language"
+      },
+      "module": "tool"
+    },
+    {
+      "id": "file:packages/tool/src/index.ts",
+      "kind": "file",
+      "path": "packages/tool/src/index.ts",
+      "label": "index.ts",
+      "language": "typescript",
+      "lineCount": 3,
+      "parse": {
+        "status": "parsed"
+      },
+      "entryCandidate": {
+        "reason": "package-main",
+        "provenance": "EXTRACTED"
+      },
+      "entryCandidates": [
+        {
+          "reason": "package-main",
+          "evidence": {
+            "source": "packages/tool/package.json",
+            "pointer": "packages/tool/package.json#/main"
+          },
+          "confidence": 0.95
+        }
+      ],
+      "module": "tool"
+    },
+    {
+      "id": "sym:packages/core/src/deep.ts#deep",
+      "kind": "symbol",
+      "file": "file:packages/core/src/deep.ts",
+      "label": "deep",
+      "symbolKind": "variable",
+      "exported": true,
+      "span": {
+        "start": {
+          "line": 1,
+          "col": 14
+        },
+        "end": {
+          "line": 1,
+          "col": 22
+        }
+      }
+    },
+    {
+      "id": "sym:packages/core/src/index.ts#core",
+      "kind": "symbol",
+      "file": "file:packages/core/src/index.ts",
+      "label": "core",
+      "symbolKind": "variable",
+      "exported": true,
+      "span": {
+        "start": {
+          "line": 1,
+          "col": 14
+        },
+        "end": {
+          "line": 1,
+          "col": 22
+        }
+      }
+    },
+    {
+      "id": "sym:packages/tool/src/index.ts#tool",
+      "kind": "symbol",
+      "file": "file:packages/tool/src/index.ts",
+      "label": "tool",
+      "symbolKind": "variable",
+      "exported": true,
+      "span": {
+        "start": {
+          "line": 2,
+          "col": 14
+        },
+        "end": {
+          "line": 2,
+          "col": 25
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source": "dir:.",
+      "type": "contains",
+      "target": "dir:packages",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:.",
+      "type": "contains",
+      "target": "file:atlasmith.yml",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:.",
+      "type": "contains",
+      "target": "file:package.json",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:packages",
+      "type": "contains",
+      "target": "dir:packages/core",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:packages",
+      "type": "contains",
+      "target": "dir:packages/tool",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:packages/core",
+      "type": "contains",
+      "target": "dir:packages/core/src",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:packages/core",
+      "type": "contains",
+      "target": "file:packages/core/package.json",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:packages/core/src",
+      "type": "contains",
+      "target": "file:packages/core/src/deep.ts",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:packages/core/src",
+      "type": "contains",
+      "target": "file:packages/core/src/index.ts",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:packages/tool",
+      "type": "contains",
+      "target": "dir:packages/tool/src",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:packages/tool",
+      "type": "contains",
+      "target": "file:packages/tool/package.json",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:packages/tool/src",
+      "type": "contains",
+      "target": "file:packages/tool/src/index.ts",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "file:packages/core/src/deep.ts",
+      "type": "contains",
+      "target": "sym:packages/core/src/deep.ts#deep",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "file:packages/core/src/index.ts",
+      "type": "contains",
+      "target": "sym:packages/core/src/index.ts#core",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "file:packages/tool/src/index.ts",
+      "type": "contains",
+      "target": "sym:packages/tool/src/index.ts#tool",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "file:packages/tool/src/index.ts",
+      "type": "imports",
+      "target": "file:packages/core/src/deep.ts",
+      "provenance": "INFERRED",
+      "confidence": 0.7,
+      "reason": "src-subpath",
+      "span": {
+        "start": {
+          "line": 1,
+          "col": 1
+        },
+        "end": {
+          "line": 1,
+          "col": 39
+        }
+      },
+      "specifier": "@demo/core/deep"
+    }
+  ],
+  "architecture": {
+    "config": "atlasmith.yml",
+    "modules": [
+      {
+        "name": "core",
+        "paths": [
+          "packages/core/**"
+        ]
+      },
+      {
+        "name": "tool",
+        "paths": [
+          "packages/tool/**"
+        ],
+        "deny": [
+          "core"
+        ]
+      }
+    ],
+    "unassigned": [
+      "atlasmith.yml",
+      "package.json"
+    ],
+    "findings": [
+      {
+        "from": "tool",
+        "to": "core",
+        "edgeKind": "imports",
+        "file": "packages/tool/src/index.ts",
+        "line": 1,
+        "rule": "deny-list",
+        "provenance": "INFERRED"
+      }
+    ],
+    "summary": {
+      "violations": 1,
+      "unassignedFiles": 2
+    }
+  }
+}

@@ -1063,7 +1063,11 @@
           "minLength": 1
         },
         "provenance": {
-          "const": "EXTRACTED"
+          "type": "string",
+          "enum": [
+            "EXTRACTED",
+            "INFERRED"
+          ]
         }
       },
       "required": [
