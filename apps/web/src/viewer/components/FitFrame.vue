@@ -607,7 +607,7 @@ function declutterEmbedded(canvas: HTMLElement, nodes: HTMLElement[]) {
     const nudges = openGroup
       ? [38, 26, 16, 8, 0].map((v) => v * toward)
       : narrow && isMust(n)
-        ? [0, -8, 8, -16, 16, -26, 26, -38, 38, -50, 50, -64, 64]
+        ? [0, -8, 8, -16, 16, -26, 26, -38, 38, -50, 50, -64, 64, -80, 80, -96, 96]
         : [0, -8, 8, -16, 16, -26, 26, -38, 38]
     let best: Choice | null = null
     const levels: [boolean, boolean, boolean][] = narrow
