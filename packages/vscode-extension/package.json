@@ -1,0 +1,111 @@
+{
+  "name": "@atlasmith/vscode-extension",
+  "displayName": "Atlasmith",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Read-only Atlasmith graph of the current file or the whole project, generated on this computer.",
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#0B0D10",
+    "theme": "dark"
+  },
+  "keywords": [
+    "graph",
+    "dependencies",
+    "architecture",
+    "code map",
+    "visualization",
+    "tree-sitter"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zohaib089/structura.git",
+    "directory": "packages/vscode-extension"
+  },
+  "publisher": "atlasmith",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/extension.js",
+  "engines": {
+    "vscode": "^1.101.0",
+    "node": ">=22"
+  },
+  "categories": [
+    "Visualization",
+    "Other"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "atlasmith.showFileGraph",
+        "title": "Atlasmith: Show graph for this file",
+        "icon": {
+          "light": "media/graph-icon.svg",
+          "dark": "media/graph-icon.svg"
+        }
+      },
+      {
+        "command": "atlasmith.showProjectGraph",
+        "title": "Atlasmith: Show whole project graph",
+        "icon": {
+          "light": "media/graph-icon.svg",
+          "dark": "media/graph-icon.svg"
+        }
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "atlasmith.showFileGraph",
+          "when": "resourceScheme == file",
+          "group": "navigation"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "atlasmith",
+          "title": "Atlasmith",
+          "icon": "media/activity-bar.svg"
+        }
+      ]
+    },
+    "views": {
+      "atlasmith": [
+        {
+          "id": "atlasmith.graphView",
+          "name": "Atlasmith graph"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "build": "npm run build:host && npm run build:webview",
+    "build:host": "tsc -p tsconfig.build.json",
+    "build:webview": "vite build --config vite.config.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "pretest": "npm --prefix ../engine run build",
+    "test": "tsx --test \"src/**/*.test.ts\"",
+    "pretypecheck": "npm --prefix ../engine run build",
+    "bundle": "node scripts/package.mjs --stage",
+    "package:vsix": "npm run build:webview && npm --prefix ../engine run build && node scripts/package.mjs",
+    "package:ovsx": "npm run package:vsix && echo 'Open VSX takes the same .vsix: npx ovsx publish <file> (publish is manual, never run by scripts)'"
+  },
+  "dependencies": {
+    "@atlasmith/engine": "file:../engine"
+  },
+  "devDependencies": {
+    "@lucide/vue": "^1.60.0",
+    "@types/node": "^22.19.1",
+    "@types/vscode": "^1.90.0",
+    "@vitejs/plugin-vue": "^6.0.8",
+    "@vue-flow/background": "^1.3.2",
+    "@vue-flow/core": "^1.48.2",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.0",
+    "vue": "^3.5.42"
+  }
+}

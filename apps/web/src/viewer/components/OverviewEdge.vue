@@ -10,10 +10,14 @@ const props = defineProps<EdgeProps<OverviewEdgeModel>>()
 const visual = computed<EdgeVisual>(() => props.data?.visual ?? 'extracted')
 const role = computed<RadialEdgeRole>(() => props.data?.role ?? 'spoke')
 const centre = computed(() => props.data?.radialCentre ?? { x: 0, y: 0 })
+const fromX = computed(() => props.data?.sourceDisc?.x ?? props.sourceX)
+const fromY = computed(() => props.data?.sourceDisc?.y ?? props.sourceY)
+const toX = computed(() => props.data?.targetDisc?.x ?? props.targetX)
+const toY = computed(() => props.data?.targetDisc?.y ?? props.targetY)
 const path = computed(() =>
   props.data?.linear
     ? linearEdgePath(props.sourceX, props.sourceY, props.targetX, props.targetY, props.data.linear)
-    : radialEdgePath(props.sourceX, props.sourceY, props.targetX, props.targetY, centre.value, role.value)
+    : radialEdgePath(fromX.value, fromY.value, toX.value, toY.value, centre.value, role.value)
 )
 /** Skip-column / back edges in the linear layout stay quiet until their file is selected or hovered. */
 const quiet = computed(() => props.data?.linear?.route === 'around' && !props.data?.emphasized && !props.selected)

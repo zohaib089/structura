@@ -36,12 +36,34 @@ const props = defineProps<{
   entryTag?: string
   /** Collision-resolved display text (may be ellipsized). */
   displayLabel?: string
+  /** Embedded marks: always a disc, with plain-language expand captions instead of a raw count and "+". */
+  plainMarks?: boolean
+  roleCaption?: string
+  childCount?: number
+  insideOpenCaption?: string
+  insideCloseCaption?: string
+  expandCaption?: string
 }>()
 
 const emit = defineEmits<{ select: []; toggle: [] }>()
 
 /** Compact landing-style mark: a disc with a glyph, label beside it (files, externals, unresolved). */
-const disc = computed(() => !props.more && (!props.cluster || Boolean(props.nucleus)))
+const disc = computed(() => {
+  if (props.more) return false
+  if (props.plainMarks) return true
+  return !props.cluster || Boolean(props.nucleus)
+})
+
+const insideLabel = computed(() => {
+  if (props.expandCaption) return props.expandCaption
+  if (!props.plainMarks || !props.cluster || props.nucleus || props.more) return ''
+  if (!props.insideOpenCaption) return ''
+  const n = props.childCount ?? props.clusterSize
+  if (n <= 0) return ''
+  if (props.expanded) return props.insideCloseCaption || 'Hide inside'
+  return props.insideOpenCaption.replace('{n}', String(n))
+})
+
 
 /** Disc colour carries meaning: the file's highest finding severity (with the chip/word beside it), else neutral. */
 const topSeverity = computed(() => fileChips.value?.chips[0]?.severity ?? folderChip.value?.severity ?? null)
@@ -61,6 +83,17 @@ const accessible = computed(() => (props.more ? props.moreLabel : props.label))
 const shortLabel = computed(() => {
   if (!props.more && props.displayLabel) return props.displayLabel
   return props.more ? props.moreLabel : props.label
+})
+
+/** "uses" / "used by" repeat the half-ring titles; narrow embedded panels drop them to save a line. */
+const sideCaption = computed(() => ['uses', 'used by', 'uses and used by'].includes(props.roleCaption ?? ''))
+
+/** Embedded fallback when the full path cannot fit: the last path segment ("vscode-extension"). */
+const compactLabel = computed(() => {
+  if (!props.plainMarks || props.more || props.nucleus) return ''
+  const full = props.label ?? ''
+  const tail = full.split('/').filter(Boolean).pop() ?? ''
+  return tail && tail !== full ? tail : ''
 })
 
 const folderChip = computed(() =>
@@ -95,12 +128,14 @@ function onSpace(event: KeyboardEvent) {
       'is-external': kind === 'external',
       'is-unresolved': kind === 'unresolved',
       'is-expanded': expanded,
-      'is-entering': entering
+      'is-entering': entering,
+      'is-plain': plainMarks
     }"
     :style="{ '--node-layer': discColor, animationDelay: `${enterDelay ?? 0}ms` }"
     :data-node-id="id"
     :data-node-kind="kind"
     :data-depth="depth ?? 0"
+    :data-nbh-group="expandCaption ? 'true' : undefined"
     :data-has-findings="topSeverity ? 'true' : undefined"
     :data-cluster-size="cluster ? clusterSize : undefined"
     :data-expanded="cluster ? (expanded ? 'true' : 'false') : undefined"
@@ -133,7 +168,9 @@ function onSpace(event: KeyboardEvent) {
     </span>
     <span class="aside" :class="{ 'aside--start': disc && labelSide === 'start', 'aside--nucleus': disc && nucleus }">
       <span class="label" dir="ltr" :title="path || label || moreLabel">{{ shortLabel }}</span>
+      <span v-if="compactLabel" class="label label--compact" dir="ltr" aria-hidden="true">{{ compactLabel }}</span>
       <span v-if="nucleus && entryTag" class="entry-tag">{{ entryTag }}</span>
+      <span v-if="roleCaption" class="role-caption" :class="{ 'role-caption--side': sideCaption }">{{ roleCaption }}</span>
       <span v-if="folderChip" class="severity-chips">
         <SeverityChip
           compact
@@ -153,9 +190,20 @@ function onSpace(event: KeyboardEvent) {
         />
         <span v-if="fileChips.overflow > 0" class="severity-overflow">+{{ fileChips.overflow }}</span>
       </span>
-      <span v-if="cluster" class="count tnum">{{ clusterSize }}</span>
+      <span v-if="cluster && !plainMarks" class="count tnum">{{ clusterSize }}</span>
       <button
-        v-if="cluster || more"
+        v-if="insideLabel"
+        type="button"
+        class="nodrag nopan inside-toggle"
+        tabindex="-1"
+        :aria-label="insideLabel"
+        @click.stop="emit('toggle')"
+        @dblclick.stop.prevent
+      >
+        {{ insideLabel }}
+      </button>
+      <button
+        v-else-if="(cluster || more) && !plainMarks"
         type="button"
         class="nodrag nopan node-toggle"
         tabindex="-1"
@@ -284,8 +332,16 @@ function onSpace(event: KeyboardEvent) {
 .kind-mark { position: relative; }
 .kind-mark :deep(.vue-flow__handle) {
   inset-inline-start: 50% !important;
+  inset-inline-end: auto !important;
   inset-block-start: 50% !important;
-  transform: translate(-50%, -50%) !important;
+  inset-block-end: auto !important;
+  width: 0 !important;
+  height: 0 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  transform: none !important;
 }
 .kind-mark--disc {
   display: inline-grid;
@@ -421,6 +477,27 @@ function onSpace(event: KeyboardEvent) {
   color: var(--color-text-muted);
   font-weight: var(--font-weight-semibold, 600);
 }
+.role-caption, .inside-toggle {
+  font-size: calc(9px * var(--graph-mark-scale, 1));
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-semibold, 600);
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: inherit;
+  max-inline-size: 11rem;
+  white-space: nowrap;
+  line-height: 1.25;
+}
+.role-caption { cursor: default; text-transform: uppercase; }
+.inside-toggle { text-transform: none; letter-spacing: 0.02em; text-decoration: underline;
+  text-underline-offset: 2px; }
+
 .overview-node:not(:has(.kind-mark--disc)) > .aside { display: contents; }
 /* Decluttered (label would collide): name stays in aria-label/title and shows on hover/focus/selection. */
 [data-label-hidden] > .aside { opacity: 0; transition: opacity var(--duration-fast, 120ms) ease; }
@@ -436,6 +513,66 @@ function onSpace(event: KeyboardEvent) {
 }
 
 @media (prefers-reduced-motion: reduce) { [data-label-hidden] > .aside { transition: none; } }
+
+@media (max-width: 480px) {
+  .overview-node.is-plain .role-caption--side { display: none; }
+}
+
+/* Embedded declutter fallback: show the last path segment instead of hiding the name. */
+.overview-node .aside > .label--compact { display: none; }
+.overview-node[data-label-compact]:has(.label--compact) .aside > .label:not(.label--compact) { display: none; }
+.overview-node[data-label-compact] .aside > .label--compact { display: block; }
+.overview-node[data-label-compact]:has(.kind-mark--disc) > .aside { max-inline-size: calc(5.5rem * var(--graph-mark-scale, 1)); }
+.overview-node[data-label-compact] .aside > .label { overflow: hidden; text-overflow: ellipsis; max-inline-size: 100%; }
+/* Narrow panes: tightest label — a short name, no captions; full name on hover / focus / in the drawer. */
+.overview-node[data-label-tight]:has(.kind-mark--disc) > .aside { max-inline-size: calc(4.25rem * var(--graph-mark-scale, 1)); }
+.overview-node[data-label-mini]:has(.kind-mark--disc) > .aside { max-inline-size: calc(4.25rem * var(--graph-mark-scale, 1)); min-inline-size: calc(3rem * var(--graph-mark-scale, 1)); }
+.overview-node[data-label-mini] .aside > .label { font-size: calc(var(--font-size-xs) * 0.86 * var(--graph-mark-scale, 1)); }
+.overview-node[data-label-mini]:not([data-nbh-group='true']) .aside > .inside-toggle { display: none; }
+.overview-node[data-label-tight] .aside > .role-caption,
+.overview-node[data-label-tight]:not([data-nbh-group='true']) .aside > .inside-toggle { display: none; }
+
+/* Embedded plain marks: stack the name and the "N inside" caption so they do not run together. */
+.overview-node.is-plain:has(.kind-mark--disc) > .aside {
+  flex-direction: column;
+  align-items: flex-start;
+  white-space: nowrap;
+  gap: 1px;
+}
+.overview-node.is-plain:has(.kind-mark--disc) > .aside--start,
+.overview-node.is-plain[data-label-flip='start']:has(.kind-mark--disc) > .aside {
+  flex-direction: column;
+  align-items: flex-end;
+}
+.overview-node.is-plain[data-label-flip='end']:has(.kind-mark--disc) > .aside {
+  flex-direction: column;
+  align-items: flex-start;
+}
+.overview-node.is-plain[data-label-flip='above']:has(.kind-mark--disc) > .aside,
+.overview-node.is-plain[data-label-flip='below']:has(.kind-mark--disc) > .aside {
+  align-items: center;
+}
+/* File-view folder groups: "14 files" over one "COMPONENTS · Show files" line (two lines, not three),
+   so neighbouring group labels keep clear of each other. */
+@media (min-width: 481px) {
+.overview-node.is-plain[data-nbh-group='true']:has(.kind-mark--disc) > .aside {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: calc(5px * var(--graph-mark-scale, 1));
+  row-gap: 1px;
+  max-inline-size: none;
+  inline-size: max-content;
+}
+.overview-node.is-plain[data-nbh-group='true']:has(.kind-mark--disc) > .aside > .label { flex-basis: 100%; }
+.overview-node.is-plain[data-nbh-group='true']:has(.kind-mark--disc) > .aside > .role-caption,
+.overview-node.is-plain[data-nbh-group='true']:has(.kind-mark--disc) > .aside > .inside-toggle { max-inline-size: none; }
+.overview-node.is-plain[data-nbh-group='true']:has(.kind-mark--disc) > .aside--start,
+.overview-node.is-plain[data-nbh-group='true'][data-label-flip='start']:has(.kind-mark--disc) > .aside { justify-content: flex-end; text-align: end; flex-direction: row; }
+.overview-node.is-plain[data-nbh-group='true'][data-label-flip='end']:has(.kind-mark--disc) > .aside { flex-direction: row; }
+.overview-node.is-plain[data-nbh-group='true'][data-label-flip='above']:has(.kind-mark--disc) > .aside,
+.overview-node.is-plain[data-nbh-group='true'][data-label-flip='below']:has(.kind-mark--disc) > .aside { justify-content: center; text-align: center; flex-direction: row; }
+}
 </style>
 
 

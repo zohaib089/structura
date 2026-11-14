@@ -7,12 +7,21 @@ import {
   buildOverview,
   collapseView,
   defaultFilters,
+  dependencyRingTree,
+  discCentre,
   emptyViewState,
+  entryOptionsForNucleus,
   expandView,
+  FILE_NEIGHBORHOOD_MAX_RING,
   indexGraph,
   layoutRadialNodes,
   layoutNodes,
+  pinPath,
+  RADIAL_DISC_OFFSET,
   searchGraph,
+  setFileNeighborhood,
+  setFolderOverview,
+  folderOverviewRing1,
   setNucleus
 } from '../../src/viewer/overview'
 import { readGraph } from '../../src/viewer/read-graph'
@@ -137,5 +146,191 @@ describe('overview', () => {
     expect(() => searchGraph(index, '.*+?{__proto__}🙂'.repeat(20))).not.toThrow()
     const hostile = searchGraph(index, '__proto__')
     expect(hostile.hits.length).toBe(0)
+  })
+  it('walks inbound neighbours when ringWalk is both', () => {
+    const text = JSON.stringify({
+      schemaVersion: '1.0.0',
+      summary: { nodes: 5, edges: 6, files: 3 },
+      coverage: {
+        files: { discovered: 3, parsed: 3, partial: 0, failed: 0, skipped: 0, ignored: 0 },
+        byLanguage: [],
+        skipped: [],
+        ignored: [],
+        unresolved: [],
+        accounting: { discovered: 3, accounted: 3 }
+      },
+      nodes: [
+        { id: 'dir:.', kind: 'directory', path: '.', label: '.' },
+        { id: 'dir:src', kind: 'directory', path: 'src', label: 'src' },
+        {
+          id: 'file:src/app.ts',
+          kind: 'file',
+          path: 'src/app.ts',
+          label: 'app.ts',
+          language: 'typescript',
+          lineCount: 4,
+          parse: { status: 'parsed' }
+        },
+        {
+          id: 'file:src/main.ts',
+          kind: 'file',
+          path: 'src/main.ts',
+          label: 'main.ts',
+          language: 'typescript',
+          lineCount: 4,
+          parse: { status: 'parsed' },
+          entryCandidate: { reason: 'conventional-name', provenance: 'INFERRED' }
+        },
+        {
+          id: 'file:src/app.test.ts',
+          kind: 'file',
+          path: 'src/app.test.ts',
+          label: 'app.test.ts',
+          language: 'typescript',
+          lineCount: 4,
+          parse: { status: 'parsed' }
+        }
+      ],
+      edges: [
+        { source: 'dir:.', type: 'contains', target: 'dir:src', provenance: 'EXTRACTED' },
+        { source: 'dir:src', type: 'contains', target: 'file:src/app.ts', provenance: 'EXTRACTED' },
+        { source: 'dir:src', type: 'contains', target: 'file:src/main.ts', provenance: 'EXTRACTED' },
+        { source: 'dir:src', type: 'contains', target: 'file:src/app.test.ts', provenance: 'EXTRACTED' },
+        {
+          source: 'file:src/main.ts',
+          type: 'imports',
+          target: 'file:src/app.ts',
+          provenance: 'EXTRACTED',
+          specifier: './app',
+          span: { start: { line: 1, col: 1 }, end: { line: 1, col: 8 } }
+        },
+        {
+          source: 'file:src/app.test.ts',
+          type: 'imports',
+          target: 'file:src/app.ts',
+          provenance: 'EXTRACTED',
+          specifier: './app',
+          span: { start: { line: 1, col: 1 }, end: { line: 1, col: 8 } }
+        }
+      ]
+    })
+    const index = load(text)
+    const outbound = dependencyRingTree(index, 'file:src/app.ts', defaultFilters(), 6)
+    expect([...outbound.depths.keys()]).toEqual(['file:src/app.ts'])
+
+    const both = dependencyRingTree(index, 'file:src/app.ts', defaultFilters(), FILE_NEIGHBORHOOD_MAX_RING, 'both')
+    expect(new Set(both.depths.keys())).toEqual(new Set([
+      'file:src/app.ts',
+      'file:src/main.ts',
+      'file:src/app.test.ts'
+    ]))
+
+    const pinned = buildOverview(index, pinPath(index, setNucleus(emptyViewState(), 'file:src/app.ts'), 'file:src/app.ts'), defaultFilters())
+    expect(pinned.nodes.some((node) => node.kind === 'directory')).toBe(true)
+
+    const neighborhood = buildOverview(index, setFileNeighborhood(emptyViewState(), 'file:src/app.ts'), defaultFilters())
+    const ids = neighborhood.nodes.map((node) => node.id)
+    expect(ids).toEqual(expect.arrayContaining(['file:src/app.ts', 'file:src/main.ts', 'file:src/app.test.ts']))
+    expect(ids.some((id) => id.startsWith('dir:'))).toBe(false)
+    expect(neighborhood.nodes).toHaveLength(3)
+
+    const options = entryOptionsForNucleus(index, 'file:src/app.ts')
+    expect(options[0]).toMatchObject({ id: 'file:src/app.ts', label: 'app.ts', path: 'src/app.ts' })
+    expect(options.some((option) => option.id === 'file:src/main.ts')).toBe(true)
+
+    const recentred = setNucleus(setFileNeighborhood(emptyViewState(), 'file:src/app.ts'), 'file:src/main.ts')
+    expect(recentred.ringWalk).toBe('out')
+    expect(recentred.maxRadialRing).toBeGreaterThan(FILE_NEIGHBORHOOD_MAX_RING)
+  })
+
+  it('places a disc centre one radius from the node top-left', () => {
+    expect(discCentre({ x: 10, y: 20 })).toEqual({ x: 10 + RADIAL_DISC_OFFSET, y: 20 + RADIAL_DISC_OFFSET })
+    expect(discCentre(undefined)).toEqual({ x: RADIAL_DISC_OFFSET, y: RADIAL_DISC_OFFSET })
+  })
+
+  it('builds a folder overview from the repo root with workspace packages on ring 1', () => {
+    const nodes: unknown[] = [
+      { id: 'dir:.', kind: 'directory', path: '.', label: '.' },
+      { id: 'dir:apps', kind: 'directory', path: 'apps', label: 'apps' },
+      { id: 'dir:apps/web', kind: 'directory', path: 'apps/web', label: 'web' },
+      { id: 'dir:apps/api', kind: 'directory', path: 'apps/api', label: 'api' },
+      { id: 'dir:packages', kind: 'directory', path: 'packages', label: 'packages' },
+      { id: 'dir:packages/engine', kind: 'directory', path: 'packages/engine', label: 'engine' },
+      { id: 'dir:packages/cli', kind: 'directory', path: 'packages/cli', label: 'cli' },
+      { id: 'dir:docs', kind: 'directory', path: 'docs', label: 'docs' },
+      { id: 'file:README.md', kind: 'file', path: 'README.md', label: 'README.md', language: 'markdown', lineCount: 2, parse: { status: 'skipped', reason: 'unsupported-language' } },
+      { id: 'file:apps/web/package.json', kind: 'file', path: 'apps/web/package.json', label: 'package.json', language: 'json', lineCount: 2, parse: { status: 'skipped', reason: 'unsupported-language' } },
+      { id: 'file:apps/api/package.json', kind: 'file', path: 'apps/api/package.json', label: 'package.json', language: 'json', lineCount: 2, parse: { status: 'skipped', reason: 'unsupported-language' } },
+      { id: 'file:packages/engine/package.json', kind: 'file', path: 'packages/engine/package.json', label: 'package.json', language: 'json', lineCount: 2, parse: { status: 'skipped', reason: 'unsupported-language' } },
+      { id: 'file:packages/cli/package.json', kind: 'file', path: 'packages/cli/package.json', label: 'package.json', language: 'json', lineCount: 2, parse: { status: 'skipped', reason: 'unsupported-language' } }
+    ]
+    const edges: unknown[] = [
+      { source: 'dir:.', type: 'contains', target: 'dir:apps', provenance: 'EXTRACTED' },
+      { source: 'dir:.', type: 'contains', target: 'dir:packages', provenance: 'EXTRACTED' },
+      { source: 'dir:.', type: 'contains', target: 'dir:docs', provenance: 'EXTRACTED' },
+      { source: 'dir:.', type: 'contains', target: 'file:README.md', provenance: 'EXTRACTED' },
+      { source: 'dir:apps', type: 'contains', target: 'dir:apps/web', provenance: 'EXTRACTED' },
+      { source: 'dir:apps', type: 'contains', target: 'dir:apps/api', provenance: 'EXTRACTED' },
+      { source: 'dir:packages', type: 'contains', target: 'dir:packages/engine', provenance: 'EXTRACTED' },
+      { source: 'dir:packages', type: 'contains', target: 'dir:packages/cli', provenance: 'EXTRACTED' },
+      { source: 'dir:apps/web', type: 'contains', target: 'file:apps/web/package.json', provenance: 'EXTRACTED' },
+      { source: 'dir:apps/api', type: 'contains', target: 'file:apps/api/package.json', provenance: 'EXTRACTED' },
+      { source: 'dir:packages/engine', type: 'contains', target: 'file:packages/engine/package.json', provenance: 'EXTRACTED' },
+      { source: 'dir:packages/cli', type: 'contains', target: 'file:packages/cli/package.json', provenance: 'EXTRACTED' }
+    ]
+    const text = JSON.stringify({
+      schemaVersion: '1.0.0',
+      summary: { nodes: nodes.length, edges: edges.length, files: 5 },
+      coverage: {
+        files: { discovered: 5, parsed: 0, partial: 0, failed: 0, skipped: 5, ignored: 0 },
+        byLanguage: [],
+        skipped: [],
+        ignored: [],
+        unresolved: [],
+        accounting: { discovered: 5, accounted: 5 }
+      },
+      nodes,
+      edges
+    })
+    const index = load(text)
+    const ring1 = folderOverviewRing1(index, 'dir:.')
+    expect(ring1).toEqual([
+      'dir:apps/api',
+      'dir:apps/web',
+      'dir:docs',
+      'dir:packages/cli',
+      'dir:packages/engine'
+    ])
+    expect(ring1.includes('dir:apps')).toBe(false)
+    expect(ring1.includes('file:README.md')).toBe(false)
+
+    const view = buildOverview(index, setFolderOverview(emptyViewState()), defaultFilters())
+    const ids = view.nodes.map((node) => node.id)
+    expect(ids).toContain('dir:.')
+    expect(view.nodes.find((node) => node.id === 'dir:.')?.label).toBe('Repository')
+    expect(ids).toEqual(expect.arrayContaining(['dir:.', 'dir:apps/web', 'dir:apps/api', 'dir:docs', 'dir:packages/engine']))
+    expect(ids).not.toContain('dir:apps')
+    expect(ids).not.toContain('file:README.md')
+    const spokes = view.edges.filter((edge) => edge.role === 'spoke')
+    expect(spokes).toHaveLength(5)
+    expect(spokes.every((edge) => edge.source === 'dir:.' || edge.target === 'dir:.')).toBe(true)
+    expect(spokes.map((edge) => (edge.source === 'dir:.' ? edge.target : edge.source)).sort()).toEqual([
+      'dir:apps/api',
+      'dir:apps/web',
+      'dir:docs',
+      'dir:packages/cli',
+      'dir:packages/engine'
+    ])
+
+    const opened = buildOverview(
+      index,
+      expandView(setFolderOverview(emptyViewState()), 'dir:apps/web'),
+      defaultFilters()
+    )
+    expect(opened.nodes.some((node) => node.id === 'file:apps/web/package.json')).toBe(true)
+
+    const collapsed = collapseView(index, expandView(setFolderOverview(emptyViewState()), 'dir:apps/web'), 'dir:apps/web')
+    expect(collapsed.ringWalk).toBe('contains')
+    expect(collapsed.nucleusId).toBe('dir:.')
   })
 })

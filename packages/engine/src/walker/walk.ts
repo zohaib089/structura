@@ -14,7 +14,7 @@ import { constants as fsConstants } from 'node:fs'
 const GRAPH_LANGUAGES = new Set<string>(LANGUAGES)
 
 /** Languages an adapter exists for. Everything else is recorded as `skipped: unsupported-language`. */
-export const ANALYSED_LANGUAGES: readonly string[] = ['typescript', 'javascript', 'python']
+export const ANALYSED_LANGUAGES: readonly string[] = ['typescript', 'javascript', 'python', 'vue']
 
 export interface WalkOptions {
   limits?: Partial<ResolvedLimits>
@@ -48,7 +48,7 @@ export interface WalkFile {
   ino: number
   /** Detector result, including languages the graph stores as null (json, markdown, unknown). */
   detected: LanguageInfo
-  /** Graph language: `typescript` | `javascript` | `python`, or null. */
+  /** Graph language: `typescript` | `javascript` | `python` | `vue`, or null. */
   language: string | null
   /** `analyse` files are read and parsed; `skipped` files only get a node. */
   disposition: 'analyse' | 'skipped'

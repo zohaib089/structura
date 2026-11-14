@@ -2,8 +2,8 @@
 import { onBeforeUnmount, ref } from 'vue'
 import { motionMs } from '../motion'
 
-/** `start` puts the bubble beside the control (stacked pads), default is below. */
-defineProps<{ text: string; side?: 'below' | 'start' }>()
+/** `side="start"` puts the bubble beside the control (stacked pads); `placement="above"` lifts it above. */
+withDefaults(defineProps<{ text: string; side?: 'below' | 'start'; placement?: 'above' | 'below' }>(), { side: 'below', placement: 'below' })
 
 const open = ref(false)
 let timer = 0
@@ -32,7 +32,7 @@ onBeforeUnmount(() => window.clearTimeout(timer))
 <template>
   <span class="tip" @mouseenter="show(false)" @mouseleave="hide" @focusin="show(true)" @focusout="hide" @keydown="onKey">
     <slot />
-    <span v-if="open" class="bubble" :class="{ 'bubble--start': side === 'start' }" role="tooltip">{{ text }}</span>
+    <span v-if="open" class="bubble" :class="{ 'bubble--start': side === 'start', 'bubble--above': placement === 'above' && side !== 'start' }" role="tooltip">{{ text }}</span>
   </span>
 </template>
 
@@ -61,4 +61,9 @@ onBeforeUnmount(() => window.clearTimeout(timer))
   inset-inline-end: calc(100% + var(--space-2));
   transform: translateY(-50%);
 }
+.bubble--above {
+  inset-block-start: auto;
+  inset-block-end: calc(100% + var(--space-1));
+}
+
 </style>

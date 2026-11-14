@@ -31,9 +31,11 @@ export interface MarkScaleResult {
 }
 
 /** Pure zoom → CSS scale mapping (unit-tested). */
-export function markScaleForZoom(zoom: number, phone: boolean): MarkScaleResult {
+export const EMBEDDED_MAX_MARK_SCALE = PHONE_MAX_MARK_SCALE
+
+export function markScaleForZoom(zoom: number, phone: boolean, maxMarkOverride?: number): MarkScaleResult {
   const z = Math.max(zoom, 1e-6)
-  const maxMark = phone ? PHONE_MAX_MARK_SCALE : DESKTOP_MAX_MARK_SCALE
+  const maxMark = maxMarkOverride ?? (phone ? PHONE_MAX_MARK_SCALE : DESKTOP_MAX_MARK_SCALE)
   const discTarget = phone ? PHONE_DISC_PX : DESKTOP_DISC_PX
   const mark = Math.min(maxMark, Math.max(1, LABEL_PX / (BASE_LABEL_PX * z)))
   const disc = Math.min(mark, Math.max(1, discTarget / (BASE_DISC_PX * z)))

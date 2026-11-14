@@ -7,7 +7,7 @@ export interface FitBox { x: number; y: number; width: number; height: number }
 export interface RadialFitInput {
   width: number
   height: number
-  reserve: { top: number; bottom: number }
+  reserve: { top: number; bottom: number; right?: number; left?: number }
   nodes: FitBox[]
   ringRadius: number | null
   /** Measured ring centre in flow units (defaults to 0,0). */
@@ -31,13 +31,16 @@ export function radialFitViewport(input: RadialFitInput): { x: number; y: number
   const halfH = Math.max(ring, Math.abs(minY - cy), Math.abs(maxY - cy), 1)
   const top = Math.min(input.reserve.top, input.height * 0.45)
   const bottom = Math.min(input.reserve.bottom, input.height * 0.35)
+  const left = Math.min(input.reserve.left ?? 0, input.width * 0.35)
+  const right = Math.min(input.reserve.right ?? 0, input.width * 0.35)
   const availH = Math.max(input.height - top - bottom, input.height * 0.3)
+  const availW = Math.max(input.width - left - right, input.width * 0.3)
   const scale = 1 + input.padding
   const zoom = Math.min(
     input.maxZoom ?? 1.15,
-    Math.max(input.minZoom ?? 0.1, Math.min(input.width / (2 * halfW * scale), availH / (2 * halfH * scale)))
+    Math.max(input.minZoom ?? 0.1, Math.min(availW / (2 * halfW * scale), availH / (2 * halfH * scale)))
   )
-  return { x: input.width / 2 - cx * zoom, y: top + availH / 2 - cy * zoom, zoom }
+  return { x: left + availW / 2 - cx * zoom, y: top + availH / 2 - cy * zoom, zoom }
 }
 
 /** True when any fitted node box lands under the overlay rect (canvas px). */

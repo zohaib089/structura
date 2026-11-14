@@ -27,6 +27,7 @@ import {
   defaultFilters,
   emptyViewState,
   entryLabelForNode,
+  entryOptionsForNucleus,
   expandRadialRing,
   expandView,
   focusHits,
@@ -34,6 +35,8 @@ import {
   pinPath,
   resolveNucleusId,
   searchGraph,
+  setFileNeighborhood,
+  setFolderOverview,
   setNucleus,
   type FocusQuery,
   type ViewFilters,
@@ -65,6 +68,10 @@ import GraphSourcePicker from './components/GraphSourcePicker.vue'
 import NodeDetail, { type FileSummaryState } from './components/NodeDetail.vue'
 import SearchPalette from './components/SearchPalette.vue'
 
+const emit = defineEmits<{
+  openFile: [path: string]
+}>()
+
 const props = withDefaults(
   defineProps<{
     embedded?: boolean
@@ -77,6 +84,21 @@ const props = withDefaults(
     pathSeverityCounts?: Map<string, SeverityCounts>
     scanFindings?: ViewerReportFinding[]
     loadFileSummary?: (path: string) => Promise<string | null>
+    /**
+     * When false, applying focusPath selects the node without opening the inspector.
+     * Default true keeps the dashboard and web app behaviour unchanged.
+     */
+    openInspectorOnFocus?: boolean
+    /**
+     * Embedded file mode: focusPath uses the import/importer neighbourhood
+     * rather than pinning ancestor folders. Default false keeps the web app unchanged.
+     */
+    fileNeighborhood?: boolean
+    /**
+     * Embedded project mode: nucleate the repo root and show top-level folders
+     * and workspace packages. Default 'entry' keeps the web dashboard unchanged.
+     */
+    overviewLayout?: 'entry' | 'folders'
   }>(),
   {
     embedded: false,
@@ -86,7 +108,10 @@ const props = withDefaults(
     focusPath: null,
     pathSeverityCounts: undefined,
     scanFindings: () => [],
-    loadFileSummary: undefined
+    loadFileSummary: undefined,
+    openInspectorOnFocus: true,
+    fileNeighborhood: false,
+    overviewLayout: 'entry'
   }
 )
 
@@ -137,10 +162,6 @@ function setLayout(next: GraphLayout) {
   preferredLayout.value = next
   writeLayoutPreference(next)
   fitSignature.value += 1
-}
-function onCanvasSelect(id: string) {
-  if (isLinearControlId(id)) toggleNode(id)
-  else selectNode(id, true)
 }
 const graphCanvas = ref<InstanceType<typeof GraphCanvas> | null>(null)
 /** Back stack of graph views: nucleus / selection, expanded nodes, focus and viewport. */
@@ -207,7 +228,14 @@ const overview = computed(() => {
   if (layout.value === 'linear') return buildLinearOverview(index.value, viewState.value, filters.value, focusMembers.value)
   return buildOverview(index.value, viewState.value, filters.value, focusMembers.value)
 })
-const entryOptions = computed(() => (index.value ? collectEntryPoints(index.value) : []))
+const entryOptions = computed(() =>
+  index.value ? entryOptionsForNucleus(index.value, viewState.value.nucleusId) : []
+)
+const nucleusTag = computed(() => {
+  if (props.fileNeighborhood) return messages.thisFileTag
+  if (props.overviewLayout === 'folders') return messages.repositoryTag
+  return messages.entryPointTag
+})
 const nucleusId = computed(() =>
   index.value ? resolveNucleusId(index.value, viewState.value.nucleusId) : ''
 )
@@ -377,8 +405,14 @@ async function loadGraphDocument(document: GraphDocument) {
   filters.value = defaultFilters()
   sample.value = false
   fileName.value = 'scan-graph.json'
-  const entries = collectEntryPoints(indexGraph(document))
-  if (entries[0]) viewState.value = setNucleus(viewState.value, entries[0].id)
+  const indexed = indexGraph(document)
+  if (props.overviewLayout === 'folders' && !props.focusPath) {
+    const root = indexed.nodesById.has('dir:.') ? 'dir:.' : resolveNucleusId(indexed, null)
+    viewState.value = setFolderOverview(viewState.value, root)
+  } else {
+    const entries = collectEntryPoints(indexed)
+    if (entries[0]) viewState.value = setNucleus(viewState.value, entries[0].id)
+  }
   if (document.nodes.length === 0) ready.value = true
   applyFocusPath(props.focusPath)
 }
@@ -387,8 +421,13 @@ function applyFocusPath(path: string | null) {
   if (!path || !index.value) return
   const id = resolveGraphNodeId(index.value, path)
   if (!id) return
-  viewState.value = pinPath(index.value, viewState.value, id)
-  selectNode(id, true, false)
+  if (props.fileNeighborhood) {
+    viewState.value = setFileNeighborhood(viewState.value, id)
+  } else {
+    viewState.value = pinPath(index.value, viewState.value, id)
+    viewState.value = setNucleus(viewState.value, id)
+  }
+  selectNode(id, props.openInspectorOnFocus, false)
   activeId.value = id
 }
 
@@ -510,13 +549,34 @@ function toggleNode(id: string) {
 
 function selectNode(id: string, fromClick: boolean, record = fromClick) {
   if (record) remember()
-  if (fromClick) recenterOnNode(id, true)
+  if (fromClick && !props.fileNeighborhood && props.overviewLayout !== 'folders') recenterOnNode(id, true)
   selection.value = { kind: 'node', id }
   activeId.value = id
   tab.value = 'details'
   if (fromClick) inspectorOpen.value = true
   const node = overview.value?.nodes.find((item) => item.id === id)
   announce.value = format(messages.announceSelected, { name: node?.label || id, path: node?.path || '' })
+  if (fromClick && props.fileNeighborhood && node?.expandCaption) toggleNode(id)
+}
+
+function filePathForNode(id: string): string | null {
+  const node = index.value?.nodesById.get(id)
+  if (!node) return null
+  if (node.kind === 'file' && 'path' in node) return node.path
+  if (node.kind === 'symbol' && 'file' in node) return node.file
+  return null
+}
+
+/** User click on the canvas. Optional openFile is a no-op when nothing listens (web app). */
+function onCanvasSelect(id: string) {
+  // Linear group / "+N more" pills expand in place; they are not files.
+  if (isLinearControlId(id)) {
+    toggleNode(id)
+    return
+  }
+  selectNode(id, true)
+  const path = filePathForNode(id)
+  if (path) emit('openFile', path)
 }
 
 function selectEdge(id: string) {
@@ -991,12 +1051,13 @@ const snippet = 'layers: []\nrules: []\n'
         :filters-label="messages.railToggle"
         :filters-tooltip="messages.filtersTooltip"
         :search-label="messages.searchPlaceholder"
+        :search-short-label="embedded ? messages.searchShort : undefined"
         :search-tooltip="messages.searchTooltip"
         :fit-label="messages.zoomFit"
         :fit-tooltip="messages.fitTooltip"
         :entry-label="messages.entryLabel"
         :entry-tooltip="messages.entryTooltip"
-        :entry-options="entryOptions"
+        :entry-options="overviewLayout === 'folders' ? [] : entryOptions"
         :entry-id="nucleusId"
         search-shortcut="Control+K Meta+K /"
         :show-all-cross-label="crossLinkCount > 0 ? showAllCrossLabel : undefined"
@@ -1044,10 +1105,16 @@ const snippet = 'layers: []\nrules: []\n'
         :nucleus-id="nucleusId"
         :ring-count="ringCount"
         :ring-radii="overview.ringRadii"
+        :half-captions="overview.halfCaptions"
         :label-placements="overview.labelPlacements"
         :fit-bump="fitSignature"
         :show-all-cross="showAllCross"
-        :entry-tag="messages.entryPointTag"
+        :entry-tag="nucleusTag"
+        :plain-marks="embedded"
+        :reserve-zoom-pad="embedded"
+        :hide-overlapping-ring1="embedded"
+        :inside-open-caption="embedded && overviewLayout === 'folders' ? messages.insideOpenCaption : undefined"
+        :inside-close-caption="embedded && overviewLayout === 'folders' ? messages.insideCloseCaption : undefined"
         :layout="layout"
         :group-label="(count) => format(messages.linearGroupFiles, { n: numbers.format(count) })"
         @select="onCanvasSelect"

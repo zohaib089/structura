@@ -63,6 +63,21 @@ describe('radial tree sector layout', () => {
     expect(dist).toBeLessThan(90)
   })
 
+  it('leaves a 12 o-clock wedge when topGap is set so no ring-1 node sits under a top toolbar', () => {
+    const { nucleus, parentOf, nodes } = denseTree()
+    const laid = layoutRadialTree(nodes, nucleus, parentOf, { topGap: true })
+    const ring1 = [...parentOf.entries()].filter(([, p]) => p === nucleus).map(([id]) => id)
+    expect(ring1.length).toBeGreaterThan(2)
+    const top = -Math.PI / 2
+    const minClearance = (25 * Math.PI) / 180
+    for (const id of ring1) {
+      const angle = laid.angles.get(id)!
+      let delta = Math.abs(angle - top) % (Math.PI * 2)
+      if (delta > Math.PI) delta = Math.PI * 2 - delta
+      expect(delta, id).toBeGreaterThan(minClearance)
+    }
+  })
+
   it('keeps buildOverview positions on the tree layout for the dense fixture', () => {
     const index = load('tests/e2e/fixtures/dense-graph.test-only.json')
     const overview = buildOverview(index, setNucleus(emptyViewState(), 'file:src/main.ts'), defaultFilters())

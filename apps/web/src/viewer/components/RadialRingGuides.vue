@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, onMounted, onUpdated, ref } from 'vue'
 import { RADIAL_RING_GAP } from '../overview'
+import type { HalfRingCaption } from '../file-neighborhood'
 
 const props = defineProps<{
   ringCount: number
   /** Actual ring radii from the layout (rings grow with population); falls back to the fixed gap. */
   radii?: number[]
+  halfCaptions?: HalfRingCaption[]
 }>()
 
 const rings = computed(() => {
@@ -17,11 +19,64 @@ const rings = computed(() => {
   for (let ring = 1; ring <= n; ring += 1) list.push(ring * RADIAL_RING_GAP)
   return list
 })
+
+const captionMarks = computed(() => {
+  const radius = rings.value[0]
+  if (!radius || !props.halfCaptions?.length) return []
+  const r = radius * 0.58
+  return props.halfCaptions.map((caption) => ({
+    ...caption,
+    x: r * Math.cos(caption.angle),
+    y: r * Math.sin(caption.angle),
+    anchor: 'middle',
+    text: `${caption.title} · ${caption.count}`
+  }))
+})
+
+// A plate behind each caption so spokes that cross the label never run through the text.
+const textEls = ref<SVGTextElement[]>([])
+const plates = ref<Record<string, { x: number; y: number; w: number; h: number }>>({})
+function measure() {
+  const next: Record<string, { x: number; y: number; w: number; h: number }> = {}
+  for (const el of textEls.value) {
+    const side = el?.dataset.side
+    if (!side || typeof el.getBBox !== 'function') continue
+    const b = el.getBBox()
+    if (!b.width) continue
+    const padX = b.height * 0.45
+    const padY = b.height * 0.2
+    next[side] = { x: b.x - padX, y: b.y - padY, w: b.width + padX * 2, h: b.height + padY * 2 }
+  }
+  const same = JSON.stringify(next) === JSON.stringify(plates.value)
+  if (!same) plates.value = next
+}
+onMounted(() => nextTick(measure))
+onUpdated(() => nextTick(measure))
 </script>
 
 <template>
   <svg class="ring-guides" aria-hidden="true" :data-radii="rings.join(',')">
     <circle v-for="radius in rings" :key="radius" :r="radius" cx="0" cy="0" class="ring" />
+    <template v-for="mark in captionMarks" :key="mark.side">
+    <rect
+      v-if="plates[mark.side]"
+      class="half-caption-plate"
+      :x="plates[mark.side].x"
+      :y="plates[mark.side].y"
+      :width="plates[mark.side].w"
+      :height="plates[mark.side].h"
+      :rx="plates[mark.side].h / 2"
+    />
+    <text
+      ref="textEls"
+      :data-side="mark.side"
+      class="half-caption"
+      :x="mark.x"
+      :y="mark.y"
+      :text-anchor="mark.anchor"
+      dominant-baseline="middle"
+    >{{ mark.text }}</text>
+    </template>
   </svg>
 </template>
 
@@ -51,5 +106,23 @@ const rings = computed(() => {
 .ring:nth-child(2) {
   stroke-dasharray: 4 6;
   opacity: 0.85;
+}
+.half-caption-plate {
+  fill: var(--color-surface, #07111f);
+  fill-opacity: 0.92;
+  stroke: #3b5683;
+  stroke-opacity: 0.55;
+  stroke-width: calc(1px * var(--graph-mark-scale, 1));
+}
+.half-caption {
+  fill: var(--color-text-secondary, #c5d0e0);
+  font-size: calc(11px * var(--graph-mark-scale, 1));
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  paint-order: stroke fill;
+  stroke: var(--color-surface, #07111f);
+  stroke-width: calc(4px * var(--graph-mark-scale, 1));
+  stroke-linejoin: round;
 }
 </style>

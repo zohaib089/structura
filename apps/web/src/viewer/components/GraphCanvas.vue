@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { Background } from '@vue-flow/background'
 import { VueFlow, type Edge, type Node } from '@vue-flow/core'
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { FLOW_EDGE_TYPE, FLOW_NODE_TYPE } from '../caps'
 import { motionMs, prefersReducedMotion } from '../motion'
-import type { OverviewEdgeModel, OverviewNodeModel } from '../overview'
+import { discCentre, type OverviewEdgeModel, type OverviewNodeModel } from '../overview'
 import type { SeverityCounts } from '../../services/scan-report-tree'
 import { lookupPathSeverityCounts } from '../../services/scan-report-tree-display'
 import FitFrame from './FitFrame.vue'
@@ -14,6 +14,7 @@ import OverviewNode from './OverviewNode.vue'
 import RadialRingGuides from './RadialRingGuides.vue'
 import ZoomPad from './ZoomPad.vue'
 import '../graph-surface.css'
+import { isPhoneCanvas } from '../graph-mark-scale'
 
 const props = defineProps<{
   nodes: OverviewNodeModel[]
@@ -52,6 +53,12 @@ const props = defineProps<{
   layout?: 'radial' | 'linear'
   /** Linear group pill caption, e.g. "{n} files". */
   groupLabel?: (count: number) => string
+  plainMarks?: boolean
+  reserveZoomPad?: boolean
+  hideOverlappingRing1?: boolean
+  insideOpenCaption?: string
+  insideCloseCaption?: string
+  halfCaptions?: import('../file-neighborhood').HalfRingCaption[]
 }>()
 
 const hoverId = ref<string | null>(null)
@@ -65,6 +72,44 @@ const emit = defineEmits<{
 }>()
 
 const root = ref<HTMLElement | null>(null)
+const rootWidth = ref(0)
+let rootObserver: ResizeObserver | null = null
+onMounted(() => {
+  if (!root.value) return
+  rootWidth.value = root.value.clientWidth
+  if (typeof ResizeObserver === 'undefined') return
+  rootObserver = new ResizeObserver(() => { rootWidth.value = root.value?.clientWidth ?? 0 })
+  rootObserver.observe(root.value)
+})
+onBeforeUnmount(() => rootObserver?.disconnect())
+
+/**
+ * Narrow editor pane with a folder group open: the other half's ring-1 files fold into its
+ * "USED BY · N" / "USES · N" caption, so the open group's files and both captions fit the pane.
+ * Closing the group (or a wider pane) brings them back.
+ */
+const foldedSide = ref<'uses' | 'usedBy' | null>(null)
+const guideCaptions = computed(() => {
+  const side = foldedIds.value.size > 0 ? foldedSide.value : null
+  // The folded half's caption moves under the current file, so the pane can zoom in on the open fan.
+  return (props.halfCaptions ?? []).map((c) => (c.side === side ? { ...c, angle: Math.PI / 2 } : c))
+})
+const foldedIds = computed(() => {
+  const out = new Set<string>()
+  if (props.layout === 'linear' || !props.reserveZoomPad || !isPhoneCanvas(rootWidth.value)) return out
+  if ((props.halfCaptions?.length ?? 0) < 2) return out
+  let fanX = 0
+  for (const n of props.nodes) if ((n.depth ?? 0) === 2) fanX += props.positions.get(n.id)?.x ?? 0
+  if (fanX === 0) return out
+  const fold = fanX > 0 ? -1 : 1
+  foldedSide.value = fold < 0 ? 'usedBy' : 'uses'
+  for (const n of props.nodes) {
+    if ((n.depth ?? 0) !== 1) continue
+    const x = props.positions.get(n.id)?.x ?? 0
+    if (Math.sign(x) === fold && Math.abs(x) > 1) out.add(n.id)
+  }
+  return out
+})
 const fitFrame = ref<InstanceType<typeof FitFrame> | null>(null)
 const zoomPad = ref<InstanceType<typeof ZoomPad> | null>(null)
 
@@ -161,7 +206,7 @@ const flowNodes = () => {
       : []
   return [
     ...guide,
-    ...props.nodes.map((node): Node<OverviewNodeModel> => ({
+    ...props.nodes.filter((node) => !foldedIds.value.has(node.id)).map((node): Node<OverviewNodeModel> => ({
   id: node.id,
   type: props.layout === 'linear' ? 'linear' : FLOW_NODE_TYPE,
   position: props.positions.get(node.id) ?? { x: 0, y: 0 },
@@ -185,13 +230,9 @@ const flowNodes = () => {
   ]
 }
 
-const radialCentre = computed(() => {
-  // Match RadialRingGuides: rings are centred on the nucleus disc, not its top-left corner.
-  const at = props.positions.get(props.nucleusId ?? '') ?? { x: 0, y: 0 }
-  return { x: at.x + 12, y: at.y + 12 }
-})
+const radialCentre = computed(() => discCentre(props.positions.get(props.nucleusId ?? '')))
 
-const flowEdges = () => props.edges.map((edge): Edge<OverviewEdgeModel> => ({
+const flowEdges = () => props.edges.filter((edge) => !foldedIds.value.has(edge.source) && !foldedIds.value.has(edge.target)).map((edge): Edge<OverviewEdgeModel> => ({
   id: edge.id,
   type: FLOW_EDGE_TYPE,
   source: edge.source,
@@ -202,6 +243,8 @@ const flowEdges = () => props.edges.map((edge): Edge<OverviewEdgeModel> => ({
   data: {
     ...edge,
     flowing: flowing(edge),
+    sourceDisc: discCentre(props.positions.get(edge.source)),
+    targetDisc: discCentre(props.positions.get(edge.target)),
     radialCentre: radialCentre.value,
     emphasized: Boolean(
       (props.selectedId && (edge.source === props.selectedId || edge.target === props.selectedId)) ||
@@ -277,7 +320,7 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
       :delete-key-code="null"
       :only-render-visible-elements="false"
       :fit-view-on-init="false"
-      :min-zoom="0.1"
+      :min-zoom="reserveZoomPad ? 0.05 : 0.1"
       :max-zoom="2.5"
       @nodes-initialized="onInit"
       @node-click="onNodeClick"
@@ -290,6 +333,7 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
           :key="(guideProps.data?.radii ?? []).map((r: number) => Math.round(r)).join('-')"
           :ring-count="guideProps.data?.ringCount ?? 0"
           :radii="guideProps.data?.radii ?? []"
+          :half-captions="guideCaptions"
         />
       </template>
       <template #node-overview="nodeProps">
@@ -318,6 +362,12 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
           :label-side="labelPlacements?.get(nodeProps.id)?.side ?? ((positions.get(nodeProps.id)?.x ?? 0) < -1 ? 'start' : 'end')"
           :display-label="labelPlacements?.get(nodeProps.id)?.displayLabel"
           :entry-tag="entryTag"
+          :plain-marks="plainMarks"
+          :role-caption="nodeProps.data?.roleCaption"
+          :child-count="nodeProps.data?.childCount"
+          :inside-open-caption="insideOpenCaption"
+          :inside-close-caption="insideCloseCaption"
+          :expand-caption="nodeProps.data?.expandCaption"
           @select="emit('select', nodeProps.id)"
           @toggle="emit('toggle', nodeProps.id)"
         />
@@ -357,6 +407,8 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
         :padding="fitPadding ?? 0.2"
         :ring-count="ringCount ?? 0"
         :focus-ids="focusIds ?? []"
+        :reserve-zoom-pad="reserveZoomPad"
+        :hide-overlapping-ring1="hideOverlappingRing1"
       />
       <ZoomPad ref="zoomPad" :zoom-in="zoomIn" :zoom-out="zoomOut" :zoom-fit="zoomFit" :fit="fitNow" />
     </VueFlow>
@@ -375,7 +427,7 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
 .canvas :deep(.vue-flow__attribution) { display: none; }
 .canvas :deep(.vue-flow__node[data-id="__radial-guides__"]) {
   pointer-events: none;
-  z-index: 0 !important;
+  z-index: 1 !important;
 }
 .canvas :deep(.vue-flow__handle) { opacity: 0; }
 /* Linear: the hovered / focused pill (and its full-name tip) paints above its neighbours. */

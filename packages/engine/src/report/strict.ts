@@ -28,7 +28,7 @@ export class StrictCoverageError extends Error {
 }
 
 /** Messages for thresholds that the coverage report misses. Empty means `--strict` passes. */
-const RECOGNISED_LANGUAGES = ['typescript', 'javascript', 'python'] as const
+const RECOGNISED_LANGUAGES = ['typescript', 'javascript', 'python', 'vue'] as const
 
 function recognisedLanguageFailures(coverage: Coverage): string[] {
   const failures: string[] = []

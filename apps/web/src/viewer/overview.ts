@@ -12,6 +12,15 @@ import {
   type LabelSide
 } from './label-collision'
 export type { LabelPlacement, LabelSide }
+import {
+  FILE_SPLIT_POLE_GAP,
+  FILE_SPLIT_TOP_GAP,
+  fileNeighborhoodTree,
+  isNeighborhoodGroupId,
+  type HalfRingCaption,
+  type NeighborhoodGroup
+} from './file-neighborhood'
+export { FILE_NEIGHBORHOOD_GROUP_THRESHOLD, isNeighborhoodGroupId } from './file-neighborhood'
 
 export const RADIAL_RING_GAP = 220
 /** Minimum arc (flow px) between neighbours on one ring, so compact marks + labels do not collide. */
@@ -73,9 +82,22 @@ export interface ViewState {
   maxRadialRing?: number
   /** Graph layout; radial when unset. Lives in the view state so Back restores it. */
   layout?: GraphLayout
+  /**
+   * Which non-contains edges to walk when building rings.
+   * Default `out` (what the nucleus imports). File focus uses `both`.
+   */
+  ringWalk?: RingWalk
+  /** Embedded file neighbourhood: split uses / used-by and group oversized sides. Web app stays unset. */
+  fileSplit?: boolean
 }
 
+/** Walk direction for dependencyRingTree. */
+export type RingWalk = 'out' | 'in' | 'both' | 'contains'
+
 export type GraphLayout = 'radial' | 'linear'
+
+/** Direct neighbours only: imports and importers of a focused file. */
+export const FILE_NEIGHBORHOOD_MAX_RING = 1
 
 export interface OverviewNodeModel {
   id: string
@@ -93,6 +115,12 @@ export interface OverviewNodeModel {
   language?: string | null
   /** Linear layout: column (negative = used by, positive = uses, 0 = current file). */
   column?: number
+  /** Short caption under the label (e.g. "uses", "used by") for file neighbourhood. */
+  roleCaption?: string
+  /** Direct contains children, used for the "N inside" affordance. */
+  childCount?: number
+  /** Embedded group discs: "Show files" / "Hide files". */
+  expandCaption?: string
 }
 
 export type EdgeVisual = 'extracted' | 'inferred' | 'unresolved' | 'mixed'
@@ -121,6 +149,9 @@ export interface OverviewEdgeModel {
   flowing?: boolean
   /** Ring centre in flow units (disc centre of the nucleus), used to bow edge paths. */
   radialCentre?: { x: number; y: number }
+  /** Disc-centre endpoints in flow units, used instead of Vue Flow handle bounds. */
+  sourceDisc?: { x: number; y: number }
+  targetDisc?: { x: number; y: number }
   /** True when the edge touches the selected node — cross-links paint at full opacity. */
   emphasized?: boolean
   /** When true, paint every cross-link (toolbar toggle). */
@@ -140,6 +171,8 @@ export interface OverviewModel {
   ringRadii: number[]
   /** Resolved label side / display text / nudged angle after collision pass. */
   labelPlacements: Map<string, LabelPlacement>
+  /** File-neighbourhood half-ring titles ("Uses", "Used by") with counts. */
+  halfCaptions?: HalfRingCaption[]
 }
 
 export const LAYOUT_COLUMN = 280
@@ -152,7 +185,35 @@ export function emptyViewState(): ViewState {
 export function setNucleus(state: ViewState, nucleusId: string): ViewState {
   const next = cloneState(state)
   next.nucleusId = nucleusId
+  if (next.ringWalk && next.ringWalk !== 'out') {
+    next.maxRadialRing = RADIAL_DEFAULT_MAX_RING
+  }
   next.maxRadialRing = next.maxRadialRing ?? RADIAL_DEFAULT_MAX_RING
+  next.ringWalk = 'out'
+  next.fileSplit = undefined
+  return next
+}
+
+/** Nucleate a file on its import + importer neighbourhood (no ancestor pins). */
+export function setFileNeighborhood(state: ViewState, nucleusId: string): ViewState {
+  const next = cloneState(state)
+  next.nucleusId = nucleusId
+  next.maxRadialRing = FILE_NEIGHBORHOOD_MAX_RING
+  next.ringWalk = 'both'
+  next.fileSplit = true
+  next.pinned = []
+  return next
+}
+
+/** Nucleate the repo root on a contains-tree folder / package overview. */
+export function setFolderOverview(state: ViewState, nucleusId = 'dir:.'): ViewState {
+  const next = cloneState(state)
+  next.nucleusId = nucleusId
+  next.maxRadialRing = 1
+  next.ringWalk = 'contains'
+  next.fileSplit = undefined
+  next.pinned = []
+  next.expanded = []
   return next
 }
 
@@ -354,14 +415,11 @@ export function collapseView(index: GraphIndex, state: ViewState, id: string): V
       stack.push(child)
     }
   }
-  return {
-    expanded: state.expanded.filter((item) => !drop.has(item)),
-    revealed: Object.fromEntries(Object.entries(state.revealed).filter(([key]) => !drop.has(key))),
-    pinned: state.pinned.filter((item) => !drop.has(item)),
-    nucleusId: state.nucleusId,
-    maxRadialRing: state.maxRadialRing,
-    layout: state.layout
-  }
+  const next = cloneState(state)
+  next.expanded = state.expanded.filter((item) => !drop.has(item))
+  next.revealed = Object.fromEntries(Object.entries(state.revealed).filter(([key]) => !drop.has(key)))
+  next.pinned = state.pinned.filter((item) => !drop.has(item))
+  return next
 }
 
 export function pinPath(index: GraphIndex, state: ViewState, id: string): ViewState {
@@ -451,8 +509,19 @@ export function buildOverview(
 ): OverviewModel {
   const nucleusId = resolveNucleusId(index, state.nucleusId)
   const maxRing = state.maxRadialRing ?? RADIAL_DEFAULT_MAX_RING
-  const { depths: ringDepths, parentOf: treeParent } = dependencyRingTree(index, nucleusId, filters, maxRing)
+  const walk = state.ringWalk ?? 'out'
   const expanded = new Set(state.expanded)
+  const fileSplit = Boolean(state.fileSplit)
+  const fileNbh = fileSplit ? fileNeighborhoodTree(index, nucleusId, expanded) : null
+  const { depths: ringDepths, parentOf: treeParent } = fileNbh
+    ? { depths: fileNbh.depths, parentOf: fileNbh.parentOf }
+    : walk === 'contains'
+      ? containsRingTree(index, nucleusId, maxRing, expanded)
+      : dependencyRingTree(index, nucleusId, filters, maxRing, walk)
+  const groups = new Map<string, NeighborhoodGroup>([
+    ...(fileNbh?.packedUses.groups ?? new Map()),
+    ...(fileNbh?.packedUsedBy.groups ?? new Map())
+  ])
   const pinned = new Set(state.pinned)
   const nodes: OverviewNodeModel[] = []
   const visible = new Set<string>()
@@ -467,6 +536,7 @@ export function buildOverview(
       const members = index.clusterMembers.get(id) ?? []
       return members.some((member) => passes(member))
     }
+    if (isNeighborhoodGroupId(id)) return true
     const node = index.nodesById.get(id)
     if (!node) return false
     if (filters.kinds && !filters.kinds.includes(node.kind)) return false
@@ -488,7 +558,11 @@ export function buildOverview(
     if (nodes.length >= HARD_NODE_CAP) break
     if (!passes(id) && id !== nucleusId) continue
     if (visible.has(id)) continue
-    nodes.push(nodeModel(index, id, depth, expanded.has(id), focusIds))
+    nodes.push(
+      groups.has(id)
+        ? neighborhoodGroupModel(groups.get(id)!, depth, expanded.has(id), focusIds)
+        : nodeModel(index, id, depth, expanded.has(id), focusIds)
+    )
     visible.add(id)
   }
   for (const pinnedId of pinned) {
@@ -513,8 +587,18 @@ export function buildOverview(
       }
       continue
     }
-    const source = representative(index, edge.source, visible, state)
-    const target = representative(index, edge.target, visible, state)
+    let source = representative(index, edge.source, visible, state, fileNbh?.memberToGroup)
+    let target = representative(index, edge.target, visible, state, fileNbh?.memberToGroup)
+    if (fileNbh) {
+      // An expanded folder group's files sit on ring 2 under their group: route the nucleus link
+      // through the group (nucleus → group spoke, group → file spoke) instead of a ring-skipping spoke.
+      const viaGroup = (id: string | null) => {
+        const group = id ? fileNbh.memberToGroup.get(id) : undefined
+        return group && visible.has(group) && expanded.has(group) ? group : id
+      }
+      if (source === nucleusId) target = viaGroup(target)
+      else if (target === nucleusId) source = viaGroup(source)
+    }
     if (!source || !target) {
       hiddenEdges += 1
       continue
@@ -526,14 +610,45 @@ export function buildOverview(
     addBundle(bundles, source, target, edge, false, index)
   }
 
-  for (const node of nodes) node.internalEdges = internal.get(node.id) ?? 0
+  if (walk === 'contains' || fileSplit) {
+    for (const [child, parent] of treeParent) {
+      if (!visible.has(child) || !visible.has(parent)) continue
+      const exists = [...bundles.values()].some(
+        (bundle) =>
+          bundle.hierarchy &&
+          ((bundle.source === parent && bundle.target === child) ||
+            (bundle.source === child && bundle.target === parent))
+      )
+      if (exists) continue
+      bundles.set(`${parent}\u0000${child}\u0000h`, {
+        source: parent,
+        target: child,
+        hierarchy: true,
+        extracted: 1,
+        inferred: 0,
+        unresolved: 0,
+        staticCount: 0,
+        dynamicCount: 0,
+        requireCount: 0,
+        typeOnlyCount: 0
+      })
+    }
+  }
 
-  let edgeModels = [...bundles.values()].map((b) => toEdgeModel(b, ringDepths, treeParent))
+  for (const node of nodes) node.internalEdges = internal.get(node.id) ?? 0
+  decorateOverviewNodes(index, nodes, nucleusId, walk)
+
+  let edgeModels = [...bundles.values()].map((b) => toEdgeModel(b, ringDepths, treeParent, walk === 'contains' || fileSplit))
   edgeModels.sort((a, b) => b.weight - a.weight || compareUtf16(a.id, b.id))
   const edgesOmittedByCap = Math.max(0, edgeModels.length - HARD_EDGE_CAP)
   edgeModels = edgeModels.slice(0, HARD_EDGE_CAP)
 
-  const laid = layoutRadialTree(nodes, nucleusId, treeParent)
+  const laid = layoutRadialTree(nodes, nucleusId, treeParent, {
+    topGap: walk === 'contains',
+    splitHalves: fileNbh
+      ? { uses: fileNbh.packedUses.ring1, usedBy: fileNbh.packedUsedBy.ring1 }
+      : undefined
+  })
   const ringRadii = [...laid.radiiByDepth.entries()]
     .filter(([depth]) => depth > 0)
     .sort((a, b) => a[0] - b[0])
@@ -546,7 +661,8 @@ export function buildOverview(
     edgesOmittedByCap,
     positions: laid.positions,
     ringRadii,
-    labelPlacements: laid.labelPlacements
+    labelPlacements: laid.labelPlacements,
+    halfCaptions: fileNbh?.halfCaptions
   }
 }
 
@@ -580,9 +696,10 @@ function edgeRadialRoleFromTree(
   source: string,
   target: string,
   hierarchy: boolean,
-  treeParent: Map<string, string>
+  treeParent: Map<string, string>,
+  containsAsSpokes = false
 ): RadialEdgeRole {
-  if (hierarchy) return 'cross'
+  if (hierarchy && !containsAsSpokes) return 'cross'
   if (treeParent.get(source) === target || treeParent.get(target) === source) return 'spoke'
   return 'cross'
 }
@@ -641,7 +758,12 @@ export function addBundle(
   bundles.set(key, bundle)
 }
 
-export function toEdgeModel(bundle: Bundle, _ringDepths: Map<string, number>, treeParent: Map<string, string>): OverviewEdgeModel {
+export function toEdgeModel(
+  bundle: Bundle,
+  _ringDepths: Map<string, number>,
+  treeParent: Map<string, string>,
+  containsAsSpokes = false
+): OverviewEdgeModel {
   const weight = bundle.extracted + bundle.inferred + bundle.unresolved
   const resolved = bundle.unresolved === 0
   let provenance: Provenance | 'MIXED'
@@ -650,7 +772,7 @@ export function toEdgeModel(bundle: Bundle, _ringDepths: Map<string, number>, tr
   else provenance = 'EXTRACTED'
   const visual = edgeVisual(provenance, resolved)
   const imported = importSummary(bundle)
-  const role: RadialEdgeRole = edgeRadialRoleFromTree(bundle.source, bundle.target, bundle.hierarchy, treeParent)
+  const role: RadialEdgeRole = edgeRadialRoleFromTree(bundle.source, bundle.target, bundle.hierarchy, treeParent, containsAsSpokes)
   return {
     id: `bundle:${bundle.source}>${bundle.target}:${visual}:${bundle.hierarchy ? 'h' : 'b'}`,
     source: bundle.source,
@@ -692,7 +814,10 @@ function edgeLabel(visual: EdgeVisual, weight: number): string {
   return weight > 1 ? String(weight) : ''
 }
 
-function representative(index: GraphIndex, id: string, visible: Set<string>, state: ViewState): string | null {
+function representative(index: GraphIndex, id: string, visible: Set<string>, state: ViewState, memberToGroup?: Map<string, string>): string | null {
+  if (visible.has(id)) return id
+  const grouped = memberToGroup?.get(id)
+  if (grouped && visible.has(grouped)) return grouped
   let current: string | undefined = id
   const seen = new Set<string>()
   while (current && !seen.has(current)) {
@@ -720,6 +845,31 @@ function isRootPagedOut(index: GraphIndex, state: ViewState, id: string): boolea
   const cap = state.revealed.root ?? INITIAL_NODE_CAP
   const indexInList = index.topLevel.indexOf(id)
   return indexInList >= cap && !state.pinned.includes(id)
+}
+
+function neighborhoodGroupModel(
+  group: NeighborhoodGroup,
+  depth: number,
+  expanded: boolean,
+  focusIds: ReadonlySet<string> | null
+): OverviewNodeModel {
+  return {
+    id: group.id,
+    label: group.label,
+    kind: 'directory',
+    cluster: true,
+    clusterSize: group.memberIds.length,
+    expanded,
+    depth,
+    path: group.folder,
+    more: false,
+    remainder: 0,
+    internalEdges: 0,
+    dimmed: focusIds !== null && !focusIds.has(group.id),
+    childCount: group.memberIds.length,
+    roleCaption: group.folderLabel,
+    expandCaption: expanded ? 'Hide files' : 'Show files'
+  }
 }
 
 export function nodeModel(
@@ -765,7 +915,8 @@ export function nodeModel(
     remainder: 0,
     internalEdges: 0,
     dimmed: focusIds !== null && !focusIds.has(id),
-    language: node?.kind === 'file' && 'language' in node ? node.language : null
+    language: node?.kind === 'file' && 'language' in node ? node.language : null,
+    childCount: children.length
   }
 }
 
@@ -829,7 +980,9 @@ function cloneState(state: ViewState): ViewState {
     pinned: [...state.pinned],
     nucleusId: state.nucleusId,
     maxRadialRing: state.maxRadialRing,
-    layout: state.layout
+    layout: state.layout,
+    ringWalk: state.ringWalk,
+    fileSplit: state.fileSplit
   }
 }
 
@@ -905,6 +1058,16 @@ export function collectEntryPoints(index: GraphIndex): EntryPointOption[] {
   return files.slice(0, 1)
 }
 
+/** Official entries, plus the current nucleus so the switcher is never blank. */
+export function entryOptionsForNucleus(index: GraphIndex, nucleusId: string | undefined): EntryPointOption[] {
+  const options = collectEntryPoints(index)
+  if (!nucleusId || options.some((option) => option.id === nucleusId)) return options
+  const node = index.nodesById.get(nucleusId)
+  if (!node) return options
+  const path = nodePath(node)
+  return [{ id: node.id, label: entryLabelForNode(node, node.id), path: path || node.id }, ...options]
+}
+
 export function resolveNucleusId(index: GraphIndex, preferredId: string | null | undefined): string {
   if (preferredId && index.nodesById.has(preferredId)) return preferredId
   const entries = collectEntryPoints(index)
@@ -970,10 +1133,58 @@ export function layoutRadialNodes(
  * - one shared radius per BFS ring, sized so neighbours clear estimated label width
  * - positions are Vue Flow top-left at (R·cos, R·sin); disc centres sit ON guides (origin + RADIAL_DISC_OFFSET)
  */
+export interface RadialLayoutOptions {
+  /** Leave a gap at 12 o'clock so no disc sits under a top toolbar. */
+  topGap?: boolean
+  /** Place these ring-1 ids on the right (uses) and left (used by) halves. */
+  splitHalves?: { uses: string[]; usedBy: string[] }
+}
+
+/** Open wedge at 12 o'clock on contains (folder) rings so discs and labels clear a top toolbar. */
+export const CONTAINS_TOP_GAP = (50 * Math.PI) / 180
+
+/**
+ * Order one half of the file view: single files at both ends (near the poles), folder groups in the
+ * middle with a single file between consecutive groups when there are enough, expanded groups at the
+ * very centre. Deterministic for a given input order.
+ */
+export function arrangeSplitHalf(
+  ids: string[],
+  isGroup: (id: string) => boolean,
+  isExpanded: (id: string) => boolean = () => false
+): string[] {
+  const groups = ids.filter(isGroup)
+  if (groups.length === 0) return [...ids]
+  const singles = ids.filter((id) => !isGroup(id))
+  const open = groups.filter(isExpanded)
+  const closed = groups.filter((id) => !isExpanded(id))
+  // Expanded groups in the middle of the group run.
+  const half = Math.floor(closed.length / 2)
+  const run = [...closed.slice(0, half), ...open, ...closed.slice(half)]
+  const spacerCount = Math.min(singles.length, Math.max(0, run.length - 1))
+  const headCount = Math.ceil((singles.length - spacerCount) / 2)
+  const head = singles.slice(0, headCount)
+  const spacers = singles.slice(headCount, headCount + spacerCount)
+  const tail = singles.slice(headCount + spacerCount)
+  const middle: string[] = []
+  run.forEach((id, index) => {
+    middle.push(id)
+    if (index < spacers.length) middle.push(spacers[index]!)
+  })
+  return [...head, ...middle, ...tail]
+}
+
+/** Smallest ring-1 wedge for a single file while a folder group on the same half is expanded. */
+export const FILE_SPLIT_MIN_WEDGE = (12 * Math.PI) / 180
+
+/** Ring-2 file spacing in the file view, as a fraction of the ring-1 radius (one line of label). */
+export const FILE_SPLIT_RING2_ARC = 0.15
+
 export function layoutRadialTree(
   nodes: { id: string; depth: number; label?: string }[],
   nucleusId: string,
-  treeParent: Map<string, string> = new Map()
+  treeParent: Map<string, string> = new Map(),
+  options: RadialLayoutOptions = {}
 ): {
   positions: Map<string, { x: number; y: number }>
   angles: Map<string, number>
@@ -1036,36 +1247,64 @@ export function layoutRadialTree(
   }
 
   const TAU = Math.PI * 2
+  const assignIn = (id: string, start: number, end: number) => {
+    sectors.set(id, { start, end })
+    angles.set(id, (start + end) / 2)
+    const kids = children.get(id) ?? []
+    if (kids.length === 0) return
+    const total = kids.reduce((sum, k) => sum + leafCount(k), 0) || 1
+    let c = start
+    for (const k of kids) {
+      const s = ((end - start) * leafCount(k)) / total
+      assignIn(k, c, c + s)
+      c += s
+    }
+  }
   if (visible.has(nucleusId)) {
     const ring1 = children.get(nucleusId) ?? []
     if (ring1.length === 0) {
       assign(nucleusId, -Math.PI / 2, -Math.PI / 2 + TAU)
+    } else if (options.splitHalves) {
+      const topGap = FILE_SPLIT_TOP_GAP
+      const botGap = FILE_SPLIT_POLE_GAP
+      sectors.set(nucleusId, { start: -Math.PI / 2, end: -Math.PI / 2 + TAU })
+      angles.set(nucleusId, -Math.PI / 2)
+      // Each half is shared by leaf weight, so an expanded folder group claims a wide wedge and its files
+      // sit on ring 2 inside it (every edge steps one ring, nothing crosses another wedge). A floor keeps
+      // a readable slot for single files. With nothing expanded every weight is 1: an even spread.
+      const place = (ids: string[], start: number, end: number) => {
+        if (ids.length === 0) return
+        // Folder groups carry three label lines: keep them off the poles (where neighbours sit side by
+        // side) and apart from each other, centred on the half (3 / 9 o'clock), expanded groups first.
+        ids = arrangeSplitHalf(ids, (id) => isNeighborhoodGroupId(id), (id) => leafCount(id) > 1)
+        const weights = ids.map((id) => leafCount(id))
+        const even = weights.every((w) => w === 1)
+        const spans = even
+          ? ids.map(() => (end - start) / ids.length)
+          : sharesWithFloor(weights, end - start, Math.min(FILE_SPLIT_MIN_WEDGE, (end - start) / ids.length))
+        let cursor = start
+        ids.forEach((id, index) => {
+          const span = spans[index]!
+          assignIn(id, cursor, cursor + span)
+          cursor += span
+        })
+      }
+      place(options.splitHalves.uses, -Math.PI / 2 + topGap, Math.PI / 2 - botGap)
+      place(options.splitHalves.usedBy, Math.PI / 2 + botGap, (3 * Math.PI) / 2 - topGap)
     } else {
       // Ring-1: leaf weights with a ~20° floor so tiny leaves do not bunch together.
       const weights = ring1.map((kid) => leafCount(kid))
-      const spans = sharesWithFloor(weights, TAU, RADIAL_RING1_MIN_WEDGE)
-      const firstSpan = spans[0] ?? TAU / ring1.length
-      const start0 = -Math.PI / 2 - firstSpan / 2
-      sectors.set(nucleusId, { start: start0, end: start0 + TAU })
+      const gap = options.topGap ? CONTAINS_TOP_GAP : 0
+      const spans = sharesWithFloor(weights, TAU - gap, RADIAL_RING1_MIN_WEDGE)
+      const firstSpan = spans[0] ?? (TAU - gap) / ring1.length
+      // topGap: leave an open wedge centred at 12 o'clock so no disc sits under a top toolbar.
+      const start0 = options.topGap ? -Math.PI / 2 + gap / 2 : -Math.PI / 2 - firstSpan / 2
+      sectors.set(nucleusId, { start: start0, end: start0 + TAU - gap })
       angles.set(nucleusId, -Math.PI / 2)
       let cursor = start0
       for (let i = 0; i < ring1.length; i += 1) {
         const kid = ring1[i]!
         const span = spans[i]!
-        // Recursively assign this child's subtree inside its floored wedge.
-        const assignIn = (id: string, start: number, end: number) => {
-          sectors.set(id, { start, end })
-          angles.set(id, (start + end) / 2)
-          const kids = children.get(id) ?? []
-          if (kids.length === 0) return
-          const total = kids.reduce((sum, k) => sum + leafCount(k), 0) || 1
-          let c = start
-          for (const k of kids) {
-            const s = ((end - start) * leafCount(k)) / total
-            assignIn(k, c, c + s)
-            c += s
-          }
-        }
         assignIn(kid, cursor, cursor + span)
         cursor += span
       }
@@ -1123,7 +1362,12 @@ export function layoutRadialTree(
       }
     }
 
-    const radius = Math.max(
+    // File split: ring 2 only holds an expanded folder group's files, whose labels sit beside their discs
+    // and stack vertically, so a fixed step out from ring 1 keeps them close to their group instead of an
+    // arc-length radius that would push them far off-screen.
+    const radius = options.splitHalves && ring >= 2 && previousRadius > 0
+      ? Math.min(previousRadius * 2, Math.max(previousRadius * 1.45, (previousRadius * FILE_SPLIT_RING2_ARC) / Math.max(minGap, 1e-6)))
+      : Math.max(
       ring === 1
         ? Math.max(RADIAL_NUCLEUS_CLEARANCE + RADIAL_DISC_OFFSET * 2, RADIAL_RING_GAP)
         : previousRadius + RADIAL_RING_GAP * 0.55,
@@ -1288,12 +1532,64 @@ export function radialLinkPasses(filters: ViewFilters, unresolved: boolean, prov
   return filters.provenance.extracted
 }
 
-/** BFS depths from the nucleus plus the tree parent used for spoke edges. */
-export function dependencyRingTree(
+
+/** A directory is a package when it directly contains a package.json file. */
+export function isPackageDirectory(index: GraphIndex, id: string): boolean {
+  for (const child of index.children.get(id) ?? []) {
+    const node = index.nodesById.get(child)
+    if (node?.kind === 'file' && 'path' in node) {
+      const base = node.path.split('/').pop() ?? node.path
+      if (base === 'package.json') return true
+    }
+  }
+  return false
+}
+
+/**
+ * Ring-1 nodes for a folder overview: top-level directories, with workspace
+ * package parents (apps/*, packages/*) expanded so each package is a disc.
+ * Loose root files are omitted.
+ */
+export function folderOverviewRing1(index: GraphIndex, rootId: string): string[] {
+  const out: string[] = []
+  for (const id of index.children.get(rootId) ?? []) {
+    const node = index.nodesById.get(id)
+    if (node?.kind !== 'directory') continue
+    const dirChildren = (index.children.get(id) ?? []).filter((child) => index.nodesById.get(child)?.kind === 'directory')
+    const packages = dirChildren.filter((child) => isPackageDirectory(index, child))
+    if (packages.length >= 2) out.push(...packages)
+    else out.push(id)
+  }
+  out.sort((a, b) => {
+    const pathA = nodePath(index.nodesById.get(a))
+    const pathB = nodePath(index.nodesById.get(b))
+    return compareUtf16(pathA, pathB)
+  })
+  return out
+}
+
+function containsChildren(index: GraphIndex, id: string, expanded: ReadonlySet<string>, atRoot: boolean): string[] {
+  if (atRoot) {
+    const promoted = folderOverviewRing1(index, id)
+    if (promoted.length > 0) return promoted
+  }
+  const parent = index.nodesById.get(id)
+  const kids: string[] = []
+  for (const child of index.children.get(id) ?? []) {
+    const node = index.nodesById.get(child)
+    if (!node) continue
+    if (node.kind === 'symbol' && (parent?.kind !== 'file' || !expanded.has(id))) continue
+    kids.push(child)
+  }
+  return kids
+}
+
+/** BFS along contains edges. Expanded nodes may grow one ring past maxRing. */
+export function containsRingTree(
   index: GraphIndex,
   nucleusId: string,
-  filters: ViewFilters,
-  maxRing: number
+  maxRing: number,
+  expanded: ReadonlySet<string> = new Set()
 ): { depths: Map<string, number>; parentOf: Map<string, string> } {
   const depths = new Map<string, number>()
   const parentOf = new Map<string, string>()
@@ -1305,8 +1601,88 @@ export function dependencyRingTree(
     const current = queue[head]!
     head += 1
     const depth = depths.get(current)!
+    if (depth >= maxRing && !expanded.has(current)) continue
+    for (const child of containsChildren(index, current, expanded, depth === 0)) {
+      if (depths.has(child)) continue
+      depths.set(child, depth + 1)
+      parentOf.set(child, current)
+      queue.push(child)
+    }
+  }
+  return { depths, parentOf }
+}
+
+function folderOverviewLabel(node: GraphNode | undefined, id: string): string {
+  if (!node) return id
+  if (id === 'dir:.' || (node.kind === 'directory' && 'path' in node && (node.path === '.' || node.path === ''))) {
+    return 'Repository'
+  }
+  if ((node.kind === 'directory' || node.kind === 'file') && 'path' in node && node.path.includes('/')) {
+    return node.path
+  }
+  return node.label || id
+}
+
+function decorateOverviewNodes(
+  index: GraphIndex,
+  nodes: OverviewNodeModel[],
+  nucleusId: string,
+  walk: RingWalk
+): void {
+  if (walk === 'contains') {
+    for (const node of nodes) {
+      node.label = folderOverviewLabel(index.nodesById.get(node.id), node.id)
+    }
+    return
+  }
+  if (walk !== 'both') return
+  const outgoing = new Set((index.outgoing.get(nucleusId) ?? []).map((link) => link.other))
+  const incoming = new Set((index.incoming.get(nucleusId) ?? []).map((link) => link.other))
+  for (const node of nodes) {
+    if (node.id === nucleusId) continue
+    const uses = outgoing.has(node.id)
+    const usedBy = incoming.has(node.id)
+    const graphNode = index.nodesById.get(node.id)
+    if (graphNode?.kind === 'external') {
+      // A bare package name ("vue") reads like a nameless file extension; say what it is.
+      const ecosystem = 'ecosystem' in graphNode && typeof graphNode.ecosystem === 'string' ? graphNode.ecosystem : ''
+      node.roleCaption = ecosystem ? `${ecosystem} package` : 'package'
+      continue
+    }
+    // Files of an expanded folder group (ring 2) already read as part of their group: name only.
+    if (node.depth >= 2) continue
+    if (uses && usedBy) node.roleCaption = 'uses and used by'
+    else if (uses) node.roleCaption = 'uses'
+    else if (usedBy) node.roleCaption = 'used by'
+  }
+}
+
+/** BFS depths from the nucleus plus the tree parent used for spoke edges. */
+export function dependencyRingTree(
+  index: GraphIndex,
+  nucleusId: string,
+  filters: ViewFilters,
+  maxRing: number,
+  walk: RingWalk = 'out'
+): { depths: Map<string, number>; parentOf: Map<string, string> } {
+  const depths = new Map<string, number>()
+  const parentOf = new Map<string, string>()
+  if (!index.nodesById.has(nucleusId)) return { depths, parentOf }
+  depths.set(nucleusId, 0)
+  const queue: string[] = [nucleusId]
+  let head = 0
+  const linksOf = (current: string) => {
+    const links: FocusLink[] = []
+    if (walk !== 'in') links.push(...(index.outgoing.get(current) ?? []))
+    if (walk !== 'out') links.push(...(index.incoming.get(current) ?? []))
+    return links
+  }
+  while (head < queue.length) {
+    const current = queue[head]!
+    head += 1
+    const depth = depths.get(current)!
     if (depth >= maxRing) continue
-    for (const link of index.outgoing.get(current) ?? []) {
+    for (const link of linksOf(current)) {
       if (!radialLinkPasses(filters, link.unresolved, link.provenance)) continue
       const target = link.other
       if (!radialNodePasses(index, filters, target)) continue
@@ -1323,9 +1699,16 @@ export function dependencyRingDepths(
   index: GraphIndex,
   nucleusId: string,
   filters: ViewFilters,
-  maxRing: number
+  maxRing: number,
+  walk: RingWalk = 'out'
 ): Map<string, number> {
-  return dependencyRingTree(index, nucleusId, filters, maxRing).depths
+  return dependencyRingTree(index, nucleusId, filters, maxRing, walk).depths
+}
+
+/** Layout top-left plus the 1.5rem disc radius — the painted disc centre in flow units. */
+export function discCentre(position: { x: number; y: number } | undefined): { x: number; y: number } {
+  const at = position ?? { x: 0, y: 0 }
+  return { x: at.x + RADIAL_DISC_OFFSET, y: at.y + RADIAL_DISC_OFFSET }
 }
 
 export function countDependencyEdges(index: GraphIndex, nodeId: string): { out: number; in: number } {

@@ -60,6 +60,7 @@ bash scripts/ci/with-netns.sh bash scripts/ci/run-engine-cli-offline.sh
 | `packages/source-ingest` | Git/archive ingest (CLI dependency) |
 | `packages/test-fixtures` | Small language fixtures |
 | `packages/skills` | Legacy hosted-era package; not imported by the CLI — treat as frozen unless a change is explicitly about it |
+| `packages/vscode-extension` | `@atlasmith/vscode-extension` — local-only VS Code / Cursor / VSCodium graph webview (E1; not published) |
 
 Build `source-ingest` and `scan-analysis` before the CLI when building packages individually.
 

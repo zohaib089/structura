@@ -3,7 +3,7 @@ import { useVueFlow } from '@vue-flow/core'
 import { watch } from 'vue'
 import { RADIAL_RING_GAP } from '../overview'
 import { radialFitViewport, type FitBox } from '../radial-fit'
-import { isPhoneCanvas, markScaleForZoom } from '../graph-mark-scale'
+import { EMBEDDED_MAX_MARK_SCALE, LABEL_PX, BASE_LABEL_PX, isPhoneCanvas, markScaleForZoom } from '../graph-mark-scale'
 
 const props = defineProps<{
   signature: string
@@ -15,16 +15,30 @@ const props = defineProps<{
   restore?: { token: number; viewport: { x: number; y: number; zoom: number } | null } | null
   /** Expand / collapse: keep this node where it was on screen when the person had zoomed or panned. */
   keepView?: { token: number; id: string } | null
+  reserveZoomPad?: boolean
+  hideOverlappingRing1?: boolean
 }>()
 const flow = useVueFlow()
 
 function overlays(canvas: HTMLElement) {
   const box = canvas.getBoundingClientRect()
   const stage = canvas.closest('.stage') ?? canvas.parentElement
-  const bar = stage?.querySelector('.floating-bar')?.getBoundingClientRect()
+  const barEl = stage?.querySelector('.floating-bar') ?? document.querySelector('.floating-bar')
+  const bar = barEl?.getBoundingClientRect()
   const coach = stage?.querySelector('[data-testid="coach-mark"]')?.getBoundingClientRect()
+  const zoomEl = stage?.querySelector('.zoom') ?? canvas.querySelector('.zoom') ?? document.querySelector('.vue-flow__panel.zoom, .zoom')
+  const zoom = zoomEl?.getBoundingClientRect()
+  const reserveZoom = Boolean(props.reserveZoomPad) && zoom && zoom.width > 0 && zoom.height > 0
+  const barReserve = bar && bar.height > 0 ? Math.max(0, bar.bottom - box.top) : 0
+  // Embedded: always keep a toolbar-sized top band so discs/labels cannot slide under the bar
+  // when the first fit runs before the bar box is measurable.
+  const topPad = props.reserveZoomPad ? 40 : 0
   return {
-    top: bar && bar.height > 0 ? Math.max(0, bar.bottom - box.top) : 0,
+    top: Math.max(barReserve + topPad, props.reserveZoomPad ? 96 : 0),
+    bottom: reserveZoom ? Math.max(0, box.bottom - zoom.top) : 0,
+    right: reserveZoom ? Math.max(0, box.right - zoom.left) : 0,
+    bar: bar && bar.height > 0 ? bar : null,
+    zoom: reserveZoom ? zoom : null,
     coach: coach && coach.height > 0
       ? { left: coach.left - box.left, right: coach.right - box.left, top: coach.top - box.top, bottom: box.bottom - coach.top }
       : null
@@ -46,15 +60,19 @@ function measuredBoxes(canvas: HTMLElement, focus: Set<string>): FitBox[] {
   // Desktop (≥640): include labels. Phone: include visible labels so fit keeps ~11px text on-screen.
   // Mid widths (481–639) still fit marks/rings only; declutter handles overflow.
   const withLabels = canvas.clientWidth >= 640 || phone
+  // Phone with an expanded group: frame the whole graph (both halves, the open group and its files),
+  // even at a smaller zoom, so neither side is cut off at the pane edge.
+  const openFan = phone && Boolean(props.reserveZoomPad) && Boolean(canvas.querySelector('.overview-node[data-depth="2"]'))
   canvas.querySelectorAll<HTMLElement>('.overview-node').forEach((node) => {
     const id = node.dataset.nodeId ?? ''
     if (focus.size > 0 && !focus.has(id)) return
     boxes.push(toFlow(node.getBoundingClientRect()))
     const aside = node.querySelector<HTMLElement>(':scope > .aside')
-    const labelEl = aside?.querySelector<HTMLElement>('.label') ?? aside
+    // The compact (last-segment) label and the full label swap with display:none; measure the painted one.
+    const labelEl = [...(aside?.querySelectorAll<HTMLElement>('.label') ?? [])].find((el) => el.getClientRects().length > 0) ?? aside
     if (withLabels && labelEl && !node.hasAttribute('data-label-hidden')) {
       const rect = labelEl.getBoundingClientRect()
-      if (phone) {
+      if (phone && !(openFan && node.classList.contains('is-nucleus'))) {
         // Cap horizontal extent so left/right labels don't crush zoom; prefer vertical placement instead.
         const disc = node.querySelector('.kind-mark--disc')?.getBoundingClientRect()
         const cx = disc ? (disc.left + disc.right) / 2 : (rect.left + rect.right) / 2
@@ -67,9 +85,13 @@ function measuredBoxes(canvas: HTMLElement, focus: Set<string>): FitBox[] {
       }
     }
   })
-  if (focus.size === 0) {
+  // Open fan on a phone: keep both half captions ("USED BY · N", "USES · N") in frame too.
+  if (openFan) canvas.querySelectorAll('.half-caption').forEach((el) => boxes.push(toFlow(el.getBoundingClientRect())))
+  if (focus.size === 0 && !openFan) {
     const rings = canvas.querySelectorAll('.ring-guides circle')
-    const outer = rings[rings.length - 1]
+    // Embedded: an expanded group only fills part of the outer ring; fit ring 1 plus the real nodes
+    // so the panel is not sized for an empty dashed circle.
+    const outer = props.reserveZoomPad ? rings[0] : rings[rings.length - 1]
     if (outer) boxes.push(toFlow(outer.getBoundingClientRect()))
   }
   return boxes
@@ -90,20 +112,57 @@ function fitOnce() {
   if (boxes.length === 0) return false
   const measured = overlays(canvas)
   const phone = isPhoneCanvas(canvas.clientWidth)
+  const openFan = phone && Boolean(props.reserveZoomPad) && Boolean(canvas.querySelector('.overview-node[data-depth="2"]'))
   const input = {
     width: canvas.clientWidth,
     height: canvas.clientHeight,
-    reserve: { top: measured.top, bottom: 0 },
+    reserve: {
+      top: measured.top,
+      // Embedded desktop: the zoom pad sits in the right-hand reserve, so only the Tips chip needs a
+      // bottom band and the graph can use the full panel height. Phone and web keep their reserves.
+      bottom: props.reserveZoomPad && !phone
+        ? Math.max(measured.coach?.bottom ?? 0, 56)
+        : Math.max(
+          measured.bottom,
+          measured.coach?.bottom ?? 0,
+          props.reserveZoomPad ? 150 : 0
+        ),
+      right: Math.max(measured.right, props.reserveZoomPad ? 56 : 0),
+      left: 0
+    },
     nodes: boxes,
-    ringRadius: focus.size === 0 && (props.ringCount ?? 0) > 0 ? RADIAL_RING_GAP : null,
+    ringRadius: focus.size === 0 && (props.ringCount ?? 0) > 0 && !openFan ? RADIAL_RING_GAP : null,
     // Phone: extra padding so kept labels are not clipped at the canvas edge.
-    padding: phone ? Math.max(props.padding ?? 0.2, 0.22) : (props.padding ?? 0.2),
-    center: ringCentre(canvas)
+    // Embedded desktop: slightly tighter than 0.2 so ring-1 labels keep more screen arc.
+    padding: phone ? Math.max(props.padding ?? 0.2, 0.22) : props.reserveZoomPad ? Math.min(props.padding ?? 0.2, 0.12) : (props.padding ?? 0.2),
+    // Phone with an expanded group: ring 2 fans out on one side only, so a fit centred on the
+    // nucleus would push that fan off the panel. Fit the painted bounds instead.
+    center: openFan ? undefined : ringCentre(canvas),
+    // An open fan on a phone may zoom out past the label floor a little, so the current file stays in frame.
+    minZoom: props.reserveZoomPad ? (LABEL_PX / (BASE_LABEL_PX * EMBEDDED_MAX_MARK_SCALE)) * (openFan ? 0.5 : 1) : undefined
   }
   let viewport = radialFitViewport(input)
-  // Always leave room for the coach when it is open so ring nodes are never under it.
-  if (measured.coach) {
-    viewport = radialFitViewport({ ...input, reserve: { top: measured.top, bottom: measured.coach.bottom } })
+  // Hard clamp: after a width-limited or minZoom fit, shift or shrink so no disc
+  // sits under the top toolbar reserve.
+  const minTop = input.reserve.top
+  const maxBottom = input.height - input.reserve.bottom
+  const topPx = (vp: typeof viewport) => Math.min(...boxes.map((n) => vp.y + n.y * vp.zoom))
+  const botPx = (vp: typeof viewport) => Math.max(...boxes.map((n) => vp.y + (n.y + n.height) * vp.zoom))
+  const overflowTop = topPx(viewport) - minTop
+  if (overflowTop < 0) viewport = { ...viewport, y: viewport.y - overflowTop }
+  const overflowBot = botPx(viewport) - maxBottom
+  if (overflowBot > 0) {
+    const span = Math.max(botPx(viewport) - topPx(viewport), 1)
+    const room = Math.max(maxBottom - minTop, 1)
+    const nextZoom = Math.max(input.minZoom ?? 0.05, viewport.zoom * (room / span) * 0.98)
+    const cx = input.center?.x ?? 0
+    const cy = input.center?.y ?? 0
+    viewport = {
+      zoom: nextZoom,
+      x: input.reserve.left + (input.width - input.reserve.left - (input.reserve.right ?? 0)) / 2 - cx * nextZoom,
+      y: minTop + room / 2 - cy * nextZoom
+    }
+    if (topPx(viewport) < minTop) viewport = { ...viewport, y: viewport.y + (minTop - topPx(viewport)) }
   }
   void flow.setViewport(viewport, { duration: props.duration ?? 0 })
   return true
@@ -133,6 +192,18 @@ function hitRect(
   return a.left < b.right + pad && a.right > b.left - pad && a.top < b.bottom + pad && a.bottom > b.top + pad
 }
 
+function overlayScreenBoxes(canvas: HTMLElement): DOMRect[] {
+  const measured = overlays(canvas)
+  const boxes: DOMRect[] = []
+  if (measured.bar) boxes.push(measured.bar)
+  if (measured.zoom) boxes.push(measured.zoom)
+  const stage = canvas.closest('.stage') ?? canvas.parentElement
+  const coachEl = stage?.querySelector('[data-testid="coach-mark"]')
+  const coachBox = coachEl?.getBoundingClientRect()
+  if (coachBox && coachBox.width > 0 && coachBox.height > 0) boxes.push(coachBox)
+  return boxes
+}
+
 function declutter() {
   const canvas = flow.vueFlowRef.value
   if (!canvas) return
@@ -143,6 +214,11 @@ function declutter() {
     n.style.removeProperty('--label-nudge-x')
     n.style.removeProperty('--label-nudge-y')
   })
+
+  if (props.reserveZoomPad) {
+    declutterEmbedded(canvas, nodes)
+    return
+  }
 
   const desktop = canvas.clientWidth >= 640
   // Desktop: flip label side when the painted box still hits another disc/label; then hide residuals.
@@ -175,17 +251,65 @@ function declutter() {
       if (n.classList.contains('is-nucleus')) continue
       const aside = n.querySelector<HTMLElement>(':scope > .aside')
       if (!aside) continue
-      const label = aside.getBoundingClientRect()
       const ownId = n.dataset.nodeId ?? ''
-      const still =
-        discs.some((d) => d.id !== ownId && hitRect(label, d.box)) ||
-        nodes.some((other) => {
+      const collisions = () => {
+        const box = aside.getBoundingClientRect()
+        return (
+          discs.some((d) => d.id !== ownId && hitRect(box, d.box)) ||
+          nodes.some((other) => {
+            if (other === n || other.classList.contains('is-nucleus')) return false
+            if (other.hasAttribute('data-label-hidden')) return false
+            const o = other.querySelector<HTMLElement>(':scope > .aside')?.getBoundingClientRect()
+            return o ? hitRect(box, o) : false
+          })
+        )
+      }
+      if (!collisions()) continue
+      if (props.reserveZoomPad) {
+        const previous = n.getAttribute('data-label-flip')
+        let placed = false
+        for (const place of ['below', 'above'] as const) {
+          n.setAttribute('data-label-flip', place)
+          void canvas.offsetWidth
+          if (!collisions()) {
+            placed = true
+            break
+          }
+        }
+        if (placed) continue
+        if (previous) n.setAttribute('data-label-flip', previous)
+        else n.removeAttribute('data-label-flip')
+        void canvas.offsetWidth
+      }
+      n.setAttribute('data-label-hidden', 'true')
+    }
+    if (props.reserveZoomPad || props.hideOverlappingRing1) {
+      const overlayBoxes = overlayScreenBoxes(canvas)
+      for (const n of nodes) {
+        if (n.classList.contains('is-nucleus')) continue
+        const aside = n.querySelector<HTMLElement>(':scope > .aside')
+        if (!aside || n.hasAttribute('data-label-hidden')) continue
+        const label = aside.getBoundingClientRect()
+        if (!overlayBoxes.some((box) => hitRect(label, box, 4))) continue
+        const previous = n.getAttribute('data-label-flip')
+        n.setAttribute('data-label-flip', 'below')
+        void canvas.offsetWidth
+        const flipped = aside.getBoundingClientRect()
+        const hitsOverlay = overlayBoxes.some((box) => hitRect(flipped, box, 4))
+        const hitsDisc = discs.some((d) => d.id !== (n.dataset.nodeId ?? '') && hitRect(flipped, d.box))
+        const hitsLabel = nodes.some((other) => {
           if (other === n || other.classList.contains('is-nucleus')) return false
           if (other.hasAttribute('data-label-hidden')) return false
           const o = other.querySelector<HTMLElement>(':scope > .aside')?.getBoundingClientRect()
-          return o ? hitRect(label, o) : false
+          return o ? hitRect(flipped, o) : false
         })
-      if (still) n.setAttribute('data-label-hidden', 'true')
+        if (hitsOverlay || hitsDisc || hitsLabel) {
+          if (previous) n.setAttribute('data-label-flip', previous)
+          else n.removeAttribute('data-label-flip')
+          void canvas.offsetWidth
+          n.setAttribute('data-label-hidden', 'true')
+        }
+      }
     }
     return
   }
@@ -197,9 +321,7 @@ function declutter() {
   const cx = centre ? (centre.left + centre.right) / 2 : (bounds.left + bounds.right) / 2
 
   const labelRect = (n: HTMLElement) => {
-    const el =
-      n.querySelector<HTMLElement>(':scope > .aside .label') ??
-      n.querySelector<HTMLElement>(':scope > .aside')
+    const el = n.querySelector<HTMLElement>(':scope > .aside')
     return el?.getBoundingClientRect() ?? null
   }
 
@@ -222,11 +344,13 @@ function declutter() {
     return list
   }
 
+  const overlayBoxes = (props.reserveZoomPad || props.hideOverlappingRing1) ? overlayScreenBoxes(canvas) : []
   const outside = (r: DOMRect) =>
     r.left < bounds.left + edgePad ||
     r.right > bounds.right - edgePad ||
     r.top < bounds.top + edgePad ||
-    r.bottom > bounds.bottom - edgePad
+    r.bottom > bounds.bottom - edgePad ||
+    overlayBoxes.some((box) => hitRect(r, box, 4))
 
   const conflicts = (n: HTMLElement, box: DOMRect, obs: ReturnType<typeof obstacles>) => {
     if (outside(box)) return true
@@ -239,6 +363,8 @@ function declutter() {
 
   const isMust = (n: HTMLElement) => {
     if (n.classList.contains('is-nucleus') || n.classList.contains('is-selected')) return true
+    if (n.dataset.nbhGroup === 'true') return true
+    if (props.hideOverlappingRing1) return false
     if (Number(n.dataset.depth ?? NaN) === 1) return true
     if (n.dataset.hasFindings === 'true') return true
     return false
@@ -264,6 +390,7 @@ function declutter() {
     .sort((a, b) => {
       const score = (n: HTMLElement) => {
         if (n.dataset.hasFindings === 'true') return 0
+        if (n.dataset.nbhGroup === 'true') return 0.5
         if (Number(n.dataset.depth ?? NaN) === 1) return 1
         return 2 + Number(n.dataset.depth ?? 9)
       }
@@ -332,6 +459,199 @@ function declutter() {
     canvas.setAttribute('data-unplaced-findings', unplacedFindings.join(','))
   } else {
     canvas.removeAttribute('data-unplaced-findings')
+  }
+}
+
+type Place = 'end' | 'start' | 'above' | 'below'
+type Rect = { left: number; right: number; top: number; bottom: number }
+
+function overlapArea(a: Rect, b: Rect, pad: number): number {
+  const w = Math.min(a.right + pad, b.right) - Math.max(a.left - pad, b.left)
+  const h = Math.min(a.bottom + pad, b.bottom) - Math.max(a.top - pad, b.top)
+  return w > 0 && h > 0 ? w * h : 0
+}
+
+/**
+ * Embedded (editor panel) declutter, desktop and narrow alike. Labels are placed greedily in priority
+ * order (selection, folder groups, ring 1, findings, then outer rings). Each label tries its outward
+ * side first (or outward above/below near the poles), then the other placements with small nudges,
+ * then a shorter last-segment name, before it is hidden. Ring-1 and group labels are never hidden: they
+ * take the least-overlapping placement. Labels keep their ~11.5px size and stay clear of the toolbar,
+ * zoom pad and Tips chip.
+ */
+function declutterEmbedded(canvas: HTMLElement, nodes: HTMLElement[]) {
+  for (const n of nodes) {
+    n.removeAttribute('data-label-compact')
+    n.removeAttribute('data-label-tight')
+    n.removeAttribute('data-label-mini')
+  }
+  const bounds = canvas.getBoundingClientRect()
+  const guide = canvas.querySelector('.ring-guides')?.getBoundingClientRect()
+  const cx = guide ? (guide.left + guide.right) / 2 : (bounds.left + bounds.right) / 2
+  const cy = guide ? (guide.top + guide.bottom) / 2 : (bounds.top + bounds.bottom) / 2
+  const overlayBoxes = overlayScreenBoxes(canvas)
+  const edgePad = 6
+  const labelPad = 6
+  const asideOf = (n: HTMLElement) => n.querySelector<HTMLElement>(':scope > .aside')
+  const discOf = (n: HTMLElement) =>
+    (n.querySelector('.kind-mark--disc') ?? n.querySelector('.kind-mark') ?? n).getBoundingClientRect()
+
+  const fixed: { id: string; box: Rect; pad: number }[] = []
+  for (const n of nodes) {
+    fixed.push({ id: n.dataset.nodeId ?? '', box: discOf(n), pad: 2 })
+    if (n.classList.contains('is-nucleus')) {
+      const stack = asideOf(n)
+      if (stack) fixed.push({ id: `${n.dataset.nodeId}::nucleus`, box: stack.getBoundingClientRect(), pad: labelPad })
+    }
+  }
+  const caption = canvas.parentElement?.querySelectorAll<HTMLElement>('.half-caption, [data-half-caption]')
+  caption?.forEach((el, i) => fixed.push({ id: `::caption${i}`, box: el.getBoundingClientRect(), pad: labelPad }))
+  const placed: { id: string; box: Rect; pad: number }[] = []
+
+  const clipPenalty = (r: Rect) => {
+    let p = 0
+    if (r.left < bounds.left + edgePad) p += (bounds.left + edgePad - r.left) * 400
+    if (r.right > bounds.right - edgePad) p += (r.right - bounds.right + edgePad) * 400
+    if (r.top < bounds.top + edgePad) p += (bounds.top + edgePad - r.top) * 400
+    if (r.bottom > bounds.bottom - edgePad) p += (r.bottom - bounds.bottom + edgePad) * 400
+    for (const o of overlayBoxes) p += overlapArea(r, o, 4) * 50
+    return p
+  }
+  const cost = (n: HTMLElement, r: Rect) => {
+    const own = n.dataset.nodeId ?? ''
+    let c = clipPenalty(r)
+    for (const o of fixed) if (o.id !== own) c += overlapArea(r, o.box, o.pad)
+    for (const o of placed) c += overlapArea(r, o.box, o.pad)
+    return c
+  }
+
+  // Project overview: every ring-1 folder / package name stays. File view in a narrow panel: folder
+  // groups stay; a ring-1 file that has no clean spot may hide (name on hover / focus / tap).
+  const fileView = Boolean(canvas.querySelector('.half-caption'))
+  const narrow = isPhoneCanvas(canvas.clientWidth)
+  const isMust = (n: HTMLElement) =>
+    n.classList.contains('is-selected') ||
+    n.dataset.nbhGroup === 'true' ||
+    (Number(n.dataset.depth ?? NaN) === 1 && !(fileView && narrow))
+  const score = (n: HTMLElement) => {
+    if (n.classList.contains('is-selected')) return -1
+    if (n.dataset.nbhGroup === 'true') return 0
+    if (Number(n.dataset.depth ?? NaN) === 1) return 1
+    if (n.dataset.hasFindings === 'true') return 2
+    return 3 + Number(n.dataset.depth ?? 9)
+  }
+  const ordered = nodes.filter((n) => !n.classList.contains('is-nucleus')).sort((a, b) => score(a) - score(b))
+
+  // Narrow panes get a third, tighter label: a short name with an ellipsis and no side captions
+  // ("COMPONENTS · Show files", "N inside"); the full name stays on hover / focus and in the drawer.
+  // A fourth narrow-only level (mini) drops the name a size and trims it further before hiding.
+  const apply = (n: HTMLElement, place: Place, nudge: number, compact: boolean, tight = false, mini = false) => {
+    n.setAttribute('data-label-flip', place)
+    if (mini) n.setAttribute('data-label-mini', 'true')
+    else n.removeAttribute('data-label-mini')
+    if (compact) n.setAttribute('data-label-compact', 'true')
+    else n.removeAttribute('data-label-compact')
+    if (tight) n.setAttribute('data-label-tight', 'true')
+    else n.removeAttribute('data-label-tight')
+    if (place === 'above' || place === 'below') {
+      n.style.setProperty('--label-nudge-x', `${nudge}px`)
+      n.style.removeProperty('--label-nudge-y')
+    } else {
+      n.style.setProperty('--label-nudge-y', `${nudge}px`)
+      n.style.removeProperty('--label-nudge-x')
+    }
+  }
+
+  type Choice = { place: Place; nudge: number; compact: boolean; tight: boolean; mini: boolean; hidden: boolean; cost: number }
+  const reset = (n: HTMLElement) => {
+    n.removeAttribute('data-label-flip')
+    n.removeAttribute('data-label-compact')
+    n.removeAttribute('data-label-tight')
+    n.removeAttribute('data-label-mini')
+    n.removeAttribute('data-label-hidden')
+    n.style.removeProperty('--label-nudge-x')
+    n.style.removeProperty('--label-nudge-y')
+  }
+
+  const placeOne = (n: HTMLElement): Choice | null => {
+    const aside = asideOf(n)
+    if (!aside) return null
+    n.removeAttribute('data-label-hidden')
+    const disc = discOf(n)
+    const dx = (disc.left + disc.right) / 2 - cx
+    const dy = (disc.top + disc.bottom) / 2 - cy
+    const len = Math.hypot(dx, dy) || 1
+    const cos = dx / len
+    const sin = dy / len
+    const outSide: Place = cos >= 0 ? 'end' : 'start'
+    const inSide: Place = cos >= 0 ? 'start' : 'end'
+    const outVert: Place = sin >= 0 ? 'below' : 'above'
+    const inVert: Place = sin >= 0 ? 'above' : 'below'
+    // An expanded group's files fan out on its outward side: keep its own label above / below it,
+    // shifted toward the centre, so the fan of edges does not run through the text.
+    const openGroup = n.dataset.nbhGroup === 'true' && n.dataset.expanded === 'true'
+    const places: Place[] = openGroup
+      ? [inVert, outVert, inSide]
+      : Math.abs(cos) >= 0.4
+        ? [outSide, outVert, inVert, inSide]
+        : [outVert, outSide, inSide, inVert]
+    const toward = cos >= 0 ? -1 : 1
+    const nudges = openGroup
+      ? [38, 26, 16, 8, 0].map((v) => v * toward)
+      : narrow && isMust(n)
+        ? [0, -8, 8, -16, 16, -26, 26, -38, 38, -50, 50, -64, 64]
+        : [0, -8, 8, -16, 16, -26, 26, -38, 38]
+    let best: Choice | null = null
+    const levels: [boolean, boolean, boolean][] = narrow
+      ? [[false, false, false], [true, false, false], [true, true, false], [true, true, true]]
+      : [[false, false, false], [true, false, false]]
+    search: for (const [compact, tight, mini] of levels) {
+      for (const place of places) {
+        for (const nudge of nudges) {
+          apply(n, place, nudge, compact, tight, mini)
+          const c = cost(n, aside.getBoundingClientRect())
+          if (!best || c < best.cost - 0.5) best = { place, nudge, compact, tight, mini, hidden: false, cost: c }
+          if (c <= 0) break search
+        }
+      }
+    }
+    if (!best) return null
+    if (best.cost > 0 && !isMust(n)) {
+      reset(n)
+      n.setAttribute('data-label-hidden', 'true')
+      return { ...best, hidden: true }
+    }
+    apply(n, best.place, best.nudge, best.compact, best.tight, best.mini)
+    placed.push({ id: `${n.dataset.nodeId}::label`, box: aside.getBoundingClientRect(), pad: labelPad })
+    return best
+  }
+
+  // Greedy in priority order; when a kept label still overlaps, retry with the stuck labels placed
+  // first (they have the fewest options) and keep the pass with the least overlap / fewest hidden.
+  let order = ordered
+  let bestRun: { order: HTMLElement[]; score: number } | null = null
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    placed.length = 0
+    for (const n of order) reset(n)
+    const stuck: HTMLElement[] = []
+    let total = 0
+    for (const n of order) {
+      const choice = placeOne(n)
+      if (!choice) continue
+      if (choice.hidden) total += 5000
+      else if (choice.cost > 0) {
+        total += choice.cost
+        stuck.push(n)
+      }
+    }
+    if (!bestRun || total < bestRun.score) bestRun = { order, score: total }
+    if (total <= 0 || stuck.length === 0) break
+    order = [...stuck, ...order.filter((n) => !stuck.includes(n))]
+  }
+  if (bestRun && bestRun.order !== order) {
+    placed.length = 0
+    for (const n of bestRun.order) reset(n)
+    for (const n of bestRun.order) placeOne(n)
   }
 }
 
@@ -407,7 +727,11 @@ async function fit() {
     }
   }
   if (!fitOnce()) {
-    void flow.fitView({ duration: 0, padding: props.padding ?? 0.2, maxZoom: 1.15 })
+    // Unreserved VueFlow fitView ignores the toolbar reserve and would slide discs under it.
+    // Only use it as a last resort in the web app, never in the embedded viewer.
+    if (!props.reserveZoomPad && !stale()) {
+      void flow.fitView({ duration: 0, padding: props.padding ?? 0.2, maxZoom: 1.15 })
+    }
   }
   await frame(); await frame()
   if (stale()) return
@@ -449,7 +773,7 @@ watch(
     if (!el || !(zoom > 0)) return
     // Phone raises the mark-scale cap so labels stay ≈11px / discs ≥20px; desktop unchanged (a3695cd).
     const phone = isPhoneCanvas(el.clientWidth)
-    const { mark, disc } = markScaleForZoom(zoom, phone)
+    const { mark, disc } = markScaleForZoom(zoom, phone, props.reserveZoomPad ? EMBEDDED_MAX_MARK_SCALE : undefined)
     el.style.setProperty('--graph-mark-scale', mark.toFixed(3))
     el.style.setProperty('--graph-disc-scale', disc.toFixed(3))
     scheduleDeclutter()

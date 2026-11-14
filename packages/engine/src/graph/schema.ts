@@ -30,7 +30,7 @@ const closed = (properties: Record<string, Schema>, required: string[]): Schema 
   required,
   additionalProperties: false
 })
-/** `typescript` | `javascript` | `python` | null. Anything else is stored as null. */
+/** `typescript` | `javascript` | `python` | `vue` | null. Anything else is stored as null. */
 const languageValue: Schema = { type: ['string', 'null'], enum: [...LANGUAGES, null] }
 const withExt = (properties: Record<string, Schema>): Record<string, Schema> => ({ ...properties, extensions: ref('extensions') })
 

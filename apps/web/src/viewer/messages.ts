@@ -184,6 +184,13 @@ export interface ViewerMessages {
   hideExtraConnections: string
   /** Small caps tag under the nucleus label (landing parity). */
   entryPointTag: string
+  thisFileTag: string
+  repositoryTag: string
+  usesCaption: string
+  usedByCaption: string
+  searchShort: string
+  insideOpenCaption: string
+  insideCloseCaption: string
   coachOpenLabel: string
   filtersTooltip: string
   searchTooltip: string
@@ -263,7 +270,7 @@ const en: ViewerMessages = {
   announceCollapsed: '{name} collapsed',
   announceSelected: '{name} selected, in {path}',
   crumbRoot: 'All',
-  searchPlaceholder: 'Search files, symbols, layers…',
+  searchPlaceholder: 'Search files and symbols',
   searchNone: 'No matches for “{q}”',
   searchHint: 'Try a file name or layer id',
   searchMore: '{n} more matches. Keep typing.',
@@ -382,6 +389,13 @@ const en: ViewerMessages = {
   showAllConnections: 'Show all connections ({n})',
   hideExtraConnections: 'Hide extra connections ({n})',
   entryPointTag: 'ENTRY POINT',
+  thisFileTag: 'This file',
+  repositoryTag: 'Repository',
+  usesCaption: 'uses',
+  usedByCaption: 'used by',
+  searchShort: 'Search',
+  insideOpenCaption: '{n} inside',
+  insideCloseCaption: 'Hide inside',
   coachOpenLabel: 'Tips',
   filtersTooltip: 'Open filters to hide file types or link types',
   searchTooltip: 'Find a file or symbol by name',

@@ -141,7 +141,7 @@ export const SYMBOL_KINDS = ['class', 'default', 'enum', 'function', 'interface'
 export type SymbolKind = typeof SYMBOL_KINDS[number]
 
 /** Languages the engine can analyse. Anything else is `null`. */
-export const LANGUAGES = ['javascript', 'python', 'typescript'] as const
+export const LANGUAGES = ['javascript', 'python', 'typescript', 'vue'] as const
 
 /** Namespaced extension keys, e.g. `acme:owner`. */
 export const EXTENSION_KEY_PATTERN = '^[a-z][a-z0-9-]*:[A-Za-z0-9._-]+$'

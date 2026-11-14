@@ -161,6 +161,55 @@ jobs:
       - name: Strace assertion self-test
         run: bash scripts/ci/strace-self-test.sh
 
+  vscode-extension:
+    name: VS Code extension build, tests, and .vsix
+    # Pull requests only; the workflow also runs on pushes to main, which skip this job.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # upload-artifact authenticates with the runner's own artifact token, not GITHUB_TOKEN,
+    # so this job keeps contents: read only. No publish step and no secrets.
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install workspace
+        run: npm ci --ignore-scripts
+
+      - name: Build engine
+        run: npm run build -w packages/engine
+
+      - name: Typecheck
+        run: npm run typecheck -w packages/vscode-extension
+
+      - name: Test
+        run: npm test -w packages/vscode-extension
+
+      - name: Build
+        run: npm run build -w packages/vscode-extension
+
+      - name: Package .vsix (local package only, never published)
+        run: npm run package:vsix -w packages/vscode-extension
+
+      - name: Upload .vsix
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: atlasmith-vsix
+          path: packages/vscode-extension/*.vsix
+          if-no-files-found: error
+          retention-days: 14
+
   golden-corpus:
     name: Golden corpus
     runs-on: ubuntu-latest

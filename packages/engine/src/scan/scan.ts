@@ -590,7 +590,7 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
   try {
     const analyseLanguages = new Set(walk.files.filter(item => item.disposition === 'analyse').map(item => item.language))
     if (analyseLanguages.size > 0) {
-      if ([...analyseLanguages].some(lang => lang === 'typescript' || lang === 'javascript')) await tsAdapter.load()
+      if ([...analyseLanguages].some(lang => lang === 'typescript' || lang === 'javascript' || lang === 'vue')) await tsAdapter.load()
       if (analyseLanguages.has('python')) await pyAdapter.load()
     }
     for (const file of walk.files) {
