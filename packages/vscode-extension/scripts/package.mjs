@@ -110,5 +110,6 @@ console.log('staged', stage, 'vendored', [...copied].sort().join(', '))
 if (stageOnly) process.exit(0)
 
 const vsix = join(root, `atlasmith-${manifest.version}.vsix`)
-execFileSync('npx', ['--yes', '@vscode/vsce@3', 'package', '--no-dependencies', '--allow-missing-repository', '--skip-license', '-o', vsix], { cwd: stage, stdio: 'inherit' })
+// vsce is pinned to an exact version (not a devDependency: adding it to the root lockfile re-resolves apps/api entries).
+execFileSync('npx', ['--yes', '@vscode/vsce@3.9.2', 'package', '--no-dependencies', '--allow-missing-repository', '--skip-license', '-o', vsix], { cwd: stage, stdio: 'inherit' })
 console.log('vsix', vsix, `${(statSync(vsix).size / 1024).toFixed(0)} KiB`)

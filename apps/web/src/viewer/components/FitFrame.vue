@@ -60,13 +60,12 @@ function measuredBoxes(canvas: HTMLElement, focus: Set<string>): FitBox[] {
   // Desktop (≥640): include labels. Phone: include visible labels so fit keeps ~11px text on-screen.
   // Mid widths (481–639) still fit marks/rings only; declutter handles overflow.
   const withLabels = canvas.clientWidth >= 640 || phone
-  // Phone with an expanded group: frame the open group, its files and the current file; the
-  // other ring-1 neighbours may sit at the edge (pan or Fit to see them).
+  // Phone with an expanded group: frame the whole graph (both halves, the open group and its files),
+  // even at a smaller zoom, so neither side is cut off at the pane edge.
   const openFan = phone && Boolean(props.reserveZoomPad) && Boolean(canvas.querySelector('.overview-node[data-depth="2"]'))
   canvas.querySelectorAll<HTMLElement>('.overview-node').forEach((node) => {
     const id = node.dataset.nodeId ?? ''
     if (focus.size > 0 && !focus.has(id)) return
-    if (openFan && node.dataset.depth === '1' && node.dataset.expanded !== 'true') return
     boxes.push(toFlow(node.getBoundingClientRect()))
     const aside = node.querySelector<HTMLElement>(':scope > .aside')
     // The compact (last-segment) label and the full label swap with display:none; measure the painted one.
@@ -86,6 +85,8 @@ function measuredBoxes(canvas: HTMLElement, focus: Set<string>): FitBox[] {
       }
     }
   })
+  // Open fan on a phone: keep both half captions ("USED BY · N", "USES · N") in frame too.
+  if (openFan) canvas.querySelectorAll('.half-caption').forEach((el) => boxes.push(toFlow(el.getBoundingClientRect())))
   if (focus.size === 0 && !openFan) {
     const rings = canvas.querySelectorAll('.ring-guides circle')
     // Embedded: an expanded group only fills part of the outer ring; fit ring 1 plus the real nodes
@@ -138,7 +139,7 @@ function fitOnce() {
     // nucleus would push that fan off the panel. Fit the painted bounds instead.
     center: openFan ? undefined : ringCentre(canvas),
     // An open fan on a phone may zoom out past the label floor a little, so the current file stays in frame.
-    minZoom: props.reserveZoomPad ? (LABEL_PX / (BASE_LABEL_PX * EMBEDDED_MAX_MARK_SCALE)) * (openFan ? 0.62 : 1) : undefined
+    minZoom: props.reserveZoomPad ? (LABEL_PX / (BASE_LABEL_PX * EMBEDDED_MAX_MARK_SCALE)) * (openFan ? 0.5 : 1) : undefined
   }
   let viewport = radialFitViewport(input)
   // Hard clamp: after a width-limited or minZoom fit, shift or shrink so no disc
@@ -597,7 +598,9 @@ function declutterEmbedded(canvas: HTMLElement, nodes: HTMLElement[]) {
     const toward = cos >= 0 ? -1 : 1
     const nudges = openGroup
       ? [38, 26, 16, 8, 0].map((v) => v * toward)
-      : [0, -8, 8, -16, 16, -26, 26, -38, 38]
+      : narrow && isMust(n)
+        ? [0, -8, 8, -16, 16, -26, 26, -38, 38, -50, 50, -64, 64]
+        : [0, -8, 8, -16, 16, -26, 26, -38, 38]
     let best: Choice | null = null
     const levels: [boolean, boolean, boolean][] = narrow
       ? [[false, false, false], [true, false, false], [true, true, false], [true, true, true]]
