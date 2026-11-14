@@ -73,6 +73,11 @@ defineExpose({ zoomBy, ZOOM_STEP })
 }
 .zoom :deep(.tip) { display: flex; }
 button {
+  /* G09: the symbol / word sits in the middle of the 44px target. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   inline-size: 100%;
   min-inline-size: var(--viewer-control-size, 2.75rem);
   min-block-size: var(--viewer-hit-target, 2.75rem);
