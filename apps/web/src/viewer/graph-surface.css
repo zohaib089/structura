@@ -23,7 +23,7 @@
   --sev-high-fg: #ff9a5c;
   --sev-high-bg: #2a1a10;
   --sev-high-border: #5c3520;
-  --sev-medium-fg: #f5c84b;
+  --sev-medium-fg: #e9e45c; /* G4d: lemon, 22° of hue away from the selection amber #e0a040 */
   --sev-medium-bg: #262010;
   --sev-medium-border: #574a1f;
   --sev-low-fg: #6cb6ff;

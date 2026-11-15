@@ -8,6 +8,7 @@ import './viewer-base.css'
 import { viewerMessages } from './messages'
 import ViewerApp from './ViewerApp.vue'
 import type { GraphDocument } from './graph-types'
+import { buildReportPathSeverityMap } from '../services/scan-report-tree-display'
 
 const locale = resolvePreferredWebLocale(null, navigator.languages)
 const theme = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
@@ -25,14 +26,22 @@ const focusPath = params.get('focus')
 const EmbeddedHarness = defineComponent({
   setup() {
     const doc = shallowRef<GraphDocument | null>(null)
+    const severity = shallowRef<ReturnType<typeof buildReportPathSeverityMap> | undefined>(undefined)
+    // One graph.json, plus optionally a scan report (report.v1, has findings) for severity on the map.
     const onFile = async (event: Event) => {
-      const file = (event.target as HTMLInputElement).files?.[0]
-      if (file) doc.value = JSON.parse(await file.text()) as GraphDocument
+      const files = [...((event.target as HTMLInputElement).files ?? [])]
+      let graph: GraphDocument | null = null
+      for (const file of files) {
+        const json = JSON.parse(await file.text()) as { nodes?: unknown; findings?: Parameters<typeof buildReportPathSeverityMap>[0] }
+        if (Array.isArray(json.nodes)) graph = json as unknown as GraphDocument
+        else if (Array.isArray(json.findings)) severity.value = buildReportPathSeverityMap(json.findings)
+      }
+      if (graph) doc.value = graph
     }
     return () => h('div', { style: 'position:fixed;inset:0;display:flex;flex-direction:column' }, [
       doc.value
-        ? h(ViewerApp, { embedded: true, shellTheme: theme, graphDocument: doc.value, focusPath, openInspectorOnFocus: false, fileNeighborhood: params.get('neighborhood') === '1', style: 'flex:1;min-block-size:0' })
-        : h('input', { type: 'file', accept: 'application/json', 'data-testid': 'file-input', onChange: onFile })
+        ? h(ViewerApp, { embedded: true, shellTheme: theme, graphDocument: doc.value, focusPath, openInspectorOnFocus: false, fileNeighborhood: params.get('neighborhood') === '1', pathSeverityCounts: severity.value, style: 'flex:1;min-block-size:0' })
+        : h('input', { type: 'file', accept: 'application/json', multiple: true, 'data-testid': 'file-input', onChange: onFile })
     ])
   }
 })
