@@ -100,3 +100,82 @@ describe('python symbols', () => {
     )
   })
 })
+
+describe('python file insights', () => {
+  test('records def calls, module-scope callers, and self.method', async () => {
+    const result = await parse(
+      'mod.py',
+      [
+        'def format(name):',
+        '  return name',
+        'class Greeter:',
+        '  def hello(self, name):',
+        '    self.format(name)',
+        '    format(name)',
+        '  def format(self, name):',
+        '    return name',
+        'format("z")'
+      ].join('\n')
+    )
+    const calls = result.calls.map(call => [call.caller, call.intraFileCallee])
+    assert.equal(result.calls.some(call => call.caller === 'Greeter.hello' && call.intraFileCallee === 'Greeter.format'), true, JSON.stringify(calls))
+    assert.equal(result.calls.some(call => call.caller === 'Greeter.hello' && call.intraFileCallee === 'format'), true, JSON.stringify(calls))
+    assert.equal(result.calls.some(call => call.caller === null && call.intraFileCallee === 'format'), true, JSON.stringify(calls))
+    assert.equal(result.symbols.find(symbol => symbol.qualifiedName === 'Greeter.hello')?.paramCount, 2)
+    assert.equal(result.symbols.find(symbol => symbol.qualifiedName === 'Greeter.hello')?.parent, 'Greeter')
+  })
+
+  test('records module globals, constants, class attrs, instance attrs, and global statements', async () => {
+    const result = await parse(
+      'state.py',
+      [
+        'count = 0',
+        'MAX = 10',
+        'x: int = 1',
+        'class Box:',
+        '  kind = "a"',
+        '  def __init__(self):',
+        '    self.value = 2',
+        '    other = 3',
+        'def tweak():',
+        '  global count',
+        '  count = 1'
+      ].join('\n')
+    )
+    const count = result.symbols.find(symbol => symbol.qualifiedName === 'count')
+    const max = result.symbols.find(symbol => symbol.qualifiedName === 'MAX')
+    const kind = result.symbols.find(symbol => symbol.qualifiedName === 'Box.kind')
+    const value = result.symbols.find(symbol => symbol.qualifiedName === 'Box.self.value')
+    const annotated = result.symbols.find(symbol => symbol.qualifiedName === 'x')
+    assert.deepEqual([count?.scope, count?.mutable], ['module', true])
+    assert.deepEqual([max?.scope, max?.mutable], ['module', false])
+    assert.deepEqual([annotated?.scope, annotated?.mutable], ['module', true])
+    assert.deepEqual([kind?.scope, kind?.mutable], ['class', true])
+    assert.deepEqual([value?.scope, value?.mutable, value?.parent], ['instance', true, 'Box'])
+    assert.equal(result.symbols.some(symbol => symbol.scope === 'instance' && symbol.label === 'other'), false)
+  })
+
+  test('reads module and declaration docstrings; getattr is unresolved', async () => {
+    const result = await parse(
+      'docs.py',
+      [
+        '"""Module greeting."""',
+        'def known():',
+        '  """Returns a known helper."""',
+        '  return 1',
+        'class C:',
+        '  """A simple class."""',
+        '  def run(self, obj, name):',
+        '    getattr(obj, name)()',
+        '    known()'
+      ].join('\n')
+    )
+    assert.equal(result.fileDocSummary, 'Module greeting.')
+    assert.equal(result.symbols.find(symbol => symbol.qualifiedName === 'known')?.docSummary, 'Returns a known helper.')
+    assert.equal(result.symbols.find(symbol => symbol.qualifiedName === 'C')?.docSummary, 'A simple class.')
+    assert.equal(result.calls.length, 1)
+    assert.equal(result.calls[0]?.intraFileCallee, 'known')
+    assert.equal(result.calls.every(call => call.intraFileCallee !== 'getattr' && call.importLocal !== 'getattr'), true)
+    assert.ok(result.unresolvedCalls >= 1)
+  })
+})
