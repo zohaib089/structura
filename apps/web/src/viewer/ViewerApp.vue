@@ -1377,7 +1377,7 @@ const snippet = 'layers: []\nrules: []\n'
   gap: var(--space-2) var(--space-3);
   padding-inline: var(--space-3);
   background: var(--color-surface);
-  border-block-start: 1px solid var(--color-border);
+  border-block-start: 1px solid var(--viewer-control-border, var(--color-border));
   font-size: var(--text-12);
   line-height: var(--text-12-lh);
 }
@@ -1392,7 +1392,7 @@ const snippet = 'layers: []\nrules: []\n'
 }
 .status-radial,
 .status-edges, .status-severity { display: inline-flex; gap: var(--space-3); }
-.sev-key { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--color-text-muted); white-space: nowrap; }
+.sev-key { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--color-text-secondary); white-space: nowrap; }
 .sev-key__disc { display: inline-block; inline-size: 0.625rem; block-size: 0.625rem; border: 2px solid; border-radius: 50%; }
 /* Guide card sits above the footer (embedded stage pads for it) and is measured by the fit. */
 .viewer.viewer-radial.viewer-embedded .coach { inset-block-end: calc(var(--viewer-statusbar-height) + var(--space-3)); }
@@ -1411,7 +1411,7 @@ const snippet = 'layers: []\nrules: []\n'
 }
 .status-edges,
 .status-pan {
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   white-space: nowrap;
 }
 .status-budget {

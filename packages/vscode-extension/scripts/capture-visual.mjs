@@ -191,6 +191,9 @@ async function render(name, viewport, state, after) {
     await page.waitForTimeout(300)
   }
   const file = resolve(outDir, `${name}.png`)
+  // Park the pointer off the controls so shots show resting states, not hover.
+  await page.mouse.move(2, 2)
+  await page.waitForTimeout(250)
   await page.screenshot({ path: file, fullPage: false, animations: 'disabled' })
   const kind = await page.getAttribute('.extension-app', 'data-kind')
   console.log(`${name}: ${file} kind=${kind} errors=${errors.length ? errors.join(' | ') : 'none'}`)

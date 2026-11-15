@@ -240,6 +240,14 @@ select {
 @media (min-width: 960px) {
   .search-button { flex: 0 0 auto; min-inline-size: max-content; max-inline-size: none; }
 }
+/* G4c shared control style: the same hover tint as the ZoomPad and Tips. */
+.icon-button:hover,
+.search-button:hover,
+.fit-button:hover,
+.links-button:hover,
+.layout-switch button:not([aria-pressed='true']):hover {
+  background: color-mix(in srgb, var(--color-text-primary) 8%, var(--color-surface));
+}
 .icon-button:focus-visible,
 .search-button:focus-visible,
 .fit-button:focus-visible,

@@ -67,9 +67,12 @@ defineExpose({ zoomBy, ZOOM_STEP })
   display: flex;
   flex-direction: column;
   overflow: visible;
+  /* G4c shared control style: 1px control border, 8px floating radius, raised surface. */
   border: 1px solid var(--viewer-control-border, var(--color-border));
-  border-radius: var(--radius-md);
+  border-radius: var(--r-md);
   background: var(--color-surface-raised);
+  /* Above the canvas vignette, so the labels keep full contrast in the dark theme. */
+  z-index: calc(var(--z-graph-controls, 10) + 1);
 }
 .zoom :deep(.tip) { display: flex; }
 button {
@@ -95,15 +98,15 @@ button {
 }
 .zoom :deep(.tip:first-child) button {
   border-block-start: 0;
-  border-start-start-radius: var(--radius-md);
-  border-start-end-radius: var(--radius-md);
+  border-start-start-radius: var(--r-md);
+  border-start-end-radius: var(--r-md);
 }
 .zoom :deep(.tip:last-child) button {
-  border-end-start-radius: var(--radius-md);
-  border-end-end-radius: var(--radius-md);
+  border-end-start-radius: var(--r-md);
+  border-end-end-radius: var(--r-md);
 }
 /* Same surface states as the floating toolbar buttons, in both themes. */
-button:hover { background: var(--color-surface); }
+button:hover { background: color-mix(in srgb, var(--color-text-primary) 8%, var(--color-surface-raised)); }
 button:focus-visible {
   outline: none;
   position: relative;

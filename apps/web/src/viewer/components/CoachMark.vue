@@ -84,19 +84,29 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
   pointer-events: auto;
 }
 .coach.is-collapsed {
-  padding: var(--space-1);
+  padding: 0;
   max-inline-size: none;
-  background: color-mix(in srgb, var(--color-surface-raised) 92%, transparent);
+  background: transparent;
+  box-shadow: none;
 }
+/* G4c shared control style: same border, radius, surface, text and states as the ZoomPad. */
 .coach-chip {
-  min-block-size: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  min-block-size: 2.25rem;
   padding-inline: var(--space-3);
-  border-radius: var(--radius-full);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-text-secondary);
+  border-radius: var(--r-md);
+  border: 1px solid var(--viewer-control-border, var(--color-border));
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
   font-size: var(--text-12, 0.75rem);
+  font-weight: 600;
+  cursor: pointer;
 }
+.coach-chip:hover { background: color-mix(in srgb, var(--color-text-primary) 8%, var(--color-surface-raised)); }
+.coach-chip:focus-visible { outline: none; box-shadow: var(--focus-ring); border-color: var(--color-brand-amber-ui); }
 .coach-minify {
   min-block-size: var(--viewer-hit-target);
   min-inline-size: 2rem;
