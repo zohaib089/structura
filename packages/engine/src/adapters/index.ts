@@ -4,6 +4,8 @@ export {
   type AdapterParseOutcome,
   type AdapterParseResult,
   type ExtractLimits,
+  type ExtractedBinding,
+  type ExtractedCall,
   type ExtractedReference,
   type ExtractedSymbol,
   type LanguageAdapter,

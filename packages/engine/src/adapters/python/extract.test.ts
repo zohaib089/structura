@@ -47,6 +47,17 @@ describe('python imports', () => {
     ])
     assert.deepEqual(result.references[2]?.names, ['sibling'])
     assert.deepEqual(result.references[4]?.names, ['name'])
+    assert.deepEqual(result.references[1]?.bindings, [{ local: 'alias', imported: '*' }])
+    assert.deepEqual(result.references[2]?.bindings, [{ local: 'sibling', imported: 'sibling' }])
+    assert.deepEqual(result.references[4]?.bindings, [{ local: 'name', imported: 'name' }])
+    assert.deepEqual(result.calls, [])
+    assert.equal(result.unresolvedCalls, 0)
+  })
+
+  test('from-import aliases record local and imported names', async () => {
+    const result = await parse('pkg/mod.py', 'from pkg.mod import name as alias\n')
+    assert.deepEqual(result.references[0]?.names, ['name'])
+    assert.deepEqual(result.references[0]?.bindings, [{ local: 'alias', imported: 'name' }])
   })
 
   test('TYPE_CHECKING imports are typeOnly', async () => {

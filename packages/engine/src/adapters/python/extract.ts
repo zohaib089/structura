@@ -1,7 +1,7 @@
 import type { Node } from 'web-tree-sitter'
 import { looksSecret, REDACTED } from '../../redact.js'
 import type { Span, SymbolKind } from '../../graph/types.js'
-import type { AdapterParseResult, ExtractedReference, ExtractedSymbol, ExtractLimits } from '../adapter.js'
+import type { AdapterParseResult, ExtractedBinding, ExtractedReference, ExtractedSymbol, ExtractLimits } from '../adapter.js'
 import { LineIndex, TOO_LONG } from '../ts-js/extract.js'
 
 interface State {
@@ -34,7 +34,8 @@ function addReference(
   importKind: ExtractedReference['importKind'],
   typeOnly: boolean,
   literal: string | undefined,
-  names?: string[]
+  names?: string[],
+  bindings?: ExtractedBinding[]
 ): void {
   if (state.references.length >= state.limits.maxEdgesPerFile) {
     state.omitted.edges += 1
@@ -59,7 +60,8 @@ function addReference(
     specifier,
     redacted,
     span: nodeSpan(state, node),
-    ...(names && names.length > 0 ? { names } : {})
+    ...(names && names.length > 0 ? { names } : {}),
+    ...(bindings && bindings.length > 0 ? { bindings } : {})
   })
 }
 
@@ -101,10 +103,35 @@ function importNamesFromFrom(node: Node): string[] {
       if (ident) names.push(ident.text)
     } else if (child.type === 'aliased_import') {
       const bound = child.childForFieldName('name') ?? child.namedChildren.find(part => part.type === 'identifier')
-      if (bound) names.push(bound.text)
+      if (bound) names.push(bound.type === 'dotted_name' ? dottedNameText(bound) : bound.text)
     }
   }
   return names
+}
+
+function importBindingsFromFrom(node: Node): ExtractedBinding[] | undefined {
+  const bindings: ExtractedBinding[] = []
+  let afterImport = false
+  for (const child of node.children) {
+    if (child.type === 'import' && !child.isNamed) {
+      afterImport = true
+      continue
+    }
+    if (!afterImport) continue
+    if (child.type === 'dotted_name') {
+      const ident = child.namedChildren.find(part => part.type === 'identifier')
+      if (ident) bindings.push({ local: ident.text, imported: ident.text })
+    } else if (child.type === 'aliased_import') {
+      const importedNode = child.childForFieldName('name') ?? child.namedChildren.find(part => part.type === 'dotted_name' || part.type === 'identifier')
+      const aliasNode = child.childForFieldName('alias')
+      const imported = importedNode
+        ? (importedNode.type === 'dotted_name' ? dottedNameText(importedNode) : importedNode.text)
+        : undefined
+      const local = aliasNode?.text ?? imported
+      if (imported && local) bindings.push({ local, imported })
+    }
+  }
+  return bindings.length > 0 ? bindings : undefined
 }
 
 function handleImportStatement(state: State, node: Node): void {
@@ -119,7 +146,8 @@ function handleImportStatement(state: State, node: Node): void {
       if (module) {
         const spec = dottedNameText(module)
         if (spec === '_typeshed' || spec.startsWith('_typeshed.')) typeOnly = true
-        addReference(state, node, 'static', typeOnly, spec)
+        const alias = child.childForFieldName('alias')
+        addReference(state, node, 'static', typeOnly, spec, undefined, alias ? [{ local: alias.text, imported: '*' }] : undefined)
       }
     }
   }
@@ -129,15 +157,16 @@ function handleImportFrom(state: State, node: Node): void {
   let typeOnly = underTypeChecking(node)
   const relative = relativeImportSpecifier(node)
   const names = importNamesFromFrom(node)
+  const bindings = importBindingsFromFrom(node)
   if (relative !== undefined) {
-    addReference(state, node, 'static', typeOnly, relative, names)
+    addReference(state, node, 'static', typeOnly, relative, names, bindings)
     return
   }
   const module = node.children.find(child => child.type === 'dotted_name')
   if (module) {
     const spec = dottedNameText(module)
     if (spec === '_typeshed' || spec.startsWith('_typeshed.')) typeOnly = true
-    addReference(state, node, 'static', typeOnly, spec, names)
+    addReference(state, node, 'static', typeOnly, spec, names, bindings)
   }
 }
 
@@ -246,6 +275,8 @@ export function extractPythonModuleFacts(root: Node, content: string, limits: Ex
   return {
     references: state.references,
     symbols: state.symbols,
+    calls: [],
+    unresolvedCalls: 0,
     syntaxErrorCount: syntaxErrors.length,
     syntaxErrors,
     omitted: state.omitted,

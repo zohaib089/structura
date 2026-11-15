@@ -77,6 +77,7 @@ export function shiftParseResult(result: AdapterParseResult, startLine: number, 
     ...result,
     references: result.references.map((item) => ({ ...item, span: shiftSpan(item.span, startLine, startCol) })),
     symbols: result.symbols.map((item) => ({ ...item, span: shiftSpan(item.span, startLine, startCol) })),
+    calls: result.calls.map((item) => ({ ...item, span: shiftSpan(item.span, startLine, startCol) })),
     syntaxErrors: result.syntaxErrors.map((item) => ({ ...item, span: shiftSpan(item.span, startLine, startCol) }))
   }
 }
@@ -85,6 +86,8 @@ export function emptyParseResult(): AdapterParseResult {
   return {
     references: [],
     symbols: [],
+    calls: [],
+    unresolvedCalls: 0,
     syntaxErrorCount: 0,
     syntaxErrors: [],
     omitted: { longNames: 0, symbols: 0, edges: 0 },
@@ -96,6 +99,8 @@ export function mergeParseResults(into: AdapterParseResult, next: AdapterParseRe
   return {
     references: [...into.references, ...next.references],
     symbols: [...into.symbols, ...next.symbols],
+    calls: [...into.calls, ...next.calls],
+    unresolvedCalls: into.unresolvedCalls + next.unresolvedCalls,
     syntaxErrorCount: into.syntaxErrorCount + next.syntaxErrorCount,
     syntaxErrors: [...into.syntaxErrors, ...next.syntaxErrors],
     omitted: {

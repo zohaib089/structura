@@ -18,6 +18,8 @@ test('a symbol id longer than 8192 UTF-16 units is omitted and addSymbols report
       exported: true,
       span: { start: { line: 1, col: 1 }, end: { line: 1, col: 2 } }
     }],
+    calls: [],
+    unresolvedCalls: 0,
     syntaxErrorCount: 0,
     syntaxErrors: [],
     omitted: { longNames: 0, symbols: 0, edges: 0 },

@@ -1,4 +1,4 @@
-import type { ImportKind, InferredReason, Span, SymbolKind, UnresolvedReason } from '../graph/types.js'
+import type { ImportKind, InferredReason, Span, StateKind, StateScope, SymbolKind, UnresolvedReason } from '../graph/types.js'
 
 /**
  * Language adapter contract. An adapter turns source text into language-neutral facts
@@ -55,6 +55,14 @@ export interface ExtractedReference {
   span: Span
   /** Bound names (`import { a, b as c }` contributes `a` and `b`). Omitted when there are none. Not written to graph.json. */
   names?: string[]
+  /** Local→imported bindings for the same clause. Not written to graph.json. */
+  bindings?: ExtractedBinding[]
+}
+
+/** One imported binding. `imported` is `default` for a default import and `*` for a namespace import. */
+export interface ExtractedBinding {
+  local: string
+  imported: string
 }
 
 export interface ExtractedSymbol {
@@ -63,6 +71,31 @@ export interface ExtractedSymbol {
   label: string
   symbolKind: SymbolKind
   exported: boolean
+  span: Span
+  /** Qualified name of the enclosing class, namespace, or outer function, when not at file top level. */
+  parent?: string
+  /** Formal parameter count, written only on functions (and a default export that is a function). */
+  paramCount?: number
+  /** Present on state-bearing symbols only. */
+  scope?: StateScope
+  mutable?: boolean
+  stateKind?: StateKind
+  /** First sentence of a preceding doc comment or docstring, already sanitised. */
+  docSummary?: string
+}
+
+/**
+ * One call site. Either `intraFileCallee` (a qualified name in this file) or `importLocal`
+ * (the local binding used at the call site) is set. Computed or dynamic callees are not
+ * emitted here; they increment `AdapterParseResult.unresolvedCalls` only.
+ */
+export interface ExtractedCall {
+  /** Qualified name of the calling function or method, or `null` for module-scope / top-level calls. */
+  caller: string | null
+  /** Intra-file callee qualified name, when it resolves inside this file. */
+  intraFileCallee?: string
+  /** Local binding name of an imported callee. */
+  importLocal?: string
   span: Span
 }
 
@@ -73,6 +106,10 @@ export interface SyntaxIssue {
 export interface AdapterParseResult {
   references: ExtractedReference[]
   symbols: ExtractedSymbol[]
+  /** Resolved-enough call facts (intra-file callee or import local). */
+  calls: ExtractedCall[]
+  /** Call sites that were not resolved and produced no fact and no graph node. */
+  unresolvedCalls: number
   /** Number of ERROR/MISSING regions found by parser error recovery (0 = clean parse). */
   syntaxErrorCount: number
   /** Outermost ERROR/MISSING regions. Spans only: the source text is not stored. */

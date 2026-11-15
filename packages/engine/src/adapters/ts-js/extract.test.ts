@@ -57,6 +57,13 @@ describe('imports', () => {
       ['pkg', 'imports', 'static', false]
     ])
     assert.deepEqual(result.references[2]?.names, ['x', 'y'])
+    assert.deepEqual(result.references[0]?.bindings, [{ local: 'def', imported: 'default' }])
+    assert.deepEqual(result.references[1]?.bindings, [{ local: 'ns', imported: '*' }])
+    assert.deepEqual(result.references[2]?.bindings, [{ local: 'x', imported: 'x' }, { local: 'z', imported: 'y' }])
+    assert.equal(result.references[3]?.bindings, undefined)
+    assert.deepEqual(result.references[4]?.bindings, [{ local: 'd', imported: 'default' }, { local: 'e', imported: 'e' }])
+    assert.deepEqual(result.calls, [])
+    assert.equal(result.unresolvedCalls, 0)
     assert.equal(result.syntaxErrorCount, 0)
     assert.equal(slice(content, result.references[0] as ExtractedReference), "import def from './a'")
   })

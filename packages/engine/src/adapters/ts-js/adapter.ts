@@ -13,7 +13,7 @@ import {
 
 export const TS_JS_ADAPTER_ID = 'typescript-javascript'
 /** Bump when the same source text can produce a different extraction. */
-export const TS_JS_ADAPTER_VERSION = '2'
+export const TS_JS_ADAPTER_VERSION = '3'
 
 export interface TypeScriptJavaScriptAdapterOptions {
   /** Test hook: load WASM in-process with overridden paths. Production scans leave this unset and use workers. */

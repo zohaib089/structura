@@ -1,7 +1,7 @@
 import type { Node } from 'web-tree-sitter'
 import { looksSecret, REDACTED } from '../../redact.js'
 import type { Pos, Span, SymbolKind } from '../../graph/types.js'
-import type { AdapterParseResult, ExtractedReference, ExtractedSymbol, ExtractLimits } from '../adapter.js'
+import type { AdapterParseResult, ExtractedBinding, ExtractedReference, ExtractedSymbol, ExtractLimits } from '../adapter.js'
 
 /** Specifiers longer than this are never stored; they are replaced by this marker. */
 export const TOO_LONG = '[too-long]'
@@ -107,7 +107,8 @@ function addReference(
   importKind: ExtractedReference['importKind'],
   typeOnly: boolean,
   literal: string | undefined,
-  names?: string[]
+  names?: string[],
+  bindings?: ExtractedBinding[]
 ): void {
   if (state.references.length >= state.limits.maxEdgesPerFile) {
     state.omitted.edges += 1
@@ -132,7 +133,8 @@ function addReference(
     specifier,
     redacted,
     span: nodeSpan(state, node),
-    ...(names && names.length > 0 ? { names } : {})
+    ...(names && names.length > 0 ? { names } : {}),
+    ...(bindings && bindings.length > 0 ? { bindings } : {})
   })
 }
 
@@ -171,10 +173,49 @@ function namesFromClause(node: Node): string[] | undefined {
   return names.length > 0 ? names : undefined
 }
 
+function specifierBinding(item: Node): ExtractedBinding | undefined {
+  const imported = importedName(item)
+  if (!imported) return undefined
+  const alias = item.childForFieldName('alias')
+  if (alias && alias.text) return { local: alias.text, imported }
+  const idents = item.namedChildren.filter(child => child.type === 'identifier')
+  if (idents.length >= 2) return { local: (idents[idents.length - 1] as Node).text, imported }
+  return { local: imported, imported }
+}
+
+function bindingsFromClause(node: Node): ExtractedBinding[] | undefined {
+  const bindings: ExtractedBinding[] = []
+  const requireClause = node.children.find(child => child.type === 'import_require_clause')
+  if (requireClause) {
+    const ident = requireClause.children.find(child => child.type === 'identifier')
+    if (ident) bindings.push({ local: ident.text, imported: 'default' })
+    return bindings.length > 0 ? bindings : undefined
+  }
+  const clause = node.children.find(child => child.type === 'import_clause' || child.type === 'export_clause')
+  if (!clause) return undefined
+  for (const child of clause.children) {
+    if (child.type === 'identifier') bindings.push({ local: child.text, imported: 'default' })
+    else if (child.type === 'namespace_import' || child.type === 'namespace_export') {
+      const ident = child.children.find(part => part.type === 'identifier')
+      if (ident) bindings.push({ local: ident.text, imported: '*' })
+    } else if (child.type === 'import_specifier' || child.type === 'export_specifier') {
+      const binding = specifierBinding(child)
+      if (binding) bindings.push(binding)
+    } else if (child.type === 'named_imports') {
+      for (const item of child.children) {
+        if (item.type !== 'import_specifier') continue
+        const binding = specifierBinding(item)
+        if (binding) bindings.push(binding)
+      }
+    }
+  }
+  return bindings.length > 0 ? bindings : undefined
+}
+
 function handleImportStatement(state: State, node: Node): void {
   const requireClause = node.children.find(child => child.type === 'import_require_clause')
   if (requireClause) {
-    addReference(state, node, 'imports', 'require', hasTypeKeyword(node), literalValue(requireClause.children.find(child => child.type === 'string') ?? null), namesFromClause(node))
+    addReference(state, node, 'imports', 'require', hasTypeKeyword(node), literalValue(requireClause.children.find(child => child.type === 'string') ?? null), namesFromClause(node), bindingsFromClause(node))
     return
   }
   let allTypeOnly = true
@@ -194,7 +235,7 @@ function handleImportStatement(state: State, node: Node): void {
       }
     }
   }
-  addReference(state, node, 'imports', 'static', hasTypeKeyword(node) || (sawBinding && allTypeOnly), literalValue(node.childForFieldName('source')), namesFromClause(node))
+  addReference(state, node, 'imports', 'static', hasTypeKeyword(node) || (sawBinding && allTypeOnly), literalValue(node.childForFieldName('source')), namesFromClause(node), bindingsFromClause(node))
 }
 
 function reexportIsTypeOnly(node: Node): boolean {
@@ -219,7 +260,7 @@ function reexportIsTypeOnly(node: Node): boolean {
 }
 
 function handleReexport(state: State, node: Node, source: Node): void {
-  addReference(state, node, 'reexports', 'static', reexportIsTypeOnly(node), literalValue(source), namesFromClause(node))
+  addReference(state, node, 'reexports', 'static', reexportIsTypeOnly(node), literalValue(source), namesFromClause(node), bindingsFromClause(node))
 }
 
 function importSiteIsTypeOnly(node: Node): boolean {
@@ -449,6 +490,8 @@ export function extractModuleFacts(root: Node, content: string, limits: ExtractL
   return {
     references: state.references,
     symbols: state.symbols,
+    calls: [],
+    unresolvedCalls: 0,
     syntaxErrorCount: syntaxErrors.length,
     syntaxErrors,
     omitted: state.omitted,

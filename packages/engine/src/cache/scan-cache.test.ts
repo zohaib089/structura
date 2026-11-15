@@ -8,6 +8,8 @@ import { IncrementalScanCache, scanCacheHeader } from './scan-cache.js'
 const sampleResult = {
   references: [],
   symbols: [],
+  calls: [],
+  unresolvedCalls: 0,
   syntaxErrorCount: 0,
   syntaxErrors: [],
   omitted: { longNames: 0, symbols: 0, edges: 0 },
