@@ -118,3 +118,12 @@
   background: radial-gradient(62% 72% at 50% 48%, #f3f8ff 0%, #f7f9fc 55%, var(--color-canvas) 100%);
 }
 [data-theme='light'] .canvas.graph-surface .vignette { background: none; }
+
+/* Light theme file discs (G4a): white plate with a Nucleus-navy outline and icon, like the landing
+   graph's white bodies (findings keep their severity colour); labels sit on a white halo instead of
+   the dark-canvas navy glow. */
+[data-theme='light'] .graph-surface { --graph-node-border: #1b3a6b; }
+[data-theme='light'] .graph-surface .kind-mark--disc { background: var(--gray-0); }
+[data-theme='light'] .graph-surface .is-unresolved .kind-mark--disc { background: var(--gray-0); }
+[data-theme='light'] .graph-surface .overview-node:has(.kind-mark--disc):hover .kind-mark--disc { border-color: #12264a; }
+[data-theme='light'] .graph-surface .overview-node:has(.kind-mark--disc) .label { text-shadow: 0 0 3px var(--gray-0), 0 0 6px var(--gray-0); }
