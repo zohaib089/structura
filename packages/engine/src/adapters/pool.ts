@@ -1,6 +1,7 @@
 import { Worker } from 'node:worker_threads'
 import { AdapterLoadError, type AdapterParseOutcome, type ExtractLimits } from './adapter.js'
 import type { GrammarId } from './tree-sitter-runtime.js'
+import type { ExtractContext } from './ts-js/extract.js'
 
 export interface PoolLimits {
   workerMaxFiles: number
@@ -13,6 +14,7 @@ interface ParseInput {
   limits: ExtractLimits
   timeoutMs: number
   memoryLimitBytes?: number
+  context?: ExtractContext
 }
 
 interface WorkerMessage {

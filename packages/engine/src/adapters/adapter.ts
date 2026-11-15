@@ -110,6 +110,8 @@ export interface AdapterParseResult {
   calls: ExtractedCall[]
   /** Call sites that were not resolved and produced no fact and no graph node. */
   unresolvedCalls: number
+  /** Sanitised first sentence of the file's leading doc comment, when present. */
+  fileDocSummary?: string
   /** Number of ERROR/MISSING regions found by parser error recovery (0 = clean parse). */
   syntaxErrorCount: number
   /** Outermost ERROR/MISSING regions. Spans only: the source text is not stored. */

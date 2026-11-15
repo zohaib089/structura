@@ -37,3 +37,25 @@ export function escapeTerminal(text: string): string {
   }
   return out
 }
+
+/** Delete bidi and C0/C1 controls. Unlike `escapeTerminal`, nothing is substituted. */
+export function stripControls(text: string): string {
+  let out = ''
+  for (let index = 0; index < text.length; index += 1) {
+    const code = text.charCodeAt(index)
+    const isBidi = code === 0x061c
+      || (code >= 0x200e && code <= 0x200f)
+      || (code >= 0x202a && code <= 0x202e)
+      || (code >= 0x2066 && code <= 0x2069)
+      || code === 0xfeff
+    const isControl = code <= 0x1f || (code >= 0x7f && code <= 0x9f)
+    if (isBidi || isControl) continue
+    if (code >= 0xd800 && code <= 0xdbff && index + 1 < text.length) {
+      out += text[index] + text[index + 1]
+      index += 1
+      continue
+    }
+    out += text[index]
+  }
+  return out
+}
