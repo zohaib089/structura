@@ -51,17 +51,19 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
     <template v-else>
       <p>{{ step }}</p>
       <p class="progress">{{ index + 1 }} / {{ steps.length }}</p>
-      <button type="button" @click="next">{{ nextLabel }}</button>
-      <button type="button" @click="emit('dismiss')">{{ skipLabel }}</button>
-      <button
-        type="button"
-        class="coach-minify"
-        data-testid="coach-collapse"
-        aria-label="Minimise tips"
-        @click="expanded = false"
-      >
-        –
-      </button>
+      <div class="coach-actions">
+        <button type="button" class="coach-btn" @click="next">{{ nextLabel }}</button>
+        <button type="button" class="coach-btn" @click="emit('dismiss')">{{ skipLabel }}</button>
+        <button
+          type="button"
+          class="coach-btn coach-minify"
+          data-testid="coach-collapse"
+          aria-label="Minimise tips"
+          @click="expanded = false"
+        >
+          –
+        </button>
+      </div>
     </template>
   </aside>
 </template>
@@ -89,8 +91,17 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
   background: transparent;
   box-shadow: none;
 }
+/* G09: tip text + progress on top, the three actions centred on their own row. */
+.coach-actions {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+}
 /* G4c shared control style: same border, radius, surface, text and states as the ZoomPad. */
-.coach-chip {
+.coach-chip,
+.coach-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -103,10 +114,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
   color: var(--color-text-primary);
   font-size: var(--text-12, 0.75rem);
   font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
 }
-.coach-chip:hover { background: color-mix(in srgb, var(--color-text-primary) 8%, var(--color-surface-raised)); }
-.coach-chip:focus-visible { outline: none; box-shadow: var(--focus-ring); border-color: var(--color-brand-amber-ui); }
+.coach-btn { min-block-size: var(--viewer-hit-target); }
+.coach-chip:hover, .coach-btn:hover { background: color-mix(in srgb, var(--color-text-primary) 8%, var(--color-surface-raised)); }
+.coach-chip:focus-visible, .coach-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); border-color: var(--color-brand-amber-ui); }
 .coach-minify {
   min-block-size: var(--viewer-hit-target);
   min-inline-size: 2rem;
