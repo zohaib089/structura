@@ -38,6 +38,7 @@ export interface ViewerMessages {
   versionBody: string
   versionMissing: string
   budgetMeter: string
+  budgetCapped: string
   budgetNear: string
   budgetFull: string
   budgetHidden: string
@@ -129,6 +130,8 @@ export interface ViewerMessages {
   layoutLinear: string
   linearGroupFiles: string
   statusLinear: string
+  ringOne: string
+  ringMany: string
   backTooltip: string
   announceBack: string
   shortcutsTitle: string
@@ -254,7 +257,8 @@ const en: ViewerMessages = {
   versionTitle: 'Unsupported graph version {found}',
   versionBody: 'This viewer reads versions {supported}.',
   versionMissing: 'missing',
-  budgetMeter: 'Showing {nodes} of {nodeBudget} nodes · {edges} of {edgeBudget} edges',
+  budgetMeter: '{nodes} on the map · {edges} links',
+  budgetCapped: 'Showing {nodeBudget} (limit reached). Collapse a group to see more.',
   budgetNear: 'Near the limit. Collapse something to expand more.',
   budgetFull: 'Limit reached. Collapse a group first.',
   budgetHidden: '{n} hidden by filters',
@@ -282,11 +286,11 @@ const en: ViewerMessages = {
   filterDriftOnly: 'Drift and unresolved only',
   filterEmpty: 'Nothing matches these filters.',
   filterOpen: 'Open a file to filter',
-  provExtracted: 'Found in source',
+  provExtracted: 'Found in the code',
   provExtractedDesc: 'Seen directly in the code',
-  provInferred: 'Guessed from context',
+  provInferred: 'Likely',
   provInferredDesc: 'Not proven in source',
-  provUnresolved: 'Unresolved',
+  provUnresolved: "Couldn't confirm",
   provUnresolvedDesc: 'Target not found',
   provMixed: 'Mixed',
   provMixedDesc: 'Bundle contains more than one provenance',
@@ -358,7 +362,9 @@ const en: ViewerMessages = {
   inspectorToggle: 'Show or hide the details panel',
   entryLabel: 'Start from file',
   recentreLabel: 'Centre graph here',
-  statusRadial: 'Radial · {rings} rings · nucleus {name}',
+  statusRadial: 'Radial · {rings} · {name}',
+  ringOne: '1 ring',
+  ringMany: '{n} rings',
   statusPanZoom: '{nodes} nodes · pan/zoom',
   depsOutLabel: 'Uses',
   depsInLabel: 'Used by',

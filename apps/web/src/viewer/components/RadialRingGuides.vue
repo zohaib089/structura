@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUpdated, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, onUpdated, ref } from 'vue'
 import { RADIAL_RING_GAP } from '../overview'
 import type { HalfRingCaption } from '../file-neighborhood'
 
@@ -8,6 +8,8 @@ const props = defineProps<{
   /** Actual ring radii from the layout (rings grow with population); falls back to the fixed gap. */
   radii?: number[]
   halfCaptions?: HalfRingCaption[]
+  /** Narrow panes: title over count ("USES" / "36") so the plate keeps clear of the centre disc. */
+  stackedCaptions?: boolean
 }>()
 
 const rings = computed(() => {
@@ -29,7 +31,9 @@ const captionMarks = computed(() => {
     x: r * Math.cos(caption.angle),
     y: r * Math.sin(caption.angle),
     anchor: 'middle',
-    text: `${caption.title} · ${caption.count}`
+    text: `${caption.title} · ${caption.count}`,
+    title: caption.title,
+    count: String(caption.count)
   }))
 })
 
@@ -50,8 +54,17 @@ function measure() {
   const same = JSON.stringify(next) === JSON.stringify(plates.value)
   if (!same) plates.value = next
 }
-onMounted(() => nextTick(measure))
-onUpdated(() => nextTick(measure))
+// The caption font follows --graph-mark-scale (set after the fit), so re-measure when its box changes.
+let observer: ResizeObserver | null = null
+function observe() {
+  if (typeof ResizeObserver === 'undefined') return
+  observer?.disconnect()
+  observer = new ResizeObserver(() => measure())
+  for (const el of textEls.value) if (el) observer.observe(el)
+}
+onMounted(() => nextTick(() => { measure(); observe() }))
+onUpdated(() => nextTick(() => { measure(); observe() }))
+onBeforeUnmount(() => observer?.disconnect())
 </script>
 
 <template>
@@ -75,7 +88,7 @@ onUpdated(() => nextTick(measure))
       :y="mark.y"
       :text-anchor="mark.anchor"
       dominant-baseline="middle"
-    >{{ mark.text }}</text>
+    ><template v-if="stackedCaptions"><tspan :x="mark.x" dy="-1.15em">{{ mark.title }}</tspan><tspan :x="mark.x" dy="1.1em">{{ mark.count }}</tspan></template><template v-else>{{ mark.text }}</template></text>
     </template>
   </svg>
 </template>

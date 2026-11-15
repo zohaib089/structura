@@ -259,8 +259,10 @@ const nucleusLabel = computed(() => {
   if (!index.value) return ''
   return entryLabelForNode(index.value.nodesById.get(nucleusId.value), nucleusId.value)
 })
+/** The centre's visible name ("Repository", not the raw "." path) for the status line. */
+const nucleusShownLabel = computed(() => overview.value?.nodes.find((n) => n.id === nucleusId.value)?.label || nucleusLabel.value)
 const radialStatus = computed(() =>
-  layout.value === 'linear' ? format(messages.statusLinear, { name: nucleusLabel.value }) : format(messages.statusRadial, { rings: numbers.format(ringCount.value), name: nucleusLabel.value })
+  layout.value === 'linear' ? format(messages.statusLinear, { name: nucleusShownLabel.value }) : format(messages.statusRadial, { rings: ringCount.value === 1 ? messages.ringOne : format(messages.ringMany, { n: numbers.format(ringCount.value) }), name: nucleusShownLabel.value })
 )
 const panStatus = computed(() =>
   format(messages.statusPanZoom, { nodes: numbers.format(overview.value?.nodes.length ?? 0) })
@@ -1250,7 +1252,7 @@ const snippet = 'layers: []\nrules: []\n'
       <span class="status-pan">{{ panStatus }}</span>
       <BudgetMeter
         class="status-budget"
-        :text="format(messages.budgetMeter, { nodes: numbers.format(overview?.nodes.length ?? 0), nodeBudget: numbers.format(HARD_NODE_CAP), edges: numbers.format(overview?.edges.length ?? 0), edgeBudget: numbers.format(HARD_EDGE_CAP) })"
+        :text="format(meterTone === 'limit' ? messages.budgetCapped : messages.budgetMeter, { nodes: numbers.format(overview?.nodes.length ?? 0), nodeBudget: numbers.format(HARD_NODE_CAP), edges: numbers.format(overview?.edges.length ?? 0), edgeBudget: numbers.format(HARD_EDGE_CAP) })"
         :ratio="ratio"
         :warn="meterTone === 'detail'"
         :full="meterTone === 'limit'"

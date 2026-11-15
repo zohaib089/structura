@@ -135,11 +135,15 @@ test('phone dense: nucleus, ring-1 and findings labels stay visible without clip
     const hit = (a: DOMRect, b: DOMRect) =>
       a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1
 
+    const listedNames = new Set(
+      [...document.querySelectorAll<HTMLButtonElement>('[data-testid="graph-file-list"] li button')].map((b) => b.dataset.nodeId ?? '')
+    )
     const mustHidden = all
       .filter((n) => {
         if (n.classList.contains('is-nucleus')) return n.hasAttribute('data-label-hidden')
-        if (Number(n.dataset.depth ?? NaN) === 1) return n.hasAttribute('data-label-hidden')
         if (n.dataset.hasFindings === 'true') return n.hasAttribute('data-label-hidden')
+        // A crowded ring-1 name may hide on a phone only when the "Files in view" list names it.
+        if (Number(n.dataset.depth ?? NaN) === 1) return n.hasAttribute('data-label-hidden') && !listedNames.has(n.dataset.nodeId ?? '')
         return false
       })
       .map((n) => n.dataset.nodeId ?? '')

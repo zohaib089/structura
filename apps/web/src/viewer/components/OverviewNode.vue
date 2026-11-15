@@ -2,6 +2,7 @@
 import { Handle, Position } from '@vue-flow/core'
 import { computed } from 'vue'
 import BrandMark from '../../components/brand/BrandMark.vue'
+import { middleTruncate } from '../label-truncate'
 import SeverityChip from '../../components/ui/SeverityChip.vue'
 import { CircleAlert, CircleDot, HelpCircle, Info, OctagonAlert, Package, TriangleAlert } from '@lucide/vue'
 import { SEVERITY_LABELS } from '../../services/severity-display'
@@ -96,6 +97,24 @@ const compactLabel = computed(() => {
   return tail && tail !== full ? tail : ''
 })
 
+/** Characters that fit a tight / mini label (about 4.25rem of monospace at the label size). */
+const NARROW_LABEL_CHARS = 10
+const COMPACT_LABEL_CHARS = 13
+/** Narrow tight / mini levels: a middle-truncated name ("Toas…k.vue") that fits without a CSS ellipsis. */
+const midLabel = computed(() => {
+  if (!props.plainMarks || props.more || props.nucleus) return ''
+  const name = compactLabel.value || shortLabel.value || ''
+  const out = middleTruncate(name, NARROW_LABEL_CHARS)
+  return out !== name ? out : ''
+})
+/** Compact level (5.5rem): the same middle truncation with a little more room. */
+const midLabelWide = computed(() => {
+  if (!props.plainMarks || props.more || props.nucleus) return ''
+  const name = compactLabel.value || shortLabel.value || ''
+  const out = middleTruncate(name, COMPACT_LABEL_CHARS)
+  return out !== name ? out : ''
+})
+
 const folderChip = computed(() =>
   props.severityCounts && props.kind !== 'file' ? folderSeverityChip(props.severityCounts) : null
 )
@@ -169,6 +188,8 @@ function onSpace(event: KeyboardEvent) {
     <span class="aside" :class="{ 'aside--start': disc && labelSide === 'start', 'aside--nucleus': disc && nucleus }">
       <span class="label" dir="ltr" :title="path || label || moreLabel">{{ shortLabel }}</span>
       <span v-if="compactLabel" class="label label--compact" dir="ltr" aria-hidden="true">{{ compactLabel }}</span>
+      <span v-if="midLabel" class="label label--mid" dir="ltr" aria-hidden="true">{{ midLabel }}</span>
+      <span v-if="midLabelWide" class="label label--midw" dir="ltr" aria-hidden="true">{{ midLabelWide }}</span>
       <span v-if="nucleus && entryTag" class="entry-tag">{{ entryTag }}</span>
       <span v-if="roleCaption" class="role-caption" :class="{ 'role-caption--side': sideCaption }">{{ roleCaption }}</span>
       <span v-if="folderChip" class="severity-chips">
@@ -524,6 +545,13 @@ function onSpace(event: KeyboardEvent) {
 .overview-node[data-label-compact] .aside > .label--compact { display: block; }
 .overview-node[data-label-compact]:has(.kind-mark--disc) > .aside { max-inline-size: calc(5.5rem * var(--graph-mark-scale, 1)); }
 .overview-node[data-label-compact] .aside > .label { overflow: hidden; text-overflow: ellipsis; max-inline-size: 100%; }
+.overview-node .aside > .label--mid,
+.overview-node .aside > .label--midw { display: none; }
+.overview-node[data-label-mid]:has(.label--midw) .aside > .label:not(.label--midw) { display: none; }
+.overview-node[data-label-mid]:has(.label--midw) .aside > .label.label--midw:not(.label--compact) { display: block; overflow: visible; text-overflow: clip; max-inline-size: none; }
+.overview-node:is([data-label-tight], [data-label-mini]):has(.label--mid) .aside > .label:not(.label--mid) { display: none; }
+.overview-node:is([data-label-tight], [data-label-mini]):has(.label--mid) .aside > .label.label--mid:not(.label--compact) { display: block; overflow: visible; text-overflow: clip; max-inline-size: none; }
+.overview-node:is([data-label-tight], [data-label-mini]):has(.label--mid) > .aside { max-inline-size: none; }
 /* Narrow panes: tightest label — a short name, no captions; full name on hover / focus / in the drawer. */
 .overview-node[data-label-tight]:has(.kind-mark--disc) > .aside { max-inline-size: calc(4.25rem * var(--graph-mark-scale, 1)); }
 .overview-node[data-label-mini]:has(.kind-mark--disc) > .aside { max-inline-size: calc(4.25rem * var(--graph-mark-scale, 1)); min-inline-size: calc(3rem * var(--graph-mark-scale, 1)); }

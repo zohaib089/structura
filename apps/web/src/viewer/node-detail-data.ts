@@ -101,8 +101,8 @@ export function importProvenanceLabel(document: GraphDocument, nodeId: string): 
     else extracted += 1
   }
   if (extracted === 0 && inferred === 0) return ''
-  if (inferred === 0) return 'Found in source'
-  if (extracted === 0) return 'Guessed from context'
+  if (inferred === 0) return 'Found in the code'
+  if (extracted === 0) return 'Likely'
   return `${extracted} found in source · ${inferred} guessed from context`
 }
 
