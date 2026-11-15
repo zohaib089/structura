@@ -155,6 +155,23 @@ export function checkSemantics(graph: Graph, options: SemanticOptions = {}): Sch
       if (target.kind === 'unresolved') {
         unresolvedByReason.set(target.reason, (unresolvedByReason.get(target.reason) ?? 0) + 1)
       }
+      return
+    }
+
+    if (edge.type === 'calls') {
+      if (source.kind !== 'file' && source.kind !== 'symbol') {
+        add(`${at}/source`, 'calls edges must start at a file or symbol node')
+      }
+      if (target.kind !== 'symbol') add(`${at}/target`, `calls edges cannot end at a ${target.kind} node`)
+      if (!edge.span) add(`${at}/span`, 'calls edges require a span')
+      else {
+        if (!spanOrdered(edge.span)) add(`${at}/span`, 'start must not be after end')
+        const owner = source.kind === 'file' ? source.id : source.kind === 'symbol' ? source.file : undefined
+        const lines = typeof owner === 'string' ? lineCountOf(owner) : undefined
+        if (typeof lines === 'number' && edge.span.end.line > lines) {
+          add(`${at}/span`, 'lies beyond the lines of the calling file')
+        }
+      }
     }
   })
 

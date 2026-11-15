@@ -1,7 +1,9 @@
 /**
- * graph.json v1: the versioned, deterministic, closed, brand-free, source-text-free
- * output contract of the scan engine. Authoritative design: the Tech Lead's
- * "graph contract decisions" (section 2). Property order in these types is the
+ * graph.json v1: the versioned, deterministic, closed, brand-free
+ * output contract of the scan engine. It is source-text-free except for the
+ * optional sanitised `docSummary` field (doc comments only, never code).
+ * Authoritative design: the Tech Lead's "graph contract decisions" (section 2)
+ * and the file-insights v1.1 addendum. Property order in these types is the
  * serialisation order.
  *
  * Conventions
@@ -25,9 +27,9 @@ export type {
 } from '../architecture/types.js'
 export { ARCHITECTURE_DRIFT_RULES, ARCHITECTURE_EDGE_KINDS, ARCHITECTURE_POLICIES } from '../architecture/types.js'
 
-export const GRAPH_SCHEMA_VERSION = '1.0.0'
+export const GRAPH_SCHEMA_VERSION = '1.1.0'
 export const GRAPH_SCHEMA_MAJOR = 1
-export const GRAPH_SCHEMA_MINOR = 0
+export const GRAPH_SCHEMA_MINOR = 1
 /** Brand-free schema id: never changes when the product is renamed. */
 export const GRAPH_SCHEMA_ID = 'urn:repo-graph:schema:graph:1'
 
@@ -37,7 +39,7 @@ export type Provenance = typeof PROVENANCES[number]
 export const NODE_KINDS = ['directory', 'file', 'symbol', 'external', 'unresolved'] as const
 export type NodeKind = typeof NODE_KINDS[number]
 
-export const EDGE_TYPES = ['contains', 'imports', 'reexports'] as const
+export const EDGE_TYPES = ['contains', 'imports', 'reexports', 'calls'] as const
 export type EdgeType = typeof EDGE_TYPES[number]
 
 export const PARSE_STATUSES = ['parsed', 'partial', 'failed', 'skipped'] as const
@@ -140,6 +142,14 @@ export interface EntryCandidateDetail {
 export const SYMBOL_KINDS = ['class', 'default', 'enum', 'function', 'interface', 'namespace', 'type', 'unknown', 'variable'] as const
 export type SymbolKind = typeof SYMBOL_KINDS[number]
 
+/** Scope of a state-bearing symbol. `"local"` is reserved for a later minor and must not be emitted in v1.1. */
+export const STATE_SCOPES = ['module', 'class', 'instance', 'global'] as const
+export type StateScope = typeof STATE_SCOPES[number]
+
+/** Kind of Vue / Pinia / provide-inject state. Ordinary bindings omit the field (readers treat missing as `"binding"`). */
+export const STATE_KINDS = ['binding', 'ref', 'reactive', 'computed', 'prop', 'store', 'provide', 'inject'] as const
+export type StateKind = typeof STATE_KINDS[number]
+
 /** Languages the engine can analyse. Anything else is `null`. */
 export const LANGUAGES = ['javascript', 'python', 'typescript', 'vue'] as const
 
@@ -198,6 +208,8 @@ export interface FileNode {
   entryCandidates?: EntryCandidateDetail[]
   /** Declared architecture module (first matching glob wins). Written only when a config was loaded. */
   module?: string
+  /** First sentence of a leading file doc comment or module docstring. Omitted when empty, secret-shaped, or disabled. */
+  docSummary?: string
   extensions?: Extensions
 }
 
@@ -210,6 +222,18 @@ export interface SymbolNode {
   symbolKind: SymbolKind
   exported: boolean
   span: Span
+  /** Id of the enclosing class, namespace, or outer function symbol. Omitted at file top level. */
+  parent?: string
+  /** Formal parameter count, written only on `function` (and `default` when it is a function). */
+  paramCount?: number
+  /** Present on state-bearing symbols only. */
+  scope?: StateScope
+  /** Binding mutability, not deep immutability of a `const` object. State symbols only. */
+  mutable?: boolean
+  /** Written for Vue / Pinia / provide-inject state. Omit for ordinary bindings. */
+  stateKind?: StateKind
+  /** First sentence of the declaration's doc comment or docstring. Omitted when empty, secret-shaped, or disabled. */
+  docSummary?: string
   extensions?: Extensions
 }
 
@@ -270,7 +294,28 @@ export interface InferredRefEdge {
   extensions?: Extensions
 }
 
-export type GraphEdge = ContainsEdge | ExtractedRefEdge | InferredRefEdge
+export interface ExtractedCallEdge {
+  source: string
+  type: 'calls'
+  target: string
+  provenance: 'EXTRACTED'
+  span: Span
+  extensions?: Extensions
+}
+
+export interface InferredCallEdge {
+  source: string
+  type: 'calls'
+  target: string
+  provenance: 'INFERRED'
+  /** In (0, 1]. */
+  confidence: number
+  reason: InferredReason
+  span: Span
+  extensions?: Extensions
+}
+
+export type GraphEdge = ContainsEdge | ExtractedRefEdge | InferredRefEdge | ExtractedCallEdge | InferredCallEdge
 
 export interface CoverageFiles {
   discovered: number
@@ -314,6 +359,11 @@ export interface Coverage {
    * configuration problems (`config-*` for an `extends` or project `references` target that is missing or outside the root).
    */
   unresolved: CoverageReason[]
+  /**
+   * Resolved and unresolved call sites. Omitted when both counts are 0.
+   * Not mixed into `unresolved` (that bucket is import-specifier reasons).
+   */
+  calls?: { resolved: number; unresolved: number }
   /** Must be equal; unequal means a silent drop and the engine exits 3. */
   accounting: { discovered: number; accounted: number }
 }

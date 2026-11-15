@@ -169,7 +169,7 @@ function contains(source: string, target: string): ContainsEdge {
 }
 
 function applyFlags(edge: GraphEdge, reference: ExtractedReference): GraphEdge {
-  if (!('span' in edge)) return edge
+  if (edge.type !== 'imports' && edge.type !== 'reexports') return edge
   if (reference.importKind !== 'static') edge.importKind = reference.importKind
   if (reference.typeOnly) edge.typeOnly = true
   return edge
