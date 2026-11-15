@@ -173,7 +173,9 @@ function onSpace(event: KeyboardEvent) {
     <span class="kind-mark" :class="{ 'kind-mark--disc': disc }" aria-hidden="true">
       <Handle type="target" :position="Position.Left" />
       <BrandMark v-if="nucleus" class="nucleus-mark" size="calc(26px * var(--graph-disc-scale, 1))" />
-      <template v-else-if="cluster">{{ expanded ? '▾' : '▸' }}</template>
+      <!-- G12: a file disc with findings keeps its severity icon even when it can expand (symbols),
+           so severity never relies on ring colour alone. -->
+      <template v-else-if="cluster && !(disc && topSeverity)">{{ expanded ? '▾' : '▸' }}</template>
       <template v-else-if="more">+</template>
       <OctagonAlert v-else-if="discGlyphKind === 'critical'" class="sev-glyph" :size="16" :stroke-width="2.25" aria-hidden="true" />
       <TriangleAlert v-else-if="discGlyphKind === 'high'" class="sev-glyph" :size="16" :stroke-width="2.25" aria-hidden="true" />

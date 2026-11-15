@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { CircleAlert, Info, OctagonAlert, TriangleAlert } from '@lucide/vue'
 import { BRAND, pageTitle, quickstartCommand } from '../../../../packages/brand/src/brand'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import BrandMark from '../components/brand/BrandMark.vue'
@@ -1245,8 +1246,9 @@ const snippet = 'layers: []\nrules: []\n'
         <span class="edge-key"><i class="edge-key__line edge-key__line--inferred" aria-hidden="true"></i>{{ messages.provInferred }}</span>
         <span class="edge-key"><i class="edge-key__line edge-key__line--unresolved" aria-hidden="true"></i>{{ messages.provUnresolved }}</span>
       </span>
+      <!-- G4d: the footer key uses the same icons as the node discs, so severity never reads by colour alone. -->
       <span v-if="severityLegend.length > 0" class="status-severity" data-testid="severity-colour-legend">
-        <span v-for="sev in severityLegend" :key="sev" class="sev-key"><i class="sev-key__disc" :style="{ borderColor: `var(--sev-${sev}-fg)` }" aria-hidden="true"></i>{{ SEVERITY_LABELS[sev] }}</span>
+        <span v-for="sev in severityLegend" :key="sev" class="sev-key"><OctagonAlert v-if="sev === 'critical'" class="sev-key__icon" :size="12" :stroke-width="2.5" :style="{ color: `var(--sev-${sev}-fg)` }" aria-hidden="true" /><TriangleAlert v-else-if="sev === 'high'" class="sev-key__icon" :size="12" :stroke-width="2.5" :style="{ color: `var(--sev-${sev}-fg)` }" aria-hidden="true" /><CircleAlert v-else-if="sev === 'medium'" class="sev-key__icon" :size="12" :stroke-width="2.5" :style="{ color: `var(--sev-${sev}-fg)` }" aria-hidden="true" /><Info v-else class="sev-key__icon" :size="12" :stroke-width="2.5" :style="{ color: `var(--sev-${sev}-fg)` }" aria-hidden="true" />{{ SEVERITY_LABELS[sev] }}</span>
       </span>
       <span v-if="sample" class="pill">{{ messages.samplePill }}</span>
       <span class="status-pan">{{ panStatus }}</span>
@@ -1377,7 +1379,7 @@ const snippet = 'layers: []\nrules: []\n'
   gap: var(--space-2) var(--space-3);
   padding-inline: var(--space-3);
   background: var(--color-surface);
-  border-block-start: 1px solid var(--color-border);
+  border-block-start: 1px solid var(--viewer-control-border, var(--color-border));
   font-size: var(--text-12);
   line-height: var(--text-12-lh);
 }
@@ -1392,8 +1394,8 @@ const snippet = 'layers: []\nrules: []\n'
 }
 .status-radial,
 .status-edges, .status-severity { display: inline-flex; gap: var(--space-3); }
-.sev-key { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--color-text-muted); white-space: nowrap; }
-.sev-key__disc { display: inline-block; inline-size: 0.625rem; block-size: 0.625rem; border: 2px solid; border-radius: 50%; }
+.sev-key { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--color-text-secondary); white-space: nowrap; }
+.sev-key__icon { flex-shrink: 0; }
 /* Guide card sits above the footer (embedded stage pads for it) and is measured by the fit. */
 .viewer.viewer-radial.viewer-embedded .coach { inset-block-end: calc(var(--viewer-statusbar-height) + var(--space-3)); }
 .edge-key { display: inline-flex; align-items: center; gap: var(--space-1); }
@@ -1411,7 +1413,7 @@ const snippet = 'layers: []\nrules: []\n'
 }
 .status-edges,
 .status-pan {
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   white-space: nowrap;
 }
 .status-budget {

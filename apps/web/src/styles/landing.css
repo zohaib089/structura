@@ -18,7 +18,7 @@
   --gray-10: #e6e8eb;
   --sev-critical-fg: #ff6b6b;
   --sev-high-fg: #ff9a5c;
-  --sev-medium-fg: #f5c84b;
+  --sev-medium-fg: #e9e45c; /* G4d: lemon, 22° of hue away from the selection amber #e0a040 */
   --sev-low-fg: #6cb6ff;
   --sev-info-fg: #a1a8b3;
   --nucleus-ring: #4a6fa8;
@@ -77,7 +77,7 @@
   --gray-10: #16181c;
   --sev-critical-fg: #b4232c;
   --sev-high-fg: #b45309;
-  --sev-medium-fg: #8a6a00;
+  --sev-medium-fg: #6f6a00; /* G4d: away from the selection amber */
   --sev-low-fg: #1d5fb8;
   --sev-info-fg: #5b616b;
   --color-brand-amber-ui: #b7791f;
@@ -175,7 +175,7 @@
   --gray-10: #e6e8eb;
   --sev-critical-fg: #ff6b6b;
   --sev-high-fg: #ff9a5c;
-  --sev-medium-fg: #f5c84b;
+  --sev-medium-fg: #e9e45c; /* G4d: lemon, 22° of hue away from the selection amber #e0a040 */
   --sev-low-fg: #6cb6ff;
   --sev-info-fg: #a1a8b3;
   --color-brand-amber-ui: #e0a040;

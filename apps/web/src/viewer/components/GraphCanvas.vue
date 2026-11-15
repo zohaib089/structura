@@ -585,7 +585,7 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
 .vignette {
   position: absolute;
   inset: 0;
-  z-index: var(--z-graph-controls);
+  z-index: calc(var(--z-graph-controls) - 1);
   pointer-events: none;
   background: radial-gradient(ellipse at center, transparent 55%, rgba(5, 9, 16, 0.55) 100%);
 }

@@ -23,7 +23,7 @@
   --sev-high-fg: #ff9a5c;
   --sev-high-bg: #2a1a10;
   --sev-high-border: #5c3520;
-  --sev-medium-fg: #f5c84b;
+  --sev-medium-fg: #e9e45c; /* G4d: lemon, 22° of hue away from the selection amber #e0a040 */
   --sev-medium-bg: #262010;
   --sev-medium-border: #574a1f;
   --sev-low-fg: #6cb6ff;
@@ -127,3 +127,17 @@
 [data-theme='light'] .graph-surface .is-unresolved .kind-mark--disc { background: var(--gray-0); }
 [data-theme='light'] .graph-surface .overview-node:has(.kind-mark--disc):hover .kind-mark--disc { border-color: #12264a; }
 [data-theme='light'] .graph-surface .overview-node:has(.kind-mark--disc) .label { text-shadow: 0 0 3px var(--gray-0), 0 0 6px var(--gray-0); }
+
+/* Light theme centre / selection (G4b): the landing's bright Nucleus amber (#e0a040) as the centre
+   fill, held by a darker amber ring (#9a5b00, 5.4:1 on white) so its edge reads on the light canvas;
+   the selected ring keeps the text-grade amber with a white gap. */
+[data-theme='light'] .graph-surface .is-selected .kind-mark--disc {
+  box-shadow: 0 0 0 3px var(--gray-0), 0 0 0 5px var(--graph-selected-ring, var(--color-brand-amber-ui));
+}
+[data-theme='light'] .graph-surface .is-nucleus .kind-mark--disc {
+  background: #e0a040;
+  box-shadow:
+    0 0 0 calc(2px * var(--graph-disc-scale, 1)) #9a5b00,
+    0 0 0 calc(7px * var(--graph-disc-scale, 1)) color-mix(in srgb, #e0a040 22%, transparent),
+    0 0 24px color-mix(in srgb, #e0a040 35%, transparent);
+}
