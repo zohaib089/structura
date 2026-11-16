@@ -28,6 +28,14 @@ test('accepts a well-formed openFile message', () => {
   assert.equal(isWebviewToHostMessage({ type: 'openFile', path: 'apps/web/src/viewer/ViewerApp.vue' }), true)
 })
 
+test('openFile accepts an optional 1-based integer line and rejects bad lines', () => {
+  assert.equal(isWebviewToHostMessage({ type: 'openFile', path: 'src/a.ts', line: 12 }), true)
+  assert.equal(isWebviewToHostMessage({ type: 'openFile', path: 'src/a.ts', line: 0 }), false)
+  assert.equal(isWebviewToHostMessage({ type: 'openFile', path: 'src/a.ts', line: -3 }), false)
+  assert.equal(isWebviewToHostMessage({ type: 'openFile', path: 'src/a.ts', line: 1.5 }), false)
+  assert.equal(isWebviewToHostMessage({ type: 'openFile', path: 'src/a.ts', line: '12' }), false)
+})
+
 test('validates host state messages and graph payloads', () => {
   assert.equal(isViewerState({ kind: 'empty-folder' }), true)
   assert.equal(isViewerState({ kind: 'loading' }), true)

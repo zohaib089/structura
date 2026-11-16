@@ -92,6 +92,12 @@ export async function handleHostMessage(
       if (!host.folder) return
       const uri = resolveFileInFolder(vs, host.folder, message.path)
       if (!uri) return
+      if (message.line) {
+        // Symbol jump: open with the cursor at the symbol's start line (VS Code positions are 0-based).
+        const position = new vs.Position(message.line - 1, 0)
+        await vs.window.showTextDocument(uri, { preview: true, preserveFocus: false, selection: new vs.Range(position, position) })
+        return
+      }
       await vs.window.showTextDocument(uri, { preview: true, preserveFocus: false })
     }
   }
