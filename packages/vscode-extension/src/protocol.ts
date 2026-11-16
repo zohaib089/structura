@@ -47,7 +47,7 @@ export interface HostToWebviewMessage {
 
 export type WebviewToHostMessage =
   | { type: 'ready' }
-  | { type: 'openFile'; path: string }
+  | { type: 'openFile'; path: string; line?: number }
   | { type: 'scan' }
   | { type: 'showProjectGraph' }
   | { type: 'openFolder' }
@@ -119,7 +119,13 @@ export function isWebviewToHostMessage(value: unknown): value is WebviewToHostMe
     case 'openFolder':
       return hasOnlyKeys(value, ['type'])
     case 'openFile':
-      return hasOnlyKeys(value, ['type', 'path']) && typeof value.path === 'string' && value.path.trim().length > 0
+      return (
+        hasOnlyKeys(value, ['type', 'path', 'line']) &&
+        typeof value.path === 'string' &&
+        value.path.trim().length > 0 &&
+        // Optional 1-based line from the file panel's symbol list.
+        (value.line === undefined || (typeof value.line === 'number' && Number.isInteger(value.line) && value.line >= 1))
+      )
     default:
       return false
   }

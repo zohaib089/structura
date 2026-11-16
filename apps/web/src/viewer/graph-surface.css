@@ -127,6 +127,10 @@
 [data-theme='light'] .graph-surface .is-unresolved .kind-mark--disc { background: var(--gray-0); }
 [data-theme='light'] .graph-surface .overview-node:has(.kind-mark--disc):hover .kind-mark--disc { border-color: #12264a; }
 [data-theme='light'] .graph-surface .overview-node:has(.kind-mark--disc) .label { text-shadow: 0 0 3px var(--gray-0), 0 0 6px var(--gray-0); }
+/* G6: dark centre subtitle (ENTRY POINT / THIS FILE) in a cool near-white: 10.55:1 on the navy behind
+ * the centre (#14294e), 13.25:1 on #0b1628; still a step below the file name (#e6e8eb). */
+:root:not([data-theme='light']) .graph-surface .overview-node .entry-tag { color: #d6dde8; }
+[data-theme='light'] .graph-surface .overview-node .entry-tag { text-shadow: 0 0 2px var(--gray-0), 0 0 4px var(--gray-0), 0 0 6px var(--gray-0); }
 
 /* Light theme centre / selection (G4b): the landing's bright Nucleus amber (#e0a040) as the centre
    fill, held by a darker amber ring (#9a5b00, 5.4:1 on white) so its edge reads on the light canvas;
@@ -141,3 +145,7 @@
     0 0 0 calc(7px * var(--graph-disc-scale, 1)) color-mix(in srgb, #e0a040 22%, transparent),
     0 0 24px color-mix(in srgb, #e0a040 35%, transparent);
 }
+
+/* G6: the side drawers (inspector / file panel, filter rail) mixed 18% navy into the light surface and
+ * read grey (#cfd4dc-ish). Light theme uses the plain light surface, like the toolbar and controls. */
+[data-theme='light'] .viewer { --viewer-drawer-bg: var(--color-surface); }

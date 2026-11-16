@@ -37,6 +37,14 @@ export class Uri {
   }
 }
 
+export class Position {
+  constructor(readonly line: number, readonly character: number) {}
+}
+
+export class Range {
+  constructor(readonly start: Position, readonly end: Position) {}
+}
+
 export class Disposable {
   constructor(private readonly finish?: () => void) {}
   dispose(): void {
@@ -151,7 +159,7 @@ export function createVsCodeMock(options: TestVscodeOptions = {}) {
   const messages: Array<{ message: string; items: string[] }> = []
   const panels: WebviewPanelMock[] = []
   const treeProviders = new Map<string, unknown>()
-  const documents: Array<{ uri: Uri; preview?: boolean }> = []
+  const documents: Array<{ uri: Uri; preview?: boolean; selection?: Range }> = []
   let folders = options.folders ?? []
   let activeFile = options.activeFile ?? null
   let consentChoice: string | undefined = options.consentChoice
@@ -160,6 +168,8 @@ export function createVsCodeMock(options: TestVscodeOptions = {}) {
 
   const vscode = {
     Uri,
+    Position,
+    Range,
     Disposable,
     TreeItem,
     ThemeIcon,
@@ -191,8 +201,8 @@ export function createVsCodeMock(options: TestVscodeOptions = {}) {
         treeProviders.set(id, provider)
         return new Disposable(() => treeProviders.delete(id))
       },
-      showTextDocument: async (uri: Uri, opts?: { preview?: boolean }) => {
-        documents.push({ uri, preview: opts?.preview })
+      showTextDocument: async (uri: Uri, opts?: { preview?: boolean; selection?: Range }) => {
+        documents.push({ uri, preview: opts?.preview, selection: opts?.selection })
         return {}
       }
     },

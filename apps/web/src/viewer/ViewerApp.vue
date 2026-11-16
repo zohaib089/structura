@@ -52,7 +52,7 @@ import type { ViewerReportFinding } from './report-types'
 import { scanReportMessages } from '../services/scan-report-messages'
 import type { SeverityCounts } from '../services/scan-report-tree'
 import type { WebLocale } from '../services/locale'
-import { buildNodeDetailSections } from './node-detail-data'
+import { buildNodeDetailSections, internalLinksText } from './node-detail-data'
 import { sampleGraph } from './sample-graph'
 import BudgetMeter from './components/BudgetMeter.vue'
 import CoachMark from './components/CoachMark.vue'
@@ -70,7 +70,8 @@ import NodeDetail, { type FileSummaryState } from './components/NodeDetail.vue'
 import SearchPalette from './components/SearchPalette.vue'
 
 const emit = defineEmits<{
-  openFile: [path: string]
+  /** Open a workspace file; line (1-based) when the user picked a symbol in the file panel. */
+  openFile: [path: string, line?: number]
 }>()
 
 const props = withDefaults(
@@ -95,6 +96,8 @@ const props = withDefaults(
      * rather than pinning ancestor folders. Default false keeps the web app unchanged.
      */
     fileNeighborhood?: boolean
+    /** The host opens files (VS Code webview): symbol rows in the file panel open the file at their line. */
+    canOpenFiles?: boolean
     /**
      * Embedded project mode: nucleate the repo root and show top-level folders
      * and workspace packages. Default 'entry' keeps the web dashboard unchanged.
@@ -112,6 +115,7 @@ const props = withDefaults(
     loadFileSummary: undefined,
     openInspectorOnFocus: true,
     fileNeighborhood: false,
+    canOpenFiles: false,
     overviewLayout: 'entry'
   }
 )
@@ -566,7 +570,12 @@ function filePathForNode(id: string): string | null {
   const node = index.value?.nodesById.get(id)
   if (!node) return null
   if (node.kind === 'file' && 'path' in node) return node.path
-  if (node.kind === 'symbol' && 'file' in node) return node.file
+  if (node.kind === 'symbol' && 'file' in node) {
+    // Symbol nodes point at their file by node id ("file:<path>"); open the file's path, not the id.
+    const fileNode = index.value?.nodesById.get(node.file)
+    if (fileNode?.kind === 'file' && 'path' in fileNode) return fileNode.path
+    return node.file.startsWith('file:') ? node.file.slice('file:'.length) : node.file
+  }
   return null
 }
 
@@ -580,6 +589,12 @@ function onCanvasSelect(id: string) {
   selectNode(id, true)
   const path = filePathForNode(id)
   if (path) emit('openFile', path)
+}
+
+/** File panel symbol row: open the symbol's file at its start line (editor hosts only). */
+function onOpenSymbol(row: { id: string; line: number }) {
+  const path = filePathForNode(row.id)
+  if (path) emit('openFile', path, row.line)
 }
 
 function selectEdge(id: string) {
@@ -693,7 +708,9 @@ const detail = computed(() => {
     provenance: '',
     confidence: confidenceOf(node),
     reason: reasonOf(node),
-    internal: model ? format(messages.detailsInternal, { n: numbers.format(model.internalEdges) }) : '',
+    internal: model
+      ? internalLinksText(model.internalEdges, node?.kind || model.kind || '', { none: messages.detailsInternalNone, one: messages.detailsInternalOne, many: messages.detailsInternalMany }, (n) => numbers.format(n))
+      : '',
     weight: '',
     importKind: '',
     typeOnly: ''
@@ -1194,6 +1211,15 @@ const snippet = 'layers: []\nrules: []\n'
         :kind-tag-folder="messages.kindTagFolder"
         :kind-tag-file="messages.kindTagFile"
         :symbol-export-tag="messages.symbolExportTag"
+        :symbol-export-tooltip="messages.symbolExportTooltip"
+        :symbols-hint="canOpenFiles ? messages.symbolsHintOpen : messages.symbolsHint"
+        :symbol-line="messages.symbolLine"
+        :symbol-open-tooltip="messages.symbolOpenTooltip"
+        :symbol-kind-labels="messages.symbolKindLabels"
+        :symbol-kind-count-labels="messages.symbolKindCountLabels"
+        :show-all-symbols-label="messages.showAllSymbols"
+        :can-open-symbols="canOpenFiles"
+        @open-symbol="onOpenSymbol"
         :summary-state="fileSummaryStatus"
         :severity-label="reportMessages.severityLabel"
         :detail="detail"
@@ -1344,7 +1370,8 @@ const snippet = 'layers: []\nrules: []\n'
   inset-block: 0;
   overflow: auto;
   padding: var(--space-3);
-  background: color-mix(in srgb, var(--color-brand-navy) 18%, var(--color-surface) 82%);
+  /* Navy-tinted drawer in dark; light theme overrides --viewer-drawer-bg (graph-surface.css). */
+  background: var(--viewer-drawer-bg, color-mix(in srgb, var(--color-brand-navy) 18%, var(--color-surface) 82%));
   backdrop-filter: blur(10px);
   transition: transform var(--dur-2) var(--easing-standard);
 }
@@ -1364,7 +1391,11 @@ const snippet = 'layers: []\nrules: []\n'
 .viewer.viewer-radial .inspector.is-open {
   transform: none;
 }
-/* The open drawer overlays the stage: move the zoom controls beside it so they stay usable. */
+/* The open drawer overlays the stage: move the zoom controls beside it so they stay usable,
+   and tell the floating toolbar how much of the right edge is covered so it centres left of it. */
+.viewer.viewer-radial.is-inspector-open {
+  --graph-controls-inset-end: calc(min(var(--viewer-inspector-width), 92vw) + var(--space-3));
+}
 .viewer.viewer-radial.is-inspector-open :deep(.vue-flow__panel.zoom) {
   margin-inline-end: calc(min(var(--viewer-inspector-width), 92vw) + var(--space-3));
   transition: margin var(--dur-2) var(--easing-standard);
@@ -1515,6 +1546,18 @@ button:disabled { opacity: var(--alpha-40); }
 @media (max-width: 640px) {
   .file, .search { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .inspector.is-open { inset-block-end: var(--viewer-statusbar-height); block-size: 60%; }
+  /* Phone: the panel spans the width, so start it below the toolbar instead of insetting the bar. */
+  .viewer.viewer-radial.is-inspector-open { --graph-controls-inset-end: 0px; }
+  .viewer.viewer-radial.is-inspector-open :deep(.vue-flow__panel.zoom) { margin-inline-end: 0; }
+  /* …and end it above the zoom pad (bottom-right), so the toolbar and zoom stay usable. */
+  .viewer.viewer-radial .inspector.is-open {
+    inset-block-start: calc(var(--space-3) * 2 + 3.5rem);
+    inset-block-end: calc(var(--viewer-statusbar-height) + 10rem);
+    block-size: auto;
+  }
+  .viewer.viewer-radial:not(.viewer-embedded) .inspector.is-open {
+    inset-block-start: calc(var(--viewer-topbar-height) + var(--space-3) * 2 + 3.5rem);
+  }
 }
 </style>
 

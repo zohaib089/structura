@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useVueFlow } from '@vue-flow/core'
-import { watch } from 'vue'
+import { onBeforeUnmount, onMounted, watch } from 'vue'
 import { RADIAL_RING_GAP } from '../overview'
 import { radialFitViewport, type FitBox } from '../radial-fit'
 import { EMBEDDED_MAX_MARK_SCALE, LABEL_PX, BASE_LABEL_PX, isPhoneCanvas, markScaleForZoom } from '../graph-mark-scale'
@@ -482,6 +482,10 @@ function overlapArea(a: Rect, b: Rect, pad: number): number {
  */
 function declutterEmbedded(canvas: HTMLElement, nodes: HTMLElement[]) {
   for (const n of nodes) {
+    // G6: drop the previous pass's middle-truncated name too. Left on, the next pass measured the
+    // shorter "abc…z.ts" form, kept a full-size label that then reverted to the full name and ran into
+    // a neighbour's disc; whether it showed depended on how many passes ran (fonts, zoom timers).
+    n.removeAttribute('data-label-mid')
     n.removeAttribute('data-label-compact')
     n.removeAttribute('data-label-tight')
     n.removeAttribute('data-label-mini')
@@ -499,7 +503,8 @@ function declutterEmbedded(canvas: HTMLElement, nodes: HTMLElement[]) {
 
   const fixed: { id: string; box: Rect; pad: number }[] = []
   for (const n of nodes) {
-    fixed.push({ id: n.dataset.nodeId ?? '', box: discOf(n), pad: 2 })
+    // G6: desktop labels stay 5px clear of every disc (2px read as touching); phones keep 2px.
+    fixed.push({ id: n.dataset.nodeId ?? '', box: discOf(n), pad: isPhoneCanvas(canvas.clientWidth) ? 2 : 5 })
     if (n.classList.contains('is-nucleus')) {
       const stack = asideOf(n)
       if (stack) fixed.push({ id: `${n.dataset.nodeId}::nucleus`, box: stack.getBoundingClientRect(), pad: labelPad })
@@ -805,6 +810,19 @@ flow.onNodeClick(() => scheduleDeclutter())
 flow.onNodesInitialized(() => {
   if (props.signature === settledSignature) return
   queueFit()
+})
+// G6: label widths are measured from the painted text, so a web font that finishes loading after the
+// last pass widened some labels into a neighbour's disc (intermittent on the dense desktop graph).
+// Re-place labels once fonts settle.
+const fonts = typeof document !== 'undefined' ? document.fonts : undefined
+const onFontsDone = () => scheduleDeclutter()
+onMounted(() => {
+  fonts?.addEventListener?.('loadingdone', onFontsDone)
+  void fonts?.ready?.then(onFontsDone)
+})
+onBeforeUnmount(() => {
+  fonts?.removeEventListener?.('loadingdone', onFontsDone)
+  window.clearTimeout(declutterTimer)
 })
 defineExpose({ fit, getViewport })
 </script>

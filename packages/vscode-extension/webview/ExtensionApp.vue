@@ -39,8 +39,8 @@ async function loadFileSummary(path: string): Promise<string | null> {
   return summaries.value?.[path] ?? null
 }
 
-function openFile(path: string) {
-  vscode?.postMessage({ type: 'openFile', path })
+function openFile(path: string, line?: number) {
+  vscode?.postMessage(line && line > 0 ? { type: 'openFile', path, line } : { type: 'openFile', path })
 }
 
 function scan() {
@@ -76,6 +76,7 @@ watch(
       :file-neighborhood="state.kind === 'graph' && state.mode === 'file'"
       :overview-layout="state.kind === 'graph' && state.mode === 'project' ? 'folders' : 'entry'"
       :load-file-summary="loadFileSummary"
+      can-open-files
       @open-file="openFile"
     />
 

@@ -494,11 +494,14 @@ function onSpace(event: KeyboardEvent) {
   text-align: center;
 }
 .entry-tag {
-  font-size: calc(9px * var(--graph-mark-scale, 1));
+  /* G5: the centre subtitle sat in muted 9px text right on top of the spokes; secondary text, a 10px
+   * floor and the same canvas halo as the labels keep it readable over the edges. */
+  font-size: max(10px, calc(9px * var(--graph-mark-scale, 1)));
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   font-weight: var(--font-weight-semibold, 600);
+  text-shadow: 0 0 2px #0b1628, 0 0 4px #0b1628, 0 0 6px #0b1628;
 }
 .role-caption, .inside-toggle {
   font-size: calc(9px * var(--graph-mark-scale, 1));
@@ -527,12 +530,12 @@ function onSpace(event: KeyboardEvent) {
 [data-label-hidden]:hover > .aside,
 [data-label-hidden]:focus-visible > .aside,
 [data-label-hidden].is-selected > .aside { opacity: 1; z-index: 2; }
-/* Phone: finding-count chips beside disc labels read as stray dashes (~6×3px); severity stays on the disc. */
-@media (max-width: 480px) {
-  .overview-node:has(.kind-mark--disc) > .aside .severity-chips,
-  .overview-node:has(.kind-mark--disc) > .aside .severity-overflow {
-    display: none;
-  }
+/* G5: finding-count chips beside disc labels shrink with the label scale and read as stray amber/orange
+ * dashes (~6×3px) under the name at every width, not only on phones. Severity is on the disc (ring colour
+ * + icon, G12) and counts are in the file panel, so the chips are dropped beside disc labels. */
+.overview-node:has(.kind-mark--disc) > .aside .severity-chips,
+.overview-node:has(.kind-mark--disc) > .aside .severity-overflow {
+  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) { [data-label-hidden] > .aside { transition: none; } }

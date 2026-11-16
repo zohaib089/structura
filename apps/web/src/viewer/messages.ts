@@ -100,7 +100,12 @@ export interface ViewerMessages {
   detailsConfidence: string
   detailsReason: string
   detailsSpan: string
+  /** Row label for links that start and end inside the selected folder / group. */
   detailsInternal: string
+  detailsInternalNone: string
+  detailsInternalOne: string
+  /** "{n} links between files inside" */
+  detailsInternalMany: string
   detailsWeight: string
   detailsImportKind: string
   detailsTypeOnly: string
@@ -218,6 +223,20 @@ export interface ViewerMessages {
   kindTagFolder: string
   kindTagFile: string
   symbolExportTag: string
+  symbolExportTooltip: string
+  /** One-line hint under the symbols heading; the open variant is used where files can be opened (editor). */
+  symbolsHint: string
+  symbolsHintOpen: string
+  /** "line {line}" next to each symbol. */
+  symbolLine: string
+  /** "Show all {count}" under a long symbol list. */
+  showAllSymbols: string
+  /** Tooltip / accessible name for a symbol row that opens the file: "Open {name} at line {line}". */
+  symbolOpenTooltip: string
+  /** Singular kind tag on each row. */
+  symbolKindLabels: Record<'function' | 'class' | 'interface' | 'type' | 'enum' | 'namespace' | 'variable' | 'default' | 'other', string>
+  /** Plural kind names for the counts line: "{count} {label}". */
+  symbolKindCountLabels: Record<'function' | 'class' | 'interface' | 'type' | 'enum' | 'namespace' | 'variable' | 'default' | 'other', { one: string; other: string }>
 }
 
 const en: ViewerMessages = {
@@ -320,7 +339,10 @@ const en: ViewerMessages = {
   detailsConfidence: 'Confidence',
   detailsReason: 'Reason',
   detailsSpan: 'Span',
-  detailsInternal: 'Internal edges: {n}',
+  detailsInternal: 'Links inside',
+  detailsInternalNone: 'None',
+  detailsInternalOne: '1 link between files inside',
+  detailsInternalMany: '{n} links between files inside',
   detailsWeight: 'Weight',
   detailsImportKind: 'Import kind',
   detailsTypeOnly: 'Type only',
@@ -371,7 +393,7 @@ const en: ViewerMessages = {
   depthLabel: 'Levels from centre',
   findingsLabel: 'Findings',
   purposeLabel: 'What this file does',
-  symbolsLabel: 'Functions and classes',
+  symbolsLabel: 'Defined in this file',
   importsLabel: 'This file uses',
   importersLabel: 'Used by',
   contentsLabel: 'Files & folders inside',
@@ -417,7 +439,7 @@ const en: ViewerMessages = {
     'No summary for this file yet. Open a scan report graph, or check exported names below.',
   emptyImports: 'Nothing linked yet — try another file.',
   emptyImporters: 'Nothing uses this file yet — it may be an entry point.',
-  emptySymbols: 'No functions or classes were found in this file.',
+  emptySymbols: 'We found no functions, classes or values defined in this file.',
   emptyContents: 'This folder looks empty in the graph.',
   noIssuesStat: 'None',
   findingsSectionLabel: 'Findings',
@@ -425,7 +447,35 @@ const en: ViewerMessages = {
   depthTooltip: 'How many steps this item is from the centre of the map',
   kindTagFolder: 'Folder',
   kindTagFile: 'File',
-  symbolExportTag: 'Export',
+  symbolExportTag: 'Exported',
+  symbolExportTooltip: 'Other files can use this',
+  symbolsHint: 'The functions, classes and values this file defines, in the order they appear. Line numbers show where each starts.',
+  symbolsHintOpen: 'The functions, classes and values this file defines, in the order they appear. Click one to open the file at that line.',
+  symbolLine: 'line {line}',
+  showAllSymbols: 'Show all {count}',
+  symbolOpenTooltip: 'Open {name} at line {line}',
+  symbolKindLabels: {
+    function: 'Function',
+    class: 'Class',
+    interface: 'Interface',
+    type: 'Type',
+    enum: 'Enum',
+    namespace: 'Namespace',
+    variable: 'Variable',
+    default: 'Default export',
+    other: 'Other'
+  },
+  symbolKindCountLabels: {
+    function: { one: 'function', other: 'functions' },
+    class: { one: 'class', other: 'classes' },
+    interface: { one: 'interface', other: 'interfaces' },
+    type: { one: 'type', other: 'types' },
+    enum: { one: 'enum', other: 'enums' },
+    namespace: { one: 'namespace', other: 'namespaces' },
+    variable: { one: 'variable', other: 'variables' },
+    default: { one: 'default export', other: 'default exports' },
+    other: { one: 'other', other: 'other' }
+  },
   budgetDetail: 'Detail reduced',
   budgetLimit: 'Limit reached: collapse or filter to see more',
   focusChip: 'Focused: {path} Â· depth {n}',

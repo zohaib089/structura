@@ -6,6 +6,8 @@ import {
 } from './caps'
 import type { GraphDocument, GraphEdge, GraphNode, Provenance } from './graph-types'
 import {
+  COLLISION_DISC_OFFSET,
+  DISC_FLOW_SCALE,
   measureLabelWidth,
   resolveLabelCollisions,
   type LabelPlacement,
@@ -1429,7 +1431,103 @@ export function layoutRadialTree(
     })
   }
 
+  spreadRingDiscs(rings, radiiByDepth, angles, positions, labelPlacements)
+
   return { positions, angles, sectors, radiiByDepth, labelPlacements }
+}
+
+/** Arc (flow units) two disc centres on one ring keep: a painted disc (2 × the collision half-size)
+ * plus a small gap, so discs never sit on top of each other. */
+export const RADIAL_DISC_MIN_ARC = COLLISION_DISC_OFFSET * DISC_FLOW_SCALE * 2 + 14
+/** Disc arc as a share of the outer ring radius (painted disc size after fit; see spreadRingDiscs). */
+export const RADIAL_DISC_SPACING_OF_OUTER = 0.09
+
+/**
+ * G6: outer-ring children are clamped into their parent's (often narrow) sector, so a crowded sector
+ * stacked discs on top of each other (real 72-node file graph: 30+ disc/disc overlaps in the bottom
+ * cluster). Relax each ring so neighbours keep at least RADIAL_DISC_MIN_ARC of arc, moving discs
+ * symmetrically (cluster centres stay put); a ring that cannot fit them shares the circle evenly.
+ */
+export function spreadRingDiscs(
+  rings: Map<number, string[]>,
+  radiiByDepth: Map<number, number>,
+  angles: Map<string, number>,
+  positions: Map<string, { x: number; y: number }>,
+  labelPlacements?: Map<string, LabelPlacement>
+): void {
+  const TAU = Math.PI * 2
+  // Discs paint at a fixed on-screen size (~30px desktop, ~20px phone; graph-mark-scale), so in flow
+  // units they grow with the fitted extent: the fit maps the outer diameter (2 × outer radius) onto a
+  // ~400–900px canvas. RADIAL_DISC_SPACING_OF_OUTER × outer radius keeps ~1.3 painted discs of arc.
+  // Neighbouring rings: discs at nearly the same angle on rings k and k+1 also stacked; keep ring
+  // radii at least one disc spacing apart (two passes, since the outer radius feeds the spacing).
+  const depths = [...radiiByDepth.keys()].filter((d) => d > 0).sort((a, b) => a - b)
+  for (let pass = 0; pass < 2; pass += 1) {
+    const spacing = Math.max(RADIAL_DISC_MIN_ARC, Math.max(0, ...radiiByDepth.values()) * RADIAL_DISC_SPACING_OF_OUTER)
+    let previous = 0
+    for (const depth of depths) {
+      const r = radiiByDepth.get(depth) ?? 0
+      if (previous > 0 && r - previous < spacing) radiiByDepth.set(depth, previous + spacing)
+      previous = radiiByDepth.get(depth) ?? r
+    }
+  }
+  for (const [ring, ids] of rings) {
+    const radius = radiiByDepth.get(ring) ?? 0
+    if (ring <= 0) continue
+    for (const id of ids) {
+      const angle = angles.get(id) ?? -Math.PI / 2
+      const old = positions.get(id)
+      const next = { x: radius * Math.cos(angle), y: radius * Math.sin(angle) }
+      positions.set(id, next)
+      const place = labelPlacements?.get(id)
+      if (place && old) {
+        const dx = next.x - old.x
+        const dy = next.y - old.y
+        place.box = { left: place.box.left + dx, right: place.box.right + dx, top: place.box.top + dy, bottom: place.box.bottom + dy }
+      }
+    }
+  }
+  const outer = Math.max(0, ...radiiByDepth.values())
+  const minArc = Math.max(RADIAL_DISC_MIN_ARC, outer * RADIAL_DISC_SPACING_OF_OUTER)
+  for (const [ring, ids] of rings) {
+    const radius = radiiByDepth.get(ring) ?? 0
+    if (ring <= 0 || radius <= 0 || ids.length < 2) continue
+    const ordered = [...ids].sort((a, b) => (angles.get(a) ?? 0) - (angles.get(b) ?? 0) || compareUtf16(a, b))
+    const theta = ordered.map((id) => angles.get(id) ?? 0)
+    const min = Math.min(minArc / radius, TAU / ordered.length)
+    const n = ordered.length
+    let moved = false
+    for (let iter = 0; iter < 200; iter += 1) {
+      let worst = 0
+      for (let i = 0; i < n; i += 1) {
+        const j = (i + 1) % n
+        if (n === 2 && i === 1) break
+        let gap = theta[j]! - theta[i]!
+        if (j === 0) gap += TAU
+        const deficit = min - gap
+        if (deficit > 1e-6) {
+          theta[i] = theta[i]! - deficit / 2
+          theta[j] = theta[j]! + deficit / 2
+          if (deficit > worst) worst = deficit
+          moved = true
+        }
+      }
+      if (worst < 1e-5) break
+    }
+    if (!moved) continue
+    ordered.forEach((id, i) => {
+      const angle = theta[i]!
+      angles.set(id, angle)
+      positions.set(id, { x: radius * Math.cos(angle), y: radius * Math.sin(angle) })
+      const place = labelPlacements?.get(id)
+      if (place) {
+        const dx = radius * Math.cos(angle) - radius * Math.cos(place.angle)
+        const dy = radius * Math.sin(angle) - radius * Math.sin(place.angle)
+        place.angle = angle
+        place.box = { left: place.box.left + dx, right: place.box.right + dx, top: place.box.top + dy, bottom: place.box.bottom + dy }
+      }
+    })
+  }
 }
 
 /** True when every tree child's sector lies inside its parent's sector. */

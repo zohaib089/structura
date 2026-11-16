@@ -50,6 +50,108 @@ test('loads a fixture from file://, selects, and expands', async ({ page }) => {
   expect(errors).toEqual([])
 })
 
+test('a click on the centre disc selects the centre file, not the ring guides', async ({ page }) => {
+  // Embedded viewer (dashboard / editor panel), where the guides layer used to sit on top.
+  await page.goto(`${pathToFileURL(builtHtml).href}?embedded=1`)
+  await page.locator('[data-testid="file-input"]').setInputFiles(resolve(root, 'tests/e2e/fixtures/dense-graph.test-only.json'))
+  const canvas = page.locator('[data-testid="graph-canvas"]')
+  await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 20_000 })
+  const disc = page.locator('.overview-node.is-nucleus .kind-mark').first()
+  await expect(disc).toBeVisible()
+  const box = await disc.boundingBox()
+  if (!box) throw new Error('no centre disc')
+  const cx = box.x + box.width / 2
+  const cy = box.y + box.height / 2
+  // The topmost element at the disc centre belongs to the centre file, not the guides layer.
+  const hitId = await page.evaluate(([x, y]) => document.elementFromPoint(x!, y!)?.closest('.vue-flow__node')?.getAttribute('data-id') ?? null, [cx, cy])
+  expect(hitId).not.toBe('__radial-guides__')
+  await page.mouse.click(cx, cy)
+  const nucleus = page.locator('.overview-node.is-nucleus').first()
+  await expect(nucleus).toHaveAttribute('aria-selected', 'true')
+  await expect(page.locator('[data-testid="node-detail"]')).not.toContainText('__radial-guides__')
+  const name = (await nucleus.getAttribute('aria-label')) ?? ''
+  await expect(page.locator('[data-testid="node-detail"] h3').first()).toContainText(name.split('/').pop()!)
+})
+
+for (const viewport of [
+  { width: 1024, height: 800, embedded: true },
+  { width: 1280, height: 800, embedded: true },
+  { width: 1440, height: 900, embedded: false },
+  { width: 390, height: 844, embedded: false },
+]) {
+  test(`the open file panel leaves every toolbar button clickable at ${viewport.width}px`, async ({ page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height })
+    await page.goto(`${pathToFileURL(builtHtml).href}${viewport.embedded ? '?embedded=1' : ''}`)
+    await page.locator('[data-testid="file-input"]').setInputFiles(resolve(root, 'tests/e2e/fixtures/dense-graph.test-only.json'))
+    await expect(page.locator('[data-testid="graph-canvas"]')).toHaveAttribute('data-ready', 'true', { timeout: 20_000 })
+    const dismissGuide = page.getByTestId('coach-mark').getByRole('button', { name: /dismiss/i })
+    if (await dismissGuide.isVisible().catch(() => false)) await dismissGuide.click()
+    await page.locator('.overview-node.is-nucleus .kind-mark').first().click()
+    await expect(page.locator('.inspector.is-open')).toBeVisible()
+    await page.waitForTimeout(400) // drawer + toolbar transitions
+    const problems = await page.evaluate(() => {
+      const panel = document.querySelector('.inspector.is-open')!.getBoundingClientRect()
+      const controls = [...document.querySelectorAll<HTMLElement>('.floating-bar button, .floating-bar select')]
+        .filter((el) => getComputedStyle(el).display !== 'none' && el.getBoundingClientRect().width > 0)
+      const out: string[] = controls.length < 3 ? ['too few toolbar controls'] : []
+      for (const el of controls) {
+        const r = el.getBoundingClientRect()
+        const name = el.getAttribute('aria-label') ?? el.textContent?.trim() ?? el.tagName
+        if (r.left < 0 || r.right > innerWidth) out.push(`${name}: off screen`)
+        if (r.left < panel.right && r.right > panel.left && r.top < panel.bottom && r.bottom > panel.top) out.push(`${name}: under the panel`)
+        const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+        if (!top || !el.contains(top)) out.push(`${name}: covered`)
+      }
+      return out
+    })
+    expect(problems).toEqual([])
+  })
+}
+
+for (const width of [1024, 1280, 1440]) test(`labels stay put and clear of discs however many declutter passes run (${width}px)`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 900 })
+  await page.goto(`${pathToFileURL(builtHtml).href}?embedded=1`)
+  await page.locator('[data-testid="file-input"]').setInputFiles(resolve(root, 'tests/e2e/fixtures/dense-graph.test-only.json'))
+  await expect(page.locator('[data-testid="graph-canvas"]')).toHaveAttribute('data-ready', 'true', { timeout: 20_000 })
+  await page.waitForTimeout(1500)
+  const overlaps = () =>
+    page.evaluate(() => {
+      const nodes = [...document.querySelectorAll<HTMLElement>('.overview-node')]
+      const discs = nodes.map((n) => ({ n, r: (n.querySelector('.kind-mark--disc') ?? n.querySelector('.kind-mark') ?? n).getBoundingClientRect() }))
+      const out: string[] = []
+      for (const n of nodes) {
+        const aside = n.querySelector<HTMLElement>(':scope > .aside')
+        if (!aside || n.hasAttribute('data-label-hidden') || n.classList.contains('is-nucleus')) continue
+        const a = aside.getBoundingClientRect()
+        if (a.width === 0) continue
+        for (const d of discs) {
+          if (d.n === n) continue
+          const b = d.r
+          if (a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1) out.push(`${n.dataset.nodeId} x ${d.n.dataset.nodeId}`)
+        }
+      }
+      return out
+    })
+  const layout = () =>
+    page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>('.overview-node')]
+        .map((n) => [n.dataset.nodeId, n.dataset.labelFlip, n.dataset.labelHidden, n.dataset.labelCompact, n.dataset.labelMid, n.style.getPropertyValue('--label-nudge-x'), n.style.getPropertyValue('--label-nudge-y')].join('|'))
+        .join('\n')
+    )
+  // Each late pass (a font finishing, a zoom timer) must land on the same clean layout.
+  const first = await layout()
+  for (let pass = 0; pass < 3; pass += 1) {
+    await page.evaluate((stale) => {
+      // A previous pass may leave names middle-truncated; the next pass must not measure those.
+      if (stale) document.querySelectorAll('.overview-node').forEach((n) => n.querySelector(':scope > .aside > .label--midw') && n.setAttribute('data-label-mid', 'true'))
+      document.fonts.dispatchEvent(new Event('loadingdone'))
+    }, pass === 1)
+    await page.waitForTimeout(500)
+    expect(await overlaps()).toEqual([])
+    expect(await layout()).toBe(first)
+  }
+})
+
 test('renders hostile labels as text under the built CSP', async ({ page }) => {
   await page.goto(pathToFileURL(builtHtml).href)
   await page.locator('[data-testid="file-input"]').setInputFiles(resolve(root, 'fixtures/hostile-graph.json'))

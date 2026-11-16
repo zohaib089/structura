@@ -101,3 +101,23 @@ test('openFile opens a workspace-relative file in preview and rejects escapes', 
   await handleHostMessage(vs as unknown as typeof import('vscode'), { type: 'openFile', path: '/etc/passwd' }, host)
   assert.equal(vs._documents.length, 1)
 })
+
+test('openFile with a line opens the file with the cursor on that line (0-based position)', async () => {
+  const folder = { uri: Uri.file('/repo/demo'), name: 'demo', index: 0 }
+  const vs = createVsCodeMock({ folders: [folder] })
+  const host = {
+    folder,
+    mode: 'file' as const,
+    getState: () => ({ kind: 'graph' as const, mode: 'file' as const, graph: { schemaVersion: 'graph.v1', summary: { nodes: 0, edges: 0, files: 0 }, coverage: {}, nodes: [], edges: [] }, focusPath: 'src/app.ts', theme: 'dark' as const }),
+    onScan: () => undefined,
+    onShowProjectGraph: () => undefined,
+    onOpenFolder: () => undefined
+  }
+  await handleHostMessage(vs as unknown as typeof import('vscode'), { type: 'openFile', path: 'src/app.ts', line: 42 }, host)
+  assert.equal(vs._documents.length, 1)
+  assert.equal(vs._documents[0]?.uri.fsPath, '/repo/demo/src/app.ts')
+  assert.equal(vs._documents[0]?.selection?.start.line, 41)
+  assert.equal(vs._documents[0]?.selection?.start.character, 0)
+  await handleHostMessage(vs as unknown as typeof import('vscode'), { type: 'openFile', path: '../secret.ts', line: 3 }, host)
+  assert.equal(vs._documents.length, 1)
+})

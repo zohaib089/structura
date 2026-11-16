@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { GUIDES_NODE_ID, isSelectableNodeId } from '../radial-guides'
 import { Background } from '@vue-flow/background'
 import { VueFlow, type Edge, type Node } from '@vue-flow/core'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -212,7 +213,7 @@ const flowNodes = () => {
   const guide =
     props.ringCount && props.ringCount > 0
       ? [{
-          id: '__radial-guides__',
+          id: GUIDES_NODE_ID,
           type: 'radial-guides',
           position: { x: 0, y: 0 },
           draggable: false,
@@ -303,7 +304,7 @@ const pathActive = computed(() => hotPath.value.nodes.size > 0)
 function onFocusIn(event: FocusEvent) {
   const el = (event.target as HTMLElement | null)?.closest<HTMLElement>('.vue-flow__node')
   const id = el?.dataset.id
-  focusedId.value = id && id !== '__radial-guides__' ? id : null
+  focusedId.value = id && isSelectableNodeId(id) ? id : null
 }
 function onFocusOut() {
   focusedId.value = null
@@ -339,6 +340,7 @@ const flowEdges = () => props.edges.filter((edge) => !foldedIds.value.has(edge.s
     }))
 
 function onNodeClick(payload: { node: { id: string } }) {
+  if (!isSelectableNodeId(payload.node.id)) return
   emit('select', payload.node.id)
 }
 function onNodeEnter(payload: { node: { id: string } }) {
@@ -524,8 +526,11 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
 .canvas :deep(.vue-flow),
 .canvas :deep(.vue-flow__background) { block-size: 100%; background: transparent; }
 .canvas :deep(.vue-flow__attribution) { display: none; }
-.canvas :deep(.vue-flow__node[data-id="__radial-guides__"]) {
-  pointer-events: none;
+/* G6: Vue Flow puts an inline pointer-events on node wrappers, so the plain rule lost and the ring
+   guides (drawn across the whole graph) swallowed clicks on the centre disc. */
+.canvas :deep(.vue-flow__node[data-id="__radial-guides__"]),
+.canvas :deep(.vue-flow__node[data-id="__radial-guides__"] *) {
+  pointer-events: none !important;
   z-index: 1 !important;
 }
 .canvas :deep(.vue-flow__handle) { opacity: 0; }

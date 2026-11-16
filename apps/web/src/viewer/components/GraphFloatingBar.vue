@@ -114,10 +114,12 @@ const emit = defineEmits<{
 .floating-bar {
   position: absolute;
   inset-block-start: var(--space-3);
-  inset-inline-start: 50%;
+  /* Centre over the visible stage: the host sets --graph-controls-inset-end while a side panel
+     overlays the right edge, so the bar re-centres (and wraps if it must) left of the panel. */
+  inset-inline-start: calc((100% - var(--graph-controls-inset-end, 0px)) / 2);
   z-index: var(--z-graph-controls);
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
@@ -130,8 +132,9 @@ const emit = defineEmits<{
   transform: translateX(-50%);
   /* Size to the controls (never wider than the pane), so the last button stays inside the border. */
   inline-size: max-content;
-  max-inline-size: calc(100% - var(--space-6));
+  max-inline-size: calc(100% - var(--graph-controls-inset-end, 0px) - var(--space-6));
   box-sizing: border-box;
+  transition: inset-inline-start var(--dur-2) var(--easing-standard);
   pointer-events: none;
 }
 .icon-button,
@@ -257,6 +260,9 @@ select {
   box-shadow: var(--focus-ring);
   border-color: var(--color-brand-amber-ui);
 }
+@media (prefers-reduced-motion: reduce) {
+  .floating-bar { transition: none; }
+}
 @media (max-width: 640px) {
   .floating-bar {
     flex-wrap: nowrap;
@@ -273,7 +279,7 @@ select {
   .fit-button { padding-inline: var(--space-2); white-space: nowrap; flex-shrink: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; }
   .links-button { padding-inline: var(--space-1); }
   .layout-switch button { padding-inline: var(--space-2); }
-  .layout-switch { flex-shrink: 1; }
+  .layout-switch { flex-shrink: 0; }
   .search-button { min-inline-size: 2.5rem; }
 }
 .search-icon { display: none; }
