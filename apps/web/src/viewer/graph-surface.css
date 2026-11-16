@@ -127,6 +127,7 @@
 [data-theme='light'] .graph-surface .is-unresolved .kind-mark--disc { background: var(--gray-0); }
 [data-theme='light'] .graph-surface .overview-node:has(.kind-mark--disc):hover .kind-mark--disc { border-color: #12264a; }
 [data-theme='light'] .graph-surface .overview-node:has(.kind-mark--disc) .label { text-shadow: 0 0 3px var(--gray-0), 0 0 6px var(--gray-0); }
+[data-theme='light'] .graph-surface .overview-node .entry-tag { text-shadow: 0 0 2px var(--gray-0), 0 0 4px var(--gray-0), 0 0 6px var(--gray-0); }
 
 /* Light theme centre / selection (G4b): the landing's bright Nucleus amber (#e0a040) as the centre
    fill, held by a darker amber ring (#9a5b00, 5.4:1 on white) so its edge reads on the light canvas;
