@@ -108,6 +108,50 @@ for (const viewport of [
   })
 }
 
+for (const width of [1024, 1280, 1440]) test(`labels stay put and clear of discs however many declutter passes run (${width}px)`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 900 })
+  await page.goto(`${pathToFileURL(builtHtml).href}?embedded=1`)
+  await page.locator('[data-testid="file-input"]').setInputFiles(resolve(root, 'tests/e2e/fixtures/dense-graph.test-only.json'))
+  await expect(page.locator('[data-testid="graph-canvas"]')).toHaveAttribute('data-ready', 'true', { timeout: 20_000 })
+  await page.waitForTimeout(1500)
+  const overlaps = () =>
+    page.evaluate(() => {
+      const nodes = [...document.querySelectorAll<HTMLElement>('.overview-node')]
+      const discs = nodes.map((n) => ({ n, r: (n.querySelector('.kind-mark--disc') ?? n.querySelector('.kind-mark') ?? n).getBoundingClientRect() }))
+      const out: string[] = []
+      for (const n of nodes) {
+        const aside = n.querySelector<HTMLElement>(':scope > .aside')
+        if (!aside || n.hasAttribute('data-label-hidden') || n.classList.contains('is-nucleus')) continue
+        const a = aside.getBoundingClientRect()
+        if (a.width === 0) continue
+        for (const d of discs) {
+          if (d.n === n) continue
+          const b = d.r
+          if (a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1) out.push(`${n.dataset.nodeId} x ${d.n.dataset.nodeId}`)
+        }
+      }
+      return out
+    })
+  const layout = () =>
+    page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>('.overview-node')]
+        .map((n) => [n.dataset.nodeId, n.dataset.labelFlip, n.dataset.labelHidden, n.dataset.labelCompact, n.dataset.labelMid, n.style.getPropertyValue('--label-nudge-x'), n.style.getPropertyValue('--label-nudge-y')].join('|'))
+        .join('\n')
+    )
+  // Each late pass (a font finishing, a zoom timer) must land on the same clean layout.
+  const first = await layout()
+  for (let pass = 0; pass < 3; pass += 1) {
+    await page.evaluate((stale) => {
+      // A previous pass may leave names middle-truncated; the next pass must not measure those.
+      if (stale) document.querySelectorAll('.overview-node').forEach((n) => n.querySelector(':scope > .aside > .label--midw') && n.setAttribute('data-label-mid', 'true'))
+      document.fonts.dispatchEvent(new Event('loadingdone'))
+    }, pass === 1)
+    await page.waitForTimeout(500)
+    expect(await overlaps()).toEqual([])
+    expect(await layout()).toBe(first)
+  }
+})
+
 test('renders hostile labels as text under the built CSP', async ({ page }) => {
   await page.goto(pathToFileURL(builtHtml).href)
   await page.locator('[data-testid="file-input"]').setInputFiles(resolve(root, 'fixtures/hostile-graph.json'))

@@ -482,6 +482,10 @@ function overlapArea(a: Rect, b: Rect, pad: number): number {
  */
 function declutterEmbedded(canvas: HTMLElement, nodes: HTMLElement[]) {
   for (const n of nodes) {
+    // G6: drop the previous pass's middle-truncated name too. Left on, the next pass measured the
+    // shorter "abc…z.ts" form, kept a full-size label that then reverted to the full name and ran into
+    // a neighbour's disc; whether it showed depended on how many passes ran (fonts, zoom timers).
+    n.removeAttribute('data-label-mid')
     n.removeAttribute('data-label-compact')
     n.removeAttribute('data-label-tight')
     n.removeAttribute('data-label-mini')
