@@ -1370,7 +1370,8 @@ const snippet = 'layers: []\nrules: []\n'
   inset-block: 0;
   overflow: auto;
   padding: var(--space-3);
-  background: color-mix(in srgb, var(--color-brand-navy) 18%, var(--color-surface) 82%);
+  /* Navy-tinted drawer in dark; light theme overrides --viewer-drawer-bg (graph-surface.css). */
+  background: var(--viewer-drawer-bg, color-mix(in srgb, var(--color-brand-navy) 18%, var(--color-surface) 82%));
   backdrop-filter: blur(10px);
   transition: transform var(--dur-2) var(--easing-standard);
 }

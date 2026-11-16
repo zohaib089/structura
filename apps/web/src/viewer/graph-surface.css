@@ -145,3 +145,7 @@
     0 0 0 calc(7px * var(--graph-disc-scale, 1)) color-mix(in srgb, #e0a040 22%, transparent),
     0 0 24px color-mix(in srgb, #e0a040 35%, transparent);
 }
+
+/* G6: the side drawers (inspector / file panel, filter rail) mixed 18% navy into the light surface and
+ * read grey (#cfd4dc-ish). Light theme uses the plain light surface, like the toolbar and controls. */
+[data-theme='light'] .viewer { --viewer-drawer-bg: var(--color-surface); }
