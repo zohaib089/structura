@@ -1391,7 +1391,11 @@ const snippet = 'layers: []\nrules: []\n'
 .viewer.viewer-radial .inspector.is-open {
   transform: none;
 }
-/* The open drawer overlays the stage: move the zoom controls beside it so they stay usable. */
+/* The open drawer overlays the stage: move the zoom controls beside it so they stay usable,
+   and tell the floating toolbar how much of the right edge is covered so it centres left of it. */
+.viewer.viewer-radial.is-inspector-open {
+  --graph-controls-inset-end: calc(min(var(--viewer-inspector-width), 92vw) + var(--space-3));
+}
 .viewer.viewer-radial.is-inspector-open :deep(.vue-flow__panel.zoom) {
   margin-inline-end: calc(min(var(--viewer-inspector-width), 92vw) + var(--space-3));
   transition: margin var(--dur-2) var(--easing-standard);
@@ -1542,6 +1546,18 @@ button:disabled { opacity: var(--alpha-40); }
 @media (max-width: 640px) {
   .file, .search { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .inspector.is-open { inset-block-end: var(--viewer-statusbar-height); block-size: 60%; }
+  /* Phone: the panel spans the width, so start it below the toolbar instead of insetting the bar. */
+  .viewer.viewer-radial.is-inspector-open { --graph-controls-inset-end: 0px; }
+  .viewer.viewer-radial.is-inspector-open :deep(.vue-flow__panel.zoom) { margin-inline-end: 0; }
+  /* …and end it above the zoom pad (bottom-right), so the toolbar and zoom stay usable. */
+  .viewer.viewer-radial .inspector.is-open {
+    inset-block-start: calc(var(--space-3) * 2 + 3.5rem);
+    inset-block-end: calc(var(--viewer-statusbar-height) + 10rem);
+    block-size: auto;
+  }
+  .viewer.viewer-radial:not(.viewer-embedded) .inspector.is-open {
+    inset-block-start: calc(var(--viewer-topbar-height) + var(--space-3) * 2 + 3.5rem);
+  }
 }
 </style>
 

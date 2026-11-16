@@ -73,6 +73,41 @@ test('a click on the centre disc selects the centre file, not the ring guides', 
   await expect(page.locator('[data-testid="node-detail"] h3').first()).toContainText(name.split('/').pop()!)
 })
 
+for (const viewport of [
+  { width: 1024, height: 800, embedded: true },
+  { width: 1280, height: 800, embedded: true },
+  { width: 1440, height: 900, embedded: false },
+  { width: 390, height: 844, embedded: false },
+]) {
+  test(`the open file panel leaves every toolbar button clickable at ${viewport.width}px`, async ({ page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height })
+    await page.goto(`${pathToFileURL(builtHtml).href}${viewport.embedded ? '?embedded=1' : ''}`)
+    await page.locator('[data-testid="file-input"]').setInputFiles(resolve(root, 'tests/e2e/fixtures/dense-graph.test-only.json'))
+    await expect(page.locator('[data-testid="graph-canvas"]')).toHaveAttribute('data-ready', 'true', { timeout: 20_000 })
+    const dismissGuide = page.getByTestId('coach-mark').getByRole('button', { name: /dismiss/i })
+    if (await dismissGuide.isVisible().catch(() => false)) await dismissGuide.click()
+    await page.locator('.overview-node.is-nucleus .kind-mark').first().click()
+    await expect(page.locator('.inspector.is-open')).toBeVisible()
+    await page.waitForTimeout(400) // drawer + toolbar transitions
+    const problems = await page.evaluate(() => {
+      const panel = document.querySelector('.inspector.is-open')!.getBoundingClientRect()
+      const controls = [...document.querySelectorAll<HTMLElement>('.floating-bar button, .floating-bar select')]
+        .filter((el) => getComputedStyle(el).display !== 'none' && el.getBoundingClientRect().width > 0)
+      const out: string[] = controls.length < 3 ? ['too few toolbar controls'] : []
+      for (const el of controls) {
+        const r = el.getBoundingClientRect()
+        const name = el.getAttribute('aria-label') ?? el.textContent?.trim() ?? el.tagName
+        if (r.left < 0 || r.right > innerWidth) out.push(`${name}: off screen`)
+        if (r.left < panel.right && r.right > panel.left && r.top < panel.bottom && r.bottom > panel.top) out.push(`${name}: under the panel`)
+        const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+        if (!top || !el.contains(top)) out.push(`${name}: covered`)
+      }
+      return out
+    })
+    expect(problems).toEqual([])
+  })
+}
+
 test('renders hostile labels as text under the built CSP', async ({ page }) => {
   await page.goto(pathToFileURL(builtHtml).href)
   await page.locator('[data-testid="file-input"]').setInputFiles(resolve(root, 'fixtures/hostile-graph.json'))
