@@ -107,6 +107,7 @@ const emit = defineEmits<{
     >
       <span aria-hidden="true">⇄ {{ crossLinkCount }}</span>
     </button>
+    <div v-if="$slots.below" class="below"><slot name="below" /></div>
   </div>
 </template>
 
@@ -260,6 +261,9 @@ select {
   box-shadow: var(--focus-ring);
   border-color: var(--color-brand-amber-ui);
 }
+/* Focus chip row: always its own line under the controls, inside the same card, so it never overlaps them. */
+.floating-bar:has(.below) { flex-wrap: wrap; }
+.below { flex-basis: 100%; display: flex; justify-content: center; min-inline-size: 0; pointer-events: none; }
 @media (prefers-reduced-motion: reduce) {
   .floating-bar { transition: none; }
 }

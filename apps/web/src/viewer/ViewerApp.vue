@@ -1066,30 +1066,6 @@ const snippet = 'layers: []\nrules: []\n'
         @choose="openPicker"
         @copy="copyText(errorTitle(error))"
       />
-      <FocusBar
-        v-if="focus && focusSummary"
-        :label="messages.focusBar"
-        :name="detail?.title || focus.nodeId"
-        :dependencies="messages.focusDependencies"
-        :dependents="messages.focusDependents"
-        :both="messages.focusBoth"
-        :depth-label="format(messages.focusDepth, { n: focus.depth })"
-        :confirmed-only="messages.focusConfirmedOnly"
-        :confirmed="format(messages.focusConfirmed, { n: numbers.format(focusSummary.confirmed.length) })"
-        :possible="format(messages.focusPossible, { n: numbers.format(focusSummary.possible.length) })"
-        :unresolved="focusSummary.unresolvedLeaving ? format(messages.focusUnresolvedLeave, { n: numbers.format(focusSummary.unresolvedLeaving) }) : ''"
-        :none="focusSummary.confirmed.length + focusSummary.possible.length === 0 ? format(messages.focusNone, { n: focus.depth }) : ''"
-        :exit="messages.focusExit"
-        :chip="format(messages.focusChip, { path: detail?.path || focus.nodeId, n: focus.depth })"
-        :esc-hint="messages.focusEsc"
-        :direction="focus.direction"
-        :depth="focus.depth"
-        :confirmed-only-on="focus.confirmedOnly"
-        @direction="focus = focus ? { ...focus, direction: $event } : focus"
-        @depth="focus = focus ? { ...focus, depth: $event } : focus"
-        @confirmed="focus = focus ? { ...focus, confirmedOnly: !focus.confirmedOnly } : focus"
-        @exit="focus = null"
-      />
       <GraphFloatingBar
         v-if="overview && graph && graph.nodes.length > 0"
         :filters-label="messages.railToggle"
@@ -1117,7 +1093,33 @@ const snippet = 'layers: []\nrules: []\n'
         :radial-label="messages.layoutRadial"
         :linear-label="messages.layoutLinear"
         @update:layout="setLayout"
-      />
+      >
+        <template v-if="focus && focusSummary" #below>
+          <FocusBar
+            :label="messages.focusBar"
+            :name="detail?.title || focus.nodeId"
+            :dependencies="messages.focusDependencies"
+            :dependents="messages.focusDependents"
+            :both="messages.focusBoth"
+            :depth-label="format(messages.focusDepth, { n: focus.depth })"
+            :confirmed-only="messages.focusConfirmedOnly"
+            :confirmed="format(messages.focusConfirmed, { n: numbers.format(focusSummary.confirmed.length) })"
+            :possible="format(messages.focusPossible, { n: numbers.format(focusSummary.possible.length) })"
+            :unresolved="focusSummary.unresolvedLeaving ? format(messages.focusUnresolvedLeave, { n: numbers.format(focusSummary.unresolvedLeaving) }) : ''"
+            :none="focusSummary.confirmed.length + focusSummary.possible.length === 0 ? format(messages.focusNone, { n: focus.depth }) : ''"
+            :exit="messages.focusExit"
+            :chip="format(messages.focusChip, { path: detail?.path || focus.nodeId, n: focus.depth })"
+            :esc-hint="messages.focusEsc"
+            :direction="focus.direction"
+            :depth="focus.depth"
+            :confirmed-only-on="focus.confirmedOnly"
+            @direction="focus = focus ? { ...focus, direction: $event } : focus"
+            @depth="focus = focus ? { ...focus, depth: $event } : focus"
+            @confirmed="focus = focus ? { ...focus, confirmedOnly: !focus.confirmedOnly } : focus"
+            @exit="focus = null"
+          />
+        </template>
+      </GraphFloatingBar>
       <p v-if="overview && graph && graph.nodes.length > 0" class="graph-hint" role="note">
         {{ messages.graphOverviewHint }}
       </p>

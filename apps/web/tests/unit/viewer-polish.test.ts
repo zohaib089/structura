@@ -373,8 +373,10 @@ describe('v2 viewer polish', () => {
     })
     expect(focus.text()).toContain('Focused: apps · depth 6')
     const buttons = focus.findAll('button')
-    await buttons[1].trigger('click')
-    expect(focus.emitted('depth')?.[0]).toEqual([6])
+    // At the cap "+" is disabled (no step past it); "−" still steps down.
+    expect(buttons[1].attributes('disabled')).toBeDefined()
+    await buttons[0].trigger('click')
+    expect(focus.emitted('depth')?.[0]).toEqual([5])
   })
 
   it('uses the shared focus ring for keyboard focus and keeps amber on selection', () => {
