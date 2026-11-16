@@ -50,6 +50,29 @@ test('loads a fixture from file://, selects, and expands', async ({ page }) => {
   expect(errors).toEqual([])
 })
 
+test('a click on the centre disc selects the centre file, not the ring guides', async ({ page }) => {
+  // Embedded viewer (dashboard / editor panel), where the guides layer used to sit on top.
+  await page.goto(`${pathToFileURL(builtHtml).href}?embedded=1`)
+  await page.locator('[data-testid="file-input"]').setInputFiles(resolve(root, 'tests/e2e/fixtures/dense-graph.test-only.json'))
+  const canvas = page.locator('[data-testid="graph-canvas"]')
+  await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 20_000 })
+  const disc = page.locator('.overview-node.is-nucleus .kind-mark').first()
+  await expect(disc).toBeVisible()
+  const box = await disc.boundingBox()
+  if (!box) throw new Error('no centre disc')
+  const cx = box.x + box.width / 2
+  const cy = box.y + box.height / 2
+  // The topmost element at the disc centre belongs to the centre file, not the guides layer.
+  const hitId = await page.evaluate(([x, y]) => document.elementFromPoint(x!, y!)?.closest('.vue-flow__node')?.getAttribute('data-id') ?? null, [cx, cy])
+  expect(hitId).not.toBe('__radial-guides__')
+  await page.mouse.click(cx, cy)
+  const nucleus = page.locator('.overview-node.is-nucleus').first()
+  await expect(nucleus).toHaveAttribute('aria-selected', 'true')
+  await expect(page.locator('[data-testid="node-detail"]')).not.toContainText('__radial-guides__')
+  const name = (await nucleus.getAttribute('aria-label')) ?? ''
+  await expect(page.locator('[data-testid="node-detail"] h3').first()).toContainText(name.split('/').pop()!)
+})
+
 test('renders hostile labels as text under the built CSP', async ({ page }) => {
   await page.goto(pathToFileURL(builtHtml).href)
   await page.locator('[data-testid="file-input"]').setInputFiles(resolve(root, 'fixtures/hostile-graph.json'))
