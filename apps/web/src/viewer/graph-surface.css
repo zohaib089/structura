@@ -127,6 +127,9 @@
 [data-theme='light'] .graph-surface .is-unresolved .kind-mark--disc { background: var(--gray-0); }
 [data-theme='light'] .graph-surface .overview-node:has(.kind-mark--disc):hover .kind-mark--disc { border-color: #12264a; }
 [data-theme='light'] .graph-surface .overview-node:has(.kind-mark--disc) .label { text-shadow: 0 0 3px var(--gray-0), 0 0 6px var(--gray-0); }
+/* G6: dark centre subtitle (ENTRY POINT / THIS FILE) in a cool near-white: 10.55:1 on the navy behind
+ * the centre (#14294e), 13.25:1 on #0b1628; still a step below the file name (#e6e8eb). */
+:root:not([data-theme='light']) .graph-surface .overview-node .entry-tag { color: #d6dde8; }
 [data-theme='light'] .graph-surface .overview-node .entry-tag { text-shadow: 0 0 2px var(--gray-0), 0 0 4px var(--gray-0), 0 0 6px var(--gray-0); }
 
 /* Light theme centre / selection (G4b): the landing's bright Nucleus amber (#e0a040) as the centre
