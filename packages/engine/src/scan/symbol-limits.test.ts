@@ -40,6 +40,7 @@ test('a symbol id longer than 8192 UTF-16 units is omitted and addSymbols report
     files: { discovered: 1, parsed: 1, partial: 0, failed: 0, skipped: 0, ignored: 0 },
     byLanguage: [],
     skipped: [],
+    failed: [],
     ignored: [],
     unresolved: [],
     accounting: { discovered: 1, accounted: 1 }

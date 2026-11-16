@@ -38,8 +38,10 @@ test('queryGraph lists edges with type and endpoint filters', () => {
   assert.equal(imports.mode, 'edges')
   assert.equal(imports.edges.length, 1)
   const from = queryGraph(graph, { from: 'src/app.ts', type: 'imports' })
+  assert.equal(from.mode, 'edges')
   assert.equal(from.edges[0]?.target, 'ext:npm:left-pad')
   const to = queryGraph(graph, { to: 'ext:npm:left-pad' })
+  assert.equal(to.mode, 'edges')
   assert.equal(to.edges.length, 1)
 })
 
