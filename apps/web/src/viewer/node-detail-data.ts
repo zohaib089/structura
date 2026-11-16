@@ -17,12 +17,38 @@ export interface DirectoryChildRow {
   kind: string
 }
 
+/** Plain-language symbol groups for the file panel. 'default' keeps its own group; 'unknown' and any
+ * kind this viewer does not know fold into 'other'. Order is the display order of the counts. */
+export const SYMBOL_KIND_GROUPS = ['function', 'class', 'interface', 'type', 'enum', 'namespace', 'variable', 'default', 'other'] as const
+export type SymbolKindGroup = typeof SYMBOL_KIND_GROUPS[number]
+
+export function symbolKindGroup(kind: string): SymbolKindGroup {
+  return (SYMBOL_KIND_GROUPS as readonly string[]).includes(kind) && kind !== 'other' ? (kind as SymbolKindGroup) : 'other'
+}
+
 export interface SymbolRow {
   id: string
   label: string
   symbolKind: string
+  /** Display group for the kind (see symbolKindGroup). */
+  kindGroup: SymbolKindGroup
   exported: boolean
   span: string
+  /** 1-based start line / column from span.start (jump target). */
+  line: number
+  col: number
+}
+
+export interface SymbolKindCount {
+  kind: SymbolKindGroup
+  count: number
+}
+
+/** Counts per display group, in SYMBOL_KIND_GROUPS order, zero groups left out. */
+export function symbolKindCounts(rows: readonly Pick<SymbolRow, 'kindGroup'>[]): SymbolKindCount[] {
+  const counts = new Map<SymbolKindGroup, number>()
+  for (const row of rows) counts.set(row.kindGroup, (counts.get(row.kindGroup) ?? 0) + 1)
+  return SYMBOL_KIND_GROUPS.filter(kind => counts.has(kind)).map(kind => ({ kind, count: counts.get(kind) ?? 0 }))
 }
 
 export interface RelatedNodeRow {
@@ -45,6 +71,7 @@ export interface NodeDetailSections {
   summary: string | null
   summarySource: 'api' | 'exports' | 'none'
   symbols: SymbolRow[]
+  symbolCounts: SymbolKindCount[]
   imports: RelatedNodeRow[]
   importers: RelatedNodeRow[]
   contents: DirectoryChildRow[]
@@ -169,11 +196,15 @@ export function symbolsForFile(index: GraphIndex, fileNodeId: string): SymbolRow
       id: node.id,
       label: node.label,
       symbolKind: node.symbolKind,
+      kindGroup: symbolKindGroup(node.symbolKind),
       exported: node.exported,
-      span: `${node.span.start.line}:${node.span.start.col}`
+      span: `${node.span.start.line}:${node.span.start.col}`,
+      line: node.span.start.line,
+      col: node.span.start.col
     })
   }
-  rows.sort((a, b) => a.label.localeCompare(b.label))
+  // Source order (where each one starts), so the list reads like the file; name breaks ties.
+  rows.sort((a, b) => a.line - b.line || a.col - b.col || a.label.localeCompare(b.label))
   return rows
 }
 
@@ -223,6 +254,7 @@ export function buildNodeDetailSections(input: {
   }
 
   const deps = dependencyCounts(input.index, input.nodeId)
+  const symbols = isFile ? symbolsForFile(input.index, input.nodeId) : []
   return {
     stats: {
       depth: input.depth,
@@ -232,7 +264,8 @@ export function buildNodeDetailSections(input: {
     },
     summary,
     summarySource,
-    symbols: isFile ? symbolsForFile(input.index, input.nodeId) : [],
+    symbols,
+    symbolCounts: symbolKindCounts(symbols),
     imports: isFile ? relatedRows(input.index, input.nodeId, 'out') : [],
     importers: isFile ? relatedRows(input.index, input.nodeId, 'in') : [],
     contents: isDirectory ? directoryContents(input.index, input.nodeId) : [],

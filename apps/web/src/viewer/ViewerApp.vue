@@ -70,7 +70,8 @@ import NodeDetail, { type FileSummaryState } from './components/NodeDetail.vue'
 import SearchPalette from './components/SearchPalette.vue'
 
 const emit = defineEmits<{
-  openFile: [path: string]
+  /** Open a workspace file; line (1-based) when the user picked a symbol in the file panel. */
+  openFile: [path: string, line?: number]
 }>()
 
 const props = withDefaults(
@@ -95,6 +96,8 @@ const props = withDefaults(
      * rather than pinning ancestor folders. Default false keeps the web app unchanged.
      */
     fileNeighborhood?: boolean
+    /** The host opens files (VS Code webview): symbol rows in the file panel open the file at their line. */
+    canOpenFiles?: boolean
     /**
      * Embedded project mode: nucleate the repo root and show top-level folders
      * and workspace packages. Default 'entry' keeps the web dashboard unchanged.
@@ -112,6 +115,7 @@ const props = withDefaults(
     loadFileSummary: undefined,
     openInspectorOnFocus: true,
     fileNeighborhood: false,
+    canOpenFiles: false,
     overviewLayout: 'entry'
   }
 )
@@ -566,7 +570,12 @@ function filePathForNode(id: string): string | null {
   const node = index.value?.nodesById.get(id)
   if (!node) return null
   if (node.kind === 'file' && 'path' in node) return node.path
-  if (node.kind === 'symbol' && 'file' in node) return node.file
+  if (node.kind === 'symbol' && 'file' in node) {
+    // Symbol nodes point at their file by node id ("file:<path>"); open the file's path, not the id.
+    const fileNode = index.value?.nodesById.get(node.file)
+    if (fileNode?.kind === 'file' && 'path' in fileNode) return fileNode.path
+    return node.file.startsWith('file:') ? node.file.slice('file:'.length) : node.file
+  }
   return null
 }
 
@@ -580,6 +589,12 @@ function onCanvasSelect(id: string) {
   selectNode(id, true)
   const path = filePathForNode(id)
   if (path) emit('openFile', path)
+}
+
+/** File panel symbol row: open the symbol's file at its start line (editor hosts only). */
+function onOpenSymbol(row: { id: string; line: number }) {
+  const path = filePathForNode(row.id)
+  if (path) emit('openFile', path, row.line)
 }
 
 function selectEdge(id: string) {
@@ -1194,6 +1209,15 @@ const snippet = 'layers: []\nrules: []\n'
         :kind-tag-folder="messages.kindTagFolder"
         :kind-tag-file="messages.kindTagFile"
         :symbol-export-tag="messages.symbolExportTag"
+        :symbol-export-tooltip="messages.symbolExportTooltip"
+        :symbols-hint="canOpenFiles ? messages.symbolsHintOpen : messages.symbolsHint"
+        :symbol-line="messages.symbolLine"
+        :symbol-open-tooltip="messages.symbolOpenTooltip"
+        :symbol-kind-labels="messages.symbolKindLabels"
+        :symbol-kind-count-labels="messages.symbolKindCountLabels"
+        :show-all-symbols-label="messages.showAllSymbols"
+        :can-open-symbols="canOpenFiles"
+        @open-symbol="onOpenSymbol"
         :summary-state="fileSummaryStatus"
         :severity-label="reportMessages.severityLabel"
         :detail="detail"

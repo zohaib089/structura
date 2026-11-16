@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { ViewerReportFinding, ViewerReportSeverity } from '../report-types'
 import SeverityChip from '../../components/ui/SeverityChip.vue'
-import type { DirectoryChildRow, NodeDetailSections, RelatedNodeRow } from '../node-detail-data'
+import type { DirectoryChildRow, NodeDetailSections, RelatedNodeRow, SymbolKindGroup, SymbolRow } from '../node-detail-data'
 
 export type FileSummaryState = 'none' | 'loading' | 'ready' | 'error'
 
@@ -52,6 +52,15 @@ const props = defineProps<{
   kindTagFolder: string
   kindTagFile: string
   symbolExportTag: string
+  symbolExportTooltip?: string
+  symbolsHint?: string
+  symbolLine?: string
+  symbolOpenTooltip?: string
+  symbolKindLabels?: Record<SymbolKindGroup, string>
+  symbolKindCountLabels?: Record<SymbolKindGroup, { one: string; other: string }>
+  /** Symbol rows open the file at their line (editor hosts); otherwise rows are read-only. */
+  canOpenSymbols?: boolean
+  showAllSymbolsLabel?: string
   summaryState: FileSummaryState
   severityLabel: (severity: ViewerReportSeverity) => string
   detail: {
@@ -82,7 +91,39 @@ const emit = defineEmits<{
   expandChild: [id: string]
   retrySummary: []
   back: []
+  openSymbol: [row: SymbolRow]
 }>()
+
+/** Long files: show the first rows, the rest behind one "Show all" button. */
+const SYMBOL_PREVIEW = 25
+const showAllSymbols = ref(false)
+watch(() => props.detail?.path, () => { showAllSymbols.value = false })
+const visibleSymbols = computed(() => {
+  const rows = props.sections?.symbols ?? []
+  return showAllSymbols.value ? rows : rows.slice(0, SYMBOL_PREVIEW)
+})
+const hiddenSymbolCount = computed(() => Math.max(0, (props.sections?.symbols.length ?? 0) - visibleSymbols.value.length))
+
+function fill(template: string | undefined, values: Record<string, string | number>): string {
+  return (template ?? '').replace(/\{(\w+)\}/g, (_, key: string) => String(values[key] ?? ''))
+}
+
+function symbolKindTag(row: SymbolRow): string {
+  return props.symbolKindLabels?.[row.kindGroup] ?? symbolKindLabel(row.symbolKind)
+}
+
+function symbolCountText(kind: SymbolKindGroup, count: number): string {
+  const label = props.symbolKindCountLabels?.[kind]
+  return label ? `${count} ${count === 1 ? label.one : label.other}` : `${count} ${kind}`
+}
+
+function symbolLineText(row: SymbolRow): string {
+  return props.symbolLine ? fill(props.symbolLine, { line: row.line }) : row.span
+}
+
+function symbolOpenText(row: SymbolRow): string {
+  return fill(props.symbolOpenTooltip, { name: row.label, line: row.line })
+}
 
 const severityChipLabel = computed(() => {
   const chip = props.sections?.severityChip
@@ -211,15 +252,44 @@ function onExpandChild(row: DirectoryChildRow) {
 
       <section v-if="sections && detail.kind === 'file'" class="block">
         <h4>{{ symbolsLabel }}</h4>
-        <p v-if="!sections.symbols.length" class="muted">{{ emptySymbols }}</p>
-        <ul v-else class="plain-list">
-          <li v-for="row in sections.symbols" :key="row.id">
-            <span class="mono">{{ row.label }}</span>
-            <span class="kind-tag">{{ symbolKindLabel(row.symbolKind) }}</span>
-            <span v-if="row.exported" class="kind-tag">{{ symbolExportTag }}</span>
-            <span class="muted mono">{{ row.span }}</span>
-          </li>
-        </ul>
+        <p v-if="!sections.symbols.length" class="muted" data-testid="symbols-empty">{{ emptySymbols }}</p>
+        <template v-else>
+          <p v-if="symbolsHint" class="muted symbols-hint">{{ symbolsHint }}</p>
+          <ul class="symbol-counts" data-testid="symbol-counts">
+            <li v-for="entry in sections.symbolCounts" :key="entry.kind" class="symbol-count">{{ symbolCountText(entry.kind, entry.count) }}</li>
+          </ul>
+          <ul class="symbol-list" data-testid="symbol-list">
+            <li v-for="row in visibleSymbols" :key="row.id">
+              <button
+                v-if="canOpenSymbols"
+                type="button"
+                class="symbol-row is-action"
+                :title="symbolOpenText(row)"
+                :aria-label="symbolOpenText(row)"
+                :data-line="row.line"
+                @click="emit('openSymbol', row)"
+              >
+                <span class="mono symbol-name" dir="ltr">{{ row.label }}</span>
+                <span class="symbol-tags">
+                  <span class="kind-tag">{{ symbolKindTag(row) }}</span>
+                  <span v-if="row.exported" class="export-tag" :title="symbolExportTooltip">{{ symbolExportTag }}</span>
+                </span>
+                <span class="muted mono symbol-line">{{ symbolLineText(row) }}</span>
+              </button>
+              <div v-else class="symbol-row" :data-line="row.line">
+                <span class="mono symbol-name" dir="ltr">{{ row.label }}</span>
+                <span class="symbol-tags">
+                  <span class="kind-tag">{{ symbolKindTag(row) }}</span>
+                  <span v-if="row.exported" class="export-tag" :title="symbolExportTooltip">{{ symbolExportTag }}</span>
+                </span>
+                <span class="muted mono symbol-line">{{ symbolLineText(row) }}</span>
+              </div>
+            </li>
+          </ul>
+          <button v-if="hiddenSymbolCount > 0" type="button" class="ghost" data-testid="symbols-show-all" @click="showAllSymbols = true">
+            {{ fill(showAllSymbolsLabel, { count: sections.symbols.length }) || `Show all ${sections.symbols.length}` }}
+          </button>
+        </template>
       </section>
 
       <section v-if="sections && detail.kind === 'file'" class="block">
@@ -396,6 +466,63 @@ function onExpandChild(row: DirectoryChildRow) {
 .kind-tag {
   font-size: var(--text-12);
   color: var(--color-text-secondary);
+}
+.symbols-hint { margin-block-end: var(--space-2); }
+.symbol-counts {
+  list-style: none;
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.symbol-count {
+  padding: 2px var(--space-2);
+  border: 1px solid var(--viewer-control-border, var(--color-border));
+  border-radius: var(--radius-full, 999px);
+  font-size: var(--text-12);
+  color: var(--color-text-primary);
+  background: var(--color-surface-raised);
+}
+.symbol-list {
+  min-inline-size: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.symbol-list li { min-inline-size: 0; }
+.symbol-row {
+  box-sizing: border-box;
+  max-inline-size: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  inline-size: 100%;
+  min-block-size: 2rem;
+  padding: 2px var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  text-align: start;
+}
+.symbol-row.is-action { cursor: pointer; }
+.symbol-row.is-action:hover { background: color-mix(in srgb, var(--color-text-primary) 8%, transparent); }
+.symbol-row.is-action:focus-visible { outline: none; box-shadow: var(--focus-ring); border-color: var(--color-brand-amber-ui); }
+.symbol-name { flex: 1 1 auto; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-13); }
+.symbol-tags { flex: 0 0 auto; display: flex; gap: var(--space-1); align-items: center; }
+.symbol-line { flex: 0 0 auto; min-inline-size: 4.5em; text-align: end; font-size: var(--text-12); font-variant-numeric: tabular-nums; }
+.symbol-row.is-action .symbol-line { color: var(--color-text-primary); text-decoration: underline; text-decoration-color: var(--color-brand-amber-ui); text-underline-offset: 3px; }
+.export-tag {
+  font-size: var(--text-12);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  padding-inline: var(--space-1);
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--color-brand-amber-ui) 18%, transparent);
 }
 .finding-list li {
   display: grid;

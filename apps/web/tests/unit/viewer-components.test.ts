@@ -172,6 +172,7 @@ describe('viewer components', () => {
           summary: null,
           summarySource: 'none',
           symbols: [],
+          symbolCounts: [],
           imports: [],
           importers: [],
           contents: [{ id: 'dir:apps/web', label: 'web', path: 'apps/web', kind: 'directory' }],
