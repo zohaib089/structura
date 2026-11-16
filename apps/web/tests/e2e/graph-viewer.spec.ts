@@ -108,6 +108,37 @@ for (const viewport of [
   })
 }
 
+for (const width of [1024, 1280, 1440]) {
+  test(`the graph refits left of the open file panel at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 })
+    await page.goto(`${pathToFileURL(builtHtml).href}?embedded=1&focus=src/router/index.ts`)
+    await page.locator('[data-testid="file-input"]').setInputFiles(resolve(root, 'tests/e2e/fixtures/dense-graph.test-only.json'))
+    await expect(page.locator('[data-testid="graph-canvas"]')).toHaveAttribute('data-ready', 'true', { timeout: 20_000 })
+    await page.waitForTimeout(1200)
+    await page.locator('.overview-node.is-nucleus .kind-mark').first().click()
+    await expect(page.locator('.inspector.is-open')).toBeVisible()
+    await page.waitForTimeout(1500) // panel slide + refit passes
+    const under = await page.evaluate(() => {
+      const panel = document.querySelector('.inspector.is-open')!.getBoundingClientRect()
+      const out: string[] = []
+      for (const n of document.querySelectorAll<HTMLElement>('.overview-node, .half-caption')) {
+        const boxes = [n.querySelector('.kind-mark') ?? n]
+        const aside = n.querySelector(':scope > .aside')
+        if (aside && !n.hasAttribute('data-label-hidden')) boxes.push(aside)
+        for (const el of boxes) {
+          const r = el.getBoundingClientRect()
+          if (r.width > 0 && r.right > panel.left + 1 && r.left < panel.right && r.bottom > panel.top && r.top < panel.bottom) {
+            out.push(n.dataset.nodeId ?? n.textContent?.trim() ?? '?')
+            break
+          }
+        }
+      }
+      return out
+    })
+    expect(under).toEqual([])
+  })
+}
+
 for (const width of [1024, 1280, 1440]) test(`labels stay put and clear of discs however many declutter passes run (${width}px)`, async ({ page }) => {
   await page.setViewportSize({ width, height: 900 })
   await page.goto(`${pathToFileURL(builtHtml).href}?embedded=1`)

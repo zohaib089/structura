@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { CircleAlert, Info, OctagonAlert, TriangleAlert } from '@lucide/vue'
 import { BRAND, pageTitle, quickstartCommand } from '../../../../packages/brand/src/brand'
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import BrandMark from '../components/brand/BrandMark.vue'
 import ToastStack from '../components/ui/ToastStack.vue'
 import { useToast } from '../composables/useToast'
@@ -147,6 +147,28 @@ const shortcuts = ref(false)
 const query = ref('')
 const railOpen = ref(false)
 const inspectorOpen = ref(false)
+const inspectorEl = ref<HTMLElement | null>(null)
+const viewerEl = ref<HTMLElement | null>(null)
+/**
+ * Px of the graph canvas the open file panel covers on the right (desktop / wide panes). The graph
+ * fits into the area left of it. Phones get 0: there the panel is a sheet below the toolbar.
+ */
+const panelInset = ref(0)
+function measurePanelInset() {
+  const panel = inspectorEl.value
+  const canvas = viewerEl.value?.querySelector<HTMLElement>('[data-testid="graph-canvas"]')
+  const phone = typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 640px)').matches
+  if (!inspectorOpen.value || !panel || !canvas || !viewerEl.value || phone) {
+    panelInset.value = 0
+    return
+  }
+  // The panel is anchored to the right edge (viewer, or the window when it is a fixed drawer); its
+  // open position is known before the slide finishes, so the fit can move with it.
+  const right = Math.min(viewerEl.value.getBoundingClientRect().right, window.innerWidth)
+  const covered = canvas.getBoundingClientRect().right - (right - panel.offsetWidth)
+  panelInset.value = covered > 0 ? Math.round(covered + 12) : 0
+}
+watch(inspectorOpen, () => { void nextTick(measurePanelInset) }, { flush: 'post' })
 const tab = ref<'details' | 'coverage' | 'drift'>('details')
 const ready = ref(false)
 const selection = ref<{ kind: 'node' | 'edge'; id: string } | null>(null)
@@ -287,6 +309,7 @@ onMounted(() => {
     document.title = pageTitle(messages.title)
   }
   window.addEventListener('keydown', onKeydown)
+  window.addEventListener('resize', measurePanelInset)
   if (!props.embedded) {
     window.addEventListener('dragenter', onDragEnter)
     window.addEventListener('dragover', onDragOver)
@@ -302,6 +325,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown)
+  window.removeEventListener('resize', measurePanelInset)
   if (!props.embedded) {
     window.removeEventListener('dragenter', onDragEnter)
     window.removeEventListener('dragover', onDragOver)
@@ -957,7 +981,7 @@ const snippet = 'layers: []\nrules: []\n'
 </script>
 
 <template>
-  <div class="viewer viewer-radial" :class="{ 'viewer-embedded': embedded, 'is-inspector-open': inspectorOpen }" :dir="direction">
+  <div ref="viewerEl" class="viewer viewer-radial" :class="{ 'viewer-embedded': embedded, 'is-inspector-open': inspectorOpen }" :dir="direction">
     <a v-if="!embedded" class="skip" href="#graph-canvas">{{ messages.skip }}</a>
     <header v-if="!embedded" class="topbar" role="banner">
       <BrandMark :size="24" />
@@ -1133,6 +1157,7 @@ const snippet = 'layers: []\nrules: []\n'
         :plain-marks="embedded"
         :reserve-zoom-pad="embedded"
         :hide-overlapping-ring1="embedded"
+        :panel-inset="panelInset"
         :inside-open-caption="embedded && overviewLayout === 'folders' ? messages.insideOpenCaption : undefined"
         :inside-close-caption="embedded && overviewLayout === 'folders' ? messages.insideCloseCaption : undefined"
         :layout="layout"
@@ -1155,7 +1180,7 @@ const snippet = 'layers: []\nrules: []\n'
       />
     </main>
 
-    <aside class="inspector" :class="{ 'is-open': inspectorOpen }" :aria-label="messages.inspector">
+    <aside ref="inspectorEl" class="inspector" :class="{ 'is-open': inspectorOpen }" :aria-label="messages.inspector">
       <div role="tablist">
         <button type="button" role="tab" :aria-selected="tab === 'details'" @click="tab = 'details'">{{ messages.tabDetails }}</button>
         <button type="button" role="tab" :aria-selected="tab === 'coverage'" @click="tab = 'coverage'">
@@ -1548,6 +1573,8 @@ button:disabled { opacity: var(--alpha-40); }
   .inspector.is-open { inset-block-end: var(--viewer-statusbar-height); block-size: 60%; }
   /* Phone: the panel spans the width, so start it below the toolbar instead of insetting the bar. */
   .viewer.viewer-radial.is-inspector-open { --graph-controls-inset-end: 0px; }
+  /* The "Files in view" toggle would peek out beside the open sheet; the sheet names the file anyway. */
+  .viewer.viewer-radial.is-inspector-open :deep(.file-list) { visibility: hidden; }
   .viewer.viewer-radial.is-inspector-open :deep(.vue-flow__panel.zoom) { margin-inline-end: 0; }
   /* …and end it above the zoom pad (bottom-right), so the toolbar and zoom stay usable. */
   .viewer.viewer-radial .inspector.is-open {

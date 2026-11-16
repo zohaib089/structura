@@ -60,6 +60,8 @@ const props = defineProps<{
   plainMarks?: boolean
   reserveZoomPad?: boolean
   hideOverlappingRing1?: boolean
+  /** Px of the right edge covered by an open side panel; the fit uses the area left of it. */
+  panelInset?: number
   insideOpenCaption?: string
   insideCloseCaption?: string
   halfCaptions?: import('../file-neighborhood').HalfRingCaption[]
@@ -493,6 +495,7 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
         :focus-ids="focusIds ?? []"
         :reserve-zoom-pad="reserveZoomPad"
         :hide-overlapping-ring1="hideOverlappingRing1"
+        :panel-inset="panelInset ?? 0"
       />
       <ZoomPad ref="zoomPad" :zoom-in="zoomIn" :zoom-out="zoomOut" :zoom-fit="zoomFit" :fit="fitNow" />
     </VueFlow>
