@@ -3,6 +3,7 @@ import { useVueFlow } from '@vue-flow/core'
 import { onBeforeUnmount, onMounted, watch } from 'vue'
 import { RADIAL_RING_GAP } from '../overview'
 import { radialFitViewport, type FitBox } from '../radial-fit'
+import { motionMs } from '../motion'
 import { EMBEDDED_MAX_MARK_SCALE, LABEL_PX, BASE_LABEL_PX, isPhoneCanvas, markScaleForZoom } from '../graph-mark-scale'
 
 const props = defineProps<{
@@ -17,6 +18,8 @@ const props = defineProps<{
   keepView?: { token: number; id: string } | null
   reserveZoomPad?: boolean
   hideOverlappingRing1?: boolean
+  /** Px of the canvas's right edge covered by an open side panel (0 when closed or on phones). */
+  panelInset?: number
 }>()
 const flow = useVueFlow()
 
@@ -104,7 +107,11 @@ function ringCentre(canvas: HTMLElement) {
   return guide && vp.zoom > 0 ? { x: (guide.left - box.left - vp.x) / vp.zoom, y: (guide.top - box.top - vp.y) / vp.zoom } : undefined
 }
 
-function fitOnce() {
+function panelInsetPx(canvas: HTMLElement) {
+  return Math.min(Math.max(props.panelInset ?? 0, 0), canvas.clientWidth * 0.7)
+}
+
+function fitOnce(duration = props.duration ?? 0) {
   const canvas = flow.vueFlowRef.value
   const focus = new Set(props.focusIds ?? [])
   if (!canvas || canvas.clientWidth === 0 || flow.viewport.value.zoom <= 0) return false
@@ -113,8 +120,11 @@ function fitOnce() {
   const measured = overlays(canvas)
   const phone = isPhoneCanvas(canvas.clientWidth)
   const openFan = phone && Boolean(props.reserveZoomPad) && Boolean(canvas.querySelector('.overview-node[data-depth="2"]'))
+  // An open side panel covers the right edge: fit into the free area left of it (the viewport origin
+  // stays at the canvas's left edge, so a narrower width is exactly that area).
+  const inset = panelInsetPx(canvas)
   const input = {
-    width: canvas.clientWidth,
+    width: canvas.clientWidth - inset,
     height: canvas.clientHeight,
     reserve: {
       top: measured.top,
@@ -127,7 +137,7 @@ function fitOnce() {
           measured.coach?.bottom ?? 0,
           props.reserveZoomPad ? 150 : 0
         ),
-      right: Math.max(measured.right, props.reserveZoomPad ? 56 : 0),
+      right: Math.max(measured.right - inset, props.reserveZoomPad ? 56 : 0),
       left: 0
     },
     nodes: boxes,
@@ -164,7 +174,7 @@ function fitOnce() {
     }
     if (topPx(viewport) < minTop) viewport = { ...viewport, y: viewport.y + (minTop - topPx(viewport)) }
   }
-  void flow.setViewport(viewport, { duration: props.duration ?? 0 })
+  void flow.setViewport(viewport, { duration })
   return true
 }
 
@@ -201,6 +211,11 @@ function overlayScreenBoxes(canvas: HTMLElement): DOMRect[] {
   const coachEl = stage?.querySelector('[data-testid="coach-mark"]')
   const coachBox = coachEl?.getBoundingClientRect()
   if (coachBox && coachBox.width > 0 && coachBox.height > 0) boxes.push(coachBox)
+  const inset = panelInsetPx(canvas)
+  if (inset > 0) {
+    const box = canvas.getBoundingClientRect()
+    boxes.push(new DOMRect(box.right - inset, box.top, inset, box.height))
+  }
   return boxes
 }
 
@@ -713,7 +728,7 @@ watch(
   { flush: 'sync' }
 )
 
-async function fit() {
+async function fit(opts: { duration?: number } = {}) {
   settledSignature = ''
   const gen = ++fitGen
   const stale = () => gen !== fitGen
@@ -749,13 +764,15 @@ async function fit() {
       return
     }
   }
-  if (!fitOnce()) {
+  const firstDuration = opts.duration ?? props.duration ?? 0
+  if (!fitOnce(firstDuration)) {
     // Unreserved VueFlow fitView ignores the toolbar reserve and would slide discs under it.
     // Only use it as a last resort in the web app, never in the embedded viewer.
     if (!props.reserveZoomPad && !stale()) {
       void flow.fitView({ duration: 0, padding: props.padding ?? 0.2, maxZoom: 1.15 })
     }
   }
+  if (firstDuration > 0) await new Promise((done) => window.setTimeout(done, firstDuration))
   await frame(); await frame()
   if (stale()) return
   fitOnce()
@@ -805,6 +822,21 @@ watch(
 )
 
 watch(() => props.signature, () => queueFit())
+// Side panel opens / closes: refit into the free area with the panel's slide timing (instant under
+// reduced motion), but only while the view is still the automatic fit. A view the person zoomed or
+// panned by hand is left exactly as it is; Fit to view (or the zoom pad's fit) then uses the free area.
+watch(
+  () => props.panelInset ?? 0,
+  (now, before) => {
+    if (Math.abs(now - before) < 1) return
+    if (!lastFit) return // a fit is still running; its next pass reads the new inset
+    if (!sameViewport(lastFit, flow.viewport.value)) {
+      scheduleDeclutter()
+      return
+    }
+    void fit({ duration: motionMs('--dur-2', 160) })
+  }
+)
 watch(() => props.restore?.token, () => queueFit())
 flow.onNodeClick(() => scheduleDeclutter())
 flow.onNodesInitialized(() => {
