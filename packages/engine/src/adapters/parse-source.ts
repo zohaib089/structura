@@ -2,7 +2,7 @@ import type { AdapterParseOutcome, ExtractLimits } from './adapter.js'
 import type { GrammarId } from './tree-sitter-runtime.js'
 import type { TreeSitterRuntime } from './tree-sitter-runtime.js'
 import { extractPythonModuleFacts } from './python/extract.js'
-import { extractModuleFacts } from './ts-js/extract.js'
+import { extractModuleFacts, type ExtractContext } from './ts-js/extract.js'
 
 /**
  * Parses one buffer with tree-sitter's progress callback as the cancellation signal.
@@ -15,7 +15,8 @@ export async function parseSource(
   content: string,
   limits: ExtractLimits,
   timeoutMs: number,
-  memoryLimitBytes = Number.MAX_SAFE_INTEGER
+  memoryLimitBytes = Number.MAX_SAFE_INTEGER,
+  context?: ExtractContext
 ): Promise<AdapterParseOutcome> {
   const parser = await runtime.getParser(grammar)
   const started = Date.now()
@@ -35,8 +36,8 @@ export async function parseSource(
     return { ok: false, reason: 'memory-limit' }
   }
   try {
-    const extract = grammar === 'python' ? extractPythonModuleFacts : extractModuleFacts
-    return { ok: true, result: extract(tree.rootNode, content, limits) }
+    if (grammar === 'python') return { ok: true, result: extractPythonModuleFacts(tree.rootNode, content, limits) }
+    return { ok: true, result: extractModuleFacts(tree.rootNode, content, limits, context) }
   } catch (error) {
     return { ok: false, reason: 'parser-error', message: error instanceof Error ? error.message : String(error) }
   } finally {

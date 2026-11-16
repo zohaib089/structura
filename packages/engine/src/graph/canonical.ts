@@ -11,8 +11,8 @@ import type { Coverage, Graph, GraphArchitecture, GraphEdge, GraphNode } from '.
 
 const NODE_ORDER: Record<string, readonly string[]> = {
   directory: ['id', 'kind', 'path', 'label', 'extensions'],
-  file: ['id', 'kind', 'path', 'label', 'language', 'lineCount', 'parse', 'decoding', 'entryCandidate', 'entryCandidates', 'module', 'extensions'],
-  symbol: ['id', 'kind', 'file', 'label', 'symbolKind', 'exported', 'span', 'extensions'],
+  file: ['id', 'kind', 'path', 'label', 'language', 'lineCount', 'parse', 'decoding', 'entryCandidate', 'entryCandidates', 'module', 'docSummary', 'extensions'],
+  symbol: ['id', 'kind', 'file', 'label', 'symbolKind', 'exported', 'span', 'parent', 'paramCount', 'scope', 'mutable', 'stateKind', 'docSummary', 'extensions'],
   external: ['id', 'kind', 'ecosystem', 'label', 'extensions'],
   unresolved: ['id', 'kind', 'label', 'reason', 'extensions']
 }
@@ -107,6 +107,9 @@ function orderedCoverage(coverage: Coverage): Record<string, unknown> {
     failed: reasons(coverage.failed),
     ignored: [...coverage.ignored].sort((a, b) => compareStrings(a.rule, b.rule)).map(item => ({ rule: item.rule, count: item.count })),
     unresolved: reasons(coverage.unresolved),
+    ...(coverage.calls
+      ? { calls: { resolved: coverage.calls.resolved, unresolved: coverage.calls.unresolved } }
+      : {}),
     accounting: { discovered: coverage.accounting.discovered, accounted: coverage.accounting.accounted }
   }
 }

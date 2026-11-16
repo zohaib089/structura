@@ -24,6 +24,8 @@ test('help exits 0 and a missing command exits 2', async () => {
   const help = capture()
   assert.equal(await run(['--help'], help.io), EXIT.ok)
   assert.match(help.stdout, /scan \[path\|git-url\]/)
+  assert.match(help.stdout, /--doc-summaries/)
+  assert.match(help.stdout, /--no-doc-summaries/)
   const missing = capture()
   assert.equal(await run([], missing.io), EXIT.usage)
   const unknown = capture()
@@ -53,7 +55,7 @@ test('scan writes graph.json and json mode prints run metadata', async () => {
     assert.match(logged.stderr, /discovered/)
     const graph = readFileSync(join(out, GRAPH_FILE), 'utf8')
     assert.equal(graph.endsWith('\n'), true)
-    assert.equal(graph.includes('"schemaVersion": "1.0.0"'), true)
+    assert.equal(graph.includes('"schemaVersion": "1.1.0"'), true)
     const quiet = capture()
     assert.equal(await run(['scan', root, '--out', out, '--no-cache', '--jobs', '1'], quiet.io), EXIT.ok)
     assert.match(quiet.stdout, new RegExp(`wrote ${join(out, GRAPH_FILE).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`))
@@ -97,7 +99,7 @@ test('scan --out ending in .json writes that path as the graph file', async () =
   try {
     assert.equal(await run(['scan', root, '--out', graphOut, '--no-cache', '--jobs', '1'], cap.io), EXIT.ok)
     assert.match(cap.stdout, new RegExp(`wrote ${graphOut.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`))
-    assert.equal(readFileSync(graphOut, 'utf8').includes('"schemaVersion": "1.0.0"'), true)
+    assert.equal(readFileSync(graphOut, 'utf8').includes('"schemaVersion": "1.1.0"'), true)
     assert.throws(() => readFileSync(join(graphOut, GRAPH_FILE), 'utf8'))
   } finally {
     rmSync(root, { recursive: true, force: true })
@@ -116,5 +118,31 @@ test('human-readable CLI output escapes control characters in paths', async () =
     assert.match(cap.stdout, /\\u\{202e\}/)
   } finally {
     rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('doc summaries are off by default and written only with --doc-summaries', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'cli-docs-'))
+  const outOff = mkdtempSync(join(tmpdir(), 'cli-docs-off-'))
+  const outOn = mkdtempSync(join(tmpdir(), 'cli-docs-on-'))
+  writeFileSync(join(root, 'main.ts'), '/** Application entry. */\nexport const x = 1\n')
+  try {
+    const off = capture()
+    assert.equal(await run(['scan', root, '--out', outOff, '--no-cache', '--jobs', '1'], off.io), EXIT.ok)
+    const offGraph = readFileSync(join(outOff, GRAPH_FILE), 'utf8')
+    assert.equal(offGraph.includes('"docSummary"'), false)
+    const on = capture()
+    assert.equal(await run(['scan', root, '--out', outOn, '--no-cache', '--jobs', '1', '--doc-summaries'], on.io), EXIT.ok)
+    const onGraph = JSON.parse(readFileSync(join(outOn, GRAPH_FILE), 'utf8')) as { nodes: Array<{ docSummary?: string }> }
+    assert.equal(onGraph.nodes.some(node => node.docSummary === 'Application entry.'), true)
+    const noop = capture()
+    const outNoop = mkdtempSync(join(tmpdir(), 'cli-docs-noop-'))
+    assert.equal(await run(['scan', root, '--out', outNoop, '--no-cache', '--jobs', '1', '--doc-summaries', '--no-doc-summaries'], noop.io), EXIT.ok)
+    assert.equal(readFileSync(join(outNoop, GRAPH_FILE), 'utf8').includes('"docSummary"'), false)
+    rmSync(outNoop, { recursive: true, force: true })
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+    rmSync(outOff, { recursive: true, force: true })
+    rmSync(outOn, { recursive: true, force: true })
   }
 })

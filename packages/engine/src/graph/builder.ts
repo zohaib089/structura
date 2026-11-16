@@ -9,8 +9,8 @@ function edgeKey(edge: GraphEdge): string {
 }
 
 function mergeRefFlags(existing: GraphEdge, incoming: GraphEdge): GraphEdge {
-  if (existing.type === 'contains') return existing
-  const merged: GraphEdge = { ...existing }
+  if (existing.type === 'contains' || existing.type === 'calls') return existing
+  const merged = { ...existing }
   const existingKind = ('importKind' in existing && existing.importKind) ? existing.importKind : 'static'
   const incomingKind = ('importKind' in incoming && incoming.importKind) ? incoming.importKind : 'static'
   const kind = IMPORT_KIND_RANK[incomingKind] > IMPORT_KIND_RANK[existingKind] ? incomingKind : existingKind

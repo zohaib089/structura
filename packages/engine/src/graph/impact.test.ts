@@ -53,7 +53,7 @@ function chainGraph() {
         target: 'file:src/app.ts',
         provenance: 'INFERRED' as const,
         confidence: 0.8,
-        reason: 'src-subpath',
+        reason: 'src-subpath' as const,
         span: { start: { line: 1, col: 1 }, end: { line: 1, col: 1 } },
         specifier: './app'
       }

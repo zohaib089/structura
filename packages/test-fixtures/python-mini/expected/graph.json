@@ -1,8 +1,8 @@
 {
-  "schemaVersion": "1.0.0",
+  "schemaVersion": "1.1.0",
   "summary": {
-    "nodes": 6,
-    "edges": 6,
+    "nodes": 7,
+    "edges": 7,
     "files": 3
   },
   "coverage": {
@@ -94,7 +94,28 @@
           "line": 5,
           "col": 17
         }
-      }
+      },
+      "paramCount": 0
+    },
+    {
+      "id": "sym:pkg/util.py#VALUE",
+      "kind": "symbol",
+      "file": "file:pkg/util.py",
+      "label": "VALUE",
+      "symbolKind": "variable",
+      "exported": true,
+      "span": {
+        "start": {
+          "line": 1,
+          "col": 1
+        },
+        "end": {
+          "line": 1,
+          "col": 10
+        }
+      },
+      "scope": "module",
+      "mutable": false
     }
   ],
   "edges": [
@@ -144,6 +165,12 @@
         }
       },
       "specifier": ".util"
+    },
+    {
+      "source": "file:pkg/util.py",
+      "type": "contains",
+      "target": "sym:pkg/util.py#VALUE",
+      "provenance": "EXTRACTED"
     }
   ]
 }

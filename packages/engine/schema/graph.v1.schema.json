@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:repo-graph:schema:graph:1",
   "title": "graph.json v1",
-  "description": "Deterministic, closed, source-text-free repository graph. See docs/graph-json-v1.md.",
+  "description": "Deterministic, closed repository graph. Source-text-free except optional sanitised docSummary. See docs/graph-json-v1.md.",
   "type": "object",
   "properties": {
     "schemaVersion": {
@@ -413,6 +413,11 @@
           "type": "string",
           "pattern": "^[a-z][a-z0-9-]*$"
         },
+        "docSummary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
         "extensions": {
           "$ref": "#/$defs/extensions"
         }
@@ -466,6 +471,44 @@
         },
         "span": {
           "$ref": "#/$defs/span"
+        },
+        "parent": {
+          "type": "string",
+          "minLength": 1
+        },
+        "paramCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "scope": {
+          "type": "string",
+          "enum": [
+            "module",
+            "class",
+            "instance",
+            "global"
+          ]
+        },
+        "mutable": {
+          "type": "boolean"
+        },
+        "stateKind": {
+          "type": "string",
+          "enum": [
+            "binding",
+            "ref",
+            "reactive",
+            "computed",
+            "prop",
+            "store",
+            "provide",
+            "inject"
+          ]
+        },
+        "docSummary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
         },
         "extensions": {
           "$ref": "#/$defs/extensions"
@@ -606,6 +649,12 @@
         },
         {
           "$ref": "#/$defs/inferredRefEdge"
+        },
+        {
+          "$ref": "#/$defs/extractedCallEdge"
+        },
+        {
+          "$ref": "#/$defs/inferredCallEdge"
         }
       ]
     },
@@ -755,6 +804,89 @@
         "reason",
         "span",
         "specifier"
+      ],
+      "additionalProperties": false
+    },
+    "extractedCallEdge": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "const": "calls"
+        },
+        "provenance": {
+          "const": "EXTRACTED"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "extensions": {
+          "$ref": "#/$defs/extensions"
+        }
+      },
+      "required": [
+        "source",
+        "type",
+        "target",
+        "provenance",
+        "span"
+      ],
+      "additionalProperties": false
+    },
+    "inferredCallEdge": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "const": "calls"
+        },
+        "provenance": {
+          "const": "INFERRED"
+        },
+        "confidence": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "build-output-mapping",
+            "conventional-entry",
+            "src-root-guess",
+            "src-subpath",
+            "submodule-heuristic"
+          ]
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "extensions": {
+          "$ref": "#/$defs/extensions"
+        }
+      },
+      "required": [
+        "source",
+        "type",
+        "target",
+        "provenance",
+        "confidence",
+        "reason",
+        "span"
       ],
       "additionalProperties": false
     },
@@ -956,6 +1088,24 @@
             ],
             "additionalProperties": false
           }
+        },
+        "calls": {
+          "type": "object",
+          "properties": {
+            "resolved": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "unresolved": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "resolved",
+            "unresolved"
+          ],
+          "additionalProperties": false
         },
         "accounting": {
           "type": "object",

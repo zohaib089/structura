@@ -1,6 +1,7 @@
 import { parentPort } from 'node:worker_threads'
 import { AdapterLoadError, type AdapterParseOutcome, type ExtractLimits } from './adapter.js'
 import { parseSource } from './parse-source.js'
+import type { ExtractContext } from './ts-js/extract.js'
 import { TreeSitterRuntime, type GrammarId } from './tree-sitter-runtime.js'
 
 interface ParseMessage {
@@ -10,6 +11,7 @@ interface ParseMessage {
   limits: ExtractLimits
   timeoutMs: number
   memoryLimitBytes: number
+  context?: ExtractContext
 }
 
 interface WorkerReply {
@@ -36,7 +38,7 @@ parentPort?.on('message', (message: ParseMessage) => {
       parentPort?.postMessage({ id: message.id, memory: process.memoryUsage().rss, files, ...partial } satisfies WorkerReply)
     }
     try {
-      const outcome = await parseSource(runtime, message.grammar, message.content, message.limits, message.timeoutMs, message.memoryLimitBytes)
+      const outcome = await parseSource(runtime, message.grammar, message.content, message.limits, message.timeoutMs, message.memoryLimitBytes, message.context)
       files += 1
       reply({ outcome })
     } catch (error) {

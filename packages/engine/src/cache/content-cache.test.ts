@@ -10,6 +10,8 @@ import { ContentCache, contentHash, defaultCacheDir, isInsideRoot } from './cont
 const sample: AdapterParseResult = {
   references: [],
   symbols: [],
+  calls: [],
+  unresolvedCalls: 0,
   syntaxErrorCount: 0,
   syntaxErrors: [],
   omitted: { longNames: 0, symbols: 0, edges: 0 },

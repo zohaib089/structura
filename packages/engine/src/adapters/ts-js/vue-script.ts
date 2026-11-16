@@ -8,6 +8,8 @@ export interface VueScriptBlock {
   startLine: number
   /** 1-based UTF-16 column of content[0] in the original source. */
   startCol: number
+  /** True when this is a <script setup> block. */
+  setup: boolean
 }
 
 /** True when a <script> type is JSON, importmap, or another non-JS payload. */
@@ -18,6 +20,10 @@ function isNonCodeScript(attrs: string): boolean {
     return false
   }
   return /json|importmap|ld\+json/i.test(type)
+}
+
+function isScriptSetup(attrs: string): boolean {
+  return /(?:^|\s)setup(?:\s|=|>|$)/i.test(attrs)
 }
 
 function scriptLanguage(attrs: string): 'typescript' | 'javascript' | null {
@@ -58,7 +64,7 @@ export function extractVueScripts(source: string): VueScriptBlock[] {
     if (!language) continue
     const content = source.slice(contentStart, closeAt)
     const at = offsetToLineCol(source, contentStart)
-    blocks.push({ language, content, startLine: at.line, startCol: at.col })
+    blocks.push({ language, content, startLine: at.line, startCol: at.col, setup: isScriptSetup(match[1] ?? '') })
   }
   return blocks
 }
@@ -77,6 +83,7 @@ export function shiftParseResult(result: AdapterParseResult, startLine: number, 
     ...result,
     references: result.references.map((item) => ({ ...item, span: shiftSpan(item.span, startLine, startCol) })),
     symbols: result.symbols.map((item) => ({ ...item, span: shiftSpan(item.span, startLine, startCol) })),
+    calls: result.calls.map((item) => ({ ...item, span: shiftSpan(item.span, startLine, startCol) })),
     syntaxErrors: result.syntaxErrors.map((item) => ({ ...item, span: shiftSpan(item.span, startLine, startCol) }))
   }
 }
@@ -85,6 +92,8 @@ export function emptyParseResult(): AdapterParseResult {
   return {
     references: [],
     symbols: [],
+    calls: [],
+    unresolvedCalls: 0,
     syntaxErrorCount: 0,
     syntaxErrors: [],
     omitted: { longNames: 0, symbols: 0, edges: 0 },
@@ -96,6 +105,11 @@ export function mergeParseResults(into: AdapterParseResult, next: AdapterParseRe
   return {
     references: [...into.references, ...next.references],
     symbols: [...into.symbols, ...next.symbols],
+    calls: [...into.calls, ...next.calls],
+    unresolvedCalls: into.unresolvedCalls + next.unresolvedCalls,
+    ...(into.fileDocSummary || next.fileDocSummary
+      ? { fileDocSummary: into.fileDocSummary ?? next.fileDocSummary }
+      : {}),
     syntaxErrorCount: into.syntaxErrorCount + next.syntaxErrorCount,
     syntaxErrors: [...into.syntaxErrors, ...next.syntaxErrors],
     omitted: {

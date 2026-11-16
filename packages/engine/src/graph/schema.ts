@@ -11,6 +11,8 @@ import {
   IMPORT_KINDS,
   PROVENANCES,
   SKIP_REASONS,
+  STATE_KINDS,
+  STATE_SCOPES,
   SYMBOL_KINDS,
   UNRESOLVED_REASONS,
   ARCHITECTURE_DRIFT_RULES,
@@ -51,7 +53,7 @@ export function buildGraphJsonSchema(): Schema {
     $schema: 'https://json-schema.org/draft/2020-12/schema',
     $id: GRAPH_SCHEMA_ID,
     title: 'graph.json v1',
-    description: 'Deterministic, closed, source-text-free repository graph. See docs/graph-json-v1.md.',
+    description: 'Deterministic, closed repository graph. Source-text-free except optional sanitised docSummary. See docs/graph-json-v1.md.',
     type: 'object',
     properties: {
       schemaVersion: str({ pattern: '^1\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$' }),
@@ -110,7 +112,8 @@ export function buildGraphJsonSchema(): Schema {
           decoding: { const: 'lossy' },
           entryCandidate: ref('entryCandidate'),
           entryCandidates: { type: 'array', items: ref('entryCandidateDetail') },
-          module: { type: 'string', pattern: '^[a-z][a-z0-9-]*$' }
+          module: { type: 'string', pattern: '^[a-z][a-z0-9-]*$' },
+          docSummary: str({ minLength: 1, maxLength: 160 })
         }),
         ['id', 'kind', 'path', 'label', 'language', 'lineCount', 'parse']
       ),
@@ -122,7 +125,13 @@ export function buildGraphJsonSchema(): Schema {
           label: labelStr(),
           symbolKind: { type: 'string', enum: [...SYMBOL_KINDS] },
           exported: { type: 'boolean' },
-          span: ref('span')
+          span: ref('span'),
+          parent: str({ minLength: 1 }),
+          paramCount: { type: 'integer', minimum: 0 },
+          scope: { type: 'string', enum: [...STATE_SCOPES] },
+          mutable: { type: 'boolean' },
+          stateKind: { type: 'string', enum: [...STATE_KINDS] },
+          docSummary: str({ minLength: 1, maxLength: 160 })
         }),
         ['id', 'kind', 'file', 'label', 'symbolKind', 'exported', 'span']
       ),
@@ -156,7 +165,7 @@ export function buildGraphJsonSchema(): Schema {
           ]
         },
         else: { type: 'object', required: ['confidence', 'reason'] },
-        oneOf: [ref('containsEdge'), ref('extractedRefEdge'), ref('inferredRefEdge')]
+        oneOf: [ref('containsEdge'), ref('extractedRefEdge'), ref('inferredRefEdge'), ref('extractedCallEdge'), ref('inferredCallEdge')]
       },
       containsEdge: closed(
         withExt({ ...edgeCommon, type: { const: 'contains' }, provenance: { const: 'EXTRACTED' } }),
@@ -165,7 +174,7 @@ export function buildGraphJsonSchema(): Schema {
       extractedRefEdge: closed(
         withExt({
           ...edgeCommon,
-          type: { type: 'string', enum: EDGE_TYPES.filter(type => type !== 'contains') },
+          type: { type: 'string', enum: EDGE_TYPES.filter(type => type === 'imports' || type === 'reexports') },
           provenance: { const: 'EXTRACTED' },
           span: ref('span'),
           specifier: str({
@@ -179,7 +188,7 @@ export function buildGraphJsonSchema(): Schema {
       inferredRefEdge: closed(
         withExt({
           ...edgeCommon,
-          type: { type: 'string', enum: EDGE_TYPES.filter(type => type !== 'contains') },
+          type: { type: 'string', enum: EDGE_TYPES.filter(type => type === 'imports' || type === 'reexports') },
           provenance: { const: 'INFERRED' },
           confidence: { type: 'number', exclusiveMinimum: 0, maximum: 1 },
           reason: { type: 'string', enum: [...INFERRED_REASONS] },
@@ -189,6 +198,26 @@ export function buildGraphJsonSchema(): Schema {
           typeOnly: { const: true }
         }),
         ['source', 'type', 'target', 'provenance', 'confidence', 'reason', 'span', 'specifier']
+      ),
+      extractedCallEdge: closed(
+        withExt({
+          ...edgeCommon,
+          type: { const: 'calls' },
+          provenance: { const: 'EXTRACTED' },
+          span: ref('span')
+        }),
+        ['source', 'type', 'target', 'provenance', 'span']
+      ),
+      inferredCallEdge: closed(
+        withExt({
+          ...edgeCommon,
+          type: { const: 'calls' },
+          provenance: { const: 'INFERRED' },
+          confidence: { type: 'number', exclusiveMinimum: 0, maximum: 1 },
+          reason: { type: 'string', enum: [...INFERRED_REASONS] },
+          span: ref('span')
+        }),
+        ['source', 'type', 'target', 'provenance', 'confidence', 'reason', 'span']
       ),
       coverage: closed(
         {
@@ -207,6 +236,7 @@ export function buildGraphJsonSchema(): Schema {
           failed: { type: 'array', items: reasonCount(FAIL_REASONS) },
           ignored: { type: 'array', items: closed({ rule: str({ pattern: IGNORE_RULE_PATTERN }), count }, ['rule', 'count']) },
           unresolved: { type: 'array', items: reasonCount(UNRESOLVED_REASONS) },
+          calls: closed({ resolved: count, unresolved: count }, ['resolved', 'unresolved']),
           accounting: closed({ discovered: count, accounted: count }, ['discovered', 'accounted'])
         },
         ['files', 'byLanguage', 'skipped', 'failed', 'ignored', 'unresolved', 'accounting']

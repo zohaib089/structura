@@ -5,18 +5,21 @@ import { fileURLToPath } from 'node:url'
 import { GraphBuilder } from './builder.js'
 import { serializeGraph } from './canonical.js'
 import { GraphReadError, GraphVersionUnsupported } from './errors.js'
-import { CANARY_GRAPH_PATH, hashSchemaDocument, readCheckedInSchema, readCheckedInSchemaHash, schemaDocumentText } from './hash.js'
+import { CANARY_GRAPH_PATH, CANARY_V110_GRAPH_PATH, hashSchemaDocument, readCheckedInSchema, readCheckedInSchemaHash, schemaDocumentText } from './hash.js'
 import { readGraph } from './read.js'
 import { validateStrict } from './validate-strict.js'
 import {
   EDGE_TYPES,
   ENTRY_REASONS,
   FAIL_REASONS,
+  GRAPH_SCHEMA_VERSION,
   INFERRED_REASONS,
   LANGUAGES,
   NODE_KINDS,
   PARTIAL_REASONS,
   SKIP_REASONS,
+  STATE_KINDS,
+  STATE_SCOPES,
   SYMBOL_KINDS,
   UNRESOLVED_REASONS,
   type Graph
@@ -106,9 +109,11 @@ test('canonical writer is stable, ordered, and has a single trailing newline', (
   assert.equal(strict.ok, true, strict.issues.map(issue => `${issue.path} ${issue.message}`).join('; '))
 })
 
-test('frozen canary round-trips byte for byte', () => {
+test('frozen 1.0.0 canary round-trips byte for byte', () => {
   const frozen = readFileSync(CANARY_GRAPH_PATH, 'utf8')
-  assert.equal(serializeGraph(canary()), frozen)
+  const asV10 = canary()
+  asV10.schemaVersion = '1.0.0'
+  assert.equal(serializeGraph(asV10), frozen)
   const loaded = readGraph(frozen)
   assert.equal(loaded.version, '1.0.0')
   assert.equal(loaded.newerMinor, false)
@@ -117,11 +122,11 @@ test('frozen canary round-trips byte for byte', () => {
 })
 
 test('a greater major is refused and a newer minor is accepted with unknown data stripped', () => {
-  const future = serializeGraph(canary()).replace('"schemaVersion": "1.0.0"', '"schemaVersion": "2.0.0"')
+  const future = serializeGraph(canary()).replace(`"schemaVersion": "${GRAPH_SCHEMA_VERSION}"`, '"schemaVersion": "2.0.0"')
   assert.throws(() => readGraph(future), (error: unknown) => error instanceof GraphVersionUnsupported && error.foundVersion === '2.0.0')
 
   const parsed = JSON.parse(serializeGraph(canary())) as Graph & { summary: { extra?: boolean } }
-  parsed.schemaVersion = '1.1.0'
+  parsed.schemaVersion = '1.2.0'
   parsed.summary.extra = true
   parsed.nodes.push({ id: 'custom:1', kind: 'widget' } as unknown as Graph['nodes'][number])
   parsed.summary.nodes += 1
@@ -143,7 +148,7 @@ test('rejects prototype keys, excessive depth, duplicates and defaulted edge fla
 
   const flagged = JSON.parse(serializeGraph(canary())) as Graph
   const edge = flagged.edges.find(item => item.type === 'imports')
-  if (!edge || !('span' in edge)) throw new Error('missing import edge')
+  if (!edge || edge.type !== 'imports') throw new Error('missing import edge')
   edge.importKind = 'static'
   const result = validateStrict(flagged)
   assert.equal(result.ok, false)
@@ -168,9 +173,203 @@ function readGraphSafe(text: string): GraphReadError | undefined {
 test('the contract document names every settled vocabulary value', () => {
   const doc = readFileSync(fileURLToPath(new URL('../../docs/graph-json-v1.md', import.meta.url)), 'utf8')
   for (const value of [
-    ...NODE_KINDS, ...EDGE_TYPES, ...LANGUAGES, ...SYMBOL_KINDS, ...SKIP_REASONS, ...FAIL_REASONS,
-    ...PARTIAL_REASONS, ...UNRESOLVED_REASONS, ...INFERRED_REASONS, ...ENTRY_REASONS, 'EXTRACTED', 'INFERRED'
+    ...NODE_KINDS, ...EDGE_TYPES, ...LANGUAGES, ...SYMBOL_KINDS, ...STATE_SCOPES, ...STATE_KINDS,
+    ...SKIP_REASONS, ...FAIL_REASONS, ...PARTIAL_REASONS, ...UNRESOLVED_REASONS, ...INFERRED_REASONS,
+    ...ENTRY_REASONS, 'EXTRACTED', 'INFERRED', 'docSummary', 'paramCount'
   ]) {
     assert.ok(doc.includes(value), value)
   }
+})
+
+
+function canaryV11(): Graph {
+  const builder = new GraphBuilder()
+  builder.addNode({ id: 'dir:.', kind: 'directory', path: '.', label: '.' })
+  builder.addNode({ id: 'dir:src', kind: 'directory', path: 'src', label: 'src' })
+  builder.addNode({
+    id: 'file:src/app.ts',
+    kind: 'file',
+    path: 'src/app.ts',
+    label: 'app.ts',
+    language: 'typescript',
+    lineCount: 20,
+    parse: { status: 'parsed' },
+    docSummary: 'Application entry.'
+  })
+  builder.addNode({
+    id: 'file:src/lib.ts',
+    kind: 'file',
+    path: 'src/lib.ts',
+    label: 'lib.ts',
+    language: 'typescript',
+    lineCount: 8,
+    parse: { status: 'parsed' }
+  })
+  builder.addNode({
+    id: 'sym:src/app.ts#Greeter',
+    kind: 'symbol',
+    file: 'file:src/app.ts',
+    label: 'Greeter',
+    symbolKind: 'class',
+    exported: true,
+    span: { start: { line: 3, col: 1 }, end: { line: 12, col: 2 } },
+    docSummary: 'Greets a caller by name.'
+  })
+  builder.addNode({
+    id: 'sym:src/app.ts#Greeter.hello',
+    kind: 'symbol',
+    file: 'file:src/app.ts',
+    label: 'hello',
+    symbolKind: 'function',
+    exported: true,
+    span: { start: { line: 4, col: 3 }, end: { line: 8, col: 4 } },
+    parent: 'sym:src/app.ts#Greeter',
+    paramCount: 1,
+    docSummary: 'Returns a greeting.'
+  })
+  builder.addNode({
+    id: 'sym:src/app.ts#format',
+    kind: 'symbol',
+    file: 'file:src/app.ts',
+    label: 'format',
+    symbolKind: 'function',
+    exported: false,
+    span: { start: { line: 14, col: 1 }, end: { line: 16, col: 2 } },
+    paramCount: 1
+  })
+  builder.addNode({
+    id: 'sym:src/app.ts#count',
+    kind: 'symbol',
+    file: 'file:src/app.ts',
+    label: 'count',
+    symbolKind: 'variable',
+    exported: false,
+    span: { start: { line: 1, col: 1 }, end: { line: 1, col: 15 } },
+    scope: 'module',
+    mutable: true
+  })
+  builder.addNode({
+    id: 'sym:src/lib.ts#helper',
+    kind: 'symbol',
+    file: 'file:src/lib.ts',
+    label: 'helper',
+    symbolKind: 'function',
+    exported: true,
+    span: { start: { line: 1, col: 1 }, end: { line: 3, col: 2 } },
+    paramCount: 0
+  })
+  builder.addEdge({ source: 'dir:.', type: 'contains', target: 'dir:src', provenance: 'EXTRACTED' })
+  builder.addEdge({ source: 'dir:src', type: 'contains', target: 'file:src/app.ts', provenance: 'EXTRACTED' })
+  builder.addEdge({ source: 'dir:src', type: 'contains', target: 'file:src/lib.ts', provenance: 'EXTRACTED' })
+  builder.addEdge({ source: 'file:src/app.ts', type: 'contains', target: 'sym:src/app.ts#Greeter', provenance: 'EXTRACTED' })
+  builder.addEdge({ source: 'sym:src/app.ts#Greeter', type: 'contains', target: 'sym:src/app.ts#Greeter.hello', provenance: 'EXTRACTED' })
+  builder.addEdge({ source: 'file:src/app.ts', type: 'contains', target: 'sym:src/app.ts#format', provenance: 'EXTRACTED' })
+  builder.addEdge({ source: 'file:src/app.ts', type: 'contains', target: 'sym:src/app.ts#count', provenance: 'EXTRACTED' })
+  builder.addEdge({ source: 'file:src/lib.ts', type: 'contains', target: 'sym:src/lib.ts#helper', provenance: 'EXTRACTED' })
+  builder.addEdge({
+    source: 'file:src/app.ts',
+    type: 'imports',
+    target: 'file:src/lib.ts',
+    provenance: 'INFERRED',
+    confidence: 0.7,
+    reason: 'src-subpath',
+    span: { start: { line: 2, col: 1 }, end: { line: 2, col: 30 } },
+    specifier: './lib'
+  })
+  builder.addEdge({
+    source: 'sym:src/app.ts#Greeter.hello',
+    type: 'calls',
+    target: 'sym:src/app.ts#format',
+    provenance: 'EXTRACTED',
+    span: { start: { line: 6, col: 5 }, end: { line: 6, col: 16 } }
+  })
+  builder.addEdge({
+    source: 'sym:src/app.ts#Greeter.hello',
+    type: 'calls',
+    target: 'sym:src/lib.ts#helper',
+    provenance: 'INFERRED',
+    confidence: 0.7,
+    reason: 'src-subpath',
+    span: { start: { line: 7, col: 5 }, end: { line: 7, col: 13 } }
+  })
+  const coverage = emptyCoverage(2, 2)
+  coverage.files.ignored = 0
+  coverage.calls = { resolved: 2, unresolved: 1 }
+  return builder.build(coverage)
+}
+
+test('v1.1.0 fixture is stable, ordered, and accepted by a 1.1.0 reader', () => {
+  const frozen = readFileSync(CANARY_V110_GRAPH_PATH, 'utf8')
+  const first = serializeGraph(canaryV11())
+  assert.equal(first, frozen)
+  assert.equal(serializeGraph(JSON.parse(first) as Graph), first)
+  const loaded = readGraph(frozen)
+  assert.equal(loaded.version, '1.1.0')
+  assert.equal(loaded.newerMinor, false)
+  assert.equal(serializeGraph(loaded.graph), frozen)
+  const strict = validateStrict(JSON.parse(frozen))
+  assert.equal(strict.ok, true, strict.issues.map(issue => `${issue.path} ${issue.message}`).join('; '))
+
+  const file = loaded.graph.nodes.find(node => node.id === 'file:src/app.ts')
+  const hello = loaded.graph.nodes.find(node => node.id === 'sym:src/app.ts#Greeter.hello')
+  const count = loaded.graph.nodes.find(node => node.id === 'sym:src/app.ts#count')
+  if (!file || file.kind !== 'file' || !hello || hello.kind !== 'symbol' || !count || count.kind !== 'symbol') {
+    throw new Error('missing v1.1.0 fixture nodes')
+  }
+  assert.deepEqual(Object.keys(file), ['id', 'kind', 'path', 'label', 'language', 'lineCount', 'parse', 'docSummary'])
+  assert.deepEqual(Object.keys(hello), ['id', 'kind', 'file', 'label', 'symbolKind', 'exported', 'span', 'parent', 'paramCount', 'docSummary'])
+  assert.deepEqual(Object.keys(count), ['id', 'kind', 'file', 'label', 'symbolKind', 'exported', 'span', 'scope', 'mutable'])
+  assert.deepEqual(Object.keys(loaded.graph.coverage), ['files', 'byLanguage', 'skipped', 'failed', 'ignored', 'unresolved', 'calls', 'accounting'])
+  const types = loaded.graph.edges.map(edge => edge.type)
+  assert.equal(types.includes('calls'), true)
+  const inferredCall = loaded.graph.edges.find(edge => edge.type === 'calls' && edge.provenance === 'INFERRED')
+  const extractedCall = loaded.graph.edges.find(edge => edge.type === 'calls' && edge.provenance === 'EXTRACTED')
+  assert.equal(extractedCall?.target, 'sym:src/app.ts#format')
+  assert.equal(inferredCall && 'reason' in inferredCall ? inferredCall.reason : undefined, 'src-subpath')
+})
+
+test('readGraph accepts both the 1.0.0 canary and the 1.1.0 fixture', () => {
+  const v10 = readGraph(readFileSync(CANARY_GRAPH_PATH, 'utf8'))
+  const v11 = readGraph(readFileSync(CANARY_V110_GRAPH_PATH, 'utf8'))
+  assert.equal(v10.version, '1.0.0')
+  assert.equal(v10.newerMinor, false)
+  assert.equal(v11.version, '1.1.0')
+  assert.equal(v11.newerMinor, false)
+})
+
+test('v1.1.0 closed objects reject extra keys and reserved or overlong values', () => {
+  const parsed = JSON.parse(serializeGraph(canaryV11())) as {
+    nodes: Array<Record<string, unknown>>
+    edges: Array<Record<string, unknown>>
+    coverage: Record<string, unknown>
+  }
+  const call = parsed.edges.find(item => item.type === 'calls' && item.provenance === 'EXTRACTED')
+  if (!call) throw new Error('missing extracted call')
+  call.specifier = './nope'
+  assert.equal(validateStrict(parsed).ok, false)
+  delete call.specifier
+
+  const inferred = parsed.edges.find(item => item.type === 'calls' && item.provenance === 'INFERRED')
+  if (!inferred) throw new Error('missing inferred call')
+  delete inferred.reason
+  assert.equal(validateStrict(parsed).ok, false)
+  inferred.reason = 'src-subpath'
+
+  const count = parsed.nodes.find(item => item.id === 'sym:src/app.ts#count')
+  if (!count) throw new Error('missing count symbol')
+  count.scope = 'local'
+  assert.equal(validateStrict(parsed).ok, false)
+  count.scope = 'module'
+
+  const file = parsed.nodes.find(item => item.id === 'file:src/app.ts')
+  if (!file) throw new Error('missing file')
+  file.docSummary = 'x'.repeat(161)
+  assert.equal(validateStrict(parsed).ok, false)
+  file.docSummary = 'Application entry.'
+
+  const calls = parsed.coverage.calls as Record<string, unknown>
+  calls.extra = 1
+  assert.equal(validateStrict(parsed).ok, false)
+  delete calls.extra
+  assert.equal(validateStrict(parsed).ok, true)
 })

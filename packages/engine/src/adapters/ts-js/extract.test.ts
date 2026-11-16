@@ -57,6 +57,13 @@ describe('imports', () => {
       ['pkg', 'imports', 'static', false]
     ])
     assert.deepEqual(result.references[2]?.names, ['x', 'y'])
+    assert.deepEqual(result.references[0]?.bindings, [{ local: 'def', imported: 'default' }])
+    assert.deepEqual(result.references[1]?.bindings, [{ local: 'ns', imported: '*' }])
+    assert.deepEqual(result.references[2]?.bindings, [{ local: 'x', imported: 'x' }, { local: 'z', imported: 'y' }])
+    assert.equal(result.references[3]?.bindings, undefined)
+    assert.deepEqual(result.references[4]?.bindings, [{ local: 'd', imported: 'default' }, { local: 'e', imported: 'e' }])
+    assert.deepEqual(result.calls, [])
+    assert.equal(result.unresolvedCalls, 0)
     assert.equal(result.syntaxErrorCount, 0)
     assert.equal(slice(content, result.references[0] as ExtractedReference), "import def from './a'")
   })
@@ -206,5 +213,133 @@ describe('syntax errors are reported, not hidden', () => {
   test('empty file is fine', async () => {
     const result = await parse('src/empty.ts', '')
     assert.deepEqual([result.references.length, result.symbols.length, result.syntaxErrorCount], [0, 0, 0])
+  })
+})
+
+describe('file insights', () => {
+  test('records intra-file calls, module-scope callers, this.method, and nested functions', async () => {
+    const result = await parse(
+      'src/app.ts',
+      [
+        'function format(name: string) { return name }',
+        'class Greeter {',
+        '  hello(name: string) {',
+        '    this.format(name)',
+        '    format(name)',
+        '  }',
+        '  format(name: string) { return name }',
+        '}',
+        'function outer() {',
+        '  function inner() { format("x") }',
+        '  const helper = () => format("y")',
+        '  inner()',
+        '}',
+        'format("z")'
+      ].join('\n')
+    )
+    const calls = result.calls.map(call => [call.caller, call.intraFileCallee, call.importLocal])
+    assert.equal(result.calls.some(call => call.caller === 'Greeter.hello' && call.intraFileCallee === 'Greeter.format'), true, JSON.stringify(calls))
+    assert.equal(result.calls.some(call => call.caller === 'Greeter.hello' && call.intraFileCallee === 'format'), true, JSON.stringify(calls))
+    assert.equal(result.calls.some(call => call.caller === null && call.intraFileCallee === 'format'), true, JSON.stringify(calls))
+    assert.equal(result.calls.some(call => call.caller === 'outer.inner' && call.intraFileCallee === 'format'), true, JSON.stringify(calls))
+    assert.equal(result.calls.some(call => call.caller === 'outer.helper' && call.intraFileCallee === 'format'), true, JSON.stringify(calls))
+    assert.equal(result.calls.some(call => call.caller === 'outer' && call.intraFileCallee === 'outer.inner'), true, JSON.stringify(calls))
+    const inner = result.symbols.find(symbol => symbol.qualifiedName === 'outer.inner')
+    const helper = result.symbols.find(symbol => symbol.qualifiedName === 'outer.helper')
+    assert.equal(inner?.symbolKind, 'function')
+    assert.equal(inner?.parent, 'outer')
+    assert.equal(helper?.symbolKind, 'function')
+    assert.equal(helper?.parent, 'outer')
+  })
+
+  test('counts formal parameters and skips a TypeScript this parameter', async () => {
+    const result = await parse(
+      'src/p.ts',
+      'export function f(this: void, a: number, { b }: { b: string }, c = 1, ...rest: number[]) { return a }\nconst g = (x: number) => x\n'
+    )
+    assert.equal(result.symbols.find(symbol => symbol.qualifiedName === 'f')?.paramCount, 4)
+    assert.equal(result.symbols.find(symbol => symbol.qualifiedName === 'g')?.paramCount, 1)
+  })
+
+  test('annotates const, let, and readonly class fields; records globalThis and window writes', async () => {
+    const result = await parse(
+      'src/state.ts',
+      [
+        'const frozen = 1',
+        'let count = 0',
+        'var scratch = 0',
+        'class Box {',
+        '  readonly id = 1',
+        '  value = 2',
+        '}',
+        'globalThis.flag = true',
+        'window.ready = true'
+      ].join('\n')
+    )
+    const frozen = result.symbols.find(symbol => symbol.qualifiedName === 'frozen')
+    const count = result.symbols.find(symbol => symbol.qualifiedName === 'count')
+    const scratch = result.symbols.find(symbol => symbol.qualifiedName === 'scratch')
+    const id = result.symbols.find(symbol => symbol.qualifiedName === 'Box.id')
+    const value = result.symbols.find(symbol => symbol.qualifiedName === 'Box.value')
+    assert.deepEqual([frozen?.scope, frozen?.mutable], ['module', false])
+    assert.deepEqual([count?.scope, count?.mutable], ['module', true])
+    assert.deepEqual([scratch?.scope, scratch?.mutable], ['module', true])
+    assert.deepEqual([id?.scope, id?.mutable], ['class', false])
+    assert.deepEqual([value?.scope, value?.mutable], ['class', true])
+    const flag = result.symbols.find(symbol => symbol.qualifiedName === 'globalThis.flag')
+    const ready = result.symbols.find(symbol => symbol.qualifiedName === 'window.ready')
+    assert.deepEqual([flag?.scope, flag?.mutable, flag?.exported], ['global', true, false])
+    assert.deepEqual([ready?.scope, ready?.mutable, ready?.exported], ['global', true, false])
+  })
+
+  test('does not treat a local window binding as global state', async () => {
+    const result = await parse('src/local-window.ts', 'const window = { x: 1 }\nwindow.x = 2\n')
+    assert.equal(result.symbols.some(symbol => symbol.qualifiedName === 'window.x' && symbol.scope === 'global'), false)
+  })
+
+  test('plain TS requires a vue or pinia import before tagging ref state', async () => {
+    const bare = await parse('src/bare.ts', 'const count = ref(0)\n')
+    assert.equal(bare.symbols.find(symbol => symbol.qualifiedName === 'count')?.stateKind, undefined)
+    const imported = await parse('src/vue-state.ts', "import { ref } from 'vue'\nconst count = ref(0)\n")
+    const count = imported.symbols.find(symbol => symbol.qualifiedName === 'count')
+    assert.deepEqual([count?.stateKind, count?.mutable, count?.scope], ['ref', true, 'module'])
+  })
+
+  test('takes the first JSDoc sentence, strips controls, and omits secret-shaped docs', async () => {
+    const result = await parse(
+      'src/docs.ts',
+      [
+        '/** Application entry. */',
+        '/** Greets a caller by name. Second sentence. */',
+        'export function hello() { return 1 }',
+        '/** Hello\u0001 world. */',
+        'export function stripped() { return 1 }',
+        '/** token AKIAIOSFODNN7EXAMPLE */',
+        'export function secret() { return 1 }'
+      ].join('\n')
+    )
+    assert.equal(result.fileDocSummary, 'Application entry.')
+    assert.equal(result.symbols.find(symbol => symbol.qualifiedName === 'hello')?.docSummary, 'Greets a caller by name.')
+    assert.equal(result.symbols.find(symbol => symbol.qualifiedName === 'stripped')?.docSummary, 'Hello world.')
+    assert.equal(result.symbols.find(symbol => symbol.qualifiedName === 'secret')?.docSummary, undefined)
+  })
+
+  test('computed and dynamic callees are unresolved counts, never guessed edges', async () => {
+    const result = await parse(
+      'src/dyn.ts',
+      [
+        'function known() { return 1 }',
+        'function run(fn: () => void, obj: { m: () => void }, key: string) {',
+        '  fn()',
+        '  obj[key]()',
+        '  obj.m()',
+        '  known()',
+        '}'
+      ].join('\n')
+    )
+    assert.equal(result.calls.length, 1)
+    assert.equal(result.calls[0]?.intraFileCallee, 'known')
+    assert.equal(result.unresolvedCalls, 3)
+    assert.equal(result.calls.every(call => call.intraFileCallee !== undefined || call.importLocal !== undefined), true)
   })
 })

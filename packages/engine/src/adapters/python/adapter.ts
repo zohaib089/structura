@@ -6,7 +6,7 @@ import { TreeSitterRuntime, type RuntimeOverrides as WasmOverrides } from '../tr
 
 export const PYTHON_ADAPTER_ID = 'python'
 /** Bump when the same source text can produce a different extraction. */
-export const PYTHON_ADAPTER_VERSION = '1'
+export const PYTHON_ADAPTER_VERSION = '2'
 
 export interface PythonAdapterOptions {
   runtime?: WasmOverrides

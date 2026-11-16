@@ -115,3 +115,58 @@ describe('vue SFC imports', () => {
     assert.equal(outcome.result.syntaxErrorCount, 0)
   })
 })
+
+describe('vue file insights', () => {
+  async function parseVue(content: string) {
+    const outcome = await adapter.parse({ path: 'src/Widget.vue', content, language: 'vue', limits })
+    assert.equal(outcome.ok, true, outcome.ok ? '' : `${outcome.reason}`)
+    if (!outcome.ok) throw new Error('parse failed')
+    return outcome.result
+  }
+
+  test('script setup tags ref, reactive, computed, defineProps, pinia, provide and inject', async () => {
+    const result = await parseVue(
+      [
+        '<!-- Widget docs. -->',
+        '<script setup lang="ts">',
+        'const count = ref(0)',
+        'const state = reactive({ n: 1 })',
+        'const label = computed(() => count.value)',
+        'const props = defineProps<{ title: string }>()',
+        'const store = useCounterStore()',
+        'const provided = provide("k", 1)',
+        'const injected = inject("k")',
+        '</script>'
+      ].join('\n')
+    )
+    const kind = (name: string) => result.symbols.find(symbol => symbol.qualifiedName === name)
+    assert.equal(result.fileDocSummary, 'Widget docs.')
+    assert.deepEqual([kind('count')?.stateKind, kind('count')?.mutable], ['ref', true])
+    assert.deepEqual([kind('state')?.stateKind, kind('state')?.mutable], ['reactive', true])
+    assert.deepEqual([kind('label')?.stateKind, kind('label')?.mutable], ['computed', false])
+    assert.deepEqual([kind('props')?.stateKind, kind('props')?.mutable], ['prop', false])
+    assert.deepEqual([kind('store')?.stateKind, kind('store')?.mutable], ['store', true])
+    assert.equal(kind('provided')?.stateKind, 'provide')
+    assert.equal(kind('injected')?.stateKind, 'inject')
+  })
+
+  test('options API records props and data keys', async () => {
+    const result = await parseVue(
+      [
+        '<script>',
+        'export default {',
+        '  props: { title: String },',
+        '  data() { return { count: 0 } },',
+        '  inject: ["theme"]',
+        '}',
+        '</script>'
+      ].join('\n')
+    )
+    const title = result.symbols.find(symbol => symbol.qualifiedName === 'title')
+    const count = result.symbols.find(symbol => symbol.qualifiedName === 'count')
+    const theme = result.symbols.find(symbol => symbol.qualifiedName === 'theme')
+    assert.deepEqual([title?.scope, title?.stateKind, title?.mutable], ['module', 'prop', false])
+    assert.deepEqual([count?.scope, count?.stateKind, count?.mutable], ['module', 'binding', true])
+    assert.equal(theme?.stateKind, 'inject')
+  })
+})

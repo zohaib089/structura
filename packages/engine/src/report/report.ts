@@ -23,6 +23,7 @@ export interface CoverageInput {
   /** Entries that have no node (unrepresentable path, id collision, max depth). Counted as skipped. */
   unnoded: Array<{ language: string | null; reason: string }>
   unresolved: Array<{ reason: string; count: number }>
+  calls?: { resolved: number; unresolved: number }
 }
 
 interface LanguageBucket {
@@ -98,6 +99,11 @@ export function buildCoverage(input: CoverageInput): Coverage {
 
   const languages: CoverageByLanguage[] = [...byLanguage.values()].sort((left, right) => compareStrings(left.language ?? '', right.language ?? ''))
 
+  const calls = input.calls
+    && (input.calls.resolved > 0 || input.calls.unresolved > 0)
+    ? { resolved: input.calls.resolved, unresolved: input.calls.unresolved }
+    : undefined
+
   return {
     files,
     byLanguage: languages,
@@ -105,6 +111,7 @@ export function buildCoverage(input: CoverageInput): Coverage {
     failed,
     ignored,
     unresolved,
+    ...(calls ? { calls } : {}),
     accounting: { discovered: files.discovered, accounted }
   }
 }
@@ -125,6 +132,7 @@ export function formatCoverageSummary(coverage: Coverage, entryCandidates?: { fi
   if (coverage.failed.length > 0) lines.push(`failed: ${coverage.failed.map(item => `${item.reason} ${item.count}`).join(', ')}`)
   if (coverage.ignored.length > 0) lines.push(`ignored: ${coverage.ignored.map(item => `${item.rule} ${item.count}`).join(', ')}`)
   if (coverage.unresolved.length > 0) lines.push(`unresolved: ${coverage.unresolved.map(item => `${item.reason} ${item.count}`).join(', ')}`)
+  if (coverage.calls) lines.push(`calls: resolved ${coverage.calls.resolved}, unresolved ${coverage.calls.unresolved}`)
   lines.push(`accounting: ${coverage.accounting.discovered} = ${coverage.accounting.accounted}`)
   return lines.join('\n')
 }

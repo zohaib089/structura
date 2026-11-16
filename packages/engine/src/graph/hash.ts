@@ -19,6 +19,7 @@ const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 export const SCHEMA_JSON_PATH = resolve(packageRoot, 'schema/graph.v1.schema.json')
 export const SCHEMA_HASH_PATH = resolve(packageRoot, 'schema/SCHEMA_HASH')
 export const CANARY_GRAPH_PATH = resolve(packageRoot, 'schema-fixtures/v1.0.0.graph.json')
+export const CANARY_V110_GRAPH_PATH = resolve(packageRoot, 'schema-fixtures/v1.1.0.graph.json')
 
 export function readCheckedInSchema(): string {
   return readFileSync(SCHEMA_JSON_PATH, 'utf8')

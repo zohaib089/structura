@@ -85,11 +85,30 @@ function isSymbol(value: unknown): value is ExtractedSymbol {
   return typeof symbol.qualifiedName === 'string' && typeof symbol.label === 'string' && typeof symbol.symbolKind === 'string' && typeof symbol.exported === 'boolean' && isSpan(symbol.span)
 }
 
+
+function isCall(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null) return false
+  const call = value as { caller?: unknown; intraFileCallee?: unknown; importLocal?: unknown; span?: unknown }
+  if (!(call.caller === null || typeof call.caller === 'string') || !isSpan(call.span)) return false
+  if (call.intraFileCallee !== undefined && typeof call.intraFileCallee !== 'string') return false
+  if (call.importLocal !== undefined && typeof call.importLocal !== 'string') return false
+  return true
+}
+
+function isBinding(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null) return false
+  const binding = value as { local?: unknown; imported?: unknown }
+  return typeof binding.local === 'string' && typeof binding.imported === 'string'
+}
+
 function isParseResult(value: unknown): value is AdapterParseResult {
   if (typeof value !== 'object' || value === null) return false
   const result = value as AdapterParseResult
   return Array.isArray(result.references) && result.references.every(isReference) &&
+    result.references.every(ref => ref.bindings === undefined || (Array.isArray(ref.bindings) && ref.bindings.every(isBinding))) &&
     Array.isArray(result.symbols) && result.symbols.every(isSymbol) &&
+    Array.isArray(result.calls) && result.calls.every(isCall) &&
+    typeof result.unresolvedCalls === 'number' &&
     typeof result.syntaxErrorCount === 'number' &&
     Array.isArray(result.syntaxErrors) &&
     result.omitted !== undefined &&

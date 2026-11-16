@@ -1,10 +1,10 @@
 # graph.json v1
 
-`graph.json` is the deterministic, closed, brand-free, source-text-free output of a scan.
+`graph.json` is the deterministic, closed, brand-free output of a scan. It is source-text-free except for the optional sanitised `docSummary` field, a narrow named exception that may carry the first sentence of a doc comment or docstring (never source code).
 Run metadata (time, tool version, absolute paths, memory) goes to `run.json` and to `--json` stdout, never into this file.
 
 - Schema id: `urn:repo-graph:schema:graph:1` (brand-free).
-- `schemaVersion`: semver string `1.0.0`. A greater major is refused (`GraphVersionUnsupported`, CLI exit 2). The same major with a higher minor is accepted: unknown properties are stripped, unknown kind/type values are kept as generic nodes or edges.
+- `schemaVersion`: semver string `1.1.0` (major 1). A greater major is refused (`GraphVersionUnsupported`, CLI exit 2). The same major with a higher minor is accepted: unknown properties are stripped, unknown kind/type values are kept as generic nodes or edges. A 1.1.0 reader accepts a 1.0.0 document (all new fields are optional). A 1.0.0 reader loading a 1.1.0 document sets `newerMinor` and strips unknown properties, keeping `type: "calls"` as a generic edge.
 - UTF-8 without a BOM, 2-space indent, `\n` line endings, exactly one trailing `\n`.
 - Property order is the order in this document. Nodes are sorted by `id`. Edges are sorted by `(source, type, target, span.start.line, span.start.col)` in UTF-16 code-unit order (`contains` edges have no span and sort as line 0, column 0). `localeCompare` is never used.
 - `additionalProperties` is false everywhere. The only open object is optional `extensions`, whose keys match `^[a-z][a-z0-9-]*:[A-Za-z0-9._-]+$`.
@@ -15,7 +15,7 @@ Run metadata (time, tool version, absolute paths, memory) goes to `run.json` and
 
 ```json
 {
-  "schemaVersion": "1.0.0",
+  "schemaVersion": "1.1.0",
   "summary": { "nodes": 4, "edges": 3, "files": 1 },
   "coverage": {
     "files": { "discovered": 1, "parsed": 1, "partial": 0, "failed": 0, "skipped": 0, "ignored": 0 },
@@ -81,8 +81,8 @@ External names are package roots: `lodash/fp` is `lodash`, `fs/promises` and `no
 Kinds: `directory`, `file`, `symbol`, `external`, `unresolved`.
 
 - directory: `id`, `kind`, `path`, `label` (last segment, `.` for the root).
-- file: `id`, `kind`, `path`, `label`, `language`, `lineCount`, `parse`, optional `decoding`, optional `entryCandidate`, optional `entryCandidates`.
-- symbol: `id`, `kind`, `file`, `label`, `symbolKind`, `exported`, `span`.
+- file: `id`, `kind`, `path`, `label`, `language`, `lineCount`, `parse`, optional `decoding`, optional `entryCandidate`, optional `entryCandidates`, optional `module`, optional `docSummary`.
+- symbol: `id`, `kind`, `file`, `label`, `symbolKind`, `exported`, `span`, optional `parent`, optional `paramCount`, optional `scope`, optional `mutable`, optional `stateKind`, optional `docSummary`.
 - external: `id`, `kind`, `ecosystem`, `label`.
 - unresolved: `id`, `kind`, `label`, `reason`.
 
@@ -93,6 +93,40 @@ Kinds: `directory`, `file`, `symbol`, `external`, `unresolved`.
 ### symbolKind
 
 `class`, `default`, `enum`, `function`, `interface`, `namespace`, `type`, `unknown`, `variable`.
+
+### Function inventory
+
+- `parent`: optional symbol id of the enclosing class, namespace, or outer function. `contains` already links the child; the id is persisted so a viewer does not re-parse qualified names. Omitted at file top level.
+- `paramCount`: optional integer ≥ 0, written only on `function` (and `default` when it is a function). Count formal parameters as written, including Python `self` / `cls` and optional or default parameters. Exclude a TypeScript `this` parameter. One destructured pattern counts as one.
+
+Nested named functions and nested `const fn = () => {}` / `def` are emitted (qualifiedName `outer.inner`). Function-local non-function bindings are not.
+
+### State annotations
+
+Optional fields on state-bearing **symbol** nodes only (never directories or externals; functions do not carry them). `"local"` scope is reserved for a later minor and is not emitted in v1.1.
+
+| Field | Values | When written |
+| --- | --- | --- |
+| `scope` | `module`, `class`, `instance`, `global` | State symbols only. |
+| `mutable` | boolean | Binding mutability, not deep immutability of a `const` object. |
+| `stateKind` | `binding`, `ref`, `reactive`, `computed`, `prop`, `store`, `provide`, `inject` | Written for Vue / Pinia / provide-inject. Omit for ordinary TS/JS/Python bindings (readers treat missing as `binding`). |
+
+There are no `reads` or `writes` edges in v1.1.
+
+### docSummary
+
+Optional first sentence of a doc comment or docstring, on **file** nodes and on **function**, **class**, and **default** symbol nodes.
+
+- Break on `. `, `? `, `! `, or a newline; never a second sentence.
+- Hard cap of 160 Unicode code points (`truncateCodePoints`). If the cap would cut through a non-whitespace token, the field is omitted rather than stored mid-word.
+- Secret detection (`looksSecret`) runs on the whole sanitised sentence **before** truncation, so a secret past the 160-code-point mark still causes omission.
+- Bidi and C0/C1 controls, zero-width characters (U+200B, U+200C, U+200D, U+2060, U+FEFF) and the soft hyphen U+00AD are deleted; the text is NFKC-normalised. Both steps run before detection and again on the output.
+- `<` and `>` are stripped. Summaries that contain an email address or a phone number are omitted.
+- If `looksSecret` matches, the field is **omitted** (the graph never stores `[redacted]` as a summary).
+- Sources: JSDoc/TSDoc immediately preceding the declaration; Python function, class, and module docstrings (the first statement); Vue: a leading `<!-- -->` in the SFC, then script-block JSDoc, then JSDoc on the default export. Not arbitrary mid-file comments, and not `@example` bodies.
+- Off by default. `--doc-summaries` opts in and writes sanitised `docSummary` fields. `--no-doc-summaries` remains accepted as a no-op (summaries are already off unless `--doc-summaries` is set; if both flags are passed, summaries stay off). API / workspace scans never write `docSummary`, even if a caller asks for it.
+
+This is the only named exception to the source-text-free rule: doc comments only, never code.
 
 ### parse reasons
 
@@ -166,13 +200,17 @@ Sources scanned without execution: `package.json`, `pyproject.toml` (`[project.s
 
 ## Edges
 
-Types: `contains`, `imports`, `reexports`. There is no `defines` edge; containment is `contains`.
+Types: `contains`, `imports`, `reexports`, `calls`. There is no `defines` edge; containment is `contains`.
 
 Edges have no id. The uniqueness key is `(source, type, target, span.start.line, span.start.col)`. For `contains` the key is `(source, type, target)`.
 
 `contains` is always `EXTRACTED` and has **no span**. It links a directory to its child directory or file, and a file or symbol to a symbol declared in that file.
 
 `imports` and `reexports` require `span` and `specifier`. They start at a file and end at a file, an external, or an unresolved node.
+
+`calls` requires `span` and has no `specifier`, `importKind`, or `typeOnly`. There is one edge per resolved call site; the count for a `(source, target)` pair is the number of such edges (no `count` field). The source is a function or method symbol, or the **file node** for module-scope and top-level calls (including Vue `<script setup>` top-level). A synthetic `#<module>` symbol is not used. The target is a function or method symbol. `new Foo()` targets `Foo.constructor` or `Foo.__init__` when that symbol exists; otherwise the `Foo` class symbol. Passing a function without calling it is not a call.
+
+Unresolved, computed, or dynamic callees (`fn()` when `fn` is a parameter, `obj[key]()`, `obj.method()` when `obj` is not a resolved binding) produce **no call edge and no unresolved node**. They are counted only in optional `coverage.calls`. Intra-file static callees are `EXTRACTED`. A cross-file call resolved through an import binding inherits that import edge's provenance; if the import is `INFERRED`, the call is `INFERRED` with the same `reason` and `confidence`.
 
 - `EXTRACTED` forbids `confidence` and `reason` (schema `if`/`then`, and a separate closed shape).
 - `INFERRED` requires `confidence` in `(0, 1]` and a `reason`.
@@ -199,6 +237,8 @@ discovered = parsed + partial + failed + skipped + ignored
 The configured `--out` directory (and in-root `--cache-dir` / `--meta` paths) are omitted before discovery and do not appear in coverage. Only `.git` is a name-based hard exclude (`hard:.git`). Another directory named like the product output folder elsewhere in the tree is scanned normally.
 
 `files.parsed` / `partial` match the file nodes exactly. `files.skipped` and `files.failed` are greater than or equal to the file nodes in that status, because some skipped entries have no node.
+
+Optional `coverage.calls` is `{ resolved, unresolved }` (integers ≥ 0), written after `unresolved` and before `accounting`. It is omitted when both counts are 0. These counts are not mixed into `coverage.unresolved`, which remains import-specifier reasons only.
 
 ## What v1 resolves
 
@@ -280,7 +320,7 @@ Top-level `layers:` is accepted as an alias for `modules:` (merged in order). Ea
 - **`architecture.findings`**: optional drift violations (see below).
 - **`architecture.summary`**: `{ violations, unassignedFiles }`.
 
-Drift findings (when rules fail) come from `imports` / `reexports` edges only (no `calls` in v1): every **EXTRACTED** edge, plus **INFERRED** edges whose reason is a workspace-package resolution (`build-output-mapping`, `src-subpath`, `conventional-entry`), so `@scope/pkg` imports between workspace packages are checked. Other INFERRED edges (for example the Python `src-root-guess` and `submodule-heuristic`) are never checked. Each finding has:
+Drift findings (when rules fail) come from `imports` / `reexports` edges only (`calls` edges are ignored in v1.1): every **EXTRACTED** edge, plus **INFERRED** edges whose reason is a workspace-package resolution (`build-output-mapping`, `src-subpath`, `conventional-entry`), so `@scope/pkg` imports between workspace packages are checked. Other INFERRED edges (for example the Python `src-root-guess` and `submodule-heuristic`) are never checked. Each finding has:
 
 `from`, `to` (module names; unassigned files use `unassigned`), `edgeKind`, `file`, `line`, `rule` (`deny-list`, `allow-list`, `deny-undeclared`), `provenance` (`EXTRACTED` or `INFERRED`, copied from the edge). Findings carry no inference reason or confidence.
 
@@ -292,4 +332,6 @@ Pass `--config <path>` to use a config file other than the default at the scan r
 
 ## Changelog
 
+- **2026-11-16, schemaVersion 1.1.0** (Security review): `docSummary` is **off by default** and opt-in via `--doc-summaries` (`--no-doc-summaries` is a no-op). Detection runs on the full sanitised sentence before the 160-code-point cap; mid-token truncation drops the field. Zero-width characters and U+00AD are stripped and the text is NFKC-normalised before detection and on the output. `looksSecret` also matches GitLab token prefixes, AWS / base64 blobs that contain `/` or `+`, and credential prose. API scans never persist `docSummary`.
+- **2026-11-15, schemaVersion 1.1.0** (Tech Lead sign-off): additive file-insights contract. New optional edge type `calls` (file or function/method symbol → function/method or class symbol; module-scope caller is the file node). Optional symbol fields `parent`, `paramCount`, `scope`, `mutable`, `stateKind`, and `docSummary`; optional `docSummary` on file nodes; optional `coverage.calls`. `docSummary` is a narrow, named exception to source-text-free (sanitised first sentence of a doc comment or docstring only, 160 code-point cap, omitted when `looksSecret` matches; default on, `--no-doc-summaries` to opt out). No `reads` / `writes` edges and no function-local variable symbols. Architecture drift stays `imports` / `reexports` only. The frozen `schema-fixtures/v1.0.0.graph.json` canary is unchanged; `schema-fixtures/v1.1.0.graph.json` covers the new shapes. A 1.0.0 reader loading 1.1.0 sets `newerMinor` and strips unknown properties, keeping `calls` as a generic edge. A 1.1.0 reader accepts 1.0.0 documents because every new field is optional.
 - **2026-11-12, minor contract change, still schemaVersion 1.0.0** (Tech Lead sign-off): `architecture.findings[].provenance` widened from `EXTRACTED` to `EXTRACTED|INFERRED`. `INFERRED` is used only for workspace-package resolutions. No new fields. Every graph reader accepts any 1.x version (engine `readGraph`, viewer `read-graph.ts`), so the version was not bumped. The viewer reader and its types accept both values.
