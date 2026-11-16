@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.0.0",
+  "schemaVersion": "1.1.0",
   "summary": {
     "nodes": 6,
     "edges": 8,
@@ -120,7 +120,9 @@
           "line": 1,
           "col": 23
         }
-      }
+      },
+      "scope": "module",
+      "mutable": false
     },
     {
       "id": "sym:main.ts#total",
@@ -138,7 +140,9 @@
           "line": 3,
           "col": 37
         }
-      }
+      },
+      "scope": "module",
+      "mutable": false
     }
   ],
   "edges": [

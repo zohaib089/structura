@@ -13,7 +13,7 @@ import { architectureConfigHash } from '../architecture/config-hash.js'
 import { ContentCache, contentHash, defaultCacheDir, isInsideRoot, limitsTag } from '../cache/content-cache.js'
 import { IncrementalScanCache, scanCacheHeader } from '../cache/scan-cache.js'
 import { buildCoverage, formatCoverageSummary, strictFailures } from '../report/index.js'
-import type { AdapterParseResult, ExtractedReference, LanguageAdapter, ResolveOutcome } from '../adapters/adapter.js'
+import type { AdapterParseResult, ExtractedCall, ExtractedReference, LanguageAdapter, ResolveOutcome } from '../adapters/adapter.js'
 import { ParsePool } from '../adapters/pool.js'
 import { grammarFingerprint } from '../adapters/tree-sitter-runtime.js'
 import { TS_JS_ADAPTER_ID, TS_JS_ADAPTER_VERSION, createTypeScriptJavaScriptAdapter } from '../adapters/ts-js/adapter.js'
@@ -26,7 +26,7 @@ import { serializeGraph } from '../graph/canonical.js'
 import { readCheckedInSchemaHash } from '../graph/hash.js'
 import { readGraph } from '../graph/read.js'
 import { validateStrict } from '../graph/validate-strict.js'
-import { ROOT_DIR_ID, ROOT_PATH, baseName, dirId, externalId, fileId, parentPath, symbolId, unresolvedId } from '../graph/ids.js'
+import { ROOT_DIR_ID, ROOT_PATH, baseName, compareStrings, dirId, externalId, fileId, parentPath, symbolId, unresolvedId } from '../graph/ids.js'
 import type {
   ContainsEdge,
   EntryCandidate,
@@ -128,6 +128,8 @@ export interface ScanOptions {
   useDefaultIgnores?: boolean
   extraIgnorePatterns?: readonly string[]
   signal?: AbortSignal
+  /** When true, omit `docSummary` on file and symbol nodes. Default is to write sanitised summaries. */
+  noDocSummaries?: boolean
 }
 
 export interface ScanOutput {
@@ -213,10 +215,15 @@ function linkDirectory(builder: GraphBuilder, filePath: string): void {
 const MAX_LABEL_CODE_POINTS = 4096
 const MAX_SYMBOL_ID_UNITS = 8192
 
-export function addSymbols(builder: GraphBuilder, filePath: string, facts: AdapterParseResult): boolean {
+export function addSymbols(
+  builder: GraphBuilder,
+  filePath: string,
+  facts: AdapterParseResult,
+  options?: { noDocSummaries?: boolean; firstIds?: Map<string, string> }
+): boolean {
   const counts = new Map<string, number>()
-  const firstId = new Map<string, string>()
-  const created: Array<{ name: string; id: string }> = []
+  const firstId = options?.firstIds ?? new Map<string, string>()
+  const created: Array<{ name: string; id: string; symbol: AdapterParseResult['symbols'][number] }> = []
   let limitExceeded = false
   for (const symbol of facts.symbols) {
     const base = symbolId(filePath, symbol.qualifiedName)
@@ -232,25 +239,135 @@ export function addSymbols(builder: GraphBuilder, filePath: string, facts: Adapt
       continue
     }
     if (!firstId.has(symbol.qualifiedName)) firstId.set(symbol.qualifiedName, id)
+    created.push({ name: symbol.qualifiedName, id, symbol })
+  }
+  const hideDocs = options?.noDocSummaries === true
+  for (const item of created) {
+    const dottedParent = (() => {
+      const dot = item.name.lastIndexOf('.')
+      return dot === -1 ? undefined : item.name.slice(0, dot)
+    })()
+    const parentName = item.symbol.parent ?? dottedParent
+    const parentId = parentName ? firstId.get(parentName) : undefined
     const node: SymbolNode = {
-      id,
+      id: item.id,
       kind: 'symbol',
       file: fileId(filePath),
-      label: truncateCodePoints(symbol.label, MAX_LABEL_CODE_POINTS),
-      symbolKind: symbol.symbolKind,
-      exported: symbol.exported,
-      span: symbol.span
+      label: truncateCodePoints(item.symbol.label, MAX_LABEL_CODE_POINTS),
+      symbolKind: item.symbol.symbolKind,
+      exported: item.symbol.exported,
+      span: item.symbol.span,
+      ...(parentId ? { parent: parentId } : {}),
+      ...(item.symbol.paramCount !== undefined ? { paramCount: item.symbol.paramCount } : {}),
+      ...(item.symbol.scope ? { scope: item.symbol.scope } : {}),
+      ...(item.symbol.mutable !== undefined ? { mutable: item.symbol.mutable } : {}),
+      ...(item.symbol.stateKind ? { stateKind: item.symbol.stateKind } : {}),
+      ...(!hideDocs && item.symbol.docSummary ? { docSummary: item.symbol.docSummary } : {})
     }
     builder.addNode(node)
-    created.push({ name: symbol.qualifiedName, id })
   }
-  for (const symbol of created) {
-    const dot = symbol.name.lastIndexOf('.')
-    const parentName = dot === -1 ? undefined : symbol.name.slice(0, dot)
+  for (const item of created) {
+    const dottedParent = (() => {
+      const dot = item.name.lastIndexOf('.')
+      return dot === -1 ? undefined : item.name.slice(0, dot)
+    })()
+    const parentName = item.symbol.parent ?? dottedParent
     const parentId = parentName ? firstId.get(parentName) : undefined
-    builder.addEdge(contains(parentId ?? fileId(filePath), symbol.id))
+    builder.addEdge(contains(parentId ?? fileId(filePath), item.id))
   }
   return limitExceeded
+}
+
+interface ResolvedImportBinding {
+  local: string
+  imported: string
+  targetPath: string
+  provenance: 'EXTRACTED' | 'INFERRED'
+  reason?: InferredReason
+  confidence?: number
+}
+
+interface ResolvedReexport {
+  star: boolean
+  local?: string
+  imported?: string
+  targetPath: string
+}
+
+function callSortKey(call: ExtractedCall): string {
+  return call.intraFileCallee ?? call.importLocal ?? call.caller ?? ''
+}
+
+function compareExtractedCalls(left: ExtractedCall, right: ExtractedCall): number {
+  const line = left.span.start.line - right.span.start.line
+  if (line !== 0) return line
+  const col = left.span.start.col - right.span.start.col
+  if (col !== 0) return col
+  return compareStrings(callSortKey(left), callSortKey(right))
+}
+
+function makeCallEdge(
+  source: string,
+  target: string,
+  span: ExtractedCall['span'],
+  inferred?: { reason: InferredReason; confidence: number }
+): GraphEdge {
+  if (inferred) {
+    return {
+      source,
+      type: 'calls',
+      target,
+      provenance: 'INFERRED',
+      confidence: inferred.confidence,
+      reason: inferred.reason,
+      span
+    }
+  }
+  return { source, type: 'calls', target, provenance: 'EXTRACTED', span }
+}
+
+function exportedSymbolId(exportedName: string, firstIds: Map<string, string>, facts: AdapterParseResult): string | undefined {
+  const root = exportedName === '#default' ? 'default' : exportedName
+  const candidates = [`${root}.constructor`, `${root}.__init__`, root]
+  const exported = new Set(facts.symbols.filter(symbol => symbol.exported).map(symbol => symbol.qualifiedName))
+  for (const name of candidates) {
+    if (!exported.has(name)) continue
+    const id = firstIds.get(name)
+    if (id) return id
+  }
+  return undefined
+}
+
+function resolveExportedName(
+  filePath: string,
+  exportedName: string,
+  firstIdsByFile: Map<string, Map<string, string>>,
+  parsed: Map<string, AdapterParseResult>,
+  reexportsByFile: Map<string, ResolvedReexport[]>,
+  visited: Set<string>
+): string | undefined {
+  if (visited.has(filePath)) return undefined
+  const nextVisited = new Set(visited)
+  nextVisited.add(filePath)
+  const facts = parsed.get(filePath)
+  const firstIds = firstIdsByFile.get(filePath)
+  if (facts && firstIds) {
+    const direct = exportedSymbolId(exportedName, firstIds, facts)
+    if (direct) return direct
+  }
+  for (const reexport of reexportsByFile.get(filePath) ?? []) {
+    if (reexport.star) {
+      const hit = resolveExportedName(reexport.targetPath, exportedName, firstIdsByFile, parsed, reexportsByFile, nextVisited)
+      if (hit) return hit
+      continue
+    }
+    if (reexport.local !== exportedName) continue
+    const nextName = reexport.imported === 'default' || reexport.imported === '#default' ? 'default' : reexport.imported
+    if (!nextName || nextName === '*') continue
+    const hit = resolveExportedName(reexport.targetPath, nextName, firstIdsByFile, parsed, reexportsByFile, nextVisited)
+    if (hit) return hit
+  }
+  return undefined
 }
 
 function rememberTarget(builder: GraphBuilder, outcome: ResolveOutcome, importer: string, specifier: string): { id: string; inferred?: { reason: InferredReason; confidence: number } } {
@@ -634,12 +751,19 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
     : undefined
 
   const builder = new GraphBuilder()
+  const firstIdsByFile = new Map<string, Map<string, string>>()
+  const recordsByPath = new Map(records.map(record => [record.path, record]))
   builder.addNode({ id: ROOT_DIR_ID, kind: 'directory', path: ROOT_PATH, label: ROOT_PATH })
   for (const record of records) {
     linkDirectory(builder, record.path)
     const facts = parsed.get(record.path)
     if (facts) {
-      const limitExceeded = addSymbols(builder, record.path, facts)
+      const firstIds = new Map<string, string>()
+      const limitExceeded = addSymbols(builder, record.path, facts, {
+        noDocSummaries: options.noDocSummaries === true,
+        firstIds
+      })
+      firstIdsByFile.set(record.path, firstIds)
       if (limitExceeded) {
         record.status = 'partial'
         record.reason = partialReason(facts, true)
@@ -657,7 +781,8 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
       ...(record.lossy ? { decoding: 'lossy' as const } : {}),
       ...(record.entry ? { entryCandidate: record.entry } : {}),
       ...(record.entryCandidates && record.entryCandidates.length > 0 ? { entryCandidates: record.entryCandidates } : {}),
-      ...(assignedModule ? { module: assignedModule } : {})
+      ...(assignedModule ? { module: assignedModule } : {}),
+      ...(!options.noDocSummaries && facts?.fileDocSummary ? { docSummary: facts.fileDocSummary } : {})
     }
     builder.addNode(node)
   }
@@ -700,6 +825,9 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
     unresolvedCounts.set(reason, (unresolvedCounts.get(reason) ?? 0) + 1)
   }
   let collapsedEdges = 0
+  const bindingsByFile = new Map<string, Map<string, ResolvedImportBinding>>()
+  const reexportsByFile = new Map<string, ResolvedReexport[]>()
+  const fileRefEdgeCounts = new Map<string, number>()
 
   for (const file of walk.files) {
     const facts = parsed.get(file.path)
@@ -731,21 +859,117 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
           specifier: edgeSpecifier
         }
       applyFlags(edge, reference)
-      if (!builder.addEdge(edge)) {
-        collapsedEdges += 1
-        continue
+      const added = builder.addEdge(edge)
+      if (!added) collapsedEdges += 1
+      else fileRefEdgeCounts.set(file.path, (fileRefEdgeCounts.get(file.path) ?? 0) + 1)
+      if (outcome.kind === 'file') {
+        if (reference.edgeType === 'imports') {
+          let map = bindingsByFile.get(file.path)
+          if (!map) {
+            map = new Map()
+            bindingsByFile.set(file.path, map)
+          }
+          const inferred = literal === null ? undefined : target.inferred
+          for (const binding of reference.bindings ?? []) {
+            if (map.has(binding.local)) continue
+            map.set(binding.local, {
+              local: binding.local,
+              imported: binding.imported,
+              targetPath: outcome.path,
+              provenance: inferred ? 'INFERRED' : 'EXTRACTED',
+              ...(inferred ? { reason: inferred.reason, confidence: inferred.confidence } : {})
+            })
+          }
+        } else if (reference.edgeType === 'reexports') {
+          const list = reexportsByFile.get(file.path) ?? []
+          const bindings = reference.bindings ?? []
+          if (bindings.length === 0) list.push({ star: true, targetPath: outcome.path })
+          else {
+            for (const binding of bindings) {
+              if (binding.imported === '*' && binding.local) continue
+              list.push({ star: false, local: binding.local, imported: binding.imported, targetPath: outcome.path })
+            }
+          }
+          reexportsByFile.set(file.path, list)
+        }
       }
-      if (outcome.kind === 'unresolved') bump(outcome.reason)
+      if (added && outcome.kind === 'unresolved') bump(outcome.reason)
     }
   }
   for (const issue of resolver.configIssues) bump(issue.reason)
+
+  let resolvedCalls = 0
+  let unresolvedCalls = 0
+  for (const file of walk.files) {
+    const facts = parsed.get(file.path)
+    if (!facts) continue
+    unresolvedCalls += facts.unresolvedCalls
+    const firstIds = firstIdsByFile.get(file.path) ?? new Map()
+    const bindings = bindingsByFile.get(file.path)
+    let used = fileRefEdgeCounts.get(file.path) ?? 0
+    let droppedForCap = false
+    const calls = [...facts.calls].sort(compareExtractedCalls)
+    for (const call of calls) {
+      if (droppedForCap || used >= limits.maxEdgesPerFile) {
+        if (!droppedForCap) {
+          droppedForCap = true
+          const record = recordsByPath.get(file.path)
+          if (record) {
+            record.status = 'partial'
+            if (record.reason !== 'limit-exceeded' && record.reason !== 'too-many-symbols') {
+              record.reason = 'too-many-edges'
+            }
+            const node = builder.getNode(fileId(file.path))
+            if (node?.kind === 'file') node.parse = parseInfo(record)
+          }
+        }
+        unresolvedCalls += 1
+        continue
+      }
+      const source = call.caller === null ? fileId(file.path) : firstIds.get(call.caller)
+      if (!source) {
+        unresolvedCalls += 1
+        continue
+      }
+      let target: string | undefined
+      let inferred: { reason: InferredReason; confidence: number } | undefined
+      if (call.intraFileCallee) {
+        target = firstIds.get(call.intraFileCallee)
+      } else if (call.importLocal) {
+        const dot = call.importLocal.indexOf('.')
+        const local = dot === -1 ? call.importLocal : call.importLocal.slice(0, dot)
+        const member = dot === -1 ? undefined : call.importLocal.slice(dot + 1)
+        const binding = bindings?.get(local)
+        if (binding) {
+          const exportedName = member
+            ? (binding.imported === '*' ? member : undefined)
+            : (binding.imported === 'default' ? 'default' : binding.imported === '*' ? undefined : binding.imported)
+          if (exportedName) {
+            target = resolveExportedName(binding.targetPath, exportedName, firstIdsByFile, parsed, reexportsByFile, new Set())
+            if (target && binding.provenance === 'INFERRED' && binding.reason !== undefined && binding.confidence !== undefined) {
+              inferred = { reason: binding.reason, confidence: binding.confidence }
+            }
+          }
+        }
+      }
+      if (!target) {
+        unresolvedCalls += 1
+        continue
+      }
+      const added = builder.addEdge(makeCallEdge(source, target, call.span, inferred))
+      resolvedCalls += 1
+      if (added) used += 1
+    }
+    fileRefEdgeCounts.set(file.path, used)
+  }
 
   const coverage = buildCoverage({
     discovered: walk.discovered,
     ignored: walk.ignored,
     files: records.map(record => ({ language: record.language, status: record.status, ...(record.reason ? { reason: record.reason } : {}) })),
     unnoded: walk.unnodedSkips.map(item => ({ language: item.language, reason: item.reason })),
-    unresolved: [...unresolvedCounts.entries()].map(([reason, count]) => ({ reason, count }))
+    unresolved: [...unresolvedCounts.entries()].map(([reason, count]) => ({ reason, count })),
+    calls: { resolved: resolvedCalls, unresolved: unresolvedCalls }
   })
   let graph = builder.build(coverage, entrySummary(records))
   if (architectureConfig && moduleAssignment) {

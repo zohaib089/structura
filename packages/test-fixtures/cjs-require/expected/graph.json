@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.0.0",
+  "schemaVersion": "1.1.0",
   "summary": {
     "nodes": 4,
     "edges": 4,
@@ -95,7 +95,9 @@
           "line": 1,
           "col": 31
         }
-      }
+      },
+      "scope": "module",
+      "mutable": false
     }
   ],
   "edges": [

@@ -313,3 +313,178 @@ test('the scan does not load process or network modules', async () => {
     cleanup()
   }
 })
+
+
+test('cross-file calls inherit INFERRED provenance from a src-root-guess import', async () => {
+  const { root, cleanup } = makeTree({
+    'other.py': 'from app.main import greet\n\ngreet()\n',
+    'src/app/main.py': 'def greet():\n    return 1\n'
+  })
+  const out = mkdtempSync(join(tmpdir(), 'scan-inferred-'))
+  try {
+    const result = await scanRepository(root, { outDir: out, noCache: true, metaPath: null, limits: { jobs: 1 } })
+    const call = result.graph.edges.find(edge => edge.type === 'calls')
+    assert.ok(call, 'expected a resolved call edge')
+    assert.equal(call?.source, 'file:other.py')
+    assert.equal(call?.target, 'sym:src/app/main.py#greet')
+    assert.equal(call?.provenance, 'INFERRED')
+    assert.equal(call && 'reason' in call ? call.reason : undefined, 'src-root-guess')
+    assert.equal(call && 'confidence' in call ? call.confidence : undefined, 0.7)
+    assert.equal(result.graph.coverage.calls?.resolved, 1)
+  } finally {
+    cleanup()
+  }
+})
+
+test('unresolved calls are counted and never become nodes', async () => {
+  const { root, cleanup } = makeTree({
+    'src/app.ts': [
+      'export function known(): void {}',
+      'export function run(fn: () => void, obj: Record<string, () => void>, key: string): void {',
+      '  known()',
+      '  fn()',
+      '  obj[key]()',
+      '  missing()',
+      '}',
+      ''
+    ].join('\n')
+  })
+  const out = mkdtempSync(join(tmpdir(), 'scan-unresolved-'))
+  try {
+    const result = await scanRepository(root, { outDir: out, noCache: true, metaPath: null, limits: { jobs: 1 } })
+    const calls = result.graph.edges.filter(edge => edge.type === 'calls')
+    assert.equal(calls.length, 1)
+    assert.equal(calls[0]?.source, 'sym:src/app.ts#run')
+    assert.equal(calls[0]?.target, 'sym:src/app.ts#known')
+    assert.equal(calls[0]?.provenance, 'EXTRACTED')
+    assert.equal(result.graph.nodes.some(node => node.kind === 'unresolved'), false)
+    assert.equal(result.graph.coverage.calls?.resolved, 1)
+    assert.ok((result.graph.coverage.calls?.unresolved ?? 0) >= 3)
+  } finally {
+    cleanup()
+  }
+})
+
+test('extracted cross-file calls resolve default, alias, and namespace bindings', async () => {
+  const { root, cleanup } = makeTree({
+    'lib.ts': 'export function foo(): number { return 1 }\nexport default function bar(): number { return 2 }\n',
+    'main.ts': [
+      "import bar, { foo as baz } from './lib'",
+      "import * as ns from './lib'",
+      'export function run(): void {',
+      '  baz()',
+      '  bar()',
+      '  ns.foo()',
+      '}',
+      ''
+    ].join('\n')
+  })
+  const out = mkdtempSync(join(tmpdir(), 'scan-bindings-'))
+  try {
+    const result = await scanRepository(root, { outDir: out, noCache: true, metaPath: null, limits: { jobs: 1 } })
+    const calls = result.graph.edges.filter(edge => edge.type === 'calls' && edge.source === 'sym:main.ts#run')
+    const targets = calls.map(edge => edge.target).sort()
+    assert.deepEqual(targets, ['sym:lib.ts#default', 'sym:lib.ts#foo', 'sym:lib.ts#foo'])
+    assert.equal(calls.every(edge => edge.provenance === 'EXTRACTED'), true)
+    assert.equal(result.graph.coverage.calls?.resolved, 3)
+    assert.equal(result.graph.coverage.calls?.unresolved ?? 0, 0)
+  } finally {
+    cleanup()
+  }
+})
+
+test('a lowered maxEdgesPerFile cap is shared by imports and calls and marks too-many-edges', async () => {
+  const { root, cleanup } = makeTree({
+    'a.ts': 'export function a(): void {}\n',
+    'b.ts': 'export function b(): void {}\n',
+    'c.ts': 'export function c(): void {}\n',
+    'main.ts': [
+      "import { a } from './a'",
+      "import { b } from './b'",
+      "import { c } from './c'",
+      'export function run(): void {',
+      '  a()',
+      '  b()',
+      '  c()',
+      '}',
+      ''
+    ].join('\n')
+  })
+  const out = mkdtempSync(join(tmpdir(), 'scan-cap-'))
+  try {
+    const result = await scanRepository(root, {
+      outDir: out,
+      noCache: true,
+      metaPath: null,
+      limits: { jobs: 1, maxEdgesPerFile: 4 }
+    })
+    const main = result.graph.nodes.find(node => node.kind === 'file' && node.path === 'main.ts')
+    assert.ok(main && main.kind === 'file')
+    if (main && main.kind === 'file') {
+      assert.equal(main.parse.status, 'partial')
+      assert.equal(main.parse.reason, 'too-many-edges')
+    }
+    const fromMain = result.graph.edges.filter(edge => (
+      (edge.type === 'imports' || edge.type === 'reexports' || edge.type === 'calls') && edge.source === 'file:main.ts'
+    ) || (edge.type === 'calls' && edge.source === 'sym:main.ts#run'))
+    const imports = fromMain.filter(edge => edge.type === 'imports').length
+    const calls = fromMain.filter(edge => edge.type === 'calls').length
+    assert.equal(imports, 3)
+    assert.equal(calls, 1)
+    assert.equal(imports + calls, 4)
+  } finally {
+    cleanup()
+  }
+})
+
+test('inventory fields and doc summaries persist, and two scans stay byte-identical', async () => {
+  const { root, cleanup } = makeTree({
+    'src/app.ts': [
+      '/** Application entry. */',
+      '/** Adds two numbers. */',
+      'export function add(a: number, b: number): number { return a + b }',
+      'export const COUNT = 1',
+      'export class Box {',
+      '  method(x: number): void { add(1, x) }',
+      '}',
+      ''
+    ].join('\n')
+  })
+  const outA = mkdtempSync(join(tmpdir(), 'scan-ident-a-'))
+  const outB = mkdtempSync(join(tmpdir(), 'scan-ident-b-'))
+  const outOff = mkdtempSync(join(tmpdir(), 'scan-ident-off-'))
+  const outOffB = mkdtempSync(join(tmpdir(), 'scan-ident-off-b-'))
+  try {
+    const first = await scanRepository(root, { outDir: outA, noCache: true, metaPath: null, limits: { jobs: 1 } })
+    const second = await scanRepository(root, { outDir: outB, noCache: true, metaPath: null, limits: { jobs: 1 } })
+    assert.equal(first.graphJson, second.graphJson)
+    const file = first.graph.nodes.find(node => node.kind === 'file' && node.path === 'src/app.ts')
+    assert.ok(file && file.kind === 'file')
+    if (file && file.kind === 'file') assert.equal(file.docSummary, 'Application entry.')
+    const add = first.graph.nodes.find(node => node.kind === 'symbol' && node.id === 'sym:src/app.ts#add')
+    assert.ok(add && add.kind === 'symbol')
+    if (add && add.kind === 'symbol') {
+      assert.equal(add.paramCount, 2)
+      assert.equal(add.docSummary, 'Adds two numbers.')
+    }
+    const count = first.graph.nodes.find(node => node.kind === 'symbol' && node.id === 'sym:src/app.ts#COUNT')
+    assert.ok(count && count.kind === 'symbol')
+    if (count && count.kind === 'symbol') {
+      assert.equal(count.scope, 'module')
+      assert.equal(count.mutable, false)
+    }
+    const method = first.graph.nodes.find(node => node.kind === 'symbol' && node.id === 'sym:src/app.ts#Box.method')
+    assert.ok(method && method.kind === 'symbol')
+    if (method && method.kind === 'symbol') {
+      assert.equal(method.parent, 'sym:src/app.ts#Box')
+      assert.equal(method.paramCount, 1)
+    }
+    const off = await scanRepository(root, { outDir: outOff, noCache: true, metaPath: null, limits: { jobs: 1 }, noDocSummaries: true })
+    const offSecond = await scanRepository(root, { outDir: outOffB, noCache: true, metaPath: null, limits: { jobs: 1 }, noDocSummaries: true })
+    assert.equal(off.graphJson, offSecond.graphJson)
+    assert.notEqual(off.graphJson, first.graphJson)
+    assert.equal(off.graph.nodes.some(node => 'docSummary' in node && node.docSummary), false)
+  } finally {
+    cleanup()
+  }
+})
