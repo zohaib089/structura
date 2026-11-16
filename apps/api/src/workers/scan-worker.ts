@@ -128,8 +128,8 @@ async function runWorkspaceScan(scanId: string, dependencies: ScanWorkerDependen
           }
 
           await setScanStep(dependencies.query, scanId, 'scanning', signal)
-          const output = await runScan(sourceRoot, { noCache: true, limits: { jobs: 1 } })
-          const graph = JSON.parse(output.graphJson) as unknown
+          const output = await runScan(sourceRoot, { noCache: true, limits: { jobs: 1 }, docSummaries: false })
+          const graph = omitDocSummaries(JSON.parse(output.graphJson) as unknown)
 
           await setScanStep(dependencies.query, scanId, 'analysing', signal)
           const hasGit =
@@ -175,6 +175,22 @@ async function runWorkspaceScan(scanId: string, dependencies: ScanWorkerDependen
     runningAbortControllers.delete(scanId)
     await cleanupSource?.()
   }
+}
+
+/**
+ * API scans never persist `docSummary`, even if a caller or a scan implementation
+ * asked for or returned one.
+ */
+export function omitDocSummaries(graph: unknown): unknown {
+  if (graph === null || typeof graph !== 'object') return graph
+  const nodes = (graph as { nodes?: unknown }).nodes
+  if (!Array.isArray(nodes)) return graph
+  for (const node of nodes) {
+    if (node !== null && typeof node === 'object' && 'docSummary' in node) {
+      delete (node as { docSummary?: string }).docSummary
+    }
+  }
+  return graph
 }
 
 function checkAbort(signal: AbortSignal): void {

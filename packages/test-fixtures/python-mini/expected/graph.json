@@ -54,8 +54,7 @@
       "lineCount": 2,
       "parse": {
         "status": "parsed"
-      },
-      "docSummary": "Tiny package for golden corpus."
+      }
     },
     {
       "id": "file:pkg/app.py",

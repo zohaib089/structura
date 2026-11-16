@@ -455,8 +455,8 @@ test('inventory fields and doc summaries persist, and two scans stay byte-identi
   const outOff = mkdtempSync(join(tmpdir(), 'scan-ident-off-'))
   const outOffB = mkdtempSync(join(tmpdir(), 'scan-ident-off-b-'))
   try {
-    const first = await scanRepository(root, { outDir: outA, noCache: true, metaPath: null, limits: { jobs: 1 } })
-    const second = await scanRepository(root, { outDir: outB, noCache: true, metaPath: null, limits: { jobs: 1 } })
+    const first = await scanRepository(root, { outDir: outA, noCache: true, metaPath: null, limits: { jobs: 1 }, docSummaries: true })
+    const second = await scanRepository(root, { outDir: outB, noCache: true, metaPath: null, limits: { jobs: 1 }, docSummaries: true })
     assert.equal(first.graphJson, second.graphJson)
     const file = first.graph.nodes.find(node => node.kind === 'file' && node.path === 'src/app.ts')
     assert.ok(file && file.kind === 'file')
@@ -479,8 +479,8 @@ test('inventory fields and doc summaries persist, and two scans stay byte-identi
       assert.equal(method.parent, 'sym:src/app.ts#Box')
       assert.equal(method.paramCount, 1)
     }
-    const off = await scanRepository(root, { outDir: outOff, noCache: true, metaPath: null, limits: { jobs: 1 }, noDocSummaries: true })
-    const offSecond = await scanRepository(root, { outDir: outOffB, noCache: true, metaPath: null, limits: { jobs: 1 }, noDocSummaries: true })
+    const off = await scanRepository(root, { outDir: outOff, noCache: true, metaPath: null, limits: { jobs: 1 } })
+    const offSecond = await scanRepository(root, { outDir: outOffB, noCache: true, metaPath: null, limits: { jobs: 1 } })
     assert.equal(off.graphJson, offSecond.graphJson)
     assert.notEqual(off.graphJson, first.graphJson)
     assert.equal(off.graph.nodes.some(node => 'docSummary' in node && node.docSummary), false)

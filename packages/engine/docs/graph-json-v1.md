@@ -118,11 +118,13 @@ There are no `reads` or `writes` edges in v1.1.
 Optional first sentence of a doc comment or docstring, on **file** nodes and on **function**, **class**, and **default** symbol nodes.
 
 - Break on `. `, `? `, `! `, or a newline; never a second sentence.
-- Hard cap of 160 Unicode code points (`truncateCodePoints`).
-- Bidi and C0/C1 controls are deleted, not escaped into the graph.
+- Hard cap of 160 Unicode code points (`truncateCodePoints`). If the cap would cut through a non-whitespace token, the field is omitted rather than stored mid-word.
+- Secret detection (`looksSecret`) runs on the whole sanitised sentence **before** truncation, so a secret past the 160-code-point mark still causes omission.
+- Bidi and C0/C1 controls, zero-width characters (U+200B, U+200C, U+200D, U+2060, U+FEFF) and the soft hyphen U+00AD are deleted; the text is NFKC-normalised. Both steps run before detection and again on the output.
+- `<` and `>` are stripped. Summaries that contain an email address or a phone number are omitted.
 - If `looksSecret` matches, the field is **omitted** (the graph never stores `[redacted]` as a summary).
 - Sources: JSDoc/TSDoc immediately preceding the declaration; Python function, class, and module docstrings (the first statement); Vue: a leading `<!-- -->` in the SFC, then script-block JSDoc, then JSDoc on the default export. Not arbitrary mid-file comments, and not `@example` bodies.
-- On by default. `--no-doc-summaries` writes no `docSummary` fields.
+- Off by default. `--doc-summaries` opts in and writes sanitised `docSummary` fields. `--no-doc-summaries` remains accepted as a no-op (summaries are already off unless `--doc-summaries` is set; if both flags are passed, summaries stay off). API / workspace scans never write `docSummary`, even if a caller asks for it.
 
 This is the only named exception to the source-text-free rule: doc comments only, never code.
 
@@ -330,5 +332,6 @@ Pass `--config <path>` to use a config file other than the default at the scan r
 
 ## Changelog
 
+- **2026-11-16, schemaVersion 1.1.0** (Security review): `docSummary` is **off by default** and opt-in via `--doc-summaries` (`--no-doc-summaries` is a no-op). Detection runs on the full sanitised sentence before the 160-code-point cap; mid-token truncation drops the field. Zero-width characters and U+00AD are stripped and the text is NFKC-normalised before detection and on the output. `looksSecret` also matches GitLab token prefixes, AWS / base64 blobs that contain `/` or `+`, and credential prose. API scans never persist `docSummary`.
 - **2026-11-15, schemaVersion 1.1.0** (Tech Lead sign-off): additive file-insights contract. New optional edge type `calls` (file or function/method symbol → function/method or class symbol; module-scope caller is the file node). Optional symbol fields `parent`, `paramCount`, `scope`, `mutable`, `stateKind`, and `docSummary`; optional `docSummary` on file nodes; optional `coverage.calls`. `docSummary` is a narrow, named exception to source-text-free (sanitised first sentence of a doc comment or docstring only, 160 code-point cap, omitted when `looksSecret` matches; default on, `--no-doc-summaries` to opt out). No `reads` / `writes` edges and no function-local variable symbols. Architecture drift stays `imports` / `reexports` only. The frozen `schema-fixtures/v1.0.0.graph.json` canary is unchanged; `schema-fixtures/v1.1.0.graph.json` covers the new shapes. A 1.0.0 reader loading 1.1.0 sets `newerMinor` and strips unknown properties, keeping `calls` as a generic edge. A 1.1.0 reader accepts 1.0.0 documents because every new field is optional.
 - **2026-11-12, minor contract change, still schemaVersion 1.0.0** (Tech Lead sign-off): `architecture.findings[].provenance` widened from `EXTRACTED` to `EXTRACTED|INFERRED`. `INFERRED` is used only for workspace-package resolutions. No new fields. Every graph reader accepts any 1.x version (engine `readGraph`, viewer `read-graph.ts`), so the version was not bumped. The viewer reader and its types accept both values.

@@ -128,8 +128,8 @@ export interface ScanOptions {
   useDefaultIgnores?: boolean
   extraIgnorePatterns?: readonly string[]
   signal?: AbortSignal
-  /** When true, omit `docSummary` on file and symbol nodes. Default is to write sanitised summaries. */
-  noDocSummaries?: boolean
+  /** When true, write sanitised `docSummary` fields. Off by default (opt-in). */
+  docSummaries?: boolean
 }
 
 export interface ScanOutput {
@@ -219,7 +219,7 @@ export function addSymbols(
   builder: GraphBuilder,
   filePath: string,
   facts: AdapterParseResult,
-  options?: { noDocSummaries?: boolean; firstIds?: Map<string, string> }
+  options?: { docSummaries?: boolean; firstIds?: Map<string, string> }
 ): boolean {
   const counts = new Map<string, number>()
   const firstId = options?.firstIds ?? new Map<string, string>()
@@ -241,7 +241,7 @@ export function addSymbols(
     if (!firstId.has(symbol.qualifiedName)) firstId.set(symbol.qualifiedName, id)
     created.push({ name: symbol.qualifiedName, id, symbol })
   }
-  const hideDocs = options?.noDocSummaries === true
+  const hideDocs = options?.docSummaries !== true
   for (const item of created) {
     const dottedParent = (() => {
       const dot = item.name.lastIndexOf('.')
@@ -760,7 +760,7 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
     if (facts) {
       const firstIds = new Map<string, string>()
       const limitExceeded = addSymbols(builder, record.path, facts, {
-        noDocSummaries: options.noDocSummaries === true,
+        docSummaries: options.docSummaries === true,
         firstIds
       })
       firstIdsByFile.set(record.path, firstIds)
@@ -782,7 +782,7 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
       ...(record.entry ? { entryCandidate: record.entry } : {}),
       ...(record.entryCandidates && record.entryCandidates.length > 0 ? { entryCandidates: record.entryCandidates } : {}),
       ...(assignedModule ? { module: assignedModule } : {}),
-      ...(!options.noDocSummaries && facts?.fileDocSummary ? { docSummary: facts.fileDocSummary } : {})
+      ...(options.docSummaries === true && facts?.fileDocSummary ? { docSummary: facts.fileDocSummary } : {})
     }
     builder.addNode(node)
   }

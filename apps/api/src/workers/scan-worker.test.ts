@@ -311,3 +311,92 @@ async function waitUntil(predicate: () => boolean, timeoutMs = 5000): Promise<vo
     await new Promise(resolve => setTimeout(resolve, 10))
   }
 }
+
+test('API scans never write docSummary even if the scanner returns or is asked for one', async () => {
+  const { scans, query } = createScanStore([
+    [
+      'scan-docs',
+      {
+        id: 'scan-docs',
+        workspace_id: 'workspace-1',
+        requested_by: 'user-1',
+        source: 'git',
+        source_url: 'https://github.com/org/repo',
+        source_branch: null,
+        upload_payload: null,
+        status: 'queued',
+        step: null,
+        error_message: null,
+        graph_json: null,
+        created_at: '2026-11-16T00:00:00.000Z',
+        updated_at: '2026-11-16T00:00:00.000Z',
+        started_at: null,
+        finished_at: null
+      }
+    ]
+  ])
+
+  let capturedOptions: { docSummaries?: boolean } | undefined
+  await runWorkspaceScan('scan-docs', {
+    query,
+    now: () => new Date('2026-11-16T00:00:01.000Z'),
+    cloneRepository: async () => {
+      const directory = await mkdtemp(join(tmpdir(), 'mock-clone-docs-'))
+      await mkdir(join(directory, '.git'), { recursive: true })
+      return { directory, cleanup: async () => undefined }
+    },
+    runScan: async (_root, options) => {
+      capturedOptions = { docSummaries: options?.docSummaries }
+      return {
+        graphJson: JSON.stringify({
+          schemaVersion: '1.1.0',
+          summary: { nodes: 1, edges: 0, files: 1 },
+          coverage: {
+            files: { discovered: 1, parsed: 1, partial: 0, failed: 0, skipped: 0, ignored: 0 },
+            byLanguage: [],
+            skipped: [],
+            failed: [],
+            ignored: [],
+            unresolved: [],
+            accounting: { discovered: 1, accounted: 1 }
+          },
+          nodes: [
+            {
+              id: 'file:src/app.ts',
+              kind: 'file',
+              path: 'src/app.ts',
+              label: 'app.ts',
+              language: 'typescript',
+              lineCount: 1,
+              parse: { status: 'parsed' },
+              docSummary: 'Application entry.'
+            }
+          ],
+          edges: []
+        }),
+        graph: {} as never,
+        graphPath: '/tmp/graph.json',
+        run: {} as never,
+        strictFailures: [],
+        summary: 'ok',
+        elapsedMs: 1,
+        root: '/tmp',
+        fileSummaries: { 'src/app.ts': 'Application entry.' }
+      }
+    },
+    runAnalysis: async () => ({
+      schemaVersion: '1.0.0',
+      generatedAt: '2026-11-16T00:00:01.000Z',
+      analysers: {},
+      history: null,
+      findings: [],
+      improvements: []
+    })
+  })
+
+  assert.equal(capturedOptions?.docSummaries, false)
+  assert.equal(scans.get('scan-docs')?.status, 'succeeded')
+  const graph = scans.get('scan-docs')?.graph_json as { nodes: Array<{ docSummary?: string }> }
+  assert.equal(Array.isArray(graph.nodes), true)
+  assert.equal(graph.nodes.some(node => 'docSummary' in node && node.docSummary !== undefined), false)
+})
