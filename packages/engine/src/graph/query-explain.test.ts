@@ -1,13 +1,14 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { CANARY_GRAPH_PATH } from './hash.js'
+import { CANARY_GRAPH_PATH, CANARY_V110_GRAPH_PATH } from './hash.js'
 import { explainGraphNode } from './explain.js'
 import { GraphNodeNotFoundError, resolveNodeRef } from './resolve-ref.js'
 import { queryGraph } from './query.js'
 import { readGraph } from './read.js'
 
 const { graph } = readGraph(readFileSync(CANARY_GRAPH_PATH, 'utf8'))
+const { graph: graphV11 } = readGraph(readFileSync(CANARY_V110_GRAPH_PATH, 'utf8'))
 
 test('resolveNodeRef accepts ids and repo paths', () => {
   assert.equal(resolveNodeRef(graph, 'file:src/app.ts'), 'file:src/app.ts')
@@ -59,4 +60,21 @@ test('explainGraphNode reports coverage and grouped edges', () => {
   assert.equal(explained.entryCandidate?.provenance, 'INFERRED')
   assert.equal(explained.entryCandidates?.length, 1)
   assert.equal(explained.entryCandidates?.[0]?.reason, 'conventional-name')
+})
+
+test('explain and query list a function\'s outbound calls', () => {
+  const explained = explainGraphNode(graphV11, 'src/app.ts#Greeter.hello')
+  assert.equal(explained.kind, 'symbol')
+  assert.equal(explained.outbound.calls?.length, 2)
+  const peers = (explained.outbound.calls ?? []).map(edge => edge.peer).sort()
+  assert.deepEqual(peers, ['sym:src/app.ts#format', 'sym:src/lib.ts#helper'])
+  const extracted = explained.outbound.calls?.find(edge => edge.peer === 'sym:src/app.ts#format')
+  assert.equal(extracted?.provenance, 'EXTRACTED')
+  const inferred = explained.outbound.calls?.find(edge => edge.peer === 'sym:src/lib.ts#helper')
+  assert.equal(inferred?.provenance, 'INFERRED')
+  assert.equal(inferred?.reason, 'src-subpath')
+  const calls = queryGraph(graphV11, { from: 'src/app.ts#Greeter.hello', type: 'calls' })
+  assert.equal(calls.mode, 'edges')
+  assert.equal(calls.edges.length, 2)
+  assert.deepEqual(calls.edges.map(edge => edge.target).sort(), ['sym:src/app.ts#format', 'sym:src/lib.ts#helper'])
 })
