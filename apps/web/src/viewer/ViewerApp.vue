@@ -52,7 +52,7 @@ import type { ViewerReportFinding } from './report-types'
 import { scanReportMessages } from '../services/scan-report-messages'
 import type { SeverityCounts } from '../services/scan-report-tree'
 import type { WebLocale } from '../services/locale'
-import { buildNodeDetailSections } from './node-detail-data'
+import { buildNodeDetailSections, internalLinksText } from './node-detail-data'
 import { sampleGraph } from './sample-graph'
 import BudgetMeter from './components/BudgetMeter.vue'
 import CoachMark from './components/CoachMark.vue'
@@ -708,7 +708,9 @@ const detail = computed(() => {
     provenance: '',
     confidence: confidenceOf(node),
     reason: reasonOf(node),
-    internal: model ? format(messages.detailsInternal, { n: numbers.format(model.internalEdges) }) : '',
+    internal: model
+      ? internalLinksText(model.internalEdges, node?.kind || model.kind || '', { none: messages.detailsInternalNone, one: messages.detailsInternalOne, many: messages.detailsInternalMany }, (n) => numbers.format(n))
+      : '',
     weight: '',
     importKind: '',
     typeOnly: ''

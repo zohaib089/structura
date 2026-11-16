@@ -2,7 +2,7 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import NodeDetail from '../../src/viewer/components/NodeDetail.vue'
 import { viewerMessages } from '../../src/viewer/messages'
-import { buildNodeDetailSections, symbolKindCounts, symbolKindGroup, symbolsForFile } from '../../src/viewer/node-detail-data'
+import { buildNodeDetailSections, internalLinksText, symbolKindCounts, symbolKindGroup, symbolsForFile } from '../../src/viewer/node-detail-data'
 import { indexGraph } from '../../src/viewer/overview'
 import { readGraph } from '../../src/viewer/read-graph'
 import sampleGraph from '../../fixtures/sample-graph.json'
@@ -127,5 +127,20 @@ describe('file panel symbols (NodeDetail)', () => {
     const w = mountDetail('file:src/empty.ts', true)
     expect(w.get('[data-testid="symbols-empty"]').text()).toBe(m.emptySymbols)
     expect(w.find('[data-testid="symbol-counts"]').exists()).toBe(false)
+  })
+})
+
+describe('"Links inside" row (G6)', () => {
+  const m = viewerMessages('en')
+  const copy = { none: m.detailsInternalNone, one: m.detailsInternalOne, many: m.detailsInternalMany }
+  it('interpolates plain-language copy, never a raw {n}', () => {
+    expect(internalLinksText(0, 'directory', copy)).toBe('None')
+    expect(internalLinksText(1, 'directory', copy)).toBe('1 link between files inside')
+    expect(internalLinksText(1234, 'directory', copy, (n) => n.toLocaleString('en'))).toBe('1,234 links between files inside')
+    expect(m.detailsInternal).toBe('Links inside')
+    for (const text of [m.detailsInternal, internalLinksText(3, 'directory', copy)]) expect(text).not.toMatch(/[{}]/)
+  })
+  it('drops the row for a file with nothing inside', () => {
+    expect(internalLinksText(0, 'file', copy)).toBe('')
   })
 })

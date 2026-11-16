@@ -100,7 +100,12 @@ export interface ViewerMessages {
   detailsConfidence: string
   detailsReason: string
   detailsSpan: string
+  /** Row label for links that start and end inside the selected folder / group. */
   detailsInternal: string
+  detailsInternalNone: string
+  detailsInternalOne: string
+  /** "{n} links between files inside" */
+  detailsInternalMany: string
   detailsWeight: string
   detailsImportKind: string
   detailsTypeOnly: string
@@ -334,7 +339,10 @@ const en: ViewerMessages = {
   detailsConfidence: 'Confidence',
   detailsReason: 'Reason',
   detailsSpan: 'Span',
-  detailsInternal: 'Internal edges: {n}',
+  detailsInternal: 'Links inside',
+  detailsInternalNone: 'None',
+  detailsInternalOne: '1 link between files inside',
+  detailsInternalMany: '{n} links between files inside',
   detailsWeight: 'Weight',
   detailsImportKind: 'Import kind',
   detailsTypeOnly: 'Type only',

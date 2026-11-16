@@ -283,3 +283,19 @@ export function resolveNavigateTargetId(index: GraphIndex, row: RelatedNodeRow):
   }
   return row.id
 }
+
+/**
+ * Plain-language value for the "Links inside" row: links that start and end inside the selected
+ * folder / group. Files have nothing "inside", so a file with none gets no row (empty string).
+ */
+export function internalLinksText(
+  count: number,
+  kind: string,
+  copy: { none: string; one: string; many: string },
+  formatNumber: (n: number) => string = (n) => String(n)
+): string {
+  if (!Number.isFinite(count) || count < 0) return ''
+  if (count === 0) return kind === 'file' || kind === 'symbol' ? '' : copy.none
+  if (count === 1) return copy.one
+  return copy.many.replace('{n}', formatNumber(count))
+}
