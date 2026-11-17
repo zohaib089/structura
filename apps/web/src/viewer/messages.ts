@@ -149,6 +149,8 @@ export interface ViewerMessages {
   unknownKinds: string
   railToggle: string
   inspectorToggle: string
+  panelCollapse: string
+  panelExpand: string
   entryLabel: string
   recentreLabel: string
   statusRadial: string
@@ -386,6 +388,8 @@ const en: ViewerMessages = {
   unknownKinds: '{n} kinds this viewer does not know',
   railToggle: 'Show or hide filters',
   inspectorToggle: 'Show or hide the details panel',
+  panelCollapse: 'Collapse the panel',
+  panelExpand: 'Expand the panel',
   entryLabel: 'Start from file',
   recentreLabel: 'Centre graph here',
   statusRadial: 'Radial · {rings} · {name}',

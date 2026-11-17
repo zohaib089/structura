@@ -63,7 +63,7 @@ import ErrorBanner from './components/ErrorBanner.vue'
 import FilterRail from './components/FilterRail.vue'
 import FocusBar from './components/FocusBar.vue'
 import GraphCanvas from './components/GraphCanvas.vue'
-import { ChartPie, GitCompareArrows } from '@lucide/vue'
+import { ChartPie, GitCompareArrows, PanelRightClose, PanelRightOpen } from '@lucide/vue'
 import GraphFloatingBar from './components/GraphFloatingBar.vue'
 import GraphLegend from './components/GraphLegend.vue'
 import GraphSourcePicker from './components/GraphSourcePicker.vue'
@@ -78,6 +78,8 @@ const emit = defineEmits<{
 const props = withDefaults(
   defineProps<{
     embedded?: boolean
+    /** Host-provided memory for the collapsed panel (dashboard: browser storage, extension: webview state). */
+    panelPrefs?: { read: () => boolean; write: (collapsed: boolean) => void } | null
     bootSample?: boolean
     locale?: WebLocale
     /** When set (embedded dashboard), follow the app shell theme instead of managing document theme locally. */
@@ -155,6 +157,17 @@ const viewerEl = ref<HTMLElement | null>(null)
  * fits into the area left of it. Phones get 0: there the panel is a sheet below the toolbar.
  */
 const panelInset = ref(0)
+/** The open panel can shrink to a slim rail (tab icons + expand). Hosts may remember it via panelPrefs. */
+const panelCollapsed = ref(props.panelPrefs?.read() ?? false)
+const panelToggleEl = ref<HTMLButtonElement | null>(null)
+function setPanelCollapsed(next: boolean, nextTab?: 'details' | 'coverage' | 'drift') {
+  if (nextTab) tab.value = nextTab
+  panelCollapsed.value = next
+  props.panelPrefs?.write(next)
+  // Keep keyboard focus on the toggle, which moves between the rail and the header.
+  void nextTick(() => panelToggleEl.value?.focus())
+}
+watch(panelCollapsed, () => { void nextTick(measurePanelInset) }, { flush: 'post' })
 function measurePanelInset() {
   const panel = inspectorEl.value
   const canvas = viewerEl.value?.querySelector<HTMLElement>('[data-testid="graph-canvas"]')
@@ -982,7 +995,7 @@ const snippet = 'layers: []\nrules: []\n'
 </script>
 
 <template>
-  <div ref="viewerEl" class="viewer viewer-radial" :class="{ 'viewer-embedded': embedded, 'is-inspector-open': inspectorOpen, 'is-focusing': Boolean(focus && focusSummary) }" :dir="direction">
+  <div ref="viewerEl" class="viewer viewer-radial" :class="{ 'viewer-embedded': embedded, 'is-inspector-open': inspectorOpen, 'is-panel-collapsed': inspectorOpen && panelCollapsed, 'is-focusing': Boolean(focus && focusSummary) }" :dir="direction">
     <a v-if="!embedded" class="skip" href="#graph-canvas">{{ messages.skip }}</a>
     <header v-if="!embedded" class="topbar" role="banner">
       <BrandMark :size="24" />
@@ -1185,7 +1198,27 @@ const snippet = 'layers: []\nrules: []\n'
       />
     </main>
 
-    <aside ref="inspectorEl" class="inspector" :class="{ 'is-open': inspectorOpen }" :aria-label="messages.inspector">
+    <aside ref="inspectorEl" class="inspector" :class="{ 'is-open': inspectorOpen, 'is-collapsed': panelCollapsed }" :aria-label="messages.inspector">
+      <div v-if="panelCollapsed" class="inspector-rail" data-testid="panel-rail">
+        <button
+          ref="panelToggleEl"
+          type="button"
+          class="panel-toggle"
+          data-testid="panel-toggle"
+          aria-expanded="false"
+          aria-controls="viewer-panel-body"
+          :aria-label="messages.panelExpand"
+          :title="messages.panelExpand"
+          @click="setPanelCollapsed(false)"
+        >
+          <PanelRightOpen :size="16" aria-hidden="true" />
+        </button>
+        <button type="button" class="rail-tab" :aria-label="messages.tabDetails" :title="messages.tabDetails" @click="setPanelCollapsed(false, 'details')"><Info :size="16" aria-hidden="true" /></button>
+        <button type="button" class="rail-tab" :aria-label="messages.tabCoverage" :title="messages.tabCoverage" @click="setPanelCollapsed(false, 'coverage')"><ChartPie :size="16" aria-hidden="true" /></button>
+        <button type="button" class="rail-tab" :aria-label="messages.tabDrift" :title="messages.tabDrift" @click="setPanelCollapsed(false, 'drift')"><GitCompareArrows :size="16" aria-hidden="true" /></button>
+      </div>
+      <div v-show="!panelCollapsed" id="viewer-panel-body" class="inspector-body">
+      <div class="inspector-head">
       <div role="tablist" class="inspector-tabs">
         <button type="button" role="tab" :aria-selected="tab === 'details'" @click="tab = 'details'"><Info :size="14" aria-hidden="true" /><span>{{ messages.tabDetails }}</span></button>
         <button type="button" role="tab" :aria-selected="tab === 'coverage'" @click="tab = 'coverage'">
@@ -1193,6 +1226,21 @@ const snippet = 'layers: []\nrules: []\n'
           <span v-if="skippedCount" class="tab-count">▲ {{ numbers.format(skippedCount) }}</span>
         </button>
         <button type="button" role="tab" :aria-selected="tab === 'drift'" @click="tab = 'drift'"><GitCompareArrows :size="14" aria-hidden="true" /><span>{{ messages.tabDrift }}</span></button>
+      </div>
+        <button
+          v-if="!panelCollapsed"
+          ref="panelToggleEl"
+          type="button"
+          class="panel-toggle"
+          data-testid="panel-toggle"
+          aria-expanded="true"
+          aria-controls="viewer-panel-body"
+          :aria-label="messages.panelCollapse"
+          :title="messages.panelCollapse"
+          @click="setPanelCollapsed(true)"
+        >
+          <PanelRightClose :size="16" aria-hidden="true" />
+        </button>
       </div>
       <NodeDetail
         v-if="tab === 'details'"
@@ -1293,6 +1341,7 @@ const snippet = 'layers: []\nrules: []\n'
         @copy="copyText(snippet)"
       />
       <p v-if="unknownKinds">{{ format(messages.unknownKinds, { n: numbers.format(unknownKinds) }) }}</p>
+      </div>
     </aside>
 
     <footer class="status" role="contentinfo">
@@ -1411,9 +1460,15 @@ const snippet = 'layers: []\nrules: []\n'
   border-inline-end: 1px solid var(--color-border);
   transform: translateX(-110%);
 }
+.viewer.viewer-radial {
+  --viewer-panel-w: min(var(--viewer-inspector-width), 92vw);
+}
+.viewer.viewer-radial.is-panel-collapsed {
+  --viewer-panel-w: 3rem;
+}
 .viewer.viewer-radial .inspector {
   inset-inline-end: 0;
-  inline-size: min(var(--viewer-inspector-width), 92vw);
+  inline-size: var(--viewer-panel-w);
   border-inline-start: 1px solid var(--color-border);
   transform: translateX(110%);
 }
@@ -1424,10 +1479,10 @@ const snippet = 'layers: []\nrules: []\n'
 /* The open drawer overlays the stage: move the zoom controls beside it so they stay usable,
    and tell the floating toolbar how much of the right edge is covered so it centres left of it. */
 .viewer.viewer-radial.is-inspector-open {
-  --graph-controls-inset-end: calc(min(var(--viewer-inspector-width), 92vw) + var(--space-3));
+  --graph-controls-inset-end: calc(var(--viewer-panel-w) + var(--space-3));
 }
 .viewer.viewer-radial.is-inspector-open :deep(.vue-flow__panel.zoom) {
-  margin-inline-end: calc(min(var(--viewer-inspector-width), 92vw) + var(--space-3));
+  margin-inline-end: calc(var(--viewer-panel-w) + var(--space-3));
   transition: margin var(--dur-2) var(--easing-standard);
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1534,6 +1589,20 @@ button:active:not(:disabled) { transform: scale(0.98); }
 button:disabled { opacity: var(--alpha-40); }
 .inspector { font-size: var(--font-size-sm); line-height: var(--line-height-normal); }
 .tab-count { font-variant-numeric: tabular-nums; }
+.inspector-body { display: flex; flex-direction: column; gap: var(--space-3); }
+.inspector-head { display: flex; align-items: center; gap: var(--space-1); }
+.inspector-head .inspector-tabs { flex: 1 1 auto; min-inline-size: 0; }
+.viewer.viewer-radial .inspector.is-collapsed { padding: var(--space-2) var(--space-1); overflow: visible; }
+.inspector-rail { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); }
+.panel-toggle, .rail-tab {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  inline-size: 2rem; block-size: 2rem; padding: 0;
+  border: 1px solid var(--color-border); border-radius: var(--r-sm);
+  background: transparent; color: var(--color-text-secondary); cursor: pointer;
+}
+.rail-tab { border-color: transparent; }
+.panel-toggle:hover, .rail-tab:hover { color: var(--color-text-primary); border-color: var(--color-brand-amber-ui); }
+.panel-toggle:focus-visible, .rail-tab:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 /* Details / Coverage / Drift: one segmented control, icon + label. */
 .inspector-tabs {
   display: flex;
@@ -1601,6 +1670,7 @@ button:disabled { opacity: var(--alpha-40); }
     inline-size: min(var(--viewer-inspector-width), 88vw);
     transform: translateX(110%);
   }
+  .viewer.viewer-radial:not(.viewer-embedded) .inspector.is-collapsed { inline-size: 3rem; }
   .viewer.viewer-radial:not(.viewer-embedded) .rail.is-open,
   .viewer.viewer-radial:not(.viewer-embedded) .inspector.is-open {
     transform: none;

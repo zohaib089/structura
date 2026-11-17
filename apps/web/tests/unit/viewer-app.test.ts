@@ -10,6 +10,66 @@ vi.mock('../../src/viewer/parse-client', () => ({
 }))
 
 describe('ViewerApp', () => {
+  it('collapses the details panel to a rail and reads and writes the host panel prefs', async () => {
+    class ResizeObserverStub {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    vi.stubGlobal('ResizeObserver', ResizeObserverStub)
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener() {},
+      removeEventListener() {}
+    }))
+    // Vue Flow measures edge labels with SVG getBBox, which jsdom does not implement.
+    const svg = SVGElement.prototype as SVGElement & { getBBox(): DOMRect }
+    svg.getBBox = (): DOMRect =>
+      ({
+        x: 0,
+        y: 0,
+        width: 12,
+        height: 8,
+        bottom: 8,
+        left: 0,
+        right: 12,
+        top: 0,
+        toJSON() {
+          return {}
+        }
+      }) as DOMRect
+    const { default: ViewerApp } = await import('../../src/viewer/ViewerApp.vue')
+    const { localViewerPanelPrefs, VIEWER_PANEL_COLLAPSED_KEY } = await import('../../src/services/viewer-panel-pref')
+    window.localStorage.removeItem(VIEWER_PANEL_COLLAPSED_KEY)
+    const open = async () => {
+      const wrapper = mount(ViewerApp, { attachTo: document.body, props: { panelPrefs: localViewerPanelPrefs } })
+      await wrapper.get('button.primary').trigger('click')
+      await flushPromises()
+      await vi.waitFor(() => expect(wrapper.find('[data-testid="graph-canvas"]').exists()).toBe(true))
+      await wrapper.get('[data-node-id="file:apps/web/main.ts"]').trigger('click')
+      return wrapper
+    }
+    const first = await open()
+    const toggle = first.get('[data-testid="panel-toggle"]')
+    expect(toggle.attributes('aria-expanded')).toBe('true')
+    await toggle.trigger('click')
+    await flushPromises()
+    expect(first.find('[data-testid="panel-rail"]').exists()).toBe(true)
+    expect(first.get('[data-testid="panel-toggle"]').attributes('aria-expanded')).toBe('false')
+    expect(document.activeElement).toBe(first.get('[data-testid="panel-toggle"]').element)
+    expect(window.localStorage.getItem(VIEWER_PANEL_COLLAPSED_KEY)).toBe('1')
+    first.unmount()
+
+    const second = await open()
+    expect(second.find('[data-testid="panel-rail"]').exists()).toBe(true)
+    await second.get('[data-testid="panel-toggle"]').trigger('click')
+    await flushPromises()
+    expect(second.find('[data-testid="panel-rail"]').exists()).toBe(false)
+    expect(window.localStorage.getItem(VIEWER_PANEL_COLLAPSED_KEY)).toBe('0')
+    second.unmount()
+  })
+
   it('opens the bundled sample and expands radial rings from the keyboard model', async () => {
     class ResizeObserverStub {
       observe() {}

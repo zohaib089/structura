@@ -8,6 +8,14 @@ import { getVsCodeApi } from './vscode-api'
 import { webviewCopy as copy } from './messages'
 
 const vscode = getVsCodeApi()
+// The collapsed details panel is remembered in VS Code's webview state (survives hide/show).
+const panelPrefs = {
+  read: () => (vscode?.getState() as { panelCollapsed?: boolean } | undefined)?.panelCollapsed === true,
+  write: (collapsed: boolean) => {
+    const prev = (vscode?.getState() as Record<string, unknown> | undefined) ?? {}
+    vscode?.setState({ ...prev, panelCollapsed: collapsed })
+  }
+}
 const state = ref<ViewerState>({ kind: 'loading' })
 
 function applyTheme(theme: 'light' | 'dark' | undefined) {
@@ -69,6 +77,7 @@ watch(
     <ViewerApp
       v-if="state.kind === 'graph' && graphDocument"
       embedded
+      :panel-prefs="panelPrefs"
       :shell-theme="shellTheme"
       :graph-document="graphDocument"
       :focus-path="focusPath"

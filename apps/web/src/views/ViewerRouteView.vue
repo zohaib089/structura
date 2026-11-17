@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { localViewerPanelPrefs } from '../services/viewer-panel-pref'
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
 import { computed } from 'vue'
@@ -17,5 +18,5 @@ const locale = computed(() => {
 </script>
 
 <template>
-  <ViewerApp :locale="locale" boot-sample />
+  <ViewerApp :locale="locale" boot-sample :panel-prefs="localViewerPanelPrefs" />
 </template>

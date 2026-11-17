@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { localViewerPanelPrefs } from '../../services/viewer-panel-pref'
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
 import { computed, ref, watch } from 'vue'
@@ -127,6 +128,7 @@ watch(
     <ViewerApp
       v-else-if="graphDocument"
       embedded
+      :panel-prefs="localViewerPanelPrefs"
       :locale="locale"
       :shell-theme="shellTheme"
       :graph-document="graphDocument"
