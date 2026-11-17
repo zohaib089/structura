@@ -66,10 +66,15 @@ function measuredBoxes(canvas: HTMLElement, focus: Set<string>): FitBox[] {
   // Phone with an expanded group: frame the whole graph (both halves, the open group and its files),
   // even at a smaller zoom, so neither side is cut off at the pane edge.
   const openFan = phone && Boolean(props.reserveZoomPad) && Boolean(canvas.querySelector('.overview-node[data-depth="2"]'))
-  canvas.querySelectorAll<HTMLElement>('.overview-node').forEach((node) => {
-    const id = node.dataset.nodeId ?? ''
+  // Radial discs are .overview-node; linear pills are Vue Flow nodes of type 'linear' (label inside).
+  canvas.querySelectorAll<HTMLElement>('.overview-node, .vue-flow__node-linear').forEach((node) => {
+    const id = node.dataset.nodeId ?? node.dataset.id ?? ''
     if (focus.size > 0 && !focus.has(id)) return
-    boxes.push(toFlow(node.getBoundingClientRect()))
+    // A hidden node (display:none, e.g. outside focus mode) measures 0x0 at the screen origin, which
+    // mapped to a far-away flow point and stretched the fit to the smallest zoom.
+    const nodeRect = node.getBoundingClientRect()
+    if (nodeRect.width === 0 && nodeRect.height === 0) return
+    boxes.push(toFlow(nodeRect))
     const aside = node.querySelector<HTMLElement>(':scope > .aside')
     // The compact (last-segment) label and the full label swap with display:none; measure the painted one.
     const labelEl = [...(aside?.querySelectorAll<HTMLElement>('.label') ?? [])].find((el) => el.getClientRects().length > 0) ?? aside

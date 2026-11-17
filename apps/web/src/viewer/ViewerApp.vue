@@ -1622,6 +1622,8 @@ button:disabled { opacity: var(--alpha-40); }
     inset-block-end: calc(var(--viewer-statusbar-height) + 10rem);
     block-size: auto;
   }
+  /* Embedded in a padded page (dashboard): 92vw is wider than the pane and clipped its left edge. */
+  .viewer.viewer-radial.viewer-embedded .inspector.is-open { inline-size: 100%; }
   .viewer.viewer-radial:not(.viewer-embedded) .inspector.is-open {
     inset-block-start: calc(var(--viewer-topbar-height) + var(--space-3) * 2 + 3.5rem + var(--viewer-toolbar-extra, 0rem));
   }
