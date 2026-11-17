@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Search } from '@lucide/vue'
+import { ChartNoAxesGantt, ListFilter, Maximize, Orbit, Search } from '@lucide/vue'
 const props = defineProps<{
   filtersLabel: string
   filtersTooltip: string
@@ -21,6 +21,13 @@ const props = defineProps<{
   layoutLabel?: string
   radialLabel?: string
   linearLabel?: string
+  /**
+   * How much room the bar has (host measures pane minus side panel), so it stays on one row:
+   * full = everything; tight = search becomes an icon, the file picker loses its prefix;
+   * narrow = Fit to view goes icon-only too; xnarrow = Radial / Linear go icon-only as well.
+   * Hidden labels stay as accessible names and tooltips.
+   */
+  density?: 'full' | 'tight' | 'narrow' | 'xnarrow'
 }>()
 
 const emit = defineEmits<{
@@ -34,7 +41,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="floating-bar" :class="{ 'is-compact': Boolean(searchShortLabel) }" role="toolbar" aria-label="Graph controls">
+  <div class="floating-bar" :class="[{ 'is-compact': Boolean(searchShortLabel) }, `density-${density ?? 'full'}`]" :data-density="density ?? 'full'" role="toolbar" aria-label="Graph controls">
     <button
       type="button"
       class="icon-button"
@@ -43,7 +50,7 @@ const emit = defineEmits<{
       data-testid="graph-filter-toggle"
       @click="emit('toggleFilters')"
     >
-      <span aria-hidden="true">☰</span>
+      <ListFilter :size="18" aria-hidden="true" />
     </button>
     <div v-if="layoutLabel" class="layout-switch" role="group" :aria-label="layoutLabel" data-testid="layout-switch">
       <button
@@ -52,9 +59,12 @@ const emit = defineEmits<{
         type="button"
         :aria-pressed="(layout ?? 'radial') === option"
         :data-testid="`layout-${option}`"
+        :title="option === 'radial' ? radialLabel : linearLabel"
         @click="emit('update:layout', option)"
       >
-        {{ option === 'radial' ? radialLabel : linearLabel }}
+        <Orbit v-if="option === 'radial'" class="btn-icon" :size="14" aria-hidden="true" />
+        <ChartNoAxesGantt v-else class="btn-icon" :size="14" aria-hidden="true" />
+        <span class="btn-label">{{ option === 'radial' ? radialLabel : linearLabel }}</span>
       </button>
     </div>
     <label v-if="entryOptions.length > 0" class="entry-switcher" :title="entryTooltip">
@@ -93,7 +103,8 @@ const emit = defineEmits<{
       data-testid="graph-fit"
       @click="emit('fit')"
     >
-      {{ fitLabel }}
+      <Maximize class="btn-icon" :size="14" aria-hidden="true" />
+      <span class="btn-label">{{ fitLabel }}</span>
     </button>
     <button
       v-if="showAllCrossLabel && (crossLinkCount ?? 0) > 0"
@@ -107,6 +118,7 @@ const emit = defineEmits<{
     >
       <span aria-hidden="true">⇄ {{ crossLinkCount }}</span>
     </button>
+    <div v-if="$slots.below" class="below"><slot name="below" /></div>
   </div>
 </template>
 
@@ -260,6 +272,11 @@ select {
   box-shadow: var(--focus-ring);
   border-color: var(--color-brand-amber-ui);
 }
+/* Focus chip row: always its own line under the controls, inside the same card, so it never overlaps them. */
+.floating-bar:has(.below) { flex-wrap: wrap; }
+/* An open focus-options popover sits above the file panel (it overlaps the sheet on phones). */
+.floating-bar:has([data-testid='focus-options-panel']) { z-index: calc(var(--z-viewer-drawer) + 1); }
+.below { flex-basis: 100%; display: flex; justify-content: center; min-inline-size: 0; pointer-events: none; }
 @media (prefers-reduced-motion: reduce) {
   .floating-bar { transition: none; }
 }
@@ -283,6 +300,12 @@ select {
   .search-button { min-inline-size: 2.5rem; }
 }
 .search-icon { display: none; }
+/* Icon + label on the layout switch and Fit to view (labels always stay). */
+.layout-switch button, .fit-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.btn-icon { flex-shrink: 0; }
+@media (max-width: 640px) {
+  .btn-icon { display: none; }
+}
 /* Narrow panes (side bar): the search button becomes an icon so Radial / Linear keep their names. */
 @media (max-width: 480px) {
   .search-icon { display: inline-block; vertical-align: middle; }
@@ -292,4 +315,34 @@ select {
   .floating-bar.is-compact .entry-switcher { display: none; }
 }
 
+/* Hamburger → filter icon, centred in a square hit target (tooltip + accessible name from the host). */
+.icon-button {
+  align-items: center; justify-content: center;
+  inline-size: var(--viewer-hit-target); min-block-size: var(--viewer-hit-target);
+  padding: 0; background: var(--color-surface); color: var(--color-text-primary);
+}
+/* Density steps (desktop panes; phones keep their own rules above). Visually hidden ≠ removed. */
+.floating-bar.density-tight .entry-prefix,
+.floating-bar.density-narrow .entry-prefix,
+.floating-bar.density-xnarrow .entry-prefix,
+.floating-bar.density-narrow .fit-button .btn-label,
+.floating-bar.density-xnarrow .fit-button .btn-label,
+.floating-bar.density-xnarrow .layout-switch .btn-label {
+  position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+.floating-bar:not(.density-full) .search-icon { display: inline-block; flex-shrink: 0; }
+.floating-bar:not(.density-full) .search-button {
+  flex: 0 0 auto; min-inline-size: var(--viewer-hit-target); max-inline-size: none;
+  justify-content: center; gap: 6px; padding-inline: var(--space-3);
+}
+.floating-bar:not(.density-full) .search-button .search-label-full,
+.floating-bar:not(.density-full) .search-button .search-label-short { display: none; }
+/* The search icon expands to show its name on hover / keyboard focus. */
+.floating-bar:not(.density-full) .search-button:is(:hover, :focus-visible) .search-label-short { display: inline; }
+.floating-bar:not(.density-full) .search-button:not(.has-short):is(:hover, :focus-visible) .search-label-full { display: inline; }
+.floating-bar.density-narrow .fit-button,
+.floating-bar.density-xnarrow .fit-button { padding-inline: 0; inline-size: var(--viewer-hit-target); }
+.floating-bar.density-narrow select,
+.floating-bar.density-xnarrow select { max-inline-size: 8rem; }
+.floating-bar.density-xnarrow .layout-switch button { padding-inline: var(--space-3); }
 </style>

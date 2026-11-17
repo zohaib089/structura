@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, provide, ref, watch } from 'vue'
+import { computed, onMounted, provide, ref, watch, type Component } from 'vue'
+import { FolderKanban, FolderOpen, ScanSearch, Settings } from '@lucide/vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppShell from '../../components/ui/AppShell.vue'
 import LocaleSwitcher from '../../components/layout/LocaleSwitcher.vue'
@@ -27,6 +28,8 @@ interface SidebarNavItem {
   label: string
   to: string
   active: boolean
+  icon?: Component
+  group?: string
 }
 
 interface BreadcrumbItem {
@@ -77,18 +80,24 @@ const navItems = computed<SidebarNavItem[]>(() => {
   return [
     {
       id: 'projects',
+      icon: FolderKanban,
+      group: messages.value.navGroupWork,
       label: messages.value.projects,
       to: workspaceRootPath(base, ws),
       active: route.name === 'workspace-projects' || route.name === 'workspace-project' || route.name === 'project-graph'
     },
     {
       id: 'open-project',
+      icon: FolderOpen,
+      group: messages.value.navGroupWork,
       label: messages.value.openProjectNav,
       to: openProjectPath(base, ws),
       active: route.name === 'open-project'
     },
     {
       id: 'scans',
+      icon: ScanSearch,
+      group: messages.value.navGroupWork,
       label: messages.value.scansNav,
       to: workspaceScansPath(base, ws),
       active:
@@ -98,12 +107,23 @@ const navItems = computed<SidebarNavItem[]>(() => {
     },
     {
       id: 'settings',
+      icon: Settings,
+      group: messages.value.navGroupManage,
       label: messages.value.settingsNav,
       to: workspaceSettingsPath(base, ws),
       active: route.name === 'workspace-settings'
     }
   ]
 })
+
+const sidebarWorkspaces = computed(() =>
+  workspaces.value.map(workspace => ({
+    id: workspace.id,
+    name: workspace.name,
+    to: workspaceRootPath(locale.value, workspace.id),
+    meta: workspace.role === 'owner' ? messages.value.roleOwner : workspace.role === 'admin' ? messages.value.roleAdmin : messages.value.roleMember
+  }))
+)
 
 const flushContent = computed(
   () => route.name === 'project-graph'
@@ -197,6 +217,13 @@ onMounted(loadWorkspaces)
     :command-palette-label="messages.commandPalette"
     :command-palette-hint="messages.commandPaletteHint"
     :close-navigation-label="navMessages.closeMenu"
+    :workspaces="sidebarWorkspaces"
+    :current-workspace-id="workspaceParam"
+    :switch-workspace-label="messages.switchWorkspace"
+    :collapse-navigation-label="messages.sidebarCollapse"
+    :expand-navigation-label="messages.sidebarExpand"
+    :user-name="session?.user?.fullName ?? ''"
+    :user-email="session?.user?.email ?? ''"
     :flush-content="flushContent"
     :fill-content="fillContent"
   >
@@ -206,10 +233,6 @@ onMounted(loadWorkspaces)
       <button v-if="session" type="button" class="ghost-button topbar-logout" @click="handleLogout">
         {{ messages.logOut }}
       </button>
-    </template>
-
-    <template #sidebar-footer>
-      <p v-if="session?.user" class="user-meta">{{ session.user.fullName }}</p>
     </template>
 
     <div v-if="loading" class="state-card" role="status" :aria-label="messages.loadingWorkspaces">

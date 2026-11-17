@@ -63,6 +63,7 @@ import ErrorBanner from './components/ErrorBanner.vue'
 import FilterRail from './components/FilterRail.vue'
 import FocusBar from './components/FocusBar.vue'
 import GraphCanvas from './components/GraphCanvas.vue'
+import { ArrowLeft, ChartPie, GitCompareArrows, PanelRightClose, PanelRightOpen } from '@lucide/vue'
 import GraphFloatingBar from './components/GraphFloatingBar.vue'
 import GraphLegend from './components/GraphLegend.vue'
 import GraphSourcePicker from './components/GraphSourcePicker.vue'
@@ -77,6 +78,8 @@ const emit = defineEmits<{
 const props = withDefaults(
   defineProps<{
     embedded?: boolean
+    /** Host-provided memory for the collapsed panel (dashboard: browser storage, extension: webview state). */
+    panelPrefs?: { read: () => boolean; write: (collapsed: boolean) => void } | null
     bootSample?: boolean
     locale?: WebLocale
     /** When set (embedded dashboard), follow the app shell theme instead of managing document theme locally. */
@@ -154,6 +157,34 @@ const viewerEl = ref<HTMLElement | null>(null)
  * fits into the area left of it. Phones get 0: there the panel is a sheet below the toolbar.
  */
 const panelInset = ref(0)
+/** The open panel can shrink to a slim rail (tab icons + expand). Hosts may remember it via panelPrefs. */
+const panelCollapsed = ref(props.panelPrefs?.read() ?? false)
+const panelToggleEl = ref<HTMLButtonElement | null>(null)
+function setPanelCollapsed(next: boolean, nextTab?: 'details' | 'coverage' | 'drift') {
+  if (nextTab) tab.value = nextTab
+  panelCollapsed.value = next
+  props.panelPrefs?.write(next)
+  // Keep keyboard focus on the toggle, which moves between the rail and the header.
+  void nextTick(() => panelToggleEl.value?.focus())
+}
+watch(panelCollapsed, () => { void nextTick(measurePanelInset) }, { flush: 'post' })
+/** Room for the floating toolbar (pane minus the side panel) picks its density so it stays on one row. */
+const viewerWidth = ref(0)
+let viewerResize: ResizeObserver | null = null
+onMounted(() => {
+  if (typeof ResizeObserver === 'undefined' || !viewerEl.value) return
+  viewerResize = new ResizeObserver((entries) => { viewerWidth.value = Math.round(entries[0]?.contentRect.width ?? 0) })
+  viewerResize.observe(viewerEl.value)
+})
+onBeforeUnmount(() => viewerResize?.disconnect())
+const barDensity = computed<'full' | 'tight' | 'narrow' | 'xnarrow'>(() => {
+  if (!viewerWidth.value || viewerWidth.value <= 640) return 'full'
+  const space = viewerWidth.value - panelInset.value - 48
+  if (space >= 940) return 'full'
+  if (space >= 640) return 'tight'
+  if (space >= 500) return 'narrow'
+  return 'xnarrow'
+})
 function measurePanelInset() {
   const panel = inspectorEl.value
   const canvas = viewerEl.value?.querySelector<HTMLElement>('[data-testid="graph-canvas"]')
@@ -981,7 +1012,7 @@ const snippet = 'layers: []\nrules: []\n'
 </script>
 
 <template>
-  <div ref="viewerEl" class="viewer viewer-radial" :class="{ 'viewer-embedded': embedded, 'is-inspector-open': inspectorOpen }" :dir="direction">
+  <div ref="viewerEl" class="viewer viewer-radial" :class="{ 'viewer-embedded': embedded, 'is-inspector-open': inspectorOpen, 'is-panel-collapsed': inspectorOpen && panelCollapsed, 'is-focusing': Boolean(focus && focusSummary) }" :dir="direction">
     <a v-if="!embedded" class="skip" href="#graph-canvas">{{ messages.skip }}</a>
     <header v-if="!embedded" class="topbar" role="banner">
       <BrandMark :size="24" />
@@ -1066,30 +1097,6 @@ const snippet = 'layers: []\nrules: []\n'
         @choose="openPicker"
         @copy="copyText(errorTitle(error))"
       />
-      <FocusBar
-        v-if="focus && focusSummary"
-        :label="messages.focusBar"
-        :name="detail?.title || focus.nodeId"
-        :dependencies="messages.focusDependencies"
-        :dependents="messages.focusDependents"
-        :both="messages.focusBoth"
-        :depth-label="format(messages.focusDepth, { n: focus.depth })"
-        :confirmed-only="messages.focusConfirmedOnly"
-        :confirmed="format(messages.focusConfirmed, { n: numbers.format(focusSummary.confirmed.length) })"
-        :possible="format(messages.focusPossible, { n: numbers.format(focusSummary.possible.length) })"
-        :unresolved="focusSummary.unresolvedLeaving ? format(messages.focusUnresolvedLeave, { n: numbers.format(focusSummary.unresolvedLeaving) }) : ''"
-        :none="focusSummary.confirmed.length + focusSummary.possible.length === 0 ? format(messages.focusNone, { n: focus.depth }) : ''"
-        :exit="messages.focusExit"
-        :chip="format(messages.focusChip, { path: detail?.path || focus.nodeId, n: focus.depth })"
-        :esc-hint="messages.focusEsc"
-        :direction="focus.direction"
-        :depth="focus.depth"
-        :confirmed-only-on="focus.confirmedOnly"
-        @direction="focus = focus ? { ...focus, direction: $event } : focus"
-        @depth="focus = focus ? { ...focus, depth: $event } : focus"
-        @confirmed="focus = focus ? { ...focus, confirmedOnly: !focus.confirmedOnly } : focus"
-        @exit="focus = null"
-      />
       <GraphFloatingBar
         v-if="overview && graph && graph.nodes.length > 0"
         :filters-label="messages.railToggle"
@@ -1113,11 +1120,40 @@ const snippet = 'layers: []\nrules: []\n'
         @update:entry-id="onEntryChange"
         @toggle-show-all-cross="showAllCross = !showAllCross"
         :layout="layout"
+        :density="barDensity"
         :layout-label="messages.layoutLabel"
         :radial-label="messages.layoutRadial"
         :linear-label="messages.layoutLinear"
         @update:layout="setLayout"
-      />
+      >
+        <template v-if="focus && focusSummary" #below>
+          <FocusBar
+            :label="messages.focusBar"
+            :name="detail?.title || focus.nodeId"
+            :dependencies="messages.focusDependencies"
+            :dependents="messages.focusDependents"
+            :both="messages.focusBoth"
+            :depth-label="format(messages.focusDepth, { n: focus.depth })"
+            :confirmed-only="messages.focusConfirmedOnly"
+            :confirmed="format(messages.focusConfirmed, { n: numbers.format(focusSummary.confirmed.length) })"
+            :possible="format(messages.focusPossible, { n: numbers.format(focusSummary.possible.length) })"
+            :unresolved="focusSummary.unresolvedLeaving ? format(messages.focusUnresolvedLeave, { n: numbers.format(focusSummary.unresolvedLeaving) }) : ''"
+            :none="focusSummary.confirmed.length + focusSummary.possible.length === 0 ? format(messages.focusNone, { n: focus.depth }) : ''"
+            :exit="messages.focusExit"
+            :chip="format(messages.focusChip, { path: detail?.path || focus.nodeId, n: focus.depth })"
+            :esc-hint="messages.focusEsc"
+            :options-label="messages.focusOptions"
+            :direction-label="messages.focusDirection"
+            :direction="focus.direction"
+            :depth="focus.depth"
+            :confirmed-only-on="focus.confirmedOnly"
+            @direction="focus = focus ? { ...focus, direction: $event } : focus"
+            @depth="focus = focus ? { ...focus, depth: $event } : focus"
+            @confirmed="focus = focus ? { ...focus, confirmedOnly: !focus.confirmedOnly } : focus"
+            @exit="focus = null"
+          />
+        </template>
+      </GraphFloatingBar>
       <p v-if="overview && graph && graph.nodes.length > 0" class="graph-hint" role="note">
         {{ messages.graphOverviewHint }}
       </p>
@@ -1180,14 +1216,61 @@ const snippet = 'layers: []\nrules: []\n'
       />
     </main>
 
-    <aside ref="inspectorEl" class="inspector" :class="{ 'is-open': inspectorOpen }" :aria-label="messages.inspector">
-      <div role="tablist">
-        <button type="button" role="tab" :aria-selected="tab === 'details'" @click="tab = 'details'">{{ messages.tabDetails }}</button>
-        <button type="button" role="tab" :aria-selected="tab === 'coverage'" @click="tab = 'coverage'">
-          {{ messages.tabCoverage }}
+    <aside ref="inspectorEl" class="inspector" :class="{ 'is-open': inspectorOpen, 'is-collapsed': panelCollapsed }" :aria-label="messages.inspector">
+      <div v-if="panelCollapsed" class="inspector-rail" data-testid="panel-rail">
+        <button
+          ref="panelToggleEl"
+          type="button"
+          class="panel-toggle"
+          data-testid="panel-toggle"
+          aria-expanded="false"
+          aria-controls="viewer-panel-body"
+          :aria-label="messages.panelExpand"
+          :title="messages.panelExpand"
+          @click="setPanelCollapsed(false)"
+        >
+          <PanelRightOpen :size="16" aria-hidden="true" />
+        </button>
+        <span v-if="detail" class="rail-title" dir="ltr">{{ detail.title }}</span>
+        <button type="button" class="rail-tab" :aria-label="messages.tabDetails" :title="messages.tabDetails" @click="setPanelCollapsed(false, 'details')"><Info :size="16" aria-hidden="true" /></button>
+        <button type="button" class="rail-tab" :aria-label="messages.tabCoverage" :title="messages.tabCoverage" @click="setPanelCollapsed(false, 'coverage')"><ChartPie :size="16" aria-hidden="true" /></button>
+        <button type="button" class="rail-tab" :aria-label="messages.tabDrift" :title="messages.tabDrift" @click="setPanelCollapsed(false, 'drift')"><GitCompareArrows :size="16" aria-hidden="true" /></button>
+      </div>
+      <div v-show="!panelCollapsed" id="viewer-panel-body" class="inspector-body">
+      <div class="inspector-head">
+        <button
+          v-if="canGoBack"
+          type="button"
+          class="panel-toggle head-back"
+          data-testid="detail-back"
+          :aria-label="messages.backTooltip"
+          :title="messages.backTooltip"
+          @click="goBack"
+        >
+          <ArrowLeft :size="16" aria-hidden="true" />
+        </button>
+      <div role="tablist" class="inspector-tabs">
+        <button type="button" role="tab" :aria-selected="tab === 'details'" @click="tab = 'details'" :title="messages.tabDetails"><Info :size="14" aria-hidden="true" /><span class="tab-label">{{ messages.tabDetails }}</span></button>
+        <button type="button" role="tab" :aria-selected="tab === 'coverage'" @click="tab = 'coverage'" :title="messages.tabCoverage">
+          <ChartPie :size="14" aria-hidden="true" /><span class="tab-label">{{ messages.tabCoverage }}</span>
           <span v-if="skippedCount" class="tab-count">▲ {{ numbers.format(skippedCount) }}</span>
         </button>
-        <button type="button" role="tab" :aria-selected="tab === 'drift'" @click="tab = 'drift'">{{ messages.tabDrift }}</button>
+        <button type="button" role="tab" :aria-selected="tab === 'drift'" @click="tab = 'drift'" :title="messages.tabDrift"><GitCompareArrows :size="14" aria-hidden="true" /><span class="tab-label">{{ messages.tabDrift }}</span></button>
+      </div>
+        <button
+          v-if="!panelCollapsed"
+          ref="panelToggleEl"
+          type="button"
+          class="panel-toggle"
+          data-testid="panel-toggle"
+          aria-expanded="true"
+          aria-controls="viewer-panel-body"
+          :aria-label="messages.panelCollapse"
+          :title="messages.panelCollapse"
+          @click="setPanelCollapsed(true)"
+        >
+          <PanelRightClose :size="16" aria-hidden="true" />
+        </button>
       </div>
       <NodeDetail
         v-if="tab === 'details'"
@@ -1255,10 +1338,6 @@ const snippet = 'layers: []\nrules: []\n'
         @navigate="onNavigateDetail"
         @expand-child="onExpandChildDetail"
         @retry-summary="retryFileSummary"
-        :can-back="canGoBack"
-        :back-label="messages.backLabel"
-        :back-tooltip="messages.backTooltip"
-        @back="goBack"
       />
       <CoveragePanel
         v-else-if="tab === 'coverage'"
@@ -1288,6 +1367,7 @@ const snippet = 'layers: []\nrules: []\n'
         @copy="copyText(snippet)"
       />
       <p v-if="unknownKinds">{{ format(messages.unknownKinds, { n: numbers.format(unknownKinds) }) }}</p>
+      </div>
     </aside>
 
     <footer class="status" role="contentinfo">
@@ -1406,9 +1486,15 @@ const snippet = 'layers: []\nrules: []\n'
   border-inline-end: 1px solid var(--color-border);
   transform: translateX(-110%);
 }
+.viewer.viewer-radial {
+  --viewer-panel-w: min(var(--viewer-inspector-width), 92vw);
+}
+.viewer.viewer-radial.is-panel-collapsed {
+  --viewer-panel-w: 3rem;
+}
 .viewer.viewer-radial .inspector {
   inset-inline-end: 0;
-  inline-size: min(var(--viewer-inspector-width), 92vw);
+  inline-size: var(--viewer-panel-w);
   border-inline-start: 1px solid var(--color-border);
   transform: translateX(110%);
 }
@@ -1419,10 +1505,10 @@ const snippet = 'layers: []\nrules: []\n'
 /* The open drawer overlays the stage: move the zoom controls beside it so they stay usable,
    and tell the floating toolbar how much of the right edge is covered so it centres left of it. */
 .viewer.viewer-radial.is-inspector-open {
-  --graph-controls-inset-end: calc(min(var(--viewer-inspector-width), 92vw) + var(--space-3));
+  --graph-controls-inset-end: calc(var(--viewer-panel-w) + var(--space-3));
 }
 .viewer.viewer-radial.is-inspector-open :deep(.vue-flow__panel.zoom) {
-  margin-inline-end: calc(min(var(--viewer-inspector-width), 92vw) + var(--space-3));
+  margin-inline-end: calc(var(--viewer-panel-w) + var(--space-3));
   transition: margin var(--dur-2) var(--easing-standard);
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1529,6 +1615,61 @@ button:active:not(:disabled) { transform: scale(0.98); }
 button:disabled { opacity: var(--alpha-40); }
 .inspector { font-size: var(--font-size-sm); line-height: var(--line-height-normal); }
 .tab-count { font-variant-numeric: tabular-nums; }
+.inspector-body { display: flex; flex-direction: column; gap: var(--space-3); }
+.inspector-head { display: flex; align-items: center; gap: var(--space-1); }
+.inspector-head .inspector-tabs { flex: 1 1 auto; min-inline-size: 0; }
+.inspector-head [role='tab'] { flex: 1 1 auto; gap: 4px; padding: 0 6px; white-space: nowrap; overflow: hidden; }
+.inspector-head [role='tab'] svg { flex-shrink: 0; }
+.inspector-head [role='tab'][aria-selected='false'] { flex: 0 0 auto; }
+/* Narrow panel: unselected tabs show icon (+ count); the label stays for screen readers and the tooltip. */
+.inspector-head [role='tab'][aria-selected='false'] .tab-label {
+  position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+.viewer.viewer-radial .inspector.is-collapsed { padding: var(--space-2) var(--space-1); overflow: visible; }
+.rail-title { display: none; }
+.inspector-rail { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); }
+.panel-toggle, .rail-tab {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  inline-size: 2rem; block-size: 2rem; padding: 0;
+  border: 1px solid var(--color-border); border-radius: var(--r-sm);
+  background: transparent; color: var(--color-text-secondary); cursor: pointer;
+}
+.rail-tab { border-color: transparent; }
+.panel-toggle:hover, .rail-tab:hover { color: var(--color-text-primary); border-color: var(--color-brand-amber-ui); }
+.panel-toggle:focus-visible, .rail-tab:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+/* Details / Coverage / Drift: one segmented control, icon + label. */
+.inspector-tabs {
+  display: flex;
+  gap: 0;
+  padding: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--color-brand-navy) 12%, transparent);
+}
+.inspector-tabs [role='tab'] {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-inline-size: 0;
+  min-block-size: 2rem;
+  padding: 0 var(--space-2);
+  border: 1px solid transparent;
+  border-radius: calc(var(--r-sm) - 2px);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--text-12);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.inspector-tabs [role='tab'][aria-selected='true'] {
+  border-color: color-mix(in srgb, var(--color-brand-amber-ui) 45%, var(--color-border));
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+.inspector-tabs [role='tab']:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .stage-legend {
   position: absolute;
   inset-inline-start: var(--space-3);
@@ -1563,6 +1704,7 @@ button:disabled { opacity: var(--alpha-40); }
     inline-size: min(var(--viewer-inspector-width), 88vw);
     transform: translateX(110%);
   }
+  .viewer.viewer-radial:not(.viewer-embedded) .inspector.is-collapsed { inline-size: 3rem; }
   .viewer.viewer-radial:not(.viewer-embedded) .rail.is-open,
   .viewer.viewer-radial:not(.viewer-embedded) .inspector.is-open {
     transform: none;
@@ -1570,21 +1712,53 @@ button:disabled { opacity: var(--alpha-40); }
 }
 @media (max-width: 640px) {
   .file, .search { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-  .inspector.is-open { inset-block-end: var(--viewer-statusbar-height); block-size: 60%; }
-  /* Phone: the panel spans the width, so start it below the toolbar instead of insetting the bar. */
+  /* Phone: the panel is a bottom sheet over a full-height graph. Collapsed = peek (handle, tab icons,
+   * file name); expanded = half the pane. The toolbar and chip stay above it, uncovered. */
   .viewer.viewer-radial.is-inspector-open { --graph-controls-inset-end: 0px; }
-  /* The "Files in view" toggle would peek out beside the open sheet; the sheet names the file anyway. */
+  .viewer.viewer-radial.is-focusing { --viewer-toolbar-extra: 2.75rem; }
+  .viewer.viewer-radial .inspector,
+  .viewer.viewer-radial:not(.viewer-embedded) .inspector,
+  .viewer.viewer-radial.viewer-embedded .inspector {
+    inset-inline: 0;
+    inset-block: auto 0;
+    inline-size: 100%;
+    block-size: min(52%, 30rem);
+    padding-block-start: calc(var(--space-3) + 6px);
+    border: 1px solid var(--color-border);
+    border-block-end: 0;
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -8px 24px color-mix(in srgb, #000 28%, transparent);
+    transform: translateY(110%);
+  }
+  .viewer.viewer-radial .inspector.is-open { transform: none; }
+  .viewer.viewer-radial .inspector::before {
+    content: '';
+    position: absolute;
+    inset-block-start: 6px;
+    inset-inline-start: 50%;
+    inline-size: 2.25rem;
+    block-size: 4px;
+    border-radius: 999px;
+    background: var(--color-border-strong, var(--color-border));
+    transform: translateX(-50%);
+  }
+  .viewer.viewer-radial .inspector.is-collapsed { block-size: auto; overflow: hidden; padding: calc(var(--space-2) + 8px) var(--space-3) var(--space-2); }
+  .inspector-rail { flex-direction: row; justify-content: flex-start; }
+  .inspector-rail .rail-title {
+    display: block; order: -1; flex: 1 1 auto; min-inline-size: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-weight: 600; font-size: var(--text-14, 14px); color: var(--color-text-primary);
+  }
+  /* Panel-right icons read as "sheet up / down" once turned a quarter. */
+  [data-testid='panel-toggle'] svg { transform: rotate(90deg); }
+  .viewer.viewer-radial:not(.viewer-embedded) .inspector.is-collapsed { inline-size: 100%; }
   .viewer.viewer-radial.is-inspector-open :deep(.file-list) { visibility: hidden; }
-  .viewer.viewer-radial.is-inspector-open :deep(.vue-flow__panel.zoom) { margin-inline-end: 0; }
-  /* …and end it above the zoom pad (bottom-right), so the toolbar and zoom stay usable. */
-  .viewer.viewer-radial .inspector.is-open {
-    inset-block-start: calc(var(--space-3) * 2 + 3.5rem);
-    inset-block-end: calc(var(--viewer-statusbar-height) + 10rem);
-    block-size: auto;
-  }
-  .viewer.viewer-radial:not(.viewer-embedded) .inspector.is-open {
-    inset-block-start: calc(var(--viewer-topbar-height) + var(--space-3) * 2 + 3.5rem);
-  }
+  /* The sheet takes the footer's place; its legend returns when the panel closes. */
+  .viewer.viewer-radial.is-inspector-open .status { visibility: hidden; }
+  /* Expanded sheet: zoom pad and tips would sit under it; pinch zoom still works. Peek keeps them above. */
+  .viewer.viewer-radial.is-inspector-open:not(.is-panel-collapsed) :deep(.vue-flow__panel.zoom),
+  .viewer.viewer-radial.is-inspector-open:not(.is-panel-collapsed) .coach { visibility: hidden; }
+  .viewer.viewer-radial.is-inspector-open.is-panel-collapsed :deep(.vue-flow__panel.zoom) { margin-inline-end: var(--space-3); margin-block-end: 4.5rem; }
 }
 </style>
 

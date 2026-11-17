@@ -79,6 +79,8 @@ export interface ViewerMessages {
   focusBar: string
   focusEnter: string
   focusExit: string
+  focusOptions: string
+  focusDirection: string
   focusDependencies: string
   focusDependents: string
   focusBoth: string
@@ -147,6 +149,8 @@ export interface ViewerMessages {
   unknownKinds: string
   railToggle: string
   inspectorToggle: string
+  panelCollapse: string
+  panelExpand: string
   entryLabel: string
   recentreLabel: string
   statusRadial: string
@@ -318,6 +322,8 @@ const en: ViewerMessages = {
   focusBar: 'Focus mode',
   focusEnter: 'Show only connections',
   focusExit: 'Exit focus',
+  focusOptions: 'Options',
+  focusDirection: 'Show',
   focusDependencies: 'Dependencies',
   focusDependents: 'Dependents',
   focusBoth: 'Both',
@@ -382,6 +388,8 @@ const en: ViewerMessages = {
   unknownKinds: '{n} kinds this viewer does not know',
   railToggle: 'Show or hide filters',
   inspectorToggle: 'Show or hide the details panel',
+  panelCollapse: 'Collapse the panel',
+  panelExpand: 'Expand the panel',
   entryLabel: 'Start from file',
   recentreLabel: 'Centre graph here',
   statusRadial: 'Radial · {rings} · {name}',
@@ -478,11 +486,11 @@ const en: ViewerMessages = {
   },
   budgetDetail: 'Detail reduced',
   budgetLimit: 'Limit reached: collapse or filter to see more',
-  focusChip: 'Focused: {path} Â· depth {n}',
+  focusChip: 'Focused: {path} · depth {n}',
   focusEsc: 'Esc',
   readingFile: 'Reading {graphFile}, {size}',
   coverageSkippedNote: 'Skipped files are listed, never hidden',
-  driftFailing: 'Failing Â· {n} violations',
+  driftFailing: 'Failing · {n} violations',
   driftPassing: 'Passing',
   searchClusters: 'Clusters',
   searchFiles: 'Files',

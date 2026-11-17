@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Sidebar, { type SidebarNavItem } from './Sidebar.vue'
+import Sidebar, { type SidebarNavItem, type SidebarWorkspace } from './Sidebar.vue'
 import TopBar from './TopBar.vue'
 import { Menu, X } from '@lucide/vue'
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -24,9 +24,31 @@ withDefaults(
     fillContent?: boolean
     /** Accessible name for the drawer close button (caller passes an existing translated key). */
     closeNavigationLabel?: string
+    workspaces?: SidebarWorkspace[]
+    currentWorkspaceId?: string
+    switchWorkspaceLabel?: string
+    /** When both are set, the desktop sidebar can collapse to an icon rail (remembered in this browser). */
+    collapseNavigationLabel?: string
+    expandNavigationLabel?: string
+    userName?: string
+    userEmail?: string
   }>(),
-  { flushContent: false, fillContent: false, closeNavigationLabel: undefined }
+  {
+    flushContent: false, fillContent: false, closeNavigationLabel: undefined,
+    workspaces: () => [], currentWorkspaceId: '', switchWorkspaceLabel: undefined,
+    collapseNavigationLabel: undefined, expandNavigationLabel: undefined, userName: '', userEmail: ''
+  }
 )
+
+const RAIL_KEY = 'atlasmith.shell.sidebarRail'
+function readRail() {
+  try { return window.localStorage.getItem(RAIL_KEY) === '1' } catch { return false }
+}
+const railCollapsed = ref(readRail())
+function toggleRail() {
+  railCollapsed.value = !railCollapsed.value
+  try { window.localStorage.setItem(RAIL_KEY, railCollapsed.value ? '1' : '0') } catch { /* storage blocked */ }
+}
 
 /** Below 900px the sidebar becomes an off-canvas drawer opened from the top bar. */
 const navOpen = ref(false)
@@ -51,7 +73,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 </script>
 
 <template>
-  <div class="app-shell" :class="{ 'app-shell--nav-open': navOpen }">
+  <div class="app-shell" :class="{ 'app-shell--nav-open': navOpen, 'app-shell--rail': railCollapsed && Boolean(collapseNavigationLabel) }">
     <a class="skip-link" href="#app-main-content">{{ skipToContentLabel }}</a>
     <div v-if="navOpen" class="shell-backdrop" aria-hidden="true" @click="closeNav()" />
     <Sidebar
@@ -61,7 +83,16 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
       :nav-items="navItems"
       :app-navigation-label="appNavigationLabel"
       :workspace-label="workspaceLabel"
+      :workspaces="workspaces"
+      :current-workspace-id="currentWorkspaceId"
+      :switch-workspace-label="switchWorkspaceLabel"
+      :collapsed="railCollapsed && Boolean(collapseNavigationLabel)"
+      :collapse-label="collapseNavigationLabel"
+      :expand-label="expandNavigationLabel"
+      :user-name="userName"
+      :user-email="userEmail"
       @open-workspace-menu="$emit('openWorkspaceMenu')"
+      @toggle-collapsed="toggleRail"
     >
       <template #brand-action>
         <button
@@ -146,6 +177,7 @@ export default {
   color: var(--color-text-primary);
 }
 
+.app-shell--rail { grid-template-columns: var(--shell-sidebar-collapsed) minmax(0, 1fr); }
 .shell-main {
   display: flex;
   flex-direction: column;

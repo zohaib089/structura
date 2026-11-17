@@ -270,7 +270,8 @@ onMounted(loadDashboard)
     <section class="dashboard-content">
       <div v-if="activeSection !== 'projects'" class="page-header">
         <div>
-          <h1>{{ sectionTitle }}</h1>
+          <!-- Scan report: the breadcrumb and the report title already say where you are. -->
+          <h1 :class="{ 'sr-only': activeSection === 'scan-report' }">{{ sectionTitle }}</h1>
         </div>
         <label v-if="workspaces.length > 1" class="workspace-picker">
           <span class="sr-only">{{ messages.selectWorkspace }}</span>
@@ -469,6 +470,14 @@ onMounted(loadDashboard)
 
 .dashboard-page--fill .page-header {
   flex-shrink: 0;
+}
+
+.dashboard-page--fill .dashboard-content {
+  gap: var(--space-3);
+}
+
+.dashboard-page--fill .page-header:not(:has(.workspace-picker)) {
+  display: contents;
 }
 
 .dashboard-page--fill :deep(.scans-hub--report) {
