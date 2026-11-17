@@ -12,12 +12,15 @@ const props = withDefaults(
     disabled?: boolean
     required?: boolean
     id?: string
+    autocomplete?: string
+    maxlength?: number
   }>(),
   {
     modelValue: '',
     type: 'text',
     disabled: false,
-    required: false
+    required: false,
+    autocomplete: 'off'
   }
 )
 
@@ -49,9 +52,10 @@ function onBlur(event: FocusEvent) {
       :placeholder="placeholder"
       :disabled="disabled"
       :required="required"
+      :autocomplete="autocomplete"
+      :maxlength="maxlength"
       :aria-invalid="error ? 'true' : undefined"
       :aria-describedby="describedBy"
-      autocomplete="off"
       @input="onInput"
       @blur="onBlur"
     >
