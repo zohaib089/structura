@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Crosshair, Waypoints } from '@lucide/vue'
 import { computed, ref, watch } from 'vue'
 import type { ViewerReportFinding, ViewerReportSeverity } from '../report-types'
 import SeverityChip from '../../components/ui/SeverityChip.vue'
@@ -188,7 +189,7 @@ function onExpandChild(row: DirectoryChildRow) {
         <p class="hint">{{ panelHint }}</p>
       </header>
 
-      <dl v-if="sections" class="meta-grid">
+      <dl v-if="sections" class="stat-grid" data-testid="stat-grid">
         <div>
           <dt :title="depthTooltip">{{ depthLabel }}</dt>
           <dd>{{ sections.stats.depth }}</dd>
@@ -207,6 +208,8 @@ function onExpandChild(row: DirectoryChildRow) {
             <span v-else class="muted">{{ noIssuesStat }}</span>
           </dd>
         </div>
+      </dl>
+      <dl v-if="sections" class="meta-grid">
         <div v-if="sections.stats.provenance">
           <dt>{{ provenanceLabel }}</dt><dd>{{ sections.stats.provenance }}</dd>
         </div>
@@ -333,8 +336,8 @@ function onExpandChild(row: DirectoryChildRow) {
       </section>
 
       <div class="actions">
-        <button type="button" class="primary" :title="recentreTooltip" @click="emit('recentre')">{{ recentreLabel }}</button>
-        <button type="button" class="ghost" :title="focusTooltip" @click="emit('focus')">{{ focusLabel }}</button>
+        <button type="button" class="primary" :title="recentreTooltip" @click="emit('recentre')"><Crosshair :size="14" aria-hidden="true" /><span>{{ recentreLabel }}</span></button>
+        <button type="button" class="ghost action-ghost" :title="focusTooltip" @click="emit('focus')"><Waypoints :size="14" aria-hidden="true" /><span>{{ focusLabel }}</span></button>
       </div>
     </template>
   </section>
@@ -345,7 +348,38 @@ function onExpandChild(row: DirectoryChildRow) {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  font-size: var(--text-13);
 }
+/* Levels / Uses / Used by / Findings: a compact 2 x 2 grid of small cards. */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-1);
+  margin: 0;
+}
+.stat-grid div {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--color-brand-navy) 8%, transparent);
+}
+.stat-grid dt {
+  color: var(--color-text-secondary);
+  font-size: var(--text-12);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.stat-grid dd {
+  margin: 0;
+  font-size: var(--text-16);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+}
+.stat-grid dd .muted { font-size: var(--text-13); font-weight: 400; }
 .header h3 {
   margin: 0;
   font-size: var(--text-16);
@@ -366,7 +400,7 @@ function onExpandChild(row: DirectoryChildRow) {
 }
 .meta-grid {
   display: grid;
-  gap: var(--space-2);
+  gap: var(--space-1);
   margin: 0;
 }
 .meta-grid div {
@@ -386,11 +420,13 @@ function onExpandChild(row: DirectoryChildRow) {
   text-align: end;
 }
 .block h4 {
-  margin: 0 0 var(--space-2);
-  font-size: var(--text-13);
+  margin: 0 0 var(--space-1);
+  font-size: 0.6875rem;
   font-weight: 600;
-  line-height: var(--text-13-lh);
-  color: var(--color-text-primary);
+  line-height: 1.4;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
 }
 .plain-list,
 .link-list,
@@ -399,7 +435,7 @@ function onExpandChild(row: DirectoryChildRow) {
   margin: 0;
   padding: 0;
   display: grid;
-  gap: var(--space-2);
+  gap: var(--space-1);
 }
 .link-list li,
 .plain-list li {
@@ -447,8 +483,22 @@ function onExpandChild(row: DirectoryChildRow) {
 .actions {
   display: flex;
   gap: var(--space-2);
-  margin-block-start: var(--space-2);
+  margin-block-start: var(--space-1);
 }
+.actions button {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-inline-size: 0;
+  min-block-size: 2.25rem;
+  padding: 0 var(--space-2);
+  font-size: var(--text-12);
+  white-space: nowrap;
+}
+.actions button span { overflow: hidden; text-overflow: ellipsis; }
+.actions button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .summary {
   margin: 0;
   font-size: var(--text-13);

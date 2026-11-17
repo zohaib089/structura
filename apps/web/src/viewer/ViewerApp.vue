@@ -63,6 +63,7 @@ import ErrorBanner from './components/ErrorBanner.vue'
 import FilterRail from './components/FilterRail.vue'
 import FocusBar from './components/FocusBar.vue'
 import GraphCanvas from './components/GraphCanvas.vue'
+import { ChartPie, GitCompareArrows } from '@lucide/vue'
 import GraphFloatingBar from './components/GraphFloatingBar.vue'
 import GraphLegend from './components/GraphLegend.vue'
 import GraphSourcePicker from './components/GraphSourcePicker.vue'
@@ -1185,13 +1186,13 @@ const snippet = 'layers: []\nrules: []\n'
     </main>
 
     <aside ref="inspectorEl" class="inspector" :class="{ 'is-open': inspectorOpen }" :aria-label="messages.inspector">
-      <div role="tablist">
-        <button type="button" role="tab" :aria-selected="tab === 'details'" @click="tab = 'details'">{{ messages.tabDetails }}</button>
+      <div role="tablist" class="inspector-tabs">
+        <button type="button" role="tab" :aria-selected="tab === 'details'" @click="tab = 'details'"><Info :size="14" aria-hidden="true" /><span>{{ messages.tabDetails }}</span></button>
         <button type="button" role="tab" :aria-selected="tab === 'coverage'" @click="tab = 'coverage'">
-          {{ messages.tabCoverage }}
+          <ChartPie :size="14" aria-hidden="true" /><span>{{ messages.tabCoverage }}</span>
           <span v-if="skippedCount" class="tab-count">▲ {{ numbers.format(skippedCount) }}</span>
         </button>
-        <button type="button" role="tab" :aria-selected="tab === 'drift'" @click="tab = 'drift'">{{ messages.tabDrift }}</button>
+        <button type="button" role="tab" :aria-selected="tab === 'drift'" @click="tab = 'drift'"><GitCompareArrows :size="14" aria-hidden="true" /><span>{{ messages.tabDrift }}</span></button>
       </div>
       <NodeDetail
         v-if="tab === 'details'"
@@ -1533,6 +1534,39 @@ button:active:not(:disabled) { transform: scale(0.98); }
 button:disabled { opacity: var(--alpha-40); }
 .inspector { font-size: var(--font-size-sm); line-height: var(--line-height-normal); }
 .tab-count { font-variant-numeric: tabular-nums; }
+/* Details / Coverage / Drift: one segmented control, icon + label. */
+.inspector-tabs {
+  display: flex;
+  gap: 0;
+  padding: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--color-brand-navy) 12%, transparent);
+}
+.inspector-tabs [role='tab'] {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-inline-size: 0;
+  min-block-size: 2rem;
+  padding: 0 var(--space-2);
+  border: 1px solid transparent;
+  border-radius: calc(var(--r-sm) - 2px);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--text-12);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.inspector-tabs [role='tab'][aria-selected='true'] {
+  border-color: color-mix(in srgb, var(--color-brand-amber-ui) 45%, var(--color-border));
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+.inspector-tabs [role='tab']:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .stage-legend {
   position: absolute;
   inset-inline-start: var(--space-3);
