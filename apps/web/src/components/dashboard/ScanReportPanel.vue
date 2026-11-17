@@ -270,7 +270,18 @@ function showAllFindings() {
   color: var(--color-text-secondary);
 }
 
+.report--graph {
+  gap: var(--space-2);
+}
+
+/* Graph tab: the canvas has its own hint; keep this one for screen readers so the graph gets the height. */
 .report--graph .report__hint {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
   flex-shrink: 0;
 }
 

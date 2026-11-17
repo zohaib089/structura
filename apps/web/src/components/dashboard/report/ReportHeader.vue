@@ -21,9 +21,8 @@ defineProps<{
 <template>
   <header class="report-header">
     <div class="report-header__main">
-      <RouterLink class="report-header__back" :to="backTo">
-        <ArrowLeft :size="14" aria-hidden="true" />
-        {{ messages.backToScans }}
+      <RouterLink class="report-header__back" :to="backTo" :aria-label="messages.backToScans" :title="messages.backToScans">
+        <ArrowLeft :size="16" aria-hidden="true" />
       </RouterLink>
       <h2 class="report-header__title">{{ messages.reportTitle }}</h2>
       <p class="report-header__meta">{{ meta }}</p>
@@ -52,34 +51,42 @@ defineProps<{
 .report-header {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  gap: var(--space-4);
+  gap: var(--space-2) var(--space-4);
 }
 
+/* One line: back · Scan report · meta (wraps under the title only on narrow screens). */
 .report-header__main {
-  display: grid;
-  gap: var(--space-1);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  min-inline-size: 0;
 }
 
 .report-header__back {
   display: inline-flex;
+  align-self: center;
   align-items: center;
-  gap: var(--space-1);
-  inline-size: fit-content;
-  font-size: var(--text-12);
+  justify-content: center;
+  inline-size: 2rem;
+  block-size: 2rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-sm);
   color: var(--color-text-secondary);
   text-decoration: none;
 }
 
 .report-header__back:hover {
   color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
 }
 
 .report-header__title {
   margin: 0;
-  font-size: var(--text-20);
-  line-height: var(--text-20-lh);
+  font-size: var(--text-16);
+  line-height: 1.3;
   font-weight: var(--font-weight-semibold);
 }
 
