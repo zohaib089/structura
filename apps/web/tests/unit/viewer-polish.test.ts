@@ -379,6 +379,37 @@ describe('v2 viewer polish', () => {
     expect(focus.emitted('depth')?.[0]).toEqual([5])
   })
 
+  it('keeps direction, depth and confirmed-only in a keyboard-friendly options popover', async () => {
+    const focus = mount(FocusBar, {
+      attachTo: document.body,
+      props: {
+        label: 'Focus mode', name: 'apps', dependencies: 'Dependencies', dependents: 'Dependents', both: 'Both',
+        depthLabel: 'Depth 2', confirmedOnly: 'Confirmed only', confirmed: 'Confirmed: 1', possible: 'Possible: +0',
+        unresolved: '', none: '', exit: 'Exit focus', direction: 'out', depth: 2, confirmedOnlyOn: false,
+        optionsLabel: 'Options', directionLabel: 'Show'
+      }
+    })
+    const trigger = focus.get('[data-testid="focus-options"]')
+    expect(trigger.text()).toContain('Options')
+    expect(trigger.attributes('aria-expanded')).toBe('false')
+    await trigger.trigger('click')
+    const panel = focus.get('[data-testid="focus-options-panel"]')
+    expect(panel.attributes('role')).toBe('dialog')
+    expect(panel.text()).toContain('Show')
+    await panel.findAll('button').find((b) => b.text() === 'Dependents')!.trigger('click')
+    expect(focus.emitted('direction')?.[0]).toEqual(['in'])
+    await panel.get('input[type="checkbox"]').trigger('change')
+    expect(focus.emitted('confirmed')).toHaveLength(1)
+    await panel.get('input[type="range"]').setValue('4')
+    expect(focus.emitted('depth')?.at(-1)).toEqual([4])
+    await panel.trigger('keydown', { key: 'Escape' })
+    await new Promise((r) => setTimeout(r, 0))
+    expect(focus.find('[data-testid="focus-options-panel"]').exists()).toBe(false)
+    expect(document.activeElement).toBe(trigger.element)
+    expect(focus.emitted('exit')).toBeUndefined()
+    focus.unmount()
+  })
+
   it('uses the shared focus ring for keyboard focus and keeps amber on selection', () => {
     const base = readFileSync(resolve('src/viewer/viewer-base.css'), 'utf8')
     expect(base).toContain('box-shadow: var(--focus-ring)')

@@ -79,6 +79,8 @@ export interface ViewerMessages {
   focusBar: string
   focusEnter: string
   focusExit: string
+  focusOptions: string
+  focusDirection: string
   focusDependencies: string
   focusDependents: string
   focusBoth: string
@@ -318,6 +320,8 @@ const en: ViewerMessages = {
   focusBar: 'Focus mode',
   focusEnter: 'Show only connections',
   focusExit: 'Exit focus',
+  focusOptions: 'Options',
+  focusDirection: 'Show',
   focusDependencies: 'Dependencies',
   focusDependents: 'Dependents',
   focusBoth: 'Both',
