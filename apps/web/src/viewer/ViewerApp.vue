@@ -1213,6 +1213,7 @@ const snippet = 'layers: []\nrules: []\n'
         >
           <PanelRightOpen :size="16" aria-hidden="true" />
         </button>
+        <span v-if="detail" class="rail-title" dir="ltr">{{ detail.title }}</span>
         <button type="button" class="rail-tab" :aria-label="messages.tabDetails" :title="messages.tabDetails" @click="setPanelCollapsed(false, 'details')"><Info :size="16" aria-hidden="true" /></button>
         <button type="button" class="rail-tab" :aria-label="messages.tabCoverage" :title="messages.tabCoverage" @click="setPanelCollapsed(false, 'coverage')"><ChartPie :size="16" aria-hidden="true" /></button>
         <button type="button" class="rail-tab" :aria-label="messages.tabDrift" :title="messages.tabDrift" @click="setPanelCollapsed(false, 'drift')"><GitCompareArrows :size="16" aria-hidden="true" /></button>
@@ -1607,6 +1608,7 @@ button:disabled { opacity: var(--alpha-40); }
   position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
 }
 .viewer.viewer-radial .inspector.is-collapsed { padding: var(--space-2) var(--space-1); overflow: visible; }
+.rail-title { display: none; }
 .inspector-rail { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); }
 .panel-toggle, .rail-tab {
   display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
@@ -1692,25 +1694,53 @@ button:disabled { opacity: var(--alpha-40); }
 }
 @media (max-width: 640px) {
   .file, .search { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-  .inspector.is-open { inset-block-end: var(--viewer-statusbar-height); block-size: 60%; }
-  /* Phone: the panel spans the width, so start it below the toolbar instead of insetting the bar. */
+  /* Phone: the panel is a bottom sheet over a full-height graph. Collapsed = peek (handle, tab icons,
+   * file name); expanded = half the pane. The toolbar and chip stay above it, uncovered. */
   .viewer.viewer-radial.is-inspector-open { --graph-controls-inset-end: 0px; }
-  /* The "Files in view" toggle would peek out beside the open sheet; the sheet names the file anyway. */
-  .viewer.viewer-radial.is-inspector-open :deep(.file-list) { visibility: hidden; }
-  .viewer.viewer-radial.is-inspector-open :deep(.vue-flow__panel.zoom) { margin-inline-end: 0; }
-  /* …and end it above the zoom pad (bottom-right), so the toolbar and zoom stay usable. */
-  /* The focus chip adds a row under the toolbar. */
   .viewer.viewer-radial.is-focusing { --viewer-toolbar-extra: 2.75rem; }
-  .viewer.viewer-radial .inspector.is-open {
-    inset-block-start: calc(var(--space-3) * 2 + 3.5rem + var(--viewer-toolbar-extra, 0rem));
-    inset-block-end: calc(var(--viewer-statusbar-height) + 10rem);
-    block-size: auto;
+  .viewer.viewer-radial .inspector,
+  .viewer.viewer-radial:not(.viewer-embedded) .inspector,
+  .viewer.viewer-radial.viewer-embedded .inspector {
+    inset-inline: 0;
+    inset-block: auto 0;
+    inline-size: 100%;
+    block-size: min(52%, 30rem);
+    padding-block-start: calc(var(--space-3) + 6px);
+    border: 1px solid var(--color-border);
+    border-block-end: 0;
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -8px 24px color-mix(in srgb, #000 28%, transparent);
+    transform: translateY(110%);
   }
-  /* Embedded in a padded page (dashboard): 92vw is wider than the pane and clipped its left edge. */
-  .viewer.viewer-radial.viewer-embedded .inspector.is-open { inline-size: 100%; }
-  .viewer.viewer-radial:not(.viewer-embedded) .inspector.is-open {
-    inset-block-start: calc(var(--viewer-topbar-height) + var(--space-3) * 2 + 3.5rem + var(--viewer-toolbar-extra, 0rem));
+  .viewer.viewer-radial .inspector.is-open { transform: none; }
+  .viewer.viewer-radial .inspector::before {
+    content: '';
+    position: absolute;
+    inset-block-start: 6px;
+    inset-inline-start: 50%;
+    inline-size: 2.25rem;
+    block-size: 4px;
+    border-radius: 999px;
+    background: var(--color-border-strong, var(--color-border));
+    transform: translateX(-50%);
   }
+  .viewer.viewer-radial .inspector.is-collapsed { block-size: auto; overflow: hidden; padding: calc(var(--space-2) + 8px) var(--space-3) var(--space-2); }
+  .inspector-rail { flex-direction: row; justify-content: flex-start; }
+  .inspector-rail .rail-title {
+    display: block; order: -1; flex: 1 1 auto; min-inline-size: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-weight: 600; font-size: var(--text-14, 14px); color: var(--color-text-primary);
+  }
+  /* Panel-right icons read as "sheet up / down" once turned a quarter. */
+  [data-testid='panel-toggle'] svg { transform: rotate(90deg); }
+  .viewer.viewer-radial:not(.viewer-embedded) .inspector.is-collapsed { inline-size: 100%; }
+  .viewer.viewer-radial.is-inspector-open :deep(.file-list) { visibility: hidden; }
+  /* The sheet takes the footer's place; its legend returns when the panel closes. */
+  .viewer.viewer-radial.is-inspector-open .status { visibility: hidden; }
+  /* Expanded sheet: zoom pad and tips would sit under it; pinch zoom still works. Peek keeps them above. */
+  .viewer.viewer-radial.is-inspector-open:not(.is-panel-collapsed) :deep(.vue-flow__panel.zoom),
+  .viewer.viewer-radial.is-inspector-open:not(.is-panel-collapsed) .coach { visibility: hidden; }
+  .viewer.viewer-radial.is-inspector-open.is-panel-collapsed :deep(.vue-flow__panel.zoom) { margin-inline-end: var(--space-3); margin-block-end: 4.5rem; }
 }
 </style>
 
