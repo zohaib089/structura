@@ -63,7 +63,7 @@ import ErrorBanner from './components/ErrorBanner.vue'
 import FilterRail from './components/FilterRail.vue'
 import FocusBar from './components/FocusBar.vue'
 import GraphCanvas from './components/GraphCanvas.vue'
-import { ChartPie, GitCompareArrows, PanelRightClose, PanelRightOpen } from '@lucide/vue'
+import { ArrowLeft, ChartPie, GitCompareArrows, PanelRightClose, PanelRightOpen } from '@lucide/vue'
 import GraphFloatingBar from './components/GraphFloatingBar.vue'
 import GraphLegend from './components/GraphLegend.vue'
 import GraphSourcePicker from './components/GraphSourcePicker.vue'
@@ -1219,13 +1219,24 @@ const snippet = 'layers: []\nrules: []\n'
       </div>
       <div v-show="!panelCollapsed" id="viewer-panel-body" class="inspector-body">
       <div class="inspector-head">
+        <button
+          v-if="canGoBack"
+          type="button"
+          class="panel-toggle head-back"
+          data-testid="detail-back"
+          :aria-label="messages.backTooltip"
+          :title="messages.backTooltip"
+          @click="goBack"
+        >
+          <ArrowLeft :size="16" aria-hidden="true" />
+        </button>
       <div role="tablist" class="inspector-tabs">
-        <button type="button" role="tab" :aria-selected="tab === 'details'" @click="tab = 'details'"><Info :size="14" aria-hidden="true" /><span>{{ messages.tabDetails }}</span></button>
-        <button type="button" role="tab" :aria-selected="tab === 'coverage'" @click="tab = 'coverage'">
-          <ChartPie :size="14" aria-hidden="true" /><span>{{ messages.tabCoverage }}</span>
+        <button type="button" role="tab" :aria-selected="tab === 'details'" @click="tab = 'details'" :title="messages.tabDetails"><Info :size="14" aria-hidden="true" /><span class="tab-label">{{ messages.tabDetails }}</span></button>
+        <button type="button" role="tab" :aria-selected="tab === 'coverage'" @click="tab = 'coverage'" :title="messages.tabCoverage">
+          <ChartPie :size="14" aria-hidden="true" /><span class="tab-label">{{ messages.tabCoverage }}</span>
           <span v-if="skippedCount" class="tab-count">▲ {{ numbers.format(skippedCount) }}</span>
         </button>
-        <button type="button" role="tab" :aria-selected="tab === 'drift'" @click="tab = 'drift'"><GitCompareArrows :size="14" aria-hidden="true" /><span>{{ messages.tabDrift }}</span></button>
+        <button type="button" role="tab" :aria-selected="tab === 'drift'" @click="tab = 'drift'" :title="messages.tabDrift"><GitCompareArrows :size="14" aria-hidden="true" /><span class="tab-label">{{ messages.tabDrift }}</span></button>
       </div>
         <button
           v-if="!panelCollapsed"
@@ -1308,10 +1319,6 @@ const snippet = 'layers: []\nrules: []\n'
         @navigate="onNavigateDetail"
         @expand-child="onExpandChildDetail"
         @retry-summary="retryFileSummary"
-        :can-back="canGoBack"
-        :back-label="messages.backLabel"
-        :back-tooltip="messages.backTooltip"
-        @back="goBack"
       />
       <CoveragePanel
         v-else-if="tab === 'coverage'"
@@ -1592,6 +1599,13 @@ button:disabled { opacity: var(--alpha-40); }
 .inspector-body { display: flex; flex-direction: column; gap: var(--space-3); }
 .inspector-head { display: flex; align-items: center; gap: var(--space-1); }
 .inspector-head .inspector-tabs { flex: 1 1 auto; min-inline-size: 0; }
+.inspector-head [role='tab'] { flex: 1 1 auto; gap: 4px; padding: 0 6px; white-space: nowrap; overflow: hidden; }
+.inspector-head [role='tab'] svg { flex-shrink: 0; }
+.inspector-head [role='tab'][aria-selected='false'] { flex: 0 0 auto; }
+/* Narrow panel: unselected tabs show icon (+ count); the label stays for screen readers and the tooltip. */
+.inspector-head [role='tab'][aria-selected='false'] .tab-label {
+  position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
 .viewer.viewer-radial .inspector.is-collapsed { padding: var(--space-2) var(--space-1); overflow: visible; }
 .inspector-rail { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); }
 .panel-toggle, .rail-tab {
