@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Search } from '@lucide/vue'
+import { ChartNoAxesGantt, Maximize, Orbit, Search } from '@lucide/vue'
 const props = defineProps<{
   filtersLabel: string
   filtersTooltip: string
@@ -54,7 +54,9 @@ const emit = defineEmits<{
         :data-testid="`layout-${option}`"
         @click="emit('update:layout', option)"
       >
-        {{ option === 'radial' ? radialLabel : linearLabel }}
+        <Orbit v-if="option === 'radial'" class="btn-icon" :size="14" aria-hidden="true" />
+        <ChartNoAxesGantt v-else class="btn-icon" :size="14" aria-hidden="true" />
+        <span>{{ option === 'radial' ? radialLabel : linearLabel }}</span>
       </button>
     </div>
     <label v-if="entryOptions.length > 0" class="entry-switcher" :title="entryTooltip">
@@ -93,7 +95,8 @@ const emit = defineEmits<{
       data-testid="graph-fit"
       @click="emit('fit')"
     >
-      {{ fitLabel }}
+      <Maximize class="btn-icon" :size="14" aria-hidden="true" />
+      <span>{{ fitLabel }}</span>
     </button>
     <button
       v-if="showAllCrossLabel && (crossLinkCount ?? 0) > 0"
@@ -289,6 +292,12 @@ select {
   .search-button { min-inline-size: 2.5rem; }
 }
 .search-icon { display: none; }
+/* Icon + label on the layout switch and Fit to view (labels always stay). */
+.layout-switch button, .fit-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.btn-icon { flex-shrink: 0; }
+@media (max-width: 640px) {
+  .btn-icon { display: none; }
+}
 /* Narrow panes (side bar): the search button becomes an icon so Radial / Linear keep their names. */
 @media (max-width: 480px) {
   .search-icon { display: inline-block; vertical-align: middle; }
