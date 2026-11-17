@@ -90,7 +90,8 @@ function measuredBoxes(canvas: HTMLElement, focus: Set<string>): FitBox[] {
   })
   // Open fan on a phone: keep both half captions ("USED BY · N", "USES · N") in frame too.
   if (openFan) canvas.querySelectorAll('.half-caption').forEach((el) => boxes.push(toFlow(el.getBoundingClientRect())))
-  if (focus.size === 0 && !openFan) {
+  // Linear layout has no rings: a leftover ring circle would size the fit for the radial graph.
+  if (focus.size === 0 && !openFan && (props.ringCount ?? 0) > 0) {
     const rings = canvas.querySelectorAll('.ring-guides circle')
     // Embedded: an expanded group only fills part of the outer ring; fit ring 1 plus the real nodes
     // so the panel is not sized for an empty dashed circle.
@@ -164,7 +165,8 @@ function fitOnce(duration = props.duration ?? 0) {
   if (overflowBot > 0) {
     const span = Math.max(botPx(viewport) - topPx(viewport), 1)
     const room = Math.max(maxBottom - minTop, 1)
-    const nextZoom = Math.max(input.minZoom ?? 0.05, viewport.zoom * (room / span) * 0.98)
+    const wanted = viewport.zoom * (room / span) * 0.98
+    const nextZoom = Math.max(input.minZoom ?? 0.05, wanted)
     const cx = input.center?.x ?? 0
     const cy = input.center?.y ?? 0
     viewport = {
@@ -172,7 +174,24 @@ function fitOnce(duration = props.duration ?? 0) {
       x: input.reserve.left + (input.width - input.reserve.left - (input.reserve.right ?? 0)) / 2 - cx * nextZoom,
       y: minTop + room / 2 - cy * nextZoom
     }
-    if (topPx(viewport) < minTop) viewport = { ...viewport, y: viewport.y + (minTop - topPx(viewport)) }
+    if (wanted >= (input.minZoom ?? 0.05)) {
+      if (topPx(viewport) < minTop) viewport = { ...viewport, y: viewport.y + (minTop - topPx(viewport)) }
+    } else {
+      // Still too tall at the smallest readable zoom (a short pane): keep the centre file in the
+      // middle of the free band instead of pinning the top row, which pushed it out of view.
+      const mark = canvas.querySelector('.overview-node.is-nucleus .kind-mark, .overview-node.is-nucleus')?.getBoundingClientRect()
+      if (mark) {
+        const box = canvas.getBoundingClientRect()
+        const vp = flow.viewport.value
+        const fy = ((mark.top + mark.bottom) / 2 - box.top - vp.y) / vp.zoom
+        const fx = ((mark.left + mark.right) / 2 - box.left - vp.x) / vp.zoom
+        const freeW = input.width - input.reserve.left - (input.reserve.right ?? 0)
+        viewport = { ...viewport, y: minTop + room / 2 - fy * nextZoom }
+        // Linear: centre horizontally on the fitted span unless that would push the centre file out.
+        const px = viewport.x + fx * nextZoom
+        if (px < input.reserve.left + 24 || px > input.reserve.left + freeW - 24) viewport = { ...viewport, x: input.reserve.left + freeW / 2 - fx * nextZoom }
+      }
+    }
   }
   void flow.setViewport(viewport, { duration })
   return true

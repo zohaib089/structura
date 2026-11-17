@@ -981,7 +981,7 @@ const snippet = 'layers: []\nrules: []\n'
 </script>
 
 <template>
-  <div ref="viewerEl" class="viewer viewer-radial" :class="{ 'viewer-embedded': embedded, 'is-inspector-open': inspectorOpen }" :dir="direction">
+  <div ref="viewerEl" class="viewer viewer-radial" :class="{ 'viewer-embedded': embedded, 'is-inspector-open': inspectorOpen, 'is-focusing': Boolean(focus && focusSummary) }" :dir="direction">
     <a v-if="!embedded" class="skip" href="#graph-canvas">{{ messages.skip }}</a>
     <header v-if="!embedded" class="topbar" role="banner">
       <BrandMark :size="24" />
@@ -1581,13 +1581,15 @@ button:disabled { opacity: var(--alpha-40); }
   .viewer.viewer-radial.is-inspector-open :deep(.file-list) { visibility: hidden; }
   .viewer.viewer-radial.is-inspector-open :deep(.vue-flow__panel.zoom) { margin-inline-end: 0; }
   /* …and end it above the zoom pad (bottom-right), so the toolbar and zoom stay usable. */
+  /* The focus chip adds a row under the toolbar. */
+  .viewer.viewer-radial.is-focusing { --viewer-toolbar-extra: 2.75rem; }
   .viewer.viewer-radial .inspector.is-open {
-    inset-block-start: calc(var(--space-3) * 2 + 3.5rem);
+    inset-block-start: calc(var(--space-3) * 2 + 3.5rem + var(--viewer-toolbar-extra, 0rem));
     inset-block-end: calc(var(--viewer-statusbar-height) + 10rem);
     block-size: auto;
   }
   .viewer.viewer-radial:not(.viewer-embedded) .inspector.is-open {
-    inset-block-start: calc(var(--viewer-topbar-height) + var(--space-3) * 2 + 3.5rem);
+    inset-block-start: calc(var(--viewer-topbar-height) + var(--space-3) * 2 + 3.5rem + var(--viewer-toolbar-extra, 0rem));
   }
 }
 </style>

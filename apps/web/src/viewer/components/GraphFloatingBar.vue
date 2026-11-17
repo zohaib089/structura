@@ -263,6 +263,8 @@ select {
 }
 /* Focus chip row: always its own line under the controls, inside the same card, so it never overlaps them. */
 .floating-bar:has(.below) { flex-wrap: wrap; }
+/* An open focus-options popover sits above the file panel (it overlaps the sheet on phones). */
+.floating-bar:has([data-testid='focus-options-panel']) { z-index: calc(var(--z-viewer-drawer) + 1); }
 .below { flex-basis: 100%; display: flex; justify-content: center; min-inline-size: 0; pointer-events: none; }
 @media (prefers-reduced-motion: reduce) {
   .floating-bar { transition: none; }

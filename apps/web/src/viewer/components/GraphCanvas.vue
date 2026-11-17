@@ -491,7 +491,7 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
         :signature="`${layout ?? 'radial'}|${fitBump ?? 0}|${nodes.map((node) => node.id).join('\n')}|${(focusIds ?? []).join(',')}`"
         :duration="fitDuration ?? 0"
         :padding="fitPadding ?? 0.2"
-        :ring-count="ringCount ?? 0"
+        :ring-count="layout === 'linear' ? 0 : (ringCount ?? 0)"
         :focus-ids="focusIds ?? []"
         :reserve-zoom-pad="reserveZoomPad"
         :hide-overlapping-ring1="hideOverlappingRing1"
