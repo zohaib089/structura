@@ -168,6 +168,23 @@ function setPanelCollapsed(next: boolean, nextTab?: 'details' | 'coverage' | 'dr
   void nextTick(() => panelToggleEl.value?.focus())
 }
 watch(panelCollapsed, () => { void nextTick(measurePanelInset) }, { flush: 'post' })
+/** Room for the floating toolbar (pane minus the side panel) picks its density so it stays on one row. */
+const viewerWidth = ref(0)
+let viewerResize: ResizeObserver | null = null
+onMounted(() => {
+  if (typeof ResizeObserver === 'undefined' || !viewerEl.value) return
+  viewerResize = new ResizeObserver((entries) => { viewerWidth.value = Math.round(entries[0]?.contentRect.width ?? 0) })
+  viewerResize.observe(viewerEl.value)
+})
+onBeforeUnmount(() => viewerResize?.disconnect())
+const barDensity = computed<'full' | 'tight' | 'narrow' | 'xnarrow'>(() => {
+  if (!viewerWidth.value || viewerWidth.value <= 640) return 'full'
+  const space = viewerWidth.value - panelInset.value - 48
+  if (space >= 940) return 'full'
+  if (space >= 640) return 'tight'
+  if (space >= 500) return 'narrow'
+  return 'xnarrow'
+})
 function measurePanelInset() {
   const panel = inspectorEl.value
   const canvas = viewerEl.value?.querySelector<HTMLElement>('[data-testid="graph-canvas"]')
@@ -1103,6 +1120,7 @@ const snippet = 'layers: []\nrules: []\n'
         @update:entry-id="onEntryChange"
         @toggle-show-all-cross="showAllCross = !showAllCross"
         :layout="layout"
+        :density="barDensity"
         :layout-label="messages.layoutLabel"
         :radial-label="messages.layoutRadial"
         :linear-label="messages.layoutLinear"
