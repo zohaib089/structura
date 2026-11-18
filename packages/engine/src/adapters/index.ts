@@ -38,3 +38,4 @@ export {
 } from './python/adapter.js'
 export { PythonResolver, type PythonResolverContext } from './python/resolver.js'
 export { parseJsonc } from './ts-js/jsonc.js'
+export { sanitizeDocSummary } from './doc-summary.js'

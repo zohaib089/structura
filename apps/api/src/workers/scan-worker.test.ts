@@ -400,3 +400,83 @@ test('API scans never write docSummary even if the scanner returns or is asked f
   assert.equal(Array.isArray(graph.nodes), true)
   assert.equal(graph.nodes.some(node => 'docSummary' in node && node.docSummary !== undefined), false)
 })
+
+test('scan worker sanitises hosted fileSummaries with sanitizeDocSummary before persist', async () => {
+  const { scans, query, fileMeta } = createScanStore([
+    [
+      'scan-summaries',
+      {
+        id: 'scan-summaries',
+        workspace_id: 'workspace-1',
+        requested_by: 'user-1',
+        source: 'git',
+        source_url: 'https://github.com/org/repo',
+        source_branch: null,
+        upload_payload: null,
+        status: 'queued',
+        step: null,
+        error_message: null,
+        graph_json: null,
+        created_at: '2026-11-18T00:00:00.000Z',
+        updated_at: '2026-11-18T00:00:00.000Z',
+        started_at: null,
+        finished_at: null
+      }
+    ]
+  ])
+
+  await runWorkspaceScan('scan-summaries', {
+    query,
+    now: () => new Date('2026-11-18T00:00:01.000Z'),
+    cloneRepository: async () => {
+      const directory = await mkdtemp(join(tmpdir(), 'mock-clone-summaries-'))
+      await mkdir(join(directory, '.git'), { recursive: true })
+      return { directory, cleanup: async () => undefined }
+    },
+    runScan: async () => ({
+      graphJson: '{"schema":"graph.v1"}',
+      graph: {} as never,
+      graphPath: '/tmp/graph.json',
+      run: {} as never,
+      strictFailures: [],
+      summary: 'ok',
+      elapsedMs: 1,
+      root: '/tmp',
+      fileSummaries: {
+        'safe.ts': 'hello world',
+        'aws.ts': 'Uses AKIAIOSFODNN7EXAMPLE in docs.',
+        'gitlab.ts': 'Uses glpat-abcdefghijklmnopqrstuvwxyz12 for access.',
+        'base64.ts': 'Key wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY configured.',
+        'prose.ts': 'The password is s3cr3tValue for tests.',
+        'zw.ts': 'AKI\u200BAIOSFODNN7EXAMPLE',
+        'email.ts': 'Contact support@example.com for help.',
+        'phone.ts': 'Call +1 415-555-1212 for support.',
+        'html.ts': 'Returns Array<string>.',
+        'empty.ts': null
+      }
+    }),
+    runAnalysis: async () => ({
+      schemaVersion: '1.0.0',
+      generatedAt: '2026-11-18T00:00:01.000Z',
+      analysers: {},
+      history: null,
+      findings: [],
+      improvements: []
+    })
+  })
+
+  assert.equal(scans.get('scan-summaries')?.status, 'succeeded')
+  assert.equal(fileMeta.get('scan-summaries:safe.ts'), 'hello world')
+  assert.equal(fileMeta.get('scan-summaries:aws.ts'), null)
+  assert.equal(fileMeta.get('scan-summaries:gitlab.ts'), null)
+  assert.equal(fileMeta.get('scan-summaries:base64.ts'), null)
+  assert.equal(fileMeta.get('scan-summaries:prose.ts'), null)
+  assert.equal(fileMeta.get('scan-summaries:zw.ts'), null)
+  assert.equal(fileMeta.get('scan-summaries:email.ts'), null)
+  assert.equal(fileMeta.get('scan-summaries:phone.ts'), null)
+  assert.equal(fileMeta.get('scan-summaries:html.ts'), 'Returns Arraystring.')
+  assert.equal(fileMeta.get('scan-summaries:empty.ts'), null)
+  for (const value of fileMeta.values()) {
+    assert.notEqual(value, undefined)
+  }
+})

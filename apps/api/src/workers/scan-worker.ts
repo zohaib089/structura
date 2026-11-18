@@ -1,4 +1,4 @@
-import { scanRepository } from '@atlasmith/engine'
+import { sanitizeDocSummary, scanRepository } from '@atlasmith/engine'
 import { runScanAnalysis } from '@atlasmith/scan-analysis'
 import {
   assertAllowlistedGitHttpsUrl,
@@ -145,7 +145,7 @@ async function runWorkspaceScan(scanId: string, dependencies: ScanWorkerDependen
           await setScanStep(dependencies.query, scanId, 'saving', signal)
           const fileMetaEntries = Object.entries(output.fileSummaries).map(([path, summary]) => ({
             path,
-            summary
+            summary: sanitizeDocSummary(summary) ?? null
           }))
           await replaceScanFileMeta(dependencies.query, scanId, fileMetaEntries)
           await updateScan(
