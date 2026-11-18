@@ -1,3 +1,5 @@
+> **Status snapshot (2026-11-18):** `main` is at `3b01f81` after PRs #64–#79. File insights engine and panel (graph.json 1.1), VS Code extension (private), PR architecture check, `atlasmith.yml` rules, and roles step 1 are on main. What is still open is listed in [`progress/2026-11-18-status-prs-64-79.md`](../progress/2026-11-18-status-prs-64-79.md). This roadmap’s body still uses older phase framing and some legacy “Structura” naming; treat the progress note as the current facts.
+
 # Structura Product Vision and Implementation Roadmap
 
 **Document type:** Product brief, requirements baseline, and implementation plan  
