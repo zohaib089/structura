@@ -83,20 +83,7 @@ const emit = defineEmits<{
         </option>
       </select>
     </label>
-    <button
-      type="button"
-      class="search-button"
-      :class="{ 'has-short': Boolean(searchShortLabel) }"
-      :aria-label="searchTooltip"
-      :title="searchTooltip"
-      :aria-keyshortcuts="searchShortcut"
-      data-testid="graph-search-open"
-      @click="emit('openSearch')"
-    >
-      <Search class="search-icon" :size="16" aria-hidden="true" />
-      <span class="search-label-full">{{ searchLabel }}</span>
-      <span v-if="searchShortLabel" class="search-label-short">{{ searchShortLabel }}</span>
-    </button>
+
     <Tip :text="fitTooltip">
       <button
         type="button"
@@ -110,6 +97,19 @@ const emit = defineEmits<{
       </button>
     </Tip>
     <button
+      type="button"
+      class="search-button"
+      :class="{ 'has-short': Boolean(searchShortLabel) }"
+      :aria-label="searchTooltip"
+      :title="searchTooltip"
+      :aria-keyshortcuts="searchShortcut"
+      data-testid="graph-search-open"
+      @click="emit('openSearch')"
+    >
+      <Search class="search-icon" :size="16" aria-hidden="true" />
+      <span class="search-label-full">{{ searchLabel }}</span>
+      <span v-if="searchShortLabel" class="search-label-short">{{ searchShortLabel }}</span>
+    </button>    <button
       v-if="showAllCrossLabel && (crossLinkCount ?? 0) > 0"
       type="button"
       class="links-button"
@@ -347,5 +347,10 @@ select {
 .floating-bar.density-xnarrow .fit-button { padding-inline: 0; inline-size: var(--viewer-hit-target); }
 .floating-bar.density-narrow select,
 .floating-bar.density-xnarrow select { max-inline-size: 8rem; }
+.floating-bar.density-tight select { max-inline-size: 7.5rem; }
 .floating-bar.density-xnarrow .layout-switch button { padding-inline: var(--space-3); }
+/* Keep the control row from wrapping under the labelled Fit; the focus chip still uses .below flex-basis 100%. */
+.floating-bar.density-tight,
+.floating-bar.density-narrow { column-gap: var(--space-1); }
+
 </style>
