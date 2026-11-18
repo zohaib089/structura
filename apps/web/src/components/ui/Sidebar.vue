@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, ref, type Component } from 'vue'
 import { Check, ChevronsUpDown, PanelLeftClose, PanelLeftOpen } from '@lucide/vue'
 import BrandMark from '../brand/BrandMark.vue'
+import AccessibleTip from './AccessibleTip.vue'
 import { BRAND } from '../../../../../packages/brand/src/brand'
 
 export interface SidebarNavItem {
@@ -170,39 +171,52 @@ const toggleLabel = computed(() => (props.collapsed ? props.expandLabel : props.
     <nav class="sidebar-nav" :aria-label="appNavigationLabel">
       <div v-for="(group, gi) in groups" :key="gi" class="nav-group">
         <p v-if="group.label" class="nav-group-label">{{ group.label }}</p>
-        <RouterLink
-          v-for="item in group.items"
-          :key="item.id"
-          :to="item.to"
-          class="nav-link"
-          :class="{ active: item.active }"
-          :data-testid="`nav-${item.id}`"
-          :aria-current="item.active ? 'page' : undefined"
-          :title="collapsed ? item.label : undefined"
-        >
-          <component :is="item.icon" v-if="item.icon" class="nav-icon" :size="18" aria-hidden="true" />
-          <span class="nav-label">{{ item.label }}</span>
-        </RouterLink>
+        <template v-for="item in group.items" :key="item.id">
+          <AccessibleTip v-if="collapsed" :text="item.label" side="start">
+            <RouterLink
+              :to="item.to"
+              class="nav-link"
+              :class="{ active: item.active }"
+              :data-testid="`nav-${item.id}`"
+              :aria-current="item.active ? 'page' : undefined"
+              :aria-label="item.label"
+            >
+              <component :is="item.icon" v-if="item.icon" class="nav-icon" :size="18" aria-hidden="true" />
+              <span class="nav-label">{{ item.label }}</span>
+            </RouterLink>
+          </AccessibleTip>
+          <RouterLink
+            v-else
+            :to="item.to"
+            class="nav-link"
+            :class="{ active: item.active }"
+            :data-testid="`nav-${item.id}`"
+            :aria-current="item.active ? 'page' : undefined"
+          >
+            <component :is="item.icon" v-if="item.icon" class="nav-icon" :size="18" aria-hidden="true" />
+            <span class="nav-label">{{ item.label }}</span>
+          </RouterLink>
+        </template>
       </div>
     </nav>
 
     <div class="sidebar-footer">
       <slot name="footer" />
-      <button
-        v-if="toggleLabel"
-        type="button"
-        class="rail-toggle"
-        data-testid="sidebar-rail-toggle"
-        :aria-expanded="!collapsed"
-        aria-controls="app-shell-sidebar"
-        :aria-label="toggleLabel"
-        :title="toggleLabel"
-        @click="emit('toggleCollapsed')"
-      >
-        <PanelLeftOpen v-if="collapsed" :size="18" aria-hidden="true" />
-        <PanelLeftClose v-else :size="18" aria-hidden="true" />
-        <span class="nav-label">{{ toggleLabel }}</span>
-      </button>
+      <AccessibleTip v-if="toggleLabel" :text="toggleLabel" :side="collapsed ? 'start' : 'below'">
+        <button
+          type="button"
+          class="rail-toggle"
+          data-testid="sidebar-rail-toggle"
+          :aria-expanded="!collapsed"
+          aria-controls="app-shell-sidebar"
+          :aria-label="toggleLabel"
+          @click="emit('toggleCollapsed')"
+        >
+          <PanelLeftOpen v-if="collapsed" :size="18" aria-hidden="true" />
+          <PanelLeftClose v-else :size="18" aria-hidden="true" />
+          <span class="nav-label">{{ toggleLabel }}</span>
+        </button>
+      </AccessibleTip>
       <div v-if="userName" class="user-card" data-testid="sidebar-user" :title="collapsed ? userName : undefined">
         <span class="user-avatar" aria-hidden="true">{{ initials(userName) }}</span>
         <span class="user-copy">

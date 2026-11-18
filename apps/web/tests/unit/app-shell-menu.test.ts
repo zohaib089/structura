@@ -68,7 +68,7 @@ describe('AppShell mobile navigation', () => {
     expect(wrapper.classes()).toContain('app-shell--rail')
     expect(toggle.attributes('aria-expanded')).toBe('false')
     expect(toggle.attributes('aria-label')).toBe('Expand sidebar')
-    expect(wrapper.get('[data-testid="nav-scans"]').attributes('title')).toBe('Scans')
+    expect(wrapper.get('[data-testid="nav-scans"]').attributes('aria-label')).toBe('Scans')
     expect(window.localStorage.getItem('atlasmith.shell.sidebarRail')).toBe('1')
 
     const switcher = wrapper.get('[data-testid="workspace-switcher"]')

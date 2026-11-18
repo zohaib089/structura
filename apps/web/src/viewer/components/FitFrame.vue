@@ -17,6 +17,8 @@ const props = defineProps<{
   /** Expand / collapse: keep this node where it was on screen when the person had zoomed or panned. */
   keepView?: { token: number; id: string } | null
   reserveZoomPad?: boolean
+  /** Linear columns can be wider than the pane; allow a lower readable floor so the fit can still show them. */
+  layout?: 'radial' | 'linear'
   hideOverlappingRing1?: boolean
   /** Px of the canvas's right edge covered by an open side panel (0 when closed or on phones). */
   panelInset?: number
@@ -155,7 +157,9 @@ function fitOnce(duration = props.duration ?? 0) {
     // nucleus would push that fan off the panel. Fit the painted bounds instead.
     center: openFan ? undefined : ringCentre(canvas),
     // An open fan on a phone may zoom out past the label floor a little, so the current file stays in frame.
-    minZoom: props.reserveZoomPad ? (LABEL_PX / (BASE_LABEL_PX * EMBEDDED_MAX_MARK_SCALE)) * (openFan ? 0.5 : 1) : undefined
+    minZoom: props.reserveZoomPad
+      ? (LABEL_PX / (BASE_LABEL_PX * EMBEDDED_MAX_MARK_SCALE)) * (openFan || props.layout === 'linear' ? 0.35 : 1)
+      : props.layout === 'linear' ? 0.05 : undefined
   }
   let viewport = radialFitViewport(input)
   // Hard clamp: after a width-limited or minZoom fit, shift or shrink so no disc

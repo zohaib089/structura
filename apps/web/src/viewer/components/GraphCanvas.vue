@@ -494,6 +494,7 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
         :ring-count="layout === 'linear' ? 0 : (ringCount ?? 0)"
         :focus-ids="focusIds ?? []"
         :reserve-zoom-pad="reserveZoomPad"
+        :layout="layout"
         :hide-overlapping-ring1="hideOverlappingRing1"
         :panel-inset="panelInset ?? 0"
       />

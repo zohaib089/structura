@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ChartNoAxesGantt, ListFilter, Maximize, Orbit, Search } from '@lucide/vue'
+import Tip from './Tip.vue'
 const props = defineProps<{
   filtersLabel: string
   filtersTooltip: string
@@ -42,16 +43,17 @@ const emit = defineEmits<{
 
 <template>
   <div class="floating-bar" :class="[{ 'is-compact': Boolean(searchShortLabel) }, `density-${density ?? 'full'}`]" :data-density="density ?? 'full'" role="toolbar" aria-label="Graph controls">
-    <button
-      type="button"
-      class="icon-button"
-      :aria-label="filtersLabel"
-      :title="filtersTooltip"
-      data-testid="graph-filter-toggle"
-      @click="emit('toggleFilters')"
-    >
-      <ListFilter :size="18" aria-hidden="true" />
-    </button>
+    <Tip :text="filtersTooltip">
+      <button
+        type="button"
+        class="icon-button"
+        :aria-label="filtersLabel"
+        data-testid="graph-filter-toggle"
+        @click="emit('toggleFilters')"
+      >
+        <ListFilter :size="18" aria-hidden="true" />
+      </button>
+    </Tip>
     <div v-if="layoutLabel" class="layout-switch" role="group" :aria-label="layoutLabel" data-testid="layout-switch">
       <button
         v-for="option in (['radial', 'linear'] as const)"
@@ -95,17 +97,18 @@ const emit = defineEmits<{
       <span class="search-label-full">{{ searchLabel }}</span>
       <span v-if="searchShortLabel" class="search-label-short">{{ searchShortLabel }}</span>
     </button>
-    <button
-      type="button"
-      class="fit-button"
-      :aria-label="fitTooltip"
-      :title="fitTooltip"
-      data-testid="graph-fit"
-      @click="emit('fit')"
-    >
-      <Maximize class="btn-icon" :size="14" aria-hidden="true" />
-      <span class="btn-label">{{ fitLabel }}</span>
-    </button>
+    <Tip :text="fitTooltip">
+      <button
+        type="button"
+        class="fit-button"
+        :aria-label="fitTooltip"
+        data-testid="graph-fit"
+        @click="emit('fit')"
+      >
+        <Maximize class="btn-icon" :size="14" aria-hidden="true" />
+        <span class="btn-label">{{ fitLabel }}</span>
+      </button>
+    </Tip>
     <button
       v-if="showAllCrossLabel && (crossLinkCount ?? 0) > 0"
       type="button"
@@ -325,7 +328,7 @@ select {
 .floating-bar.density-tight .entry-prefix,
 .floating-bar.density-narrow .entry-prefix,
 .floating-bar.density-xnarrow .entry-prefix,
-.floating-bar.density-narrow .fit-button .btn-label,
+/* Keep "Fit to view" until the pane is truly cramped (xnarrow). */
 .floating-bar.density-xnarrow .fit-button .btn-label,
 .floating-bar.density-xnarrow .layout-switch .btn-label {
   position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
@@ -340,7 +343,7 @@ select {
 /* The search icon expands to show its name on hover / keyboard focus. */
 .floating-bar:not(.density-full) .search-button:is(:hover, :focus-visible) .search-label-short { display: inline; }
 .floating-bar:not(.density-full) .search-button:not(.has-short):is(:hover, :focus-visible) .search-label-full { display: inline; }
-.floating-bar.density-narrow .fit-button,
+/* Icon-only Fit only in xnarrow. */
 .floating-bar.density-xnarrow .fit-button { padding-inline: 0; inline-size: var(--viewer-hit-target); }
 .floating-bar.density-narrow select,
 .floating-bar.density-xnarrow select { max-inline-size: 8rem; }
