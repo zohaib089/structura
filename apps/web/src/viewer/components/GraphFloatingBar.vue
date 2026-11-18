@@ -290,7 +290,15 @@ select {
     padding: var(--space-1);
     inline-size: calc(100% - var(--space-4));
     max-inline-size: none;
+    overflow: hidden;
   }
+  /* Labelled Fit is too wide on a phone with the sheet open; Tip + aria-label keep the name. */
+  .fit-button .btn-label {
+    position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
+  .fit-button { padding-inline: var(--space-2); }
+  .links-button { display: none; }
+
   .entry-prefix { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   select { max-inline-size: 5.5rem; }
   .search-button { min-inline-size: 0; flex: 1 1 0; max-inline-size: none; padding-inline: var(--space-2); }
@@ -307,7 +315,8 @@ select {
 .layout-switch button, .fit-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .btn-icon { flex-shrink: 0; }
 @media (max-width: 640px) {
-  .btn-icon { display: none; }
+  .layout-switch .btn-icon { display: none; }
+  .fit-button .btn-icon { display: inline-block; }
 }
 /* Narrow panes (side bar): the search button becomes an icon so Radial / Linear keep their names. */
 @media (max-width: 480px) {
