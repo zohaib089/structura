@@ -42,7 +42,15 @@ export interface FileNode {
   entryCandidate?: EntryCandidate
   /** Declared architecture module (first matching glob wins). Present when graph includes architecture. */
   module?: string
+  /** graph.json 1.1: first sentence of the file's leading doc comment (only with --doc-summaries). */
+  docSummary?: string
 }
+
+/** graph.json 1.1 state scope. `local` is reserved by the engine for a later minor and is not emitted in 1.1. */
+export type StateScope = 'module' | 'class' | 'instance' | 'global' | 'local'
+
+/** graph.json 1.1 Vue / Pinia / provide-inject state kind; missing means an ordinary binding. */
+export type StateKind = 'binding' | 'ref' | 'reactive' | 'computed' | 'prop' | 'store' | 'provide' | 'inject'
 
 export interface SymbolNode {
   id: string
@@ -52,6 +60,18 @@ export interface SymbolNode {
   symbolKind: string
   exported: boolean
   span: Span
+  /** 1.1: id of the enclosing class, namespace or outer function symbol (omitted at file top level). */
+  parent?: string
+  /** 1.1: formal parameter count, written on functions only. */
+  paramCount?: number
+  /** 1.1: present on state-bearing symbols only. */
+  scope?: StateScope
+  /** 1.1: binding mutability (let/var vs const), state symbols only. */
+  mutable?: boolean
+  /** 1.1: Vue / Pinia / provide-inject state kind. */
+  stateKind?: StateKind
+  /** 1.1: first sentence of the declaration's doc comment (only with --doc-summaries). */
+  docSummary?: string
 }
 
 export interface ExternalNode {
@@ -112,6 +132,20 @@ export interface ImportEdge {
 export interface GenericEdge {
   source: string
   type: string
+  target: string
+  provenance: Provenance
+  span: Span
+  confidence?: number
+  reason?: string
+}
+
+/**
+ * graph.json 1.1 call edge: source is the calling symbol (or the file for top-level code), target the
+ * called symbol. INFERRED calls carry confidence + reason (e.g. build-output-mapping) and read as "likely".
+ */
+export interface CallEdge {
+  source: string
+  type: 'calls'
   target: string
   provenance: Provenance
   span: Span
