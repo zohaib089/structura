@@ -158,6 +158,7 @@ const viewerEl = ref<HTMLElement | null>(null)
  * fits into the area left of it. Phones get 0: there the panel is a sheet below the toolbar.
  */
 const panelInset = ref(0)
+const panelBottomInset = ref(0)
 /** The open panel can shrink to a slim rail (tab icons + expand). Hosts may remember it via panelPrefs. */
 const panelCollapsed = ref(props.panelPrefs?.read() ?? false)
 const panelToggleEl = ref<HTMLButtonElement | null>(null)
@@ -191,10 +192,19 @@ function measurePanelInset() {
   const panel = inspectorEl.value
   const canvas = viewerEl.value?.querySelector<HTMLElement>('[data-testid="graph-canvas"]')
   const phone = typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 640px)').matches
-  if (!inspectorOpen.value || !panel || !canvas || !viewerEl.value || phone) {
+  if (!inspectorOpen.value || !panel || !canvas || !viewerEl.value) {
     panelInset.value = 0
+    panelBottomInset.value = 0
     return
   }
+  if (phone) {
+    panelInset.value = 0
+    // Only the peek (collapsed) sheet should steal fit space. An expanded sheet already owns the
+    // lower half for reading details; keeping the old reserve there avoids an extreme centre zoom.
+    panelBottomInset.value = panelCollapsed.value ? Math.round(panel.getBoundingClientRect().height) : 0
+    return
+  }
+  panelBottomInset.value = 0
   // The panel is anchored to the right edge (viewer, or the window when it is a fixed drawer); its
   // open position is known before the slide finishes, so the fit can move with it.
   const right = Math.min(viewerEl.value.getBoundingClientRect().right, window.innerWidth)
@@ -285,7 +295,10 @@ const focusMembers = computed(() => {
 })
 const overview = computed(() => {
   if (!index.value) return null
-  if (layout.value === 'linear') return buildLinearOverview(index.value, viewState.value, filters.value, focusMembers.value)
+  if (layout.value === 'linear') {
+    const phone = viewerWidth.value > 0 ? viewerWidth.value <= 640 : (typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 640px)').matches)
+    return buildLinearOverview(index.value, viewState.value, filters.value, focusMembers.value, phone)
+  }
   return buildOverview(index.value, viewState.value, filters.value, focusMembers.value)
 })
 const entryOptions = computed(() =>
@@ -1208,6 +1221,7 @@ const snippet = 'layers: []\nrules: []\n'
         :reserve-zoom-pad="embedded"
         :hide-overlapping-ring1="embedded"
         :panel-inset="panelInset"
+        :panel-bottom-inset="panelBottomInset"
         :inside-open-caption="embedded && overviewLayout === 'folders' ? messages.insideOpenCaption : undefined"
         :inside-close-caption="embedded && overviewLayout === 'folders' ? messages.insideCloseCaption : undefined"
         :layout="layout"

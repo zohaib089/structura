@@ -91,6 +91,9 @@ function activate() {
   font-size: 12.5px;
   cursor: pointer;
 }
+@media (max-width: 640px) {
+  .linear-pill { inline-size: 148px; }
+}
 .linear-pill:focus-visible { outline: 2px solid var(--color-focus, #f1b24a); outline-offset: 2px; }
 .text { flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mark { display: inline-flex; flex: none; color: #9fb6ea; }

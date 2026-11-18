@@ -26,7 +26,10 @@ export const LINEAR_DEPTH = 3
 export const LINEAR_COLUMN_CAP = 14
 export const LINEAR_PILL_WIDTH = 184
 export const LINEAR_PILL_HEIGHT = 32
-export const LINEAR_COLUMN_GAP = 220
+export const LINEAR_COLUMN_GAP = 200
+/** Phone (≤640 CSS px): tighter columns so depth-3 Linear can fit. */
+export const LINEAR_COLUMN_GAP_PHONE = 168
+export const LINEAR_PILL_WIDTH_PHONE = 148
 export const LINEAR_ROW = 44
 const GROUP_PREFIX = 'lgroup:'
 const MORE_PREFIX = 'lmore:'
@@ -103,8 +106,12 @@ export function buildLinearOverview(
   index: GraphIndex,
   state: ViewState,
   filters: ViewFilters,
-  focusIds: ReadonlySet<string> | null = null
+  focusIds: ReadonlySet<string> | null = null,
+  /** Narrow phone pane: use the phone column/pill sizes so a deep Linear view can still fit. */
+  phone = false
 ): LinearModel {
+  const columnGap = phone ? LINEAR_COLUMN_GAP_PHONE : LINEAR_COLUMN_GAP
+  const pillWidth = phone ? LINEAR_PILL_WIDTH_PHONE : LINEAR_PILL_WIDTH
   const nucleusId = resolveNucleusId(index, state.nucleusId)
   const columns = linearColumns(index, nucleusId, filters)
   const expanded = new Set(state.expanded)
@@ -162,7 +169,7 @@ export function buildLinearOverview(
     const y0 = -height / 2 + LINEAR_PILL_HEIGHT / 2 - LINEAR_PILL_HEIGHT / 2
     placed.forEach((node, i) => {
       const y = Math.round(y0 + i * LINEAR_ROW)
-      positions.set(node.id, { x: col * LINEAR_COLUMN_GAP - LINEAR_PILL_WIDTH / 2, y })
+      positions.set(node.id, { x: col * columnGap - pillWidth / 2, y })
       top = Math.min(top, y)
       bottom = Math.max(bottom, y + LINEAR_PILL_HEIGHT)
     })
@@ -192,7 +199,7 @@ export function buildLinearOverview(
     if (!source || !target || source === target) continue
     addBundle(bundles, source, target, edge, false, index)
   }
-  const gutter = LINEAR_COLUMN_GAP - LINEAR_PILL_WIDTH
+  const gutter = columnGap - pillWidth
   let lane = 0
   const edges = [...bundles.values()].map((bundle) => {
     const model = toEdgeModel(bundle, new Map(), new Map())

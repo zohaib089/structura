@@ -22,6 +22,8 @@ const props = defineProps<{
   hideOverlappingRing1?: boolean
   /** Px of the canvas's right edge covered by an open side panel (0 when closed or on phones). */
   panelInset?: number
+  /** Phone bottom sheet height covering the canvas (0 when closed / desktop). */
+  panelBottomInset?: number
 }>()
 const flow = useVueFlow()
 
@@ -143,7 +145,8 @@ function fitOnce(duration = props.duration ?? 0) {
         : Math.max(
           measured.bottom,
           measured.coach?.bottom ?? 0,
-          props.reserveZoomPad ? 150 : 0
+          props.reserveZoomPad ? 150 : 0,
+          phone ? (props.panelBottomInset ?? 0) : 0
         ),
       right: Math.max(measured.right - inset, props.reserveZoomPad ? 56 : 0),
       left: 0
@@ -158,8 +161,10 @@ function fitOnce(duration = props.duration ?? 0) {
     center: openFan ? undefined : ringCentre(canvas),
     // An open fan on a phone may zoom out past the label floor a little, so the current file stays in frame.
     minZoom: props.reserveZoomPad
-      ? (LABEL_PX / (BASE_LABEL_PX * EMBEDDED_MAX_MARK_SCALE)) * (openFan || props.layout === 'linear' ? 0.35 : 1)
-      : props.layout === 'linear' ? 0.05 : undefined
+      ? (LABEL_PX / (BASE_LABEL_PX * EMBEDDED_MAX_MARK_SCALE)) * (
+          openFan ? 0.35 : props.layout === 'linear' && phone ? 0.22 : props.layout === 'linear' ? 0.35 : 1
+        )
+      : props.layout === 'linear' ? (phone ? 0.08 : 0.05) : undefined
   }
   let viewport = radialFitViewport(input)
   // Hard clamp: after a width-limited or minZoom fit, shift or shrink so no disc
@@ -854,7 +859,7 @@ watch(() => props.signature, () => queueFit())
 // reduced motion), but only while the view is still the automatic fit. A view the person zoomed or
 // panned by hand is left exactly as it is; Fit to view (or the zoom pad's fit) then uses the free area.
 watch(
-  () => props.panelInset ?? 0,
+  () => (props.panelInset ?? 0) + (props.panelBottomInset ?? 0),
   (now, before) => {
     if (Math.abs(now - before) < 1) return
     if (!lastFit) return // a fit is still running; its next pass reads the new inset
