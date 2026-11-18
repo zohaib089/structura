@@ -1,6 +1,6 @@
-# Structura - Overview
+# Atlasmith - Overview
 
-Structura is a tool that helps developers understand big code repositories.
+Atlasmith is a local-first tool that helps developers understand big code repositories.
 
 It shows:
 - Hierarchy of the code (from main to small parts)
