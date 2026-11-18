@@ -1,38 +1,58 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref } from 'vue'
+import { nextTick, onBeforeUnmount, ref, useId } from 'vue'
 import { motionMs } from '../motion'
 
 /** `side="start"` puts the bubble beside the control (stacked pads); `placement="above"` lifts it above. */
 withDefaults(defineProps<{ text: string; side?: 'below' | 'start'; placement?: 'above' | 'below' }>(), { side: 'below', placement: 'below' })
 
+const tipId = useId()
+const root = ref<HTMLElement | null>(null)
 const open = ref(false)
 let timer = 0
 
+function described(target: HTMLElement | null, on: boolean) {
+  if (!target) return
+  if (on) target.setAttribute('aria-describedby', tipId)
+  else if (target.getAttribute('aria-describedby') === tipId) target.removeAttribute('aria-describedby')
+}
+
 function show(immediate: boolean) {
   window.clearTimeout(timer)
-  if (immediate) {
+  const apply = () => {
     open.value = true
-    return
+    void nextTick(() => {
+      const focusable = root.value?.querySelector<HTMLElement>('button, a, [tabindex], input, select, textarea')
+      described(focusable ?? null, true)
+    })
   }
-  timer = window.setTimeout(() => { open.value = true }, motionMs('--tooltip-delay', 400, false))
+  if (immediate) apply()
+  else timer = window.setTimeout(apply, motionMs('--tooltip-delay', 400, false))
 }
 
 function hide() {
   window.clearTimeout(timer)
   open.value = false
+  const focusable = root.value?.querySelector<HTMLElement>('button, a, [tabindex], input, select, textarea')
+  described(focusable ?? null, false)
 }
 
 function onKey(event: KeyboardEvent) {
-  if (event.key === 'Escape') hide()
+  if (event.key === 'Escape') {
+    event.stopPropagation()
+    hide()
+  }
 }
 
-onBeforeUnmount(() => window.clearTimeout(timer))
+onBeforeUnmount(() => {
+  window.clearTimeout(timer)
+  hide()
+})
 </script>
 
 <template>
-  <span class="tip" @mouseenter="show(false)" @mouseleave="hide" @focusin="show(true)" @focusout="hide" @keydown="onKey">
+  <span ref="root" class="tip" @mouseenter="show(false)" @mouseleave="hide" @focusin="show(true)" @focusout="hide" @keydown="onKey">
     <slot />
-    <span v-if="open" class="bubble" :class="{ 'bubble--start': side === 'start', 'bubble--above': placement === 'above' && side !== 'start' }" role="tooltip">{{ text }}</span>
+    <span v-if="open" :id="tipId" class="bubble" :class="{ 'bubble--start': side === 'start', 'bubble--above': placement === 'above' && side !== 'start' }" role="tooltip">{{ text }}</span>
   </span>
 </template>
 

@@ -4,6 +4,7 @@ import { computed, ref, watch } from 'vue'
 import type { ViewerReportFinding, ViewerReportSeverity } from '../report-types'
 import SeverityChip from '../../components/ui/SeverityChip.vue'
 import type { DirectoryChildRow, NodeDetailSections, RelatedNodeRow, SymbolKindGroup, SymbolRow } from '../node-detail-data'
+import type { CallRef, FunctionInsight, StateInsight } from '../file-insights'
 
 export type FileSummaryState = 'none' | 'loading' | 'ready' | 'error'
 
@@ -62,6 +63,29 @@ const props = defineProps<{
   /** Symbol rows open the file at their line (editor hosts); otherwise rows are read-only. */
   canOpenSymbols?: boolean
   showAllSymbolsLabel?: string
+  functionsLabel?: string
+  functionsHint?: string
+  paramsNone?: string
+  paramsOne?: string
+  paramsMany?: string
+  callsLabel?: string
+  calledByLabel?: string
+  emptyCalls?: string
+  emptyCalledBy?: string
+  callLikely?: string
+  callSameFile?: string
+  callTimes?: string
+  stateLabel?: string
+  stateHint?: string
+  stateLocalLabel?: string
+  stateModuleLabel?: string
+  stateGlobalLabel?: string
+  stateMutable?: string
+  stateFixed?: string
+  stateEmpty?: string
+  stateKindLabels?: Record<'binding' | 'ref' | 'reactive' | 'computed' | 'prop' | 'store' | 'provide' | 'inject', string>
+  openCallTooltip?: string
+  methodOf?: string
   summaryState: FileSummaryState
   severityLabel: (severity: ViewerReportSeverity) => string
   detail: {
@@ -89,6 +113,7 @@ const emit = defineEmits<{
   expandChild: [id: string]
   retrySummary: []
   openSymbol: [row: SymbolRow]
+  openCall: [ref: CallRef]
 }>()
 
 /** Long files: show the first rows, the rest behind one "Show all" button. */
@@ -118,7 +143,7 @@ function symbolLineText(row: SymbolRow): string {
   return props.symbolLine ? fill(props.symbolLine, { line: row.line }) : row.span
 }
 
-function symbolOpenText(row: SymbolRow): string {
+function symbolOpenText(row: Pick<SymbolRow, 'label' | 'line'>): string {
   return fill(props.symbolOpenTooltip, { name: row.label, line: row.line })
 }
 
@@ -143,6 +168,23 @@ function kindTag(kind: string): string {
 function symbolKindLabel(kind: string): string {
   if (!kind) return kind
   return kind.charAt(0).toUpperCase() + kind.slice(1)
+}
+
+
+function paramsText(fn: FunctionInsight): string {
+  if (fn.paramCount === null) return ''
+  if (fn.paramCount === 0) return props.paramsNone ?? 'No parameters'
+  if (fn.paramCount === 1) return props.paramsOne ?? 'Takes 1 parameter'
+  return fill(props.paramsMany, { n: fn.paramCount }) || `Takes ${fn.paramCount} parameters`
+}
+function callOpenText(row: CallRef): string {
+  return fill(props.openCallTooltip, { name: row.label, line: row.line }) || row.label
+}
+function stateKindText(row: StateInsight): string {
+  return props.stateKindLabels?.[row.stateKind] ?? row.stateKind
+}
+function onOpenCall(row: CallRef) {
+  emit('openCall', row)
 }
 
 function onNavigate(row: RelatedNodeRow | DirectoryChildRow) {
@@ -278,6 +320,88 @@ function onExpandChild(row: DirectoryChildRow) {
             {{ fill(showAllSymbolsLabel, { count: sections.symbols.length }) || `Show all ${sections.symbols.length}` }}
           </button>
         </template>
+      </section>
+
+      <section v-if="sections?.insights?.functions.length" class="block" data-testid="functions-insights">
+        <h4>{{ functionsLabel }}</h4>
+        <p v-if="functionsHint" class="muted symbols-hint">{{ functionsHint }}</p>
+        <ul class="fn-list">
+          <li v-for="fn in sections.insights.functions" :key="fn.id" class="fn-card">
+            <button
+              v-if="canOpenSymbols"
+              type="button"
+              class="symbol-row is-action fn-head"
+              :title="symbolOpenText(fn)"
+              :aria-label="symbolOpenText(fn)"
+              @click="emit('openSymbol', { id: fn.id, label: fn.label, symbolKind: 'function', kindGroup: 'function', exported: fn.exported, span: String(fn.line), line: fn.line, col: 1 })"
+            >
+              <span class="mono symbol-name" dir="ltr">{{ fn.label }}</span>
+              <span class="symbol-tags">
+                <span class="kind-tag">{{ symbolKindLabels?.function ?? 'Function' }}</span>
+                <span v-if="fn.exported" class="export-tag" :title="symbolExportTooltip">{{ symbolExportTag }}</span>
+                <span v-if="fn.parentLabel" class="muted">{{ fill(methodOf, { parent: fn.parentLabel }) }}</span>
+              </span>
+              <span class="muted mono symbol-line">{{ fill(symbolLine, { line: fn.line }) || `line ${fn.line}` }}</span>
+            </button>
+            <div v-else class="symbol-row fn-head">
+              <span class="mono symbol-name" dir="ltr">{{ fn.label }}</span>
+              <span class="muted mono symbol-line">{{ fill(symbolLine, { line: fn.line }) || `line ${fn.line}` }}</span>
+            </div>
+            <p v-if="paramsText(fn)" class="fn-meta">{{ paramsText(fn) }}</p>
+            <p v-if="fn.docSummary" class="summary fn-summary">{{ fn.docSummary }}</p>
+            <div class="call-grid">
+              <div>
+                <h5>{{ callsLabel }}</h5>
+                <p v-if="!fn.calls.length" class="muted">{{ emptyCalls }}</p>
+                <ul v-else class="link-list call-list">
+                  <li v-for="row in fn.calls" :key="`out-${row.symbolId ?? row.fileId}-${row.likely}-${row.line}`">
+                    <button type="button" class="link" :aria-label="callOpenText(row)" :title="callOpenText(row)" @click="onOpenCall(row)">{{ row.label }}</button>
+                    <span v-if="row.sameFile" class="pill">{{ callSameFile }}</span>
+                    <span v-if="row.likely" class="pill likely">{{ callLikely }}</span>
+                    <span v-if="row.count > 1" class="muted">{{ fill(callTimes, { n: row.count }) }}</span>
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <h5>{{ calledByLabel }}</h5>
+                <p v-if="!fn.calledBy.length" class="muted">{{ emptyCalledBy }}</p>
+                <ul v-else class="link-list call-list">
+                  <li v-for="row in fn.calledBy" :key="`in-${row.symbolId ?? row.fileId}-${row.likely}-${row.line}`">
+                    <button type="button" class="link" :aria-label="callOpenText(row)" :title="callOpenText(row)" @click="onOpenCall(row)">{{ row.label }}</button>
+                    <span v-if="row.sameFile" class="pill">{{ callSameFile }}</span>
+                    <span v-if="row.likely" class="pill likely">{{ callLikely }}</span>
+                    <span v-if="row.count > 1" class="muted">{{ fill(callTimes, { n: row.count }) }}</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </li>
+        </ul>
+      </section>
+
+      <section v-if="sections?.insights" class="block" data-testid="state-insights">
+        <h4>{{ stateLabel }}</h4>
+        <p v-if="stateHint" class="muted symbols-hint">{{ stateHint }}</p>
+        <template v-if="sections.insights.state.local.length || sections.insights.state.module.length || sections.insights.state.global.length">
+          <div v-for="group in ([
+            { key: 'local', label: stateLocalLabel, rows: sections.insights.state.local },
+            { key: 'module', label: stateModuleLabel, rows: sections.insights.state.module },
+            { key: 'global', label: stateGlobalLabel, rows: sections.insights.state.global }
+          ] as const)" :key="group.key" class="state-group">
+            <template v-if="group.rows.length">
+              <h5>{{ group.label }}</h5>
+              <ul class="state-list">
+                <li v-for="row in group.rows" :key="row.id">
+                  <span class="mono symbol-name" dir="ltr">{{ row.label }}</span>
+                  <span class="pill">{{ row.mutable ? stateMutable : stateFixed }}</span>
+                  <span class="muted">{{ stateKindText(row) }}</span>
+                  <span v-if="row.parentLabel" class="muted">{{ fill(methodOf, { parent: row.parentLabel }) }}</span>
+                </li>
+              </ul>
+            </template>
+          </div>
+        </template>
+        <p v-else class="muted">{{ stateEmpty }}</p>
       </section>
 
       <section v-if="sections && detail.kind === 'file'" class="block">
@@ -563,4 +687,28 @@ function onExpandChild(row: DirectoryChildRow) {
   display: grid;
   gap: var(--space-1);
 }
+
+.fn-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+.fn-card {
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--color-brand-navy) 6%, transparent);
+}
+.fn-head { width: 100%; }
+.fn-meta, .fn-summary { margin: var(--space-1) 0 0; font-size: var(--text-13); }
+.call-grid { display: grid; gap: var(--space-2); margin-top: var(--space-2); }
+@media (min-width: 360px) { .call-grid { grid-template-columns: 1fr 1fr; } }
+.call-grid h5, .state-group h5 {
+  margin: 0 0 var(--space-1);
+  font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-text-muted);
+}
+.call-list .pill, .state-list .pill {
+  display: inline-flex; align-items: center; margin-inline-start: var(--space-1);
+  padding: 0 6px; border-radius: 999px; border: 1px solid var(--color-border);
+  font-size: 11px; color: var(--color-text-secondary);
+}
+.pill.likely { border-color: color-mix(in srgb, var(--color-brand-amber-ui) 55%, var(--color-border)); color: var(--color-brand-amber-ui); }
+.state-list { list-style: none; margin: 0 0 var(--space-2); padding: 0; display: grid; gap: 4px; }
+.state-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 </style>

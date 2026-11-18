@@ -241,6 +241,30 @@ export interface ViewerMessages {
   symbolKindLabels: Record<'function' | 'class' | 'interface' | 'type' | 'enum' | 'namespace' | 'variable' | 'default' | 'other', string>
   /** Plural kind names for the counts line: "{count} {label}". */
   symbolKindCountLabels: Record<'function' | 'class' | 'interface' | 'type' | 'enum' | 'namespace' | 'variable' | 'default' | 'other', { one: string; other: string }>
+  /** File insights (graph.json 1.1). */
+  functionsLabel: string
+  functionsHint: string
+  paramsNone: string
+  paramsOne: string
+  paramsMany: string
+  callsLabel: string
+  calledByLabel: string
+  emptyCalls: string
+  emptyCalledBy: string
+  callLikely: string
+  callSameFile: string
+  callTimes: string
+  stateLabel: string
+  stateHint: string
+  stateLocalLabel: string
+  stateModuleLabel: string
+  stateGlobalLabel: string
+  stateMutable: string
+  stateFixed: string
+  stateEmpty: string
+  stateKindLabels: Record<'binding' | 'ref' | 'reactive' | 'computed' | 'prop' | 'store' | 'provide' | 'inject', string>
+  openCallTooltip: string
+  methodOf: string
 }
 
 const en: ViewerMessages = {
@@ -495,7 +519,40 @@ const en: ViewerMessages = {
   searchClusters: 'Clusters',
   searchFiles: 'Files',
   searchSymbols: 'Symbols',
-  chipCount: '{n}'
+  chipCount: '{n}',
+  functionsLabel: 'Functions in this file',
+  functionsHint: 'What this file does, one function at a time. Click a name to open that line.',
+  paramsNone: 'No parameters',
+  paramsOne: 'Takes 1 parameter',
+  paramsMany: 'Takes {n} parameters',
+  callsLabel: 'Calls',
+  calledByLabel: 'Called by',
+  emptyCalls: 'Does not call other functions we know about.',
+  emptyCalledBy: 'Nothing we know about calls this yet.',
+  callLikely: 'likely',
+  callSameFile: 'same file',
+  callTimes: '{n}×',
+  stateLabel: 'State this file keeps',
+  stateHint: 'Values the code remembers. "Mutable" means they can change; "fixed" means the binding stays the same.',
+  stateLocalLabel: 'On each object (or class)',
+  stateModuleLabel: 'Shared by this file',
+  stateGlobalLabel: 'Shared by the whole program',
+  stateMutable: 'can change',
+  stateFixed: 'fixed',
+  stateEmpty: 'No remembered values in this file.',
+  stateKindLabels: {
+    binding: 'ordinary value',
+    ref: 'reactive value (ref)',
+    reactive: 'reactive object',
+    computed: 'derived value',
+    prop: 'input from a parent',
+    store: 'shared store',
+    provide: 'shared down to children',
+    inject: 'received from a parent'
+  },
+  openCallTooltip: 'Open {name} at line {line}',
+  methodOf: 'on {parent}'
+
 }
 
 export function viewerMessages(_locale: WebLocale): ViewerMessages {

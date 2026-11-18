@@ -23,10 +23,15 @@ import type {
   GraphNode,
   ImportKind,
   ReadResult,
-  Span
+  Span,
+  StateKind,
+  StateScope,
+  SymbolNode
 } from './graph-types'
 
 const KNOWN_KINDS = new Set(['directory', 'file', 'symbol', 'external', 'unresolved'])
+const STATE_SCOPES = new Set<string>(['module', 'class', 'instance', 'global', 'local'])
+const STATE_KINDS = new Set<string>(['binding', 'ref', 'reactive', 'computed', 'prop', 'store', 'provide', 'inject'])
 const PARSE_STATUS = new Set(['parsed', 'partial', 'failed', 'skipped'])
 const ENTRY_REASONS = new Set<EntryReason>(['conventional-name', 'package-bin', 'package-exports', 'package-main', 'package-script'])
 const EXTENSION_KEY = /^[a-z][a-z0-9-]*:[A-Za-z0-9._-]+$/
@@ -151,7 +156,8 @@ function readDocument(value: unknown, schemaVersion: string, paths: string[]): G
   edges.forEach((edge, index) => {
     if (!nodesById.has(edge.source)) push(paths, pointer(['edges', index, 'source']))
     if (!nodesById.has(edge.target)) push(paths, pointer(['edges', index, 'target']))
-    if (edge.source === edge.target) push(paths, pointer(['edges', index, 'target']))
+    // A function that calls itself (recursion) is a real 1.1 calls self-edge; any other self-edge is invalid.
+    if (edge.source === edge.target && edge.type !== 'calls') push(paths, pointer(['edges', index, 'target']))
     const key = edgeKey(edge)
     if (edgeKeys.has(key)) push(paths, pointer(['edges', index]))
     else edgeKeys.set(key, index)
@@ -272,6 +278,10 @@ function readFile(value: Record<string, unknown>, id: string, base: string, path
     lineCount,
     parse: status !== 'parsed' && reason ? { status, reason } : { status }
   }
+  if (Object.hasOwn(value, 'docSummary')) {
+    const doc = readBoundedString(value.docSummary, `${base}/docSummary`, paths)
+    if (doc) node.docSummary = doc
+  }
   if (Object.hasOwn(value, 'decoding')) {
     if (value.decoding !== 'lossy') push(paths, `${base}/decoding`)
     else node.decoding = 'lossy'
@@ -316,7 +326,33 @@ function readSymbol(value: Record<string, unknown>, id: string, base: string, pa
   if (!file || !label || !symbolKind || !span) return null
   if (typeof value.exported !== 'boolean') push(paths, `${base}/exported`)
   if (!id.startsWith('sym:') || !id.includes('#')) push(paths, `${base}/id`)
-  return { id, kind: 'symbol', file, label, symbolKind, exported: value.exported === true, span }
+  const symbol: SymbolNode = { id, kind: 'symbol', file, label, symbolKind, exported: value.exported === true, span }
+  // graph.json 1.1 additive fields: a wrong shape is reported, never trusted.
+  if (Object.hasOwn(value, 'parent')) {
+    const parent = readBoundedString(value.parent, `${base}/parent`, paths)
+    if (parent) symbol.parent = parent
+  }
+  if (Object.hasOwn(value, 'paramCount')) {
+    if (Number.isInteger(value.paramCount) && (value.paramCount as number) >= 0) symbol.paramCount = value.paramCount as number
+    else push(paths, `${base}/paramCount`)
+  }
+  if (Object.hasOwn(value, 'scope')) {
+    if (typeof value.scope === 'string' && STATE_SCOPES.has(value.scope)) symbol.scope = value.scope as StateScope
+    else push(paths, `${base}/scope`)
+  }
+  if (Object.hasOwn(value, 'mutable')) {
+    if (typeof value.mutable === 'boolean') symbol.mutable = value.mutable
+    else push(paths, `${base}/mutable`)
+  }
+  if (Object.hasOwn(value, 'stateKind')) {
+    if (typeof value.stateKind === 'string' && STATE_KINDS.has(value.stateKind)) symbol.stateKind = value.stateKind as StateKind
+    else push(paths, `${base}/stateKind`)
+  }
+  if (Object.hasOwn(value, 'docSummary')) {
+    const doc = readBoundedString(value.docSummary, `${base}/docSummary`, paths)
+    if (doc) symbol.docSummary = doc
+  }
+  return symbol
 }
 
 function readExternal(value: Record<string, unknown>, id: string, base: string, paths: string[]): GraphNode | null {

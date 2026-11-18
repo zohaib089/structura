@@ -65,6 +65,7 @@ import FocusBar from './components/FocusBar.vue'
 import GraphCanvas from './components/GraphCanvas.vue'
 import { ArrowLeft, ChartPie, GitCompareArrows, PanelRightClose, PanelRightOpen } from '@lucide/vue'
 import GraphFloatingBar from './components/GraphFloatingBar.vue'
+import Tip from './components/Tip.vue'
 import GraphLegend from './components/GraphLegend.vue'
 import GraphSourcePicker from './components/GraphSourcePicker.vue'
 import NodeDetail, { type FileSummaryState } from './components/NodeDetail.vue'
@@ -180,9 +181,10 @@ onBeforeUnmount(() => viewerResize?.disconnect())
 const barDensity = computed<'full' | 'tight' | 'narrow' | 'xnarrow'>(() => {
   if (!viewerWidth.value || viewerWidth.value <= 640) return 'full'
   const space = viewerWidth.value - panelInset.value - 48
-  if (space >= 940) return 'full'
-  if (space >= 640) return 'tight'
-  if (space >= 500) return 'narrow'
+  // Prefer keeping "Fit to view" at 1280 with both the sidebar and the details panel open.
+  if (space >= 900) return 'full'
+  if (space >= 560) return 'tight'
+  if (space >= 420) return 'narrow'
   return 'xnarrow'
 })
 function measurePanelInset() {
@@ -650,6 +652,18 @@ function onCanvasSelect(id: string) {
 function onOpenSymbol(row: { id: string; line: number }) {
   const path = filePathForNode(row.id)
   if (path) emit('openFile', path, row.line)
+}
+
+function onOpenCall(row: { fileId: string; path: string; line: number; symbolId: string | null }) {
+  // Jump to the other file/line: prefer the symbol id when we have one so select+open stay in sync.
+  if (row.symbolId) {
+    selectNode(row.symbolId, true)
+    const path = filePathForNode(row.symbolId) ?? row.path
+    if (path) emit('openFile', path, row.line)
+    return
+  }
+  selectNode(row.fileId, true)
+  if (row.path) emit('openFile', row.path, row.line)
 }
 
 function selectEdge(id: string) {
@@ -1232,9 +1246,9 @@ const snippet = 'layers: []\nrules: []\n'
           <PanelRightOpen :size="16" aria-hidden="true" />
         </button>
         <span v-if="detail" class="rail-title" dir="ltr">{{ detail.title }}</span>
-        <button type="button" class="rail-tab" :aria-label="messages.tabDetails" :title="messages.tabDetails" @click="setPanelCollapsed(false, 'details')"><Info :size="16" aria-hidden="true" /></button>
-        <button type="button" class="rail-tab" :aria-label="messages.tabCoverage" :title="messages.tabCoverage" @click="setPanelCollapsed(false, 'coverage')"><ChartPie :size="16" aria-hidden="true" /></button>
-        <button type="button" class="rail-tab" :aria-label="messages.tabDrift" :title="messages.tabDrift" @click="setPanelCollapsed(false, 'drift')"><GitCompareArrows :size="16" aria-hidden="true" /></button>
+        <Tip :text="messages.tabDetails" side="start"><button type="button" class="rail-tab" :aria-label="messages.tabDetails" @click="setPanelCollapsed(false, 'details')"><Info :size="16" aria-hidden="true" /></button></Tip>
+        <Tip :text="messages.tabCoverage" side="start"><button type="button" class="rail-tab" :aria-label="messages.tabCoverage" @click="setPanelCollapsed(false, 'coverage')"><ChartPie :size="16" aria-hidden="true" /></button></Tip>
+        <Tip :text="messages.tabDrift" side="start"><button type="button" class="rail-tab" :aria-label="messages.tabDrift" @click="setPanelCollapsed(false, 'drift')"><GitCompareArrows :size="16" aria-hidden="true" /></button></Tip>
       </div>
       <div v-show="!panelCollapsed" id="viewer-panel-body" class="inspector-body">
       <div class="inspector-head">
@@ -1326,8 +1340,32 @@ const snippet = 'layers: []\nrules: []\n'
         :symbol-kind-labels="messages.symbolKindLabels"
         :symbol-kind-count-labels="messages.symbolKindCountLabels"
         :show-all-symbols-label="messages.showAllSymbols"
+        :functions-label="messages.functionsLabel"
+        :functions-hint="messages.functionsHint"
+        :params-none="messages.paramsNone"
+        :params-one="messages.paramsOne"
+        :params-many="messages.paramsMany"
+        :calls-label="messages.callsLabel"
+        :called-by-label="messages.calledByLabel"
+        :empty-calls="messages.emptyCalls"
+        :empty-called-by="messages.emptyCalledBy"
+        :call-likely="messages.callLikely"
+        :call-same-file="messages.callSameFile"
+        :call-times="messages.callTimes"
+        :state-label="messages.stateLabel"
+        :state-hint="messages.stateHint"
+        :state-local-label="messages.stateLocalLabel"
+        :state-module-label="messages.stateModuleLabel"
+        :state-global-label="messages.stateGlobalLabel"
+        :state-mutable="messages.stateMutable"
+        :state-fixed="messages.stateFixed"
+        :state-empty="messages.stateEmpty"
+        :state-kind-labels="messages.stateKindLabels"
+        :open-call-tooltip="messages.openCallTooltip"
+        :method-of="messages.methodOf"
         :can-open-symbols="canOpenFiles"
         @open-symbol="onOpenSymbol"
+        @open-call="onOpenCall"
         :summary-state="fileSummaryStatus"
         :severity-label="reportMessages.severityLabel"
         :detail="detail"

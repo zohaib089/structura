@@ -9,6 +9,7 @@ import {
 } from '../services/scan-report-tree-display'
 import type { GraphDocument, GraphEdge, GraphNode } from './graph-types'
 import type { GraphIndex } from './overview'
+import { buildFileInsights, type FileInsights } from './file-insights'
 
 export interface DirectoryChildRow {
   id: string
@@ -71,6 +72,7 @@ export interface NodeDetailSections {
   summary: string | null
   summarySource: 'api' | 'exports' | 'none'
   symbols: SymbolRow[]
+  insights: FileInsights | null
   symbolCounts: SymbolKindCount[]
   imports: RelatedNodeRow[]
   importers: RelatedNodeRow[]
@@ -255,6 +257,7 @@ export function buildNodeDetailSections(input: {
 
   const deps = dependencyCounts(input.index, input.nodeId)
   const symbols = isFile ? symbolsForFile(input.index, input.nodeId) : []
+  const insights = isFile ? buildFileInsights(input.index.document, input.nodeId, input.index.nodesById) : null
   return {
     stats: {
       depth: input.depth,
@@ -265,6 +268,7 @@ export function buildNodeDetailSections(input: {
     summary,
     summarySource,
     symbols,
+    insights: insights && insights.hasInsightData ? insights : null,
     symbolCounts: symbolKindCounts(symbols),
     imports: isFile ? relatedRows(input.index, input.nodeId, 'out') : [],
     importers: isFile ? relatedRows(input.index, input.nodeId, 'in') : [],
