@@ -80,7 +80,9 @@ const props = withDefaults(
   defineProps<{
     embedded?: boolean
     /** Host-provided memory for the collapsed panel (dashboard: browser storage, extension: webview state). */
-    panelPrefs?: { read: () => boolean; write: (collapsed: boolean) => void } | null
+    panelPrefs?: { read: () => boolean | null; write: (collapsed: boolean) => void } | null
+    /** Narrow hosts (VS Code webview): below this viewer width the panel starts as the rail unless the user saved a choice. */
+    autoCollapseBelow?: number
     bootSample?: boolean
     locale?: WebLocale
     /** When set (embedded dashboard), follow the app shell theme instead of managing document theme locally. */
@@ -160,11 +162,14 @@ const viewerEl = ref<HTMLElement | null>(null)
 const panelInset = ref(0)
 const panelBottomInset = ref(0)
 /** The open panel can shrink to a slim rail (tab icons + expand). Hosts may remember it via panelPrefs. */
-const panelCollapsed = ref(props.panelPrefs?.read() ?? false)
+const savedPanelCollapsed = props.panelPrefs?.read() ?? null
+const panelCollapsed = ref(savedPanelCollapsed ?? false)
+let panelChosen = savedPanelCollapsed !== null
 const panelToggleEl = ref<HTMLButtonElement | null>(null)
 function setPanelCollapsed(next: boolean, nextTab?: 'details' | 'coverage' | 'drift') {
   if (nextTab) tab.value = nextTab
   panelCollapsed.value = next
+  panelChosen = true
   props.panelPrefs?.write(next)
   // Keep keyboard focus on the toggle, which moves between the rail and the header.
   void nextTick(() => panelToggleEl.value?.focus())
@@ -175,7 +180,11 @@ const viewerWidth = ref(0)
 let viewerResize: ResizeObserver | null = null
 onMounted(() => {
   if (typeof ResizeObserver === 'undefined' || !viewerEl.value) return
-  viewerResize = new ResizeObserver((entries) => { viewerWidth.value = Math.round(entries[0]?.contentRect.width ?? 0) })
+  viewerResize = new ResizeObserver((entries) => {
+    viewerWidth.value = Math.round(entries[0]?.contentRect.width ?? 0)
+    // Default only (never saved): a narrow host starts with the rail; widening restores the panel.
+    if (!panelChosen && props.autoCollapseBelow && viewerWidth.value > 640) panelCollapsed.value = viewerWidth.value < props.autoCollapseBelow
+  })
   viewerResize.observe(viewerEl.value)
 })
 onBeforeUnmount(() => viewerResize?.disconnect())
@@ -199,9 +208,12 @@ function measurePanelInset() {
   }
   if (phone) {
     panelInset.value = 0
-    // Only the peek (collapsed) sheet should steal fit space. An expanded sheet already owns the
-    // lower half for reading details; keeping the old reserve there avoids an extreme centre zoom.
-    panelBottomInset.value = panelCollapsed.value ? Math.round(panel.getBoundingClientRect().height) : 0
+    // The sheet (peek or expanded) covers the canvas bottom: the graph fits into the area above it,
+    // and the zoom pad sits just above its top edge.
+    // Use the resting height (not the sliding rect) so the fit is right before the slide finishes.
+    const bottom = Math.min(viewerEl.value.getBoundingClientRect().bottom, window.innerHeight)
+    const covered = canvas.getBoundingClientRect().bottom - (bottom - panel.offsetHeight)
+    panelBottomInset.value = covered > 0 ? Math.round(covered) : 0
     return
   }
   panelBottomInset.value = 0
@@ -1039,7 +1051,7 @@ const snippet = 'layers: []\nrules: []\n'
 </script>
 
 <template>
-  <div ref="viewerEl" class="viewer viewer-radial" :class="{ 'viewer-embedded': embedded, 'is-inspector-open': inspectorOpen, 'is-panel-collapsed': inspectorOpen && panelCollapsed, 'is-focusing': Boolean(focus && focusSummary) }" :dir="direction">
+  <div ref="viewerEl" class="viewer viewer-radial" :class="{ 'viewer-embedded': embedded, 'is-inspector-open': inspectorOpen, 'is-panel-collapsed': inspectorOpen && panelCollapsed, 'is-focusing': Boolean(focus && focusSummary) }" :style="panelBottomInset ? { '--viewer-sheet-cover': `${panelBottomInset}px` } : undefined" :dir="direction">
     <a v-if="!embedded" class="skip" href="#graph-canvas">{{ messages.skip }}</a>
     <header v-if="!embedded" class="topbar" role="banner">
       <BrandMark :size="24" />
@@ -1774,7 +1786,8 @@ button:disabled { opacity: var(--alpha-40); }
     inset-inline: 0;
     inset-block: auto 0;
     inline-size: 100%;
-    block-size: min(52%, 30rem);
+    /* Expanded: a shorter sheet (scrolls inside) so the graph keeps the upper ~60% and refits there. */
+    block-size: min(40%, 21rem);
     padding-block-start: calc(var(--space-3) + 6px);
     border: 1px solid var(--color-border);
     border-block-end: 0;
@@ -1807,10 +1820,12 @@ button:disabled { opacity: var(--alpha-40); }
   .viewer.viewer-radial.is-inspector-open :deep(.file-list) { visibility: hidden; }
   /* The sheet takes the footer's place; its legend returns when the panel closes. */
   .viewer.viewer-radial.is-inspector-open .status { visibility: hidden; }
-  /* Expanded sheet: zoom pad and tips would sit under it; pinch zoom still works. Peek keeps them above. */
-  .viewer.viewer-radial.is-inspector-open:not(.is-panel-collapsed) :deep(.vue-flow__panel.zoom),
+  /* The guide card would sit under an expanded sheet; the zoom pad rides just above the sheet's top edge. */
   .viewer.viewer-radial.is-inspector-open:not(.is-panel-collapsed) .coach { visibility: hidden; }
-  .viewer.viewer-radial.is-inspector-open.is-panel-collapsed :deep(.vue-flow__panel.zoom) { margin-inline-end: var(--space-3); margin-block-end: 4.5rem; }
+  .viewer.viewer-radial.is-inspector-open :deep(.vue-flow__panel.zoom) {
+    margin-inline-end: var(--space-3);
+    margin-block-end: calc(var(--viewer-sheet-cover, 0px) + var(--space-2));
+  }
 }
 </style>
 
