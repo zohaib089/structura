@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Handle, Position } from '@vue-flow/core'
-import { computed } from 'vue'
+import { computed, ref, useId } from 'vue'
+import { middleEllipsis, pillCharBudget } from '../pill-label'
+import { LINEAR_PILL_WIDTH, LINEAR_PILL_WIDTH_PHONE } from '../linear'
 import BrandMark from '../../components/brand/BrandMark.vue'
 
 const props = defineProps<{
@@ -31,6 +33,13 @@ const full = computed(() => {
   return props.path || props.label
 })
 const text = computed(() => (props.more ? props.moreLabel : props.label))
+/** Middle-ellipsis names for the desktop and phone pill widths (CSS picks one); the extension and the
+ * distinguishing tail stay visible instead of a plain end-cut. The tooltip carries the full name. */
+const budget = (width: number) => pillCharBudget(width, { mark: props.nucleus || props.cluster || props.more, count: props.cluster, bold: props.nucleus })
+const wide = computed(() => (props.more ? text.value : middleEllipsis(text.value, budget(LINEAR_PILL_WIDTH))))
+const narrow = computed(() => (props.more ? text.value : middleEllipsis(text.value, budget(LINEAR_PILL_WIDTH_PHONE))))
+const tipId = useId()
+const tipDismissed = ref(false)
 
 function activate() {
   if (control.value) emit('toggle')
@@ -58,6 +67,10 @@ function activate() {
     :aria-selected="selected"
     :aria-expanded="cluster ? expanded : undefined"
     :aria-label="full"
+    :aria-describedby="tipId"
+    @keydown.esc="tipDismissed = true"
+    @blur="tipDismissed = false"
+    @mouseleave="tipDismissed = false"
     @click.stop="activate"
     @keydown.enter.prevent="activate"
     @keydown.space.prevent="emit('toggle')"
@@ -66,9 +79,10 @@ function activate() {
     <BrandMark v-if="nucleus" class="mark" size="18px" />
     <span v-else-if="cluster" class="mark" aria-hidden="true">{{ expanded ? '▾' : '▸' }}</span>
     <span v-else-if="more" class="mark" aria-hidden="true">+</span>
-    <span class="text" dir="ltr">{{ text }}</span>
+    <span class="text text-wide" dir="ltr" aria-hidden="true">{{ wide }}</span>
+    <span class="text text-narrow" dir="ltr" aria-hidden="true">{{ narrow }}</span>
     <span v-if="cluster" class="count">{{ clusterSize }}</span>
-    <span class="full" role="tooltip" dir="ltr">{{ full }}</span>
+    <span :id="tipId" class="full" :class="{ 'is-dismissed': tipDismissed }" role="tooltip" dir="ltr">{{ full }}</span>
     <Handle type="source" :position="Position.Right" />
   </div>
 </template>
@@ -93,6 +107,10 @@ function activate() {
 }
 @media (max-width: 640px) {
   .linear-pill { inline-size: 148px; }
+  .text-wide { display: none; }
+}
+@media (min-width: 641px) {
+  .text-narrow { display: none; }
 }
 .linear-pill:focus-visible { outline: 2px solid var(--color-focus, #f1b24a); outline-offset: 2px; }
 .text { flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -121,5 +139,6 @@ function activate() {
   pointer-events: none;
 }
 .linear-pill:hover .full, .linear-pill:focus-visible .full { display: block; }
+.linear-pill .full.is-dismissed { display: none; }
 :deep(.vue-flow__handle) { opacity: 0; inset-block-start: 50%; }
 </style>

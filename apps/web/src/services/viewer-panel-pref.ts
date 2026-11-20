@@ -1,7 +1,8 @@
 /** Host-side memory for the graph viewer's collapsed details panel. The viewer itself never touches
  * browser storage (see viewer-sinks.test.ts), so hosts that may persist UI prefs pass this store in. */
 export interface ViewerPanelPrefs {
-  read: () => boolean
+  /** Saved state, or null when the user never chose (the viewer may then pick a width-based default). */
+  read: () => boolean | null
   write: (collapsed: boolean) => void
 }
 
@@ -10,9 +11,10 @@ export const VIEWER_PANEL_COLLAPSED_KEY = 'atlasmith.viewer.panelCollapsed'
 export const localViewerPanelPrefs: ViewerPanelPrefs = {
   read() {
     try {
-      return window.localStorage.getItem(VIEWER_PANEL_COLLAPSED_KEY) === '1'
+      const saved = window.localStorage.getItem(VIEWER_PANEL_COLLAPSED_KEY)
+      return saved === null ? null : saved === '1'
     } catch {
-      return false
+      return null
     }
   },
   write(collapsed) {
