@@ -22,6 +22,8 @@ export interface PanelHost {
   onScan: () => void
   onShowProjectGraph: () => void
   onOpenFolder: () => void
+  /** Editor column the graph panel sits in, so opened files land beside it instead of replacing it. */
+  panelColumn?: () => number | undefined
 }
 
 export interface GraphPanel {
@@ -92,13 +94,16 @@ export async function handleHostMessage(
       if (!host.folder) return
       const uri = resolveFileInFolder(vs, host.folder, message.path)
       if (!uri) return
+      // Open next to the graph (the column left of it, or a new one beside), never over the graph tab.
+      const column = host.panelColumn?.()
+      const viewColumn = column === undefined ? undefined : column > 1 ? column - 1 : vs.ViewColumn.Beside
       if (message.line) {
         // Symbol jump: open with the cursor at the symbol's start line (VS Code positions are 0-based).
         const position = new vs.Position(message.line - 1, 0)
-        await vs.window.showTextDocument(uri, { preview: true, preserveFocus: false, selection: new vs.Range(position, position) })
+        await vs.window.showTextDocument(uri, { preview: true, preserveFocus: false, selection: new vs.Range(position, position), viewColumn })
         return
       }
-      await vs.window.showTextDocument(uri, { preview: true, preserveFocus: false })
+      await vs.window.showTextDocument(uri, { preview: true, preserveFocus: false, viewColumn })
     }
   }
 }
@@ -140,6 +145,7 @@ export function createGraphPanel(
   const disposable = webview.onDidReceiveMessage((message: unknown) => {
     void handleHostMessage(vs, message, {
       ...host,
+      panelColumn: () => panel.viewColumn,
       onReady: () => {
         host.onReady?.()
         send(host.getState())

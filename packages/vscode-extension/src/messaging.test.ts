@@ -121,3 +121,23 @@ test('openFile with a line opens the file with the cursor on that line (0-based 
   await handleHostMessage(vs as unknown as typeof import('vscode'), { type: 'openFile', path: '../secret.ts', line: 3 }, host)
   assert.equal(vs._documents.length, 1)
 })
+
+test('openFile lands beside the graph panel instead of replacing its tab', async () => {
+  const folder = { uri: Uri.file('/repo/demo'), name: 'demo', index: 0 }
+  const vs = createVsCodeMock({ folders: [folder] })
+  let column: number | undefined = 2
+  const host = {
+    folder,
+    mode: 'file' as const,
+    getState: () => ({ kind: 'empty-folder' as const }),
+    onScan: () => undefined,
+    onShowProjectGraph: () => undefined,
+    onOpenFolder: () => undefined,
+    panelColumn: () => column
+  }
+  await handleHostMessage(vs as unknown as typeof import('vscode'), { type: 'openFile', path: 'src/app.ts', line: 3 }, host)
+  assert.equal(vs._documents[0]?.viewColumn, 1)
+  column = 1
+  await handleHostMessage(vs as unknown as typeof import('vscode'), { type: 'openFile', path: 'src/app.ts' }, host)
+  assert.equal(vs._documents[1]?.viewColumn, -2)
+})

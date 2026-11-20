@@ -91,6 +91,11 @@ export class GraphSession {
     this.panel = undefined
   }
 
+  /** A workspace file changed: the next show / command rescans instead of reusing the cached graph. */
+  invalidate(): void {
+    this.cache = undefined
+  }
+
   getState(): ViewerState {
     return this.state
   }
@@ -188,6 +193,22 @@ export class GraphSession {
       fileSummaries: cache.output.fileSummaries
     })
   }
+}
+
+/** Source edits (saves, or changes on disk outside node_modules / .git) drop the cached scan. */
+export function registerInvalidation(session: GraphSession, vs: typeof vscode): vscode.Disposable[] {
+  const skip = (path: string) => /[\\/](node_modules|\.git)[\\/]/.test(path)
+  const drop = (uri: vscode.Uri) => {
+    if (!skip(uri.fsPath)) session.invalidate()
+  }
+  const watcher = vs.workspace.createFileSystemWatcher('**/*')
+  return [
+    vs.workspace.onDidSaveTextDocument((doc) => drop(doc.uri)),
+    watcher,
+    watcher.onDidChange(drop),
+    watcher.onDidCreate(drop),
+    watcher.onDidDelete(drop)
+  ]
 }
 
 export function registerCommands(session: GraphSession, vs: typeof vscode): vscode.Disposable[] {
