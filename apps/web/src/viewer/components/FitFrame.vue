@@ -148,7 +148,11 @@ function fitOnce(duration = props.duration ?? 0) {
           props.reserveZoomPad ? 150 : 0,
           phone ? (props.panelBottomInset ?? 0) : 0
         ),
-      right: Math.max(measured.right - inset, props.reserveZoomPad ? 56 : 0),
+      // Phone with an open sheet: the zoom pad is a short row above the sheet (bottom reserve), so its
+      // width must not also narrow the fit; keep the usual 56px edge reserve only.
+      right: phone && measured.zoom && measured.zoom.width > measured.zoom.height
+        ? (props.reserveZoomPad ? 56 : 0)
+        : Math.max(measured.right - inset, props.reserveZoomPad ? 56 : 0),
       left: 0
     },
     nodes: boxes,

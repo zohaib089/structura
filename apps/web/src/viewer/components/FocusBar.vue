@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { SlidersHorizontal, X } from '@lucide/vue'
-import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { FOCUS_DEPTH_MAX } from '../caps'
+import { middleEllipsis } from '../pill-label'
 
-defineProps<{
+const props = defineProps<{
   label: string
   name: string
   dependencies: string
@@ -31,6 +32,9 @@ const emit = defineEmits<{
   confirmed: []
   exit: []
 }>()
+
+// Phone: the chip keeps a readable middle-ellipsis name (start + tail + extension); the full name is the tooltip.
+const shortName = computed(() => middleEllipsis(props.name, 15))
 
 // Options popover: direction, depth and confirmed-only. Esc closes it and focus goes back to the trigger.
 const open = ref(false)
@@ -67,7 +71,8 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
        on Dependencies (the default); the summary lines are announced, not painted, so nothing overlaps. -->
   <div ref="root" class="focus" role="region" :aria-label="label" data-testid="focus-chip" @keydown="onKeydown">
     <span v-if="chip" class="visually-hidden">{{ chip }}</span>
-    <strong class="name" dir="ltr" :title="name">{{ name }}</strong>
+    <strong class="name name-full" dir="ltr" :title="name">{{ name }}</strong>
+    <strong class="name name-short" dir="ltr" :title="name" aria-hidden="true">{{ shortName }}</strong>
     <span class="depth">
       <button type="button" class="step" :aria-label="`${depthLabel} −`" :disabled="depth <= 1" @click="emit('depth', Math.max(1, depth - 1))">−</button>
       <span class="depth-text">{{ depthLabel }}</span>
@@ -83,10 +88,11 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
       :aria-expanded="open ? 'true' : 'false'"
       :aria-controls="panelId"
       data-testid="focus-options"
+      :title="optionsLabel ?? 'Options'"
       @click="open ? close() : (open = true)"
     >
       <SlidersHorizontal :size="14" aria-hidden="true" />
-      <span>{{ optionsLabel ?? 'Options' }}</span>
+      <span class="exit-label">{{ optionsLabel ?? 'Options' }}</span>
     </button>
     <div v-if="open" :id="panelId" ref="panel" class="popover" role="dialog" :aria-label="optionsLabel ?? 'Options'" data-testid="focus-options-panel">
       <fieldset class="group">
@@ -104,9 +110,9 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
       <label class="row check"><input type="checkbox" :checked="confirmedOnlyOn" @change="emit('confirmed')" /><span>{{ confirmedOnly }}</span></label>
       <p class="summary">{{ [confirmed, possible, unresolved].filter(Boolean).join(' · ') }}</p>
     </div>
-    <button type="button" class="exit" :aria-keyshortcuts="escHint === 'Esc' ? 'Escape' : undefined" @click="emit('exit')">
+    <button type="button" class="exit" :title="exit" :aria-keyshortcuts="escHint === 'Esc' ? 'Escape' : undefined" @click="emit('exit')">
       <X :size="14" aria-hidden="true" />
-      <span>{{ exit }}</span>
+      <span class="exit-label">{{ exit }}</span>
     </button>
   </div>
 </template>
@@ -156,8 +162,14 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
 .row.check { justify-content: flex-start; }
 .summary { margin: 0; color: var(--color-text-muted); font-size: 0.75rem; }
 .visually-hidden { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.name-short { display: none; }
 @media (max-width: 640px) {
   .none, .depth-text { display: none; }
-  .name { max-inline-size: 9rem; }
+  /* Phone: the name gets the room; Options / Exit are icon buttons (labels stay for screen readers). */
+  .name { max-inline-size: 10rem; }
+  .name-full { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .name-short { display: block; }
+  .exit { inline-size: 1.75rem; padding-inline: 0; }
+  .exit-label { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
 </style>

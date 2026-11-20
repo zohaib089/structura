@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ChartNoAxesGantt, ListFilter, Maximize, Orbit, Search } from '@lucide/vue'
+import { computed } from 'vue'
+import { middleEllipsis } from '../pill-label'
 import Tip from './Tip.vue'
 const props = defineProps<{
   filtersLabel: string
@@ -39,6 +41,16 @@ const emit = defineEmits<{
   toggleShowAllCross: []
   'update:layout': [layout: 'radial' | 'linear']
 }>()
+/** Compact bars: the closed picker shows a middle-ellipsis name (start + tail + extension) that fits its
+ * box; the list keeps full names, and the tooltip names the current file's full path. */
+function entryText(label: string) {
+  const d = props.density ?? 'full'
+  return d === 'full' ? label : middleEllipsis(label, 12)
+}
+const entryTitle = computed(() => {
+  const current = props.entryOptions.find((option) => option.id === props.entryId)
+  return current ? `${props.entryTooltip}: ${current.path || current.label}` : props.entryTooltip
+})
 </script>
 
 <template>
@@ -74,12 +86,12 @@ const emit = defineEmits<{
       <select
         :value="entryId"
         :aria-label="entryTooltip"
-        :title="entryTooltip"
+        :title="entryTitle"
         data-testid="graph-entry-switcher"
         @change="emit('update:entryId', ($event.target as HTMLSelectElement).value)"
       >
-        <option v-for="option in entryOptions" :key="option.id" :value="option.id">
-          {{ option.label }}
+        <option v-for="option in entryOptions" :key="option.id" :value="option.id" :title="option.path || option.label">
+          {{ option.id === entryId ? entryText(option.label) : option.label }}
         </option>
       </select>
     </label>

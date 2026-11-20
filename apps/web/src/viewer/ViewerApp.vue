@@ -188,6 +188,8 @@ onMounted(() => {
   viewerResize.observe(viewerEl.value)
 })
 onBeforeUnmount(() => viewerResize?.disconnect())
+/** Narrow hosts (VS Code webview below autoCollapseBelow): slimmer open panel, status line clipped cleanly. */
+const isNarrowHost = computed(() => Boolean(props.autoCollapseBelow) && viewerWidth.value > 640 && viewerWidth.value < (props.autoCollapseBelow ?? 0))
 const barDensity = computed<'full' | 'tight' | 'narrow' | 'xnarrow'>(() => {
   if (!viewerWidth.value || viewerWidth.value <= 640) return 'full'
   const space = viewerWidth.value - panelInset.value - 48
@@ -1051,7 +1053,7 @@ const snippet = 'layers: []\nrules: []\n'
 </script>
 
 <template>
-  <div ref="viewerEl" class="viewer viewer-radial" :class="{ 'viewer-embedded': embedded, 'is-inspector-open': inspectorOpen, 'is-panel-collapsed': inspectorOpen && panelCollapsed, 'is-focusing': Boolean(focus && focusSummary) }" :style="panelBottomInset ? { '--viewer-sheet-cover': `${panelBottomInset}px` } : undefined" :dir="direction">
+  <div ref="viewerEl" class="viewer viewer-radial" :class="{ 'viewer-embedded': embedded, 'is-inspector-open': inspectorOpen, 'is-panel-collapsed': inspectorOpen && panelCollapsed, 'is-focusing': Boolean(focus && focusSummary), 'is-narrow-host': isNarrowHost }" :style="panelBottomInset ? { '--viewer-sheet-cover': `${panelBottomInset}px` } : undefined" :dir="direction">
     <a v-if="!embedded" class="skip" href="#graph-canvas">{{ messages.skip }}</a>
     <header v-if="!embedded" class="topbar" role="banner">
       <BrandMark :size="24" />
@@ -1435,7 +1437,7 @@ const snippet = 'layers: []\nrules: []\n'
     </aside>
 
     <footer class="status" role="contentinfo">
-      <span class="status-radial">{{ radialStatus }}</span>
+      <span class="status-radial" :title="radialStatus">{{ radialStatus }}</span>
       <span class="status-edges" data-testid="edge-style-legend">
         <span class="edge-key"><i class="edge-key__line edge-key__line--extracted" aria-hidden="true"></i>{{ messages.provExtracted }}</span>
         <span class="edge-key"><i class="edge-key__line edge-key__line--inferred" aria-hidden="true"></i>{{ messages.provInferred }}</span>
@@ -1553,9 +1555,26 @@ const snippet = 'layers: []\nrules: []\n'
 .viewer.viewer-radial {
   --viewer-panel-w: min(var(--viewer-inspector-width), 92vw);
 }
+.viewer.viewer-radial.is-narrow-host {
+  --viewer-panel-w: min(20rem, 92vw);
+}
 .viewer.viewer-radial.is-panel-collapsed {
   --viewer-panel-w: 3rem;
 }
+/* Narrow host: one status row that ends at the panel edge; the summary ellipsizes (full text in its
+ * title) and the pan hint stays for screen readers only. */
+.viewer.viewer-radial.viewer-embedded.is-narrow-host.is-inspector-open .status {
+  flex-wrap: nowrap;
+  overflow: hidden;
+  padding-inline-end: calc(var(--viewer-panel-w) + var(--space-3));
+}
+.viewer.viewer-radial.is-narrow-host .status-radial {
+  display: block; flex: 1 1 auto; min-inline-size: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.viewer.viewer-radial.is-narrow-host .status-edges,
+.viewer.viewer-radial.is-narrow-host .status-budget { flex: none; }
+.viewer.viewer-radial.is-narrow-host .status-pan { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .viewer.viewer-radial .inspector {
   inset-inline-end: 0;
   inline-size: var(--viewer-panel-w);
@@ -1820,6 +1839,14 @@ button:disabled { opacity: var(--alpha-40); }
   .viewer.viewer-radial.is-inspector-open :deep(.file-list) { visibility: hidden; }
   /* The sheet takes the footer's place; its legend returns when the panel closes. */
   .viewer.viewer-radial.is-inspector-open .status { visibility: hidden; }
+  /* ...and its reserved band goes too, so the canvas runs down to the sheet (no empty strip above peek). */
+  .viewer.viewer-radial.is-inspector-open { --viewer-statusbar-height: 0px; }
+  /* Open sheet: the zoom pad is one short row above the sheet edge, so the fit reserves a thin band
+   * instead of a tall column over the right-hand pills. */
+  .viewer.viewer-radial.is-inspector-open :deep(.vue-flow__panel.zoom) { flex-direction: row; }
+  .viewer.viewer-radial.is-inspector-open :deep(.vue-flow__panel.zoom button) { border-block-start: 0; border-inline-start: 1px solid var(--viewer-control-border, var(--color-border)); border-radius: 0; }
+  .viewer.viewer-radial.is-inspector-open :deep(.vue-flow__panel.zoom .tip:first-child button) { border-inline-start: 0; border-start-start-radius: var(--r-md); border-end-start-radius: var(--r-md); }
+  .viewer.viewer-radial.is-inspector-open :deep(.vue-flow__panel.zoom .tip:last-child button) { border-start-end-radius: var(--r-md); border-end-end-radius: var(--r-md); }
   /* The guide card would sit under an expanded sheet; the zoom pad rides just above the sheet's top edge. */
   .viewer.viewer-radial.is-inspector-open:not(.is-panel-collapsed) .coach { visibility: hidden; }
   .viewer.viewer-radial.is-inspector-open :deep(.vue-flow__panel.zoom) {
