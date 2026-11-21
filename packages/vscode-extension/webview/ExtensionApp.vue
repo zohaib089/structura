@@ -22,6 +22,8 @@ const panelPrefs = {
 const state = ref<ViewerState>({ kind: 'loading' })
 /** The host is scanning again behind the graph on screen (Scan again, or after a save). */
 const busy = ref(false)
+/** Latest VS Code colour theme sent after the graph was drawn. */
+const themeOverride = ref<'light' | 'dark' | null>(null)
 
 function applyTheme(theme: 'light' | 'dark' | undefined) {
   const next = theme ?? (document.body.classList.contains('vscode-light') ? 'light' : 'dark')
@@ -35,6 +37,13 @@ function onMessage(event: MessageEvent) {
     busy.value = data.busy
     return
   }
+  if (data.type === 'theme') {
+    // Recolour in place: the graph, its zoom and selection stay as they are.
+    themeOverride.value = data.theme
+    applyTheme(data.theme)
+    return
+  }
+  themeOverride.value = null
   busy.value = false
   state.value = data.state
   if (data.state.kind === 'graph') applyTheme(data.state.theme)
@@ -50,7 +59,7 @@ const graphDocument = computed(() => {
 })
 
 const focusPath = computed(() => (state.value.kind === 'graph' ? state.value.focusPath : null))
-const shellTheme = computed(() => (state.value.kind === 'graph' ? state.value.theme : null))
+const shellTheme = computed(() => (state.value.kind === 'graph' ? themeOverride.value ?? state.value.theme : null))
 const summaries = computed(() => (state.value.kind === 'graph' ? state.value.fileSummaries : undefined))
 
 async function loadFileSummary(path: string): Promise<string | null> {
@@ -81,7 +90,7 @@ function openFolder() {
 watch(
   state,
   (value) => {
-    if (value.kind === 'graph') applyTheme(value.theme)
+    if (value.kind === 'graph') applyTheme(themeOverride.value ?? value.theme)
   },
   { immediate: true }
 )

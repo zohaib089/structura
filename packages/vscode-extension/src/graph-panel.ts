@@ -34,6 +34,7 @@ export interface GraphPanel {
   reveal(): void
   postState(state: ViewerState): void
   postBusy(busy: boolean): void
+  postTheme(theme: 'light' | 'dark'): void
   dispose(): void
 }
 
@@ -170,6 +171,10 @@ export function createGraphPanel(
     },
     postState(state) {
       send(state)
+    },
+    postTheme(theme) {
+      const message: HostToWebviewMessage = { type: 'theme', theme }
+      void webview.postMessage(message)
     },
     postBusy(busy) {
       const message: HostToWebviewMessage = { type: 'busy', busy }

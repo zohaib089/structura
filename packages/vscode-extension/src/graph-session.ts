@@ -122,6 +122,23 @@ export class GraphSession {
     this.cache = undefined
   }
 
+  /** Light and high-contrast light themes draw the light graph; everything else the dark one. */
+  currentTheme(): 'light' | 'dark' {
+    const kinds = this.deps.vscode.ColorThemeKind
+    const kind = this.deps.vscode.window.activeColorTheme?.kind
+    return kind !== undefined && (kind === kinds?.Light || kind === kinds?.HighContrastLight) ? 'light' : 'dark'
+  }
+
+  /** VS Code changed colour theme: recolour the open graph in place (no rescan, view kept). */
+  syncTheme(): void {
+    const theme = this.currentTheme()
+    if (this.state.kind === 'graph') {
+      if (this.state.theme === theme) return
+      this.state = { ...this.state, theme }
+    }
+    this.panel?.postTheme(theme)
+  }
+
   getState(): ViewerState {
     return this.state
   }
@@ -215,8 +232,7 @@ export class GraphSession {
       }
     }
 
-    const theme: 'light' | 'dark' =
-      this.deps.vscode.window.activeColorTheme?.kind === this.deps.vscode.ColorThemeKind?.Light ? 'light' : 'dark'
+    const theme = this.currentTheme()
 
     this.setState({
       kind: 'graph',
@@ -248,6 +264,11 @@ export function registerInvalidation(session: GraphSession, vs: typeof vscode): 
     watcher.onDidCreate(drop),
     watcher.onDidDelete(drop)
   ]
+}
+
+/** Keep an open graph in step with VS Code's light / dark colour theme. */
+export function registerThemeSync(session: GraphSession, vs: typeof vscode): vscode.Disposable[] {
+  return [vs.window.onDidChangeActiveColorTheme(() => session.syncTheme())]
 }
 
 export function registerCommands(session: GraphSession, vs: typeof vscode): vscode.Disposable[] {

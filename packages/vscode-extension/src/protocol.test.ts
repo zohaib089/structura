@@ -85,3 +85,10 @@ test('rescan (webview) and busy (host) messages are strict', () => {
   assert.equal(isHostToWebviewMessage({ type: 'busy', busy: 'yes' }), false)
   assert.equal(isHostToWebviewMessage({ type: 'busy', busy: false, extra: 1 }), false)
 })
+
+test('theme messages carry only light or dark', () => {
+  assert.equal(isHostToWebviewMessage({ type: 'theme', theme: 'light' }), true)
+  assert.equal(isHostToWebviewMessage({ type: 'theme', theme: 'dark' }), true)
+  assert.equal(isHostToWebviewMessage({ type: 'theme', theme: 'high-contrast' }), false)
+  assert.equal(isHostToWebviewMessage({ type: 'theme', theme: 'dark', more: 1 }), false)
+})

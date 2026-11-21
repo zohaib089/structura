@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { COMMANDS } from './commands.js'
 import { CONSENT_STATE_KEY, workspaceConsentStore } from './consent.js'
-import { GraphSession, registerCommands, registerInvalidation } from './graph-session.js'
+import { GraphSession, registerCommands, registerInvalidation, registerThemeSync } from './graph-session.js'
 import { GRAPH_VIEW_ID, AtlasmithGraphViewProvider, registerGraphView } from './graph-view.js'
 import { copy, messages } from './messages.js'
 import type { ViewerState } from './protocol.js'
@@ -307,6 +307,29 @@ test('saving a file refreshes an open graph once (debounced); no graph open mean
     }
     assert.equal(scanner.calls, 2)
     assert.equal(latestState(vs)?.kind, 'graph')
+  } finally {
+    for (const sub of subs) sub.dispose()
+  }
+})
+
+test('a VS Code theme change recolours the open graph without a rescan or a new state', async () => {
+  const scanner = fakeScanner()
+  const { vs, session } = setup({ pregranted: true, scanner })
+  const subs = registerThemeSync(session, vs as unknown as typeof import('vscode'))
+  try {
+    await vs.commands.executeCommand(COMMANDS.showFileGraph)
+    const posted = postedOf(vs)
+    const before = posted.length
+    vs._setTheme(vs.ColorThemeKind.Light)
+    assert.deepEqual(posted.slice(before), [{ type: 'theme', theme: 'light' }])
+    vs._setTheme(vs.ColorThemeKind.HighContrastLight)
+    assert.equal(posted.length, before + 1, 'same light theme: nothing to send')
+    vs._setTheme(vs.ColorThemeKind.HighContrast)
+    assert.deepEqual(posted.at(-1), { type: 'theme', theme: 'dark' })
+    assert.equal(scanner.calls, 1)
+    // A webview that reloads (ready) gets the current theme in its state.
+    const state = session.getState()
+    assert.equal(state.kind === 'graph' && state.theme, 'dark')
   } finally {
     for (const sub of subs) sub.dispose()
   }
