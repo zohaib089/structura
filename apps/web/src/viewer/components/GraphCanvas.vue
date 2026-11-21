@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { hotPathBetween } from '../hot-path'
 import { GUIDES_NODE_ID, isSelectableNodeId } from '../radial-guides'
 import { Background } from '@vue-flow/background'
 import { VueFlow, type Edge, type Node } from '@vue-flow/core'
@@ -257,52 +258,14 @@ const flowNodes = () => {
 const radialCentre = computed(() => discCentre(props.positions.get(props.nucleusId ?? '')))
 
 /**
- * Path highlight, matched to the landing graph (RadialSampleGraph.vue): hovering, focusing or
+ * Path highlight (Radial and Linear), matched to the landing graph (RadialSampleGraph.vue): hovering, focusing or
  * selecting a node lights the path back to the centre file in amber, everything else dims
  * (edges 0.28, nodes 0.45), transitions run --dur-2 (160ms) on --easing-product.
  */
 const focusedId = ref<string | null>(null)
 const activeId = computed(() => hoverId.value ?? focusedId.value ?? props.selectedId ?? null)
-const hotPath = computed(() => {
-  const nodes = new Set<string>()
-  const edges = new Set<string>()
-  const target = activeId.value
-  const start = props.nucleusId ?? null
-  if (!target || props.layout === 'linear') return { nodes, edges }
-  // The centre file on its own (e.g. selected by a deep link) has no path: keep the graph undimmed.
-  if (!start || start === target) return { nodes, edges }
-  nodes.add(target)
-  // Shortest path (undirected) from the centre file to the active node over the drawn edges.
-  const adj = new Map<string, { to: string; id: string }[]>()
-  for (const e of props.edges) {
-    if (!adj.has(e.source)) adj.set(e.source, [])
-    if (!adj.has(e.target)) adj.set(e.target, [])
-    adj.get(e.source)!.push({ to: e.target, id: e.id })
-    adj.get(e.target)!.push({ to: e.source, id: e.id })
-  }
-  const prev = new Map<string, { from: string; id: string }>()
-  const queue = [start]
-  const seen = new Set([start])
-  while (queue.length) {
-    const cur = queue.shift()!
-    if (cur === target) break
-    for (const { to, id } of adj.get(cur) ?? []) {
-      if (seen.has(to)) continue
-      seen.add(to)
-      prev.set(to, { from: cur, id })
-      queue.push(to)
-    }
-  }
-  if (!prev.has(target)) return { nodes, edges }
-  let cur = target
-  while (cur !== start) {
-    const step = prev.get(cur)!
-    edges.add(step.id)
-    nodes.add(step.from)
-    cur = step.from
-  }
-  return { nodes, edges }
-})
+// Radial and Linear both light the route back to the centre file (Linear matched to Radial in ext-g2).
+const hotPath = computed(() => hotPathBetween(props.edges, props.nucleusId ?? null, activeId.value))
 const pathActive = computed(() => hotPath.value.nodes.size > 0)
 function onFocusIn(event: FocusEvent) {
   const el = (event.target as HTMLElement | null)?.closest<HTMLElement>('.vue-flow__node')
@@ -587,6 +550,12 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
   .canvas :deep(.vue-flow__node),
   .canvas :deep(.vue-flow__edge),
   .canvas :deep(.vue-flow__edge-path) { transition: none; }
+}
+/* Linear path: pills on the route get an amber edge, the hovered / focused one a full amber ring. */
+.canvas[data-layout='linear'] :deep(.vue-flow__node.is-path .linear-pill) { border-color: var(--color-brand-amber-ui); }
+.canvas[data-layout='linear'] :deep(.vue-flow__node.is-path-active .linear-pill) {
+  outline: 2px solid var(--color-brand-amber-ui);
+  outline-offset: 2px;
 }
 /* Linear: the hovered / focused pill (and its full-name tip) paints above its neighbours. */
 .canvas[data-layout='linear'] :deep(.vue-flow__node:hover),
