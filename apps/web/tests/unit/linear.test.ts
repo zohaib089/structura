@@ -96,3 +96,45 @@ describe('linear layout', () => {
     writeLayoutPreference('radial')
   })
 })
+
+describe('linear layout with a folder centre (project graph)', () => {
+  const dirs = ['.', 'apps', 'apps/web', 'packages', 'packages/engine']
+  const files = ['README.md', 'apps/web/main.ts', 'packages/engine/index.ts']
+  const parent = (p: string) => (p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : '.')
+  const document = {
+    schemaVersion: '1.0.0',
+    summary: { nodes: dirs.length + files.length, edges: 0 },
+    coverage: {},
+    nodes: [
+      ...dirs.map((path) => ({ id: `dir:${path}`, kind: 'directory', path, label: path })),
+      ...files.map((path) => ({ id: `file:${path}`, kind: 'file', path, label: path.split('/').pop(), language: 'typescript' }))
+    ],
+    edges: [
+      ...dirs.filter((d) => d !== '.').map((d) => ({ source: `dir:${parent(d)}`, target: `dir:${d}`, type: 'contains', provenance: 'EXTRACTED' })),
+      ...files.map((f) => ({ source: `dir:${parent(f)}`, target: `file:${f}`, type: 'contains', provenance: 'EXTRACTED' })),
+      { source: 'file:apps/web/main.ts', target: 'file:packages/engine/index.ts', type: 'imports', provenance: 'EXTRACTED', importKind: 'static', typeOnly: false }
+    ]
+  } as unknown as GraphDocument
+  const index = indexGraph(document)
+
+  it('lays out what is inside the folder left to right instead of a single pill', () => {
+    const model = buildLinearOverview(index, setNucleus(emptyViewState(), 'dir:.'), defaultFilters())
+    expect(model.columns.get('dir:.')).toBe(0)
+    expect(model.columns.get('dir:apps')).toBe(1)
+    expect(model.columns.get('file:README.md')).toBe(1)
+    expect(model.columns.get('dir:apps/web')).toBe(2)
+    expect(model.columns.get('dir:packages/engine')).toBe(2)
+    expect(model.nodes.length).toBe(6)
+    // Tree lines: each folder links to what is inside it; nothing to the left of the centre.
+    const pairs = model.edges.map((e) => `${e.source}>${e.target}`).sort()
+    expect(pairs).toContain('dir:.>dir:apps')
+    expect(pairs).toContain('dir:apps>dir:apps/web')
+    expect(pairs).not.toContain('file:apps/web/main.ts>file:packages/engine/index.ts')
+    expect([...model.columns.values()].every((c) => c >= 0)).toBe(true)
+  })
+
+  it('keeps file centres on the imports layout', () => {
+    const model = buildLinearOverview(index, setNucleus(emptyViewState(), 'file:apps/web/main.ts'), defaultFilters())
+    expect(model.columns.get('file:packages/engine/index.ts')).toBe(1)
+  })
+})

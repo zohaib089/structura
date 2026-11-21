@@ -641,6 +641,8 @@ function toggleNode(id: string) {
 function selectNode(id: string, fromClick: boolean, record = fromClick) {
   if (record) remember()
   if (fromClick && !props.fileNeighborhood && props.overviewLayout !== 'folders') recenterOnNode(id, true)
+  // Project graph in Linear: a folder click opens that folder's contents (Back returns).
+  else if (fromClick && props.overviewLayout === 'folders' && layout.value === 'linear' && id !== nucleusId.value && index.value?.nodesById.get(id)?.kind === 'directory') recenterOnNode(id, true)
   selection.value = { kind: 'node', id }
   activeId.value = id
   tab.value = 'details'
