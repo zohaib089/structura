@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
+import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js'
 import { CANARY_GRAPH_PATH } from '@atlasmith/engine'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -31,7 +32,9 @@ test('stdio initialize, tools/list, and tools/call list_modules', async () => {
       'list_modules',
       'symbol_lookup'
     ])
-    const result = await client.callTool({ name: 'list_modules', arguments: {} })
+    const result = CallToolResultSchema.parse(
+      await client.callTool({ name: 'list_modules', arguments: {} })
+    )
     assert.equal(result.isError, undefined)
     const text = result.content[0]
     assert.equal(text?.type, 'text')

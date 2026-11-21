@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import test from 'node:test'
-import { CONFIG_FILE, readGraph } from '@atlasmith/engine'
+import { CONFIG_FILE, readGraph, type ArchitectureFinding } from '@atlasmith/engine'
 import {
   architectureFindings,
   fileDeps,
