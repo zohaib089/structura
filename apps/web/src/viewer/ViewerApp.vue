@@ -185,6 +185,8 @@ function setPanelCollapsed(next: boolean, nextTab?: 'details' | 'coverage' | 'dr
 watch(panelCollapsed, () => { void nextTick(measurePanelInset) }, { flush: 'post' })
 /** Room for the floating toolbar (pane minus the side panel) picks its density so it stays on one row. */
 const viewerWidth = ref(0)
+/** Below this pane width an editor host (never the dashboard or a phone browser) gets the compact toolbar. */
+const COMPACT_HOST_WIDTH = 420
 let viewerResize: ResizeObserver | null = null
 onMounted(() => {
   if (typeof ResizeObserver === 'undefined' || !viewerEl.value) return
@@ -199,6 +201,8 @@ onBeforeUnmount(() => viewerResize?.disconnect())
 /** Narrow hosts (VS Code webview below autoCollapseBelow): slimmer open panel, status line clipped cleanly. */
 const isNarrowHost = computed(() => Boolean(props.autoCollapseBelow) && viewerWidth.value > 640 && viewerWidth.value < (props.autoCollapseBelow ?? 0))
 const barDensity = computed<'full' | 'tight' | 'narrow' | 'xnarrow'>(() => {
+  // Editor hosts squeezed below phone width (a VS Code split in a small window): icon-only controls that wrap.
+  if (props.autoCollapseBelow && viewerWidth.value > 0 && viewerWidth.value < COMPACT_HOST_WIDTH) return 'xnarrow'
   if (!viewerWidth.value || viewerWidth.value <= 640) return 'full'
   const space = viewerWidth.value - panelInset.value - 48
   // Prefer keeping "Fit to view" at 1280 with both the sidebar and the details panel open.

@@ -156,6 +156,12 @@ watch(
 </template>
 
 <style>
+/* The web app keeps a 320px page minimum; an editor pane can be narrower, so let it shrink. */
+html,
+body {
+  min-width: 0;
+}
+
 html,
 body,
 #app,

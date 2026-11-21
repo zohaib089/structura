@@ -99,7 +99,10 @@ export class WebviewPanelMock {
     _posted: unknown[]
   }
 
-  constructor(public viewType: string, title: string, _column: number, options: { localResourceRoots?: Uri[] }) {
+  viewColumn: number | undefined
+  revealedTo: Array<number | undefined> = []
+  constructor(public viewType: string, title: string, column: number | { viewColumn: number }, options: { localResourceRoots?: Uri[] }) {
+    this.viewColumn = typeof column === 'number' ? column : column.viewColumn
     this.title = title
     const incoming = new EventBus<unknown>()
     const posted: unknown[] = []
@@ -129,7 +132,8 @@ export class WebviewPanelMock {
     return this.onDidDisposeBus.event
   }
 
-  reveal(_column?: number): void {
+  reveal(column?: number): void {
+    this.revealedTo.push(column)
     this.visible = true
     this.active = true
   }
@@ -151,6 +155,7 @@ export interface TestVscodeOptions {
   activeFile?: string | null
   consentChoice?: string | undefined
   colorThemeKind?: number
+  tabGroups?: Array<{ viewColumn: number; tabs: unknown[] }>
 }
 
 export function createVsCodeMock(options: TestVscodeOptions = {}) {
@@ -166,6 +171,7 @@ export function createVsCodeMock(options: TestVscodeOptions = {}) {
 
   const workspaceStateData = new Map<string, unknown>()
   const warnings: string[] = []
+  const tabGroups: Array<{ viewColumn: number; tabs: unknown[] }> = options.tabGroups ?? []
   const saveListeners: Array<(doc: { uri: Uri }) => void> = []
   const themeListeners: Array<(theme: { kind: number }) => void> = []
   const activeColorTheme = { kind: options.colorThemeKind ?? ColorThemeKind.Dark }
@@ -181,6 +187,7 @@ export function createVsCodeMock(options: TestVscodeOptions = {}) {
     ViewColumn,
     ColorThemeKind,
     window: {
+      tabGroups: { all: tabGroups },
       get activeColorTheme() {
         return activeColorTheme
       },
@@ -204,7 +211,7 @@ export function createVsCodeMock(options: TestVscodeOptions = {}) {
       createWebviewPanel: (
         viewType: string,
         title: string,
-        column: number,
+        column: number | { viewColumn: number },
         panelOptions: { localResourceRoots?: Uri[] }
       ) => {
         const panel = new WebviewPanelMock(viewType, title, column, panelOptions)

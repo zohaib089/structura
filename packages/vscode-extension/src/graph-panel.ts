@@ -115,6 +115,16 @@ export async function handleHostMessage(
   }
 }
 
+/**
+ * Where a new graph opens: an editor group that is already empty (reuse it, no extra split), else
+ * beside the active editor. Fewer groups leave the graph wide enough for its desktop toolbar.
+ */
+export function graphColumn(vs: typeof vscode): vscode.ViewColumn {
+  const groups = vs.window.tabGroups?.all ?? []
+  const empty = groups.find((group) => group.tabs.length === 0 && group.viewColumn !== undefined)
+  return empty ? empty.viewColumn : vs.ViewColumn.Beside
+}
+
 export function createGraphPanel(
   vs: typeof vscode,
   extensionUri: vscode.Uri,
@@ -124,7 +134,7 @@ export function createGraphPanel(
   const panel = vs.window.createWebviewPanel(
     'atlasmith.graph',
     title,
-    vs.ViewColumn.Beside,
+    { viewColumn: graphColumn(vs), preserveFocus: true },
     {
       enableScripts: true,
       retainContextWhenHidden: true,
@@ -166,7 +176,9 @@ export function createGraphPanel(
     panel,
     mode: host.mode,
     reveal() {
-      panel.reveal(vs.ViewColumn.Beside)
+      // Stay in the graph's own column: moving it "beside" again can leave an empty group behind and
+      // squeeze every column (a 1024px window ended up with a 220px graph).
+      panel.reveal(panel.viewColumn ?? graphColumn(vs), true)
       panel.title = host.mode === 'file' ? copy('panelTitleFile') : copy('panelTitleProject')
     },
     postState(state) {

@@ -395,6 +395,16 @@ select {
 .floating-bar.density-tight,
 .floating-bar.density-narrow { column-gap: var(--space-1); }
 
+/* Very narrow editor panes (VS Code split at a small window): icon-only Radial / Linear, and the
+   controls wrap onto a second row instead of running off the pane. Phones never get xnarrow. */
+.floating-bar.density-xnarrow .layout-switch .btn-icon { display: inline-block; }
+@media (max-width: 640px) {
+  .floating-bar.density-xnarrow { flex-wrap: wrap; overflow: visible; row-gap: var(--space-1); }
+  .floating-bar.density-xnarrow .layout-switch .btn-label {
+    position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
+  .floating-bar.density-xnarrow .search-button { flex: 0 0 auto; }
+}
 .rescan-button:disabled { cursor: progress; opacity: 0.85; }
 .rescan-button.is-busy svg { color: var(--color-brand-amber, #d4a017); animation: rescan-spin 0.9s linear infinite; }
 @keyframes rescan-spin { to { transform: rotate(360deg); } }
