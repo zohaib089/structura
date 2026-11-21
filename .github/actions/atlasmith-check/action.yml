@@ -1,0 +1,113 @@
+name: Atlasmith PR check
+description: Scan a pull request with Atlasmith and post one sticky plain-English comment.
+author: Atlasmith
+
+# Not published on the GitHub Marketplace. Reference it by repo path:
+#   uses: zohaib089/structura/.github/actions/atlasmith-check@<ref>
+#
+# Fork safety:
+# - Use the pull_request trigger, never pull_request_target, and never check out
+#   pull-request code in a job that has secrets or a write token you do not trust.
+# - No secrets are required. The default GITHUB_TOKEN is enough to post a comment
+#   on same-repo PRs. Fork and Dependabot PRs get a read-only token; the action
+#   skips the comment instead of failing, and writes the same text to the job summary.
+# - Minimal permissions: contents: read to scan; pull-requests: write only if you
+#   want the sticky comment. This repo splits those across two jobs because it
+#   builds the CLI from the PR. Other repos can use one job when the CLI comes
+#   from this action's ref, not from the pull request.
+
+inputs:
+  strictness:
+    description: Run the scan with --strict-architecture (true/false).
+    required: false
+    default: "true"
+  impact-depth:
+    description: How many import hops to walk when listing files affected by the change.
+    required: false
+    default: "3"
+  fail-on-findings:
+    description: Fail the job when the scan reports broken architecture rules (exit 4).
+    required: false
+    default: "true"
+  github-token:
+    description: Token used to post the sticky comment. Not needed for read-only or fork runs.
+    required: false
+    default: ${{ github.token }}
+  working-directory:
+    description: Project root to scan, relative to the checkout (default is the repository root).
+    required: false
+    default: "."
+  checkout:
+    description: Check out the pull request merge commit (fetch-depth 2, no persisted credentials).
+    required: false
+    default: "true"
+  post-comment:
+    description: Post or update the sticky PR comment. Skipped gracefully when the token cannot write.
+    required: false
+    default: "true"
+  comment-b64:
+    description: If set, skip the scan and only post this base64-encoded comment (for a job that does not check out PR code).
+    required: false
+    default: ""
+  cli-source:
+    description: Where to load the Atlasmith CLI from. auto uses this repo's packages/cli when present, otherwise the action's own ref.
+    required: false
+    default: "auto"
+
+outputs:
+  comment_b64:
+    description: Base64-encoded comment markdown.
+    value: ${{ steps.scan.outputs.comment_b64 }}
+  scan_exit:
+    description: "Scan exit code (0 = clean, 4 = architecture rules broken)."
+    value: ${{ steps.scan.outputs.scan_exit }}
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout pull request
+      if: ${{ inputs.comment-b64 == '' && inputs.checkout == 'true' }}
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+        fetch-depth: 2
+
+    - name: Setup Node.js 22
+      if: ${{ inputs.comment-b64 == '' }}
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: 22
+
+    - name: Scan and render comment
+      if: ${{ inputs.comment-b64 == '' }}
+      id: scan
+      shell: bash
+      env:
+        NPM_CONFIG_UPDATE_NOTIFIER: "false"
+        ATLASMITH_WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        ATLASMITH_STRICTNESS: ${{ inputs.strictness }}
+        ATLASMITH_IMPACT_DEPTH: ${{ inputs.impact-depth }}
+        ATLASMITH_CLI_SOURCE: ${{ inputs.cli-source }}
+        ATLASMITH_ACTION_PATH: ${{ github.action_path }}
+        ATLASMITH_ACTION_REPOSITORY: ${{ github.action_repository }}
+        ATLASMITH_ACTION_REF: ${{ github.action_ref }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      run: bash "${{ github.action_path }}/scan.sh"
+
+    - name: Post sticky comment
+      if: ${{ inputs.post-comment == 'true' && (inputs.comment-b64 != '' || steps.scan.outputs.comment_b64 != '') }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        REPO: ${{ github.repository }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        COMMENT_B64: ${{ inputs.comment-b64 != '' && inputs.comment-b64 || steps.scan.outputs.comment_b64 }}
+        SKIP_COMMENT: ${{ github.event.pull_request.head.repo.full_name != github.repository || github.actor == 'dependabot[bot]' }}
+      run: bash "${{ github.action_path }}/post-comment.sh"
+
+    - name: Enforce architecture rules
+      if: ${{ inputs.comment-b64 == '' && inputs.fail-on-findings == 'true' && steps.scan.outputs.scan_exit == '4' }}
+      shell: bash
+      run: |
+        echo "::error::This pull request breaks declared architecture rules. See the PR comment or the job summary."
+        exit 1

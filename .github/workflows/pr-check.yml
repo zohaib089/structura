@@ -1,17 +1,22 @@
 # PR architecture check (roadmap R5).
 #
-# Scans the pull request with `atlasmith scan --strict-architecture`, traces the
-# files affected by the change with the same walk as `atlasmith impact`, and keeps
-# ONE plain-English comment on the PR up to date (found by a hidden marker).
+# Scans the pull request with Atlasmith (`scan --strict-architecture`, impact
+# depth 3) and keeps ONE plain-English comment on the PR up to date. The scan
+# and comment steps live in the reusable composite action
+# .github/actions/atlasmith-check (see docs/pr-check-action.md and
+# docs/engineering/pr-check.md).
 #
-# Fork safety (see docs/engineering/pr-check.md):
+# Fork safety:
 # - Trigger is `pull_request`, never `pull_request_target`. PR code only ever runs
 #   with the read-only token GitHub gives `pull_request` runs.
-# - The `scan` job checks out and runs PR code with `contents: read` only. It hands
-#   the rendered Markdown to the next job as a base64 job output. No artifact
-#   actions, no third-party actions, no secrets.
-# - The `comment` job holds `pull-requests: write`, never checks out or runs PR
-#   code, and only posts the text with the GITHUB_TOKEN through the REST API.
+# - The `scan` job checks out and runs PR code (it builds the CLI from this
+#   checkout) with `contents: read` only. It hands the rendered Markdown to the
+#   next job as a base64 job output. No artifact actions, no third-party actions,
+#   no secrets.
+# - The `comment` job holds `pull-requests: write`. It sparse-checks out only
+#   `.github/actions/atlasmith-check` (so the local action can be loaded), with
+#   persist-credentials: false, and runs that action in comment-only mode: no
+#   install, build, or scan. It posts the text with the GITHUB_TOKEN.
 # - For fork PRs (and Dependabot) the token is read-only, so `comment` is skipped
 #   and the same text is written to the scan job summary instead.
 # - Everything runs on the GitHub-hosted runner. No source text leaves it; only
@@ -30,9 +35,6 @@ concurrency:
   group: pr-check-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
-env:
-  NPM_CONFIG_UPDATE_NOTIFIER: false
-
 jobs:
   scan:
     name: Scan and render comment
@@ -41,93 +43,27 @@ jobs:
     permissions:
       contents: read
     outputs:
-      comment_b64: ${{ steps.render.outputs.comment_b64 }}
+      comment_b64: ${{ steps.check.outputs.comment_b64 }}
     steps:
       # Default ref is the PR merge commit, so HEAD^1 is the current base tip and
       # the diff is exactly what merging would change. Depth 2 covers both.
+      # This checkout is also required so the local composite action can be loaded.
       - name: Checkout merge commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 2
 
-      - name: Setup Node.js 22
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - name: Scan with Atlasmith
+        id: check
+        uses: ./.github/actions/atlasmith-check
         with:
-          node-version: 22
-
-      - name: Install and build engine and CLI
-        run: |
-          bash scripts/ci/install-engine-cli.sh
-          npm --prefix packages/cli run pretest
-          npm --prefix packages/cli run build
-
-      - name: List changed files and prepare base tree
-        run: |
-          set -euo pipefail
-          work="$RUNNER_TEMP/atlasmith"
-          mkdir -p "$work"
-          git diff --name-status -z --no-renames HEAD^1 HEAD > "$work/changed.z"
-          git worktree add --detach "$work/base-tree" HEAD^1
-          # QA's golden corpus is never scanned (scripts/ci/golden-corpus-paths.txt).
-          node scripts/pr-check/strip-corpus.mjs "$work/base-tree"
-          node scripts/pr-check/strip-corpus.mjs "$GITHUB_WORKSPACE"
-
-      - name: Scan PR with --strict-architecture
-        id: head
-        run: |
-          set +e
-          work="$RUNNER_TEMP/atlasmith"
-          node packages/cli/dist/bin.js scan "$GITHUB_WORKSPACE" --strict-architecture --no-cache --no-meta --out "$work/head" > "$work/head.log" 2>&1
-          code=$?
-          set -e
-          cat "$work/head.log"
-          echo "exit=$code" >> "$GITHUB_OUTPUT"
-          # 0 = clean, 4 = architecture rules broken (still rendered). Anything else is a real failure.
-          if [[ "$code" -ne 0 && "$code" -ne 4 ]]; then
-            echo "::error::atlasmith scan failed with exit code $code"
-            exit 1
-          fi
-
-      - name: Scan base for comparison
-        run: |
-          set +e
-          work="$RUNNER_TEMP/atlasmith"
-          node packages/cli/dist/bin.js scan "$work/base-tree" --strict-architecture --no-cache --no-meta --out "$work/base" > "$work/base.log" 2>&1
-          code=$?
-          cat "$work/base.log"
-          if [[ "$code" -ne 0 && "$code" -ne 4 ]]; then
-            echo "::warning::base scan failed (exit $code); the comment will not mark which rule breaks are new"
-            rm -f "$work/base/graph.json"
-          fi
-          exit 0
-
-      - name: Render comment
-        id: render
-        env:
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          set -euo pipefail
-          work="$RUNNER_TEMP/atlasmith"
-          node scripts/pr-check/render-comment.mjs \
-            --head-graph "$work/head/graph.json" \
-            --base-graph "$work/base/graph.json" \
-            --changed "$work/changed.z" \
-            --sha "$HEAD_SHA" \
-            --out "$work/comment.md"
-          cat "$work/comment.md" >> "$GITHUB_STEP_SUMMARY"
-          {
-            echo 'comment_b64<<ATLASMITH_EOF'
-            base64 -w0 "$work/comment.md"
-            echo
-            echo 'ATLASMITH_EOF'
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Enforce --strict-architecture
-        if: steps.head.outputs.exit == '4'
-        run: |
-          echo "::error::This pull request breaks declared architecture rules. See the PR comment or the job summary."
-          exit 1
+          strictness: "true"
+          impact-depth: "3"
+          fail-on-findings: "true"
+          checkout: "false"
+          post-comment: "false"
+          cli-source: workspace
 
   comment:
     name: Post sticky comment
@@ -143,33 +79,22 @@ jobs:
     permissions:
       pull-requests: write
     steps:
-      # No checkout: this job never sees or runs PR code. gh is preinstalled on the runner.
+      # Local composite actions are loaded from the workspace, so this job needs
+      # a checkout. Only the action files are fetched (sparse), credentials are
+      # not persisted, and the action runs in comment-only mode: no install,
+      # build, or scan, and no application source is used.
+      - name: Check out the action only
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          sparse-checkout: .github/actions/atlasmith-check
+          sparse-checkout-cone-mode: true
+
       - name: Create or update the comment
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          COMMENT_B64: ${{ needs.scan.outputs.comment_b64 }}
-        run: |
-          set -euo pipefail
-          body="$RUNNER_TEMP/comment.md"
-          printf '%s' "$COMMENT_B64" | base64 -d > "$body"
-          marker='<!-- atlasmith-pr-check -->'
-          if [[ "$(head -n 1 "$body")" != "$marker" ]]; then
-            echo "::error::rendered comment does not start with the marker; refusing to post"
-            exit 1
-          fi
-          if [[ "$(wc -c < "$body")" -gt 65000 ]]; then
-            echo "::error::rendered comment is over the GitHub size limit"
-            exit 1
-          fi
-          ids="$(gh api --paginate "repos/$REPO/issues/$PR_NUMBER/comments" \
-            --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\"))) | .id")"
-          id="${ids%%$'\n'*}"
-          if [[ -n "$id" ]]; then
-            gh api --method PATCH "repos/$REPO/issues/comments/$id" -F "body=@$body" > /dev/null
-            echo "Updated comment $id"
-          else
-            gh api --method POST "repos/$REPO/issues/$PR_NUMBER/comments" -F "body=@$body" > /dev/null
-            echo "Created a new comment"
-          fi
+        uses: ./.github/actions/atlasmith-check
+        with:
+          comment-b64: ${{ needs.scan.outputs.comment_b64 }}
+          post-comment: "true"
+          checkout: "false"
+          fail-on-findings: "false"

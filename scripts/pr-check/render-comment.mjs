@@ -5,7 +5,7 @@
  *   node scripts/pr-check/render-comment.mjs \
  *     --head-graph <graph.json> [--base-graph <graph.json>] \
  *     --changed <git diff --name-status -z --no-renames output file> \
- *     [--sha <head sha>] --out <comment.md>
+ *     [--sha <head sha>] [--depth <n>] --out <comment.md>
  *
  * Reads local files and writes one local file. No network, no child processes.
  * Needs packages/cli built (dist/pr-comment.js).
@@ -22,13 +22,23 @@ const { values } = parseArgs({
     'base-graph': { type: 'string' },
     changed: { type: 'string' },
     sha: { type: 'string' },
+    depth: { type: 'string' },
     out: { type: 'string' }
   },
   strict: true
 })
 if (!values['head-graph'] || !values.changed || !values.out) {
-  console.error('usage: render-comment.mjs --head-graph <file> [--base-graph <file>] --changed <file> [--sha <sha>] --out <file>')
+  console.error('usage: render-comment.mjs --head-graph <file> [--base-graph <file>] --changed <file> [--sha <sha>] [--depth <n>] --out <file>')
   process.exit(2)
+}
+
+let depth
+if (values.depth !== undefined) {
+  depth = Number(values.depth)
+  if (!Number.isInteger(depth) || depth < 0) {
+    console.error('depth must be a non-negative integer')
+    process.exit(2)
+  }
 }
 
 const cli = await import(pathToFileURL(path.join(repoRoot, 'packages/cli/dist/pr-comment.js')).href)
@@ -38,7 +48,7 @@ const headGraph = loadGraph(values['head-graph'])
 const baseGraph = values['base-graph'] && fs.existsSync(values['base-graph']) ? loadGraph(values['base-graph']) : undefined
 const changed = cli.parseNameStatusZ(fs.readFileSync(values.changed, 'utf8'))
 
-const report = cli.buildPrReport({ headGraph, baseGraph, changed })
+const report = cli.buildPrReport({ headGraph, baseGraph, changed, depth })
 const body = cli.renderPrComment(report, { headSha: values.sha })
 fs.writeFileSync(values.out, body)
 console.log(`rendered ${body.length} characters: ${report.findings.length} rule break(s), ${report.changed.length} changed, ${report.affected.length} affected`)
