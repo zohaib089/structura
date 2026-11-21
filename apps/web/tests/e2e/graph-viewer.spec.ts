@@ -448,3 +448,29 @@ test('the details panel collapses to a rail and expands from the keyboard', asyn
   await expect(toggle).toBeFocused()
   await expect(page.locator('[data-testid="node-detail"]')).toBeVisible()
 })
+
+test('zoom pad Fit after several zoom-outs lands on the same view as a normal Fit', async ({ page }) => {
+  for (const size of [{ width: 1280, height: 800 }, { width: 375, height: 760 }]) {
+    await page.setViewportSize(size)
+    await page.goto(pathToFileURL(builtHtml).href)
+    await page.locator('[data-testid="file-input"]').setInputFiles(resolve(root, 'fixtures/sample-graph.json'))
+    await expect(page.locator('[data-testid="graph-canvas"]')).toHaveAttribute('data-ready', 'true', { timeout: 20_000 })
+    const zoom = () => page.evaluate(() => Number(/scale\(([\d.]+)\)/.exec(document.querySelector('.vue-flow__transformationpane')?.getAttribute('style') ?? '')?.[1] ?? NaN))
+    for (const layout of ['radial', 'linear'] as const) {
+      await page.getByTestId(`layout-${layout}`).click()
+      await page.waitForTimeout(900)
+      await page.getByTestId('zoom-fit').click()
+      await page.waitForTimeout(900)
+      const fitted = await zoom()
+      for (let i = 0; i < 6; i += 1) {
+        await page.getByTestId('zoom-out').click()
+        await page.waitForTimeout(200)
+      }
+      expect(await zoom()).toBeLessThan(fitted * 0.6)
+      await page.getByTestId('zoom-fit').click()
+      await page.waitForTimeout(1200)
+      const again = await zoom()
+      expect(Math.abs(again - fitted) / fitted, `${size.width}px ${layout}`).toBeLessThan(0.015)
+    }
+  }
+})
