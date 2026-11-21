@@ -1758,6 +1758,15 @@ button:disabled { opacity: var(--alpha-40); }
 .inspector-head [role='tab'] { flex: 1 1 auto; gap: 4px; padding: 0 6px; white-space: nowrap; overflow: hidden; }
 .inspector-head [role='tab'] svg { flex-shrink: 0; }
 .inspector-head [role='tab'][aria-selected='false'] { flex: 0 0 auto; }
+/* The selected name ("Details") must stay in full; unselected tabs are already icon-only. Below 260px the
+ * coverage count used to steal the space and cut the label down to "Det". */
+.inspector-head [role='tab'][aria-selected='true'] { flex: 0 0 auto; min-inline-size: auto; overflow: visible; }
+.inspector-head [role='tab'][aria-selected='true'] .tab-label { overflow: visible; }
+@media (max-width: 260px) {
+  .inspector-head .tab-count {
+    position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
+}
 /* Narrow panel: unselected tabs show icon (+ count); the label stays for screen readers and the tooltip. */
 .inspector-head [role='tab'][aria-selected='false'] .tab-label {
   position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;

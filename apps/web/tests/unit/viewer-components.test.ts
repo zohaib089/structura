@@ -279,4 +279,11 @@ describe('viewer components', () => {
     expect(palette.get('[data-testid="search-input"]').element).toBeInstanceOf(HTMLInputElement)
     await flushPromises()
   })
+
+  it('keeps the selected Details tab label fully visible below 260px', () => {
+    const css = readFileSync(resolve('src/viewer/ViewerApp.vue'), 'utf8')
+    expect(css).toContain("[role='tab'][aria-selected='true']")
+    expect(css).toContain('@media (max-width: 260px)')
+    expect(css).toContain('.tab-count')
+  })
 })
