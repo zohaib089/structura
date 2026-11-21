@@ -1,10 +1,12 @@
 # PR architecture check
 
-Workflow: `.github/workflows/pr-check.yml`. Roadmap item R5.
+Workflow: `.github/workflows/pr-check.yml`. The scan and comment logic lives in the reusable composite action `.github/actions/atlasmith-check`. Roadmap item R5.
+
+To add the same check to another GitHub repository, see [docs/pr-check-action.md](../pr-check-action.md).
 
 On every pull request the check:
 
-1. Builds `packages/engine` and `packages/cli` on a GitHub-hosted runner.
+1. Builds `packages/engine` and `packages/cli` on a GitHub-hosted runner (this monorepo's checkout, so the pull request is tested with its own CLI).
 2. Scans the PR merge commit and its base (`HEAD^1`) with `atlasmith scan --strict-architecture --no-cache --no-meta --out <runner temp>`.
 3. Lists changed files with `git diff --name-status -z --no-renames HEAD^1 HEAD` and traces the files that depend on them with the engine walk behind `atlasmith impact` (`graphImpact`, downstream, default depth 3). Deleted files are traced on the base graph.
 4. Renders one Markdown comment (`packages/cli/src/pr-comment.ts`, driven by `scripts/pr-check/render-comment.mjs`): the rules broken, each with a "why it matters" and "how to fix" line and a new/already-on-base tag, the affected files, or a short all-clear.
@@ -17,16 +19,16 @@ Golden-corpus paths (`scripts/ci/golden-corpus-paths.txt` and any `golden-corpus
 
 `pull_request_target` runs with a write token and secrets in the context of the base branch. Checking out and running PR code there lets a fork PR take over the token. This repo never uses it.
 
-The workflow uses `pull_request` and splits the work into two jobs:
+The workflow uses `pull_request` and splits the work into two jobs, both calling `.github/actions/atlasmith-check`:
 
-| Job | Permissions | Runs PR code? | Does |
+| Job | Permissions | Runs PR application code? | Does |
 | --- | --- | --- | --- |
-| `scan` | `contents: read` | yes | install, build, scan, render; passes the comment as a base64 job output and writes it to the job summary |
-| `comment` | `pull-requests: write` | no (no checkout) | decodes the text, checks the marker and size, creates or updates the comment with `gh api` and the `GITHUB_TOKEN` |
+| `scan` | `contents: read` | yes (installs and builds this checkout's CLI, then scans) | checkout, scan, render; passes the comment as a base64 job output and writes it to the job summary. Does not post the comment. |
+| `comment` | `pull-requests: write` | no | sparse-checkouts only `.github/actions/atlasmith-check` so the local action can be loaded (`persist-credentials: false`); decodes the text, checks the marker and size, and creates or updates the comment with `gh api` and the `GITHUB_TOKEN`. No install, build, or scan. |
 
 The workflow default is `permissions: {}`. Checkouts use `persist-credentials: false`. Installs use `npm ci --ignore-scripts`. Only SHA-pinned `actions/checkout` and `actions/setup-node` are used, plus the preinstalled `gh`. There are no secrets and no third-party services.
 
-For PRs from forks, and for Dependabot, GitHub only grants a read-only token, so the `comment` job is skipped and the same text is in the `scan` job summary. A more involved `workflow_run` design could post on forks too. It needs an artifact hand-off (`actions/upload-artifact` and `download-artifact`), which this workflow deliberately avoids.
+For PRs from forks, and for Dependabot, GitHub only grants a read-only token, so the `comment` job is skipped and the same text is in the `scan` job summary. The action itself also skips posting instead of failing if it is run without write access. A more involved `workflow_run` design could post on forks too. It needs an artifact hand-off (`actions/upload-artifact` and `download-artifact`), which this workflow deliberately avoids.
 
 ## What leaves the runner
 
@@ -39,7 +41,7 @@ bash scripts/ci/install-engine-cli.sh
 npm --prefix packages/cli run pretest && npm --prefix packages/cli run build
 node packages/cli/dist/bin.js scan . --strict-architecture --no-cache --no-meta --out /tmp/am-head
 git diff --name-status -z --no-renames origin/main HEAD > /tmp/am-changed.z
-node scripts/pr-check/render-comment.mjs --head-graph /tmp/am-head/graph.json --changed /tmp/am-changed.z --out /tmp/am-comment.md
+node scripts/pr-check/render-comment.mjs --head-graph /tmp/am-head/graph.json --changed /tmp/am-changed.z --depth 3 --out /tmp/am-comment.md
 ```
 
 The exact comment text for a rule-breaking PR and a clean PR is pinned in `packages/cli/fixtures/pr-check/expected/`. Run `PR_COMMENT_UPDATE=1 npm --prefix packages/cli test` to regenerate it after changing the wording.
