@@ -134,6 +134,16 @@ function parseInvitation(value: unknown): WorkspaceInvitation {
   }
 }
 
+export class WorkspaceApiError extends Error {
+  readonly status: number
+
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'WorkspaceApiError'
+    this.status = status
+  }
+}
+
 async function request(
   path: string,
   method = 'GET',
@@ -155,19 +165,35 @@ async function request(
     result = await response.json()
   } catch (cause) {
     if (cause instanceof SyntaxError) {
-      throw new Error(`The API returned invalid JSON (HTTP ${response.status}).`)
+      throw new WorkspaceApiError(`The API returned invalid JSON (HTTP ${response.status}).`, response.status)
     }
     throw cause
   }
   if (!isRecord(result)) {
-    throw new Error(`The API response was invalid (HTTP ${response.status}).`)
+    throw new WorkspaceApiError(`The API response was invalid (HTTP ${response.status}).`, response.status)
   }
 
   if (!response.ok || result.success !== true) {
     const message = typeof result.message === 'string' ? result.message : null
-    throw new Error(message ?? `Request failed with status ${response.status}.`)
+    throw new WorkspaceApiError(message ?? `Request failed with status ${response.status}.`, response.status)
   }
   return result
+}
+
+function parseUpdatedMember(value: unknown): Pick<WorkspaceMember, 'id' | 'role' | 'created_at'> {
+  if (
+    !isRecord(value) ||
+    !isNonEmptyString(value.id) ||
+    (value.role !== 'owner' && value.role !== 'admin' && value.role !== 'member') ||
+    !isTimestamp(value.created_at)
+  ) {
+    throw new Error('The workspace member response was invalid.')
+  }
+  return {
+    id: value.id,
+    role: value.role,
+    created_at: value.created_at
+  }
 }
 
 function parseUniqueRecords<T>(
@@ -269,3 +295,24 @@ export async function acceptWorkspaceInvitation(token: string): Promise<{ worksp
   }
   return { workspaceId: result.workspaceId }
 }
+
+export async function updateWorkspaceMemberRole(
+  workspaceId: string,
+  memberId: string,
+  role: Workspace['role']
+): Promise<Pick<WorkspaceMember, 'id' | 'role' | 'created_at'>> {
+  const result = await request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(memberId)}`,
+    'PATCH',
+    { role }
+  )
+  return parseUpdatedMember(result.member)
+}
+
+export async function removeWorkspaceMember(workspaceId: string, memberId: string): Promise<void> {
+  await request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(memberId)}`,
+    'DELETE'
+  )
+}
+

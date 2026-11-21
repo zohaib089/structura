@@ -398,7 +398,13 @@ test('dashboard navigation opens graph insights and manages workspace invitation
         full_name: 'Taylor Engineer',
         email: 'taylor@example.test',
         role: 'owner',
-        created_at: new Date().toISOString()
+        created_at: '2026-01-15T00:00:00.000Z'
+      }, {
+        id: 'user-2',
+        full_name: 'Jordan Writer',
+        email: 'jordan@example.test',
+        role: 'member',
+        created_at: '2026-02-02T00:00:00.000Z'
       }]
     })
   }))
@@ -447,6 +453,22 @@ test('dashboard navigation opens graph insights and manages workspace invitation
     }
   })
 
+  await page.route('**/api/workspaces/workspace-1/members/user-2', async route => {
+    if (route.request().method() === 'PATCH') {
+      const { role } = route.request().postDataJSON() as { role: string }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          member: { id: 'user-2', role, created_at: '2026-02-02T00:00:00.000Z' }
+        })
+      })
+      return
+    }
+    await route.fallback()
+  })
+
   const succeededScan = {
     id: 'scan-1',
     workspaceId: 'workspace-1',
@@ -482,17 +504,34 @@ test('dashboard navigation opens graph insights and manages workspace invitation
   await expect(page).toHaveURL(/\/en\/w\/workspace-1\/projects\/default\/scans\/scan-1\/graph/)
   await expect(page.getByTestId('graph-canvas')).toHaveAttribute('data-ready', 'true', { timeout: 15_000 })
 
-  await dashboardNavigation.getByRole('link', { name: 'Settings' }).click()
-  // Sidebar user card also shows "Taylor Engineer"; wait for settings, then assert the member row in main.
+  await dashboardNavigation.getByRole('link', { name: 'Members' }).click()
+  // Sidebar user card also shows "Taylor Engineer"; wait for Members, then assert the member row in main.
   const inviteEmail = page.getByLabel('Invite by email')
   await expect(inviteEmail).toBeVisible()
-  await expect(page.getByRole('main').locator('.team-list .team-item').filter({ hasText: 'Taylor Engineer' })).toBeVisible()
+  const taylorRow = page.getByRole('main').locator('.team-list .team-item').filter({ hasText: 'Taylor Engineer' })
+  await expect(taylorRow).toBeVisible()
+  await expect(taylorRow.getByText('Joined')).toBeVisible()
+  await expect(page.getByRole('main').getByRole('button', { name: 'Leave workspace' })).toBeVisible()
+
+  const jordanRow = page.getByRole('main').locator('.team-list .team-item').filter({ hasText: 'Jordan Writer' })
+  await jordanRow.getByLabel('Role for Jordan Writer').selectOption('admin')
+  const confirm = page.getByRole('dialog', { name: 'Change this person’s role?' })
+  await expect(confirm).toBeVisible()
+  await confirm.getByRole('button', { name: 'Change role' }).click()
+  await expect(page.getByText('Role updated.')).toBeVisible()
+  await expect(jordanRow.getByLabel('Role for Jordan Writer')).toHaveValue('admin')
+
   await inviteEmail.fill('new.member@example.test')
   await page.getByRole('button', { name: 'Send invitation' }).click()
   await expect(page.getByText('Invitation email sent.')).toBeVisible()
   await expect(page.getByRole('main').getByText('new.member@example.test')).toBeVisible()
   await page.getByRole('button', { name: 'Revoke invitation' }).click()
   await expect(page.getByRole('main').getByText('There are no pending invitations.')).toBeVisible()
+
+  await dashboardNavigation.getByRole('link', { name: 'Settings' }).click()
+  await expect(page).toHaveURL(/\/en\/w\/workspace-1\/settings$/)
+  await page.getByRole('main').getByRole('link', { name: 'Manage members' }).click()
+  await expect(page).toHaveURL(/\/en\/w\/workspace-1\/members$/)
 
   await dashboardNavigation.getByRole('link', { name: 'Projects' }).click()
   await expect(page.getByRole('main').getByRole('heading', { name: 'Projects', exact: true })).toBeVisible()
@@ -612,10 +651,10 @@ test('dashboard accepts an invitation after authentication and removes its token
 
   await page.goto('/en/w/pending?invitation=invite-token-for-test')
 
-  await expect(page).toHaveURL(/\/en\/w\/workspace-1\/settings$/)
+  await expect(page).toHaveURL(/\/en\/w\/workspace-1\/members$/)
   await expect(page.getByText('Workspace invitation accepted.')).toBeVisible()
   await expect(page.getByRole('navigation', { name: 'App navigation' })
-    .getByRole('link', { name: 'Settings' })).toHaveAttribute('aria-current', 'page')
+    .getByRole('link', { name: 'Members' })).toHaveAttribute('aria-current', 'page')
 })
 
 test('legacy protected URLs redirect to a localized authentication route', async ({ page }) => {

@@ -8,12 +8,16 @@ import {
   resolveDashboardEntryPath,
   scanGraphPath,
   scanReportPath,
-  workspaceRootPath
+  workspaceMembersPath,
+  workspaceRootPath,
+  workspaceSettingsPath
 } from '../../src/services/dashboard-routes'
 
 describe('dashboard routes', () => {
   it('builds localized workspace paths', () => {
     expect(workspaceRootPath('en', 'ws-1')).toBe('/en/w/ws-1')
+    expect(workspaceMembersPath('en', 'ws-1')).toBe('/en/w/ws-1/members')
+    expect(workspaceSettingsPath('pt', 'ws-1')).toBe('/pt/w/ws-1/settings')
     expect(openProjectPath('pt', 'ws-1')).toBe('/pt/w/ws-1/new')
     expect(projectScansPath('en', 'ws-1', 'proj-1')).toBe('/en/w/ws-1/projects/proj-1/scans')
     expect(scanReportPath('en', 'ws-1', 'proj-1', 'scan-9', 'violations')).toBe(
