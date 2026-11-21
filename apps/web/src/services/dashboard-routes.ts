@@ -13,6 +13,7 @@ export type DashboardShellSection =
   | 'scan-graph'
   | 'workspace-scans'
   | 'settings'
+  | 'members'
 
 export function rememberLastWorkspaceId(workspaceId: string) {
   if (!workspaceId.trim()) return
@@ -76,6 +77,10 @@ export function workspaceScansPath(locale: WebLocale, workspaceId: string) {
 
 export function workspaceSettingsPath(locale: WebLocale, workspaceId: string) {
   return `${workspaceRootPath(locale, workspaceId)}/settings`
+}
+
+export function workspaceMembersPath(locale: WebLocale, workspaceId: string) {
+  return `${workspaceRootPath(locale, workspaceId)}/members`
 }
 
 export function resolveDashboardEntryPath(locale: WebLocale, workspaceIds: string[]): string {

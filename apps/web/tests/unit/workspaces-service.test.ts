@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { loginUser } from '../../src/services/auth'
-import { listProjects, listWorkspaces } from '../../src/services/workspaces'
+import { listProjects, listWorkspaces, removeWorkspaceMember, updateWorkspaceMemberRole, WorkspaceApiError } from '../../src/services/workspaces'
 
 describe('workspace service', () => {
   beforeEach(() => {
@@ -197,4 +197,64 @@ describe('workspace service', () => {
 
     await expect(listWorkspaces()).rejects.toThrow('The API returned invalid JSON (HTTP 200).')
   })
+
+  it('updates a member role and encodes ids', async () => {
+    localStorage.setItem('structura-auth-session-v2', JSON.stringify({
+      token: 'current-session',
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      user: { id: 'user-1' }
+    }))
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        member: { id: 'user-2', role: 'admin', created_at: '2026-10-20T00:00:00.000Z' }
+      })
+    } as Response)
+
+    await expect(updateWorkspaceMemberRole('workspace/id', 'user/2', 'admin')).resolves.toEqual({
+      id: 'user-2',
+      role: 'admin',
+      created_at: '2026-10-20T00:00:00.000Z'
+    })
+    expect(fetch).toHaveBeenLastCalledWith(
+      '/api/workspaces/workspace%2Fid/members/user%2F2',
+      expect.objectContaining({
+        method: 'PATCH',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer current-session',
+          'Content-Type': 'application/json'
+        }),
+        body: JSON.stringify({ role: 'admin' })
+      })
+    )
+  })
+
+  it('surfaces a last-owner refusal with its HTTP status', async () => {
+    localStorage.setItem('structura-auth-session-v2', JSON.stringify({
+      token: 'current-session',
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      user: { id: 'user-1' }
+    }))
+    vi.mocked(fetch).mockResolvedValue({
+      ok: false,
+      status: 409,
+      json: async () => ({ success: false, message: 'A workspace must keep at least one owner.' })
+    } as Response)
+
+    try {
+      await removeWorkspaceMember('workspace-1', 'user-1')
+      throw new Error('expected refusal')
+    } catch (cause) {
+      expect(cause).toBeInstanceOf(WorkspaceApiError)
+      expect((cause as WorkspaceApiError).status).toBe(409)
+      expect((cause as WorkspaceApiError).message).toBe('A workspace must keep at least one owner.')
+    }
+    expect(fetch).toHaveBeenLastCalledWith(
+      '/api/workspaces/workspace-1/members/user-1',
+      expect.objectContaining({ method: 'DELETE' })
+    )
+  })
+
 })

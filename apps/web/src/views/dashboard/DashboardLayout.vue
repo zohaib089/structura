@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, provide, ref, watch, type Component } from 'vue'
-import { FolderKanban, FolderOpen, ScanSearch, Settings } from '@lucide/vue'
+import { FolderKanban, FolderOpen, ScanSearch, Settings, Users } from '@lucide/vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppShell from '../../components/ui/AppShell.vue'
 import LocaleSwitcher from '../../components/layout/LocaleSwitcher.vue'
@@ -18,6 +18,7 @@ import {
   projectGraphPath,
   rememberLastWorkspaceId,
   scanReportPath,
+  workspaceMembersPath,
   workspaceRootPath,
   workspaceScansPath,
   workspaceSettingsPath
@@ -72,6 +73,7 @@ const selectedWorkspace = computed(
 provide('dashboardWorkspaceId', workspaceParam)
 provide('dashboardProjectId', projectId)
 provide('dashboardScanId', scanId)
+provide('refreshDashboardWorkspaces', loadWorkspaces)
 
 const navItems = computed<SidebarNavItem[]>(() => {
   if (!workspaceParam.value) return []
@@ -104,6 +106,14 @@ const navItems = computed<SidebarNavItem[]>(() => {
         route.name === 'workspace-scans'
         || route.name === 'project-scans'
         || route.name === 'scan-report'
+    },
+    {
+      id: 'members',
+      icon: Users,
+      group: messages.value.navGroupManage,
+      label: messages.value.membersNav,
+      to: workspaceMembersPath(base, ws),
+      active: route.name === 'workspace-members'
     },
     {
       id: 'settings',
@@ -162,6 +172,8 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => {
     items.push({ label: messages.value.openProjectNav })
   } else if (route.name === 'workspace-settings') {
     items.push({ label: messages.value.settingsNav })
+  } else if (route.name === 'workspace-members') {
+    items.push({ label: messages.value.membersNav })
   }
   return items
 })

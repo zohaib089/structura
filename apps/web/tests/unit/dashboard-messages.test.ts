@@ -11,7 +11,10 @@ describe('dashboard message catalog', () => {
       for (const key of expectedKeys) {
         const value = dashboardMessages(locale.tag)[key as keyof ReturnType<typeof dashboardMessages>]
         if (typeof value === 'function') {
-          expect(value('scan-1').trim()).not.toBe('')
+          const sample = value.length >= 2
+            ? (value as (name: string, role: string) => string)('scan-1', 'Admin')
+            : (value as (name: string) => string)('scan-1')
+          expect(sample.trim()).not.toBe('')
         } else {
           expect(value.trim()).not.toBe('')
         }
