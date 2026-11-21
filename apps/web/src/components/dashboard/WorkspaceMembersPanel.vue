@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import HexLoader from '../ui/HexLoader.vue'
+import Button from '../ui/Button.vue'
 import ConfirmDialog from '../ui/ConfirmDialog.vue'
 import { useToast } from '../../composables/useToast'
 import { dashboardMessages } from '../../services/dashboard-messages'
@@ -214,13 +215,39 @@ watch(() => props.workspaceId, () => {
 
 <template>
   <section class="members-page" data-testid="members-page">
-    <p class="eyebrow">{{ workspaceName }}</p>
-    <p class="role-summary">
-      <strong>{{ messages.workspaceRole }}:</strong>
-      {{ roleLabel(currentRole) }}
-    </p>
-    <p class="members-copy">{{ messages.membersDescription }}</p>
-    <p v-if="!canManageTeam" class="members-copy members-readonly">{{ messages.membersReadOnly }}</p>
+    <header class="members-header">
+      <div class="members-intro">
+        <p class="eyebrow">{{ workspaceName }}</p>
+        <p class="role-summary">
+          <strong>{{ messages.workspaceRole }}:</strong>
+          {{ roleLabel(currentRole) }}
+        </p>
+        <p class="members-copy">{{ messages.membersDescription }}</p>
+        <p v-if="!canManageTeam" class="members-copy members-readonly">{{ messages.membersReadOnly }}</p>
+      </div>
+
+      <form
+        v-if="canManageTeam && !loading && !error"
+        class="invite-form"
+        @submit.prevent="handleInviteMember"
+      >
+        <label class="invite-label" for="invite-email">{{ messages.inviteEmailLabel }}</label>
+        <div class="invite-row">
+          <input
+            id="invite-email"
+            v-model="inviteEmail"
+            type="email"
+            maxlength="254"
+            autocomplete="email"
+            required
+          >
+          <button class="invite-submit" type="submit" :disabled="submitting">
+            <HexLoader v-if="submitting" size="sm" :label="messages.sendInvitation" hide-label inline :delay="0" :min-visible="0" />
+            {{ messages.sendInvitation }}
+          </button>
+        </div>
+      </form>
+    </header>
 
     <div v-if="error" class="state-card error-state" role="alert">
       <p>{{ error }}</p>
@@ -228,10 +255,12 @@ watch(() => props.workspaceId, () => {
     </div>
     <div v-else-if="loading" class="state-card" role="status">{{ messages.loadingWorkspaces }}</div>
 
-    <template v-else>
-      <section class="team-panel">
-        <h2>{{ messages.teamMembers }}</h2>
-        <p v-if="members.length === 0">{{ messages.noTeamMembers }}</p>
+    <div v-else class="members-grid">
+      <section class="members-card" aria-labelledby="members-heading">
+        <header class="members-card__header">
+          <h2 id="members-heading">{{ messages.teamMembers }}</h2>
+        </header>
+        <p v-if="members.length === 0" class="members-card__empty">{{ messages.noTeamMembers }}</p>
         <ul v-else class="team-list">
           <li v-for="member in members" :key="member.id" class="team-item">
             <div>
@@ -260,62 +289,56 @@ watch(() => props.workspaceId, () => {
                 </select>
               </label>
               <span v-else class="member-role">{{ roleLabel(member.role) }}</span>
-              <button
+              <Button
                 v-if="canRemove(member)"
-                class="secondary-button"
+                variant="danger"
+                size="sm"
                 type="button"
                 :disabled="submitting"
                 :aria-label="messages.removeMemberLabel(member.full_name)"
                 @click="askRemove(member)"
               >
                 {{ messages.removeMember }}
-              </button>
-              <button
+              </Button>
+              <Button
                 v-else-if="member.id === currentUserId"
-                class="secondary-button"
+                variant="secondary"
+                size="sm"
                 type="button"
                 :disabled="submitting"
                 @click="askLeave"
               >
                 {{ messages.leaveWorkspace }}
-              </button>
+              </Button>
             </div>
           </li>
         </ul>
       </section>
 
-      <form
-        v-if="canManageTeam"
-        class="team-panel invite-form"
-        @submit.prevent="handleInviteMember"
-      >
-        <h2>{{ messages.sendInvitation }}</h2>
-        <label>
-          {{ messages.inviteEmailLabel }}
-          <input v-model="inviteEmail" type="email" maxlength="254" autocomplete="email" required>
-        </label>
-        <button class="primary-button" type="submit" :disabled="submitting">
-          <HexLoader v-if="submitting" size="sm" :label="messages.sendInvitation" hide-label inline :delay="0" :min-visible="0" />
-          {{ messages.sendInvitation }}
-        </button>
-      </form>
-
-      <section v-if="canManageTeam" class="team-panel">
-        <h2>{{ messages.pendingInvitations }}</h2>
-        <p v-if="invitations.length === 0">{{ messages.noPendingInvitations }}</p>
+      <section v-if="canManageTeam" class="members-card" aria-labelledby="invites-heading">
+        <header class="members-card__header">
+          <h2 id="invites-heading">{{ messages.pendingInvitations }}</h2>
+        </header>
+        <p v-if="invitations.length === 0" class="members-card__empty">{{ messages.noPendingInvitations }}</p>
         <ul v-else class="team-list">
           <li v-for="invitation in invitations" :key="invitation.id" class="team-item">
             <div>
               <strong>{{ invitation.email }}</strong>
               <span>{{ messages.invitedBy }} {{ invitation.inviter_name }} · {{ messages.expiresAt }} {{ joinedDate(invitation.expires_at) }}</span>
             </div>
-            <button class="secondary-button" type="button" :disabled="submitting" @click="handleRevokeInvitation(invitation.id)">
+            <Button
+              variant="secondary"
+              size="sm"
+              type="button"
+              :disabled="submitting"
+              @click="handleRevokeInvitation(invitation.id)"
+            >
               {{ messages.revokeInvitation }}
-            </button>
+            </Button>
           </li>
         </ul>
       </section>
-    </template>
+    </div>
 
     <ConfirmDialog
       :open="pending !== null"
@@ -335,9 +358,24 @@ watch(() => props.workspaceId, () => {
 .members-page {
   display: grid;
   gap: var(--space-4);
+  align-content: start;
 }
 
-.members-page > p {
+.members-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.members-intro {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.members-intro > p {
   margin: 0;
 }
 
@@ -355,29 +393,118 @@ watch(() => props.workspaceId, () => {
   max-inline-size: 42rem;
 }
 
+.members-copy {
+  font-size: var(--text-14);
+  line-height: var(--text-14-lh);
+}
+
 .members-readonly {
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--r-md);
-  background: var(--color-surface-raised);
+  background: var(--color-surface);
 }
 
-.team-panel {
+.invite-form {
   display: grid;
-  gap: var(--space-3);
-  padding-block: var(--space-5);
-  border-block: 1px solid var(--color-border);
+  gap: var(--space-2);
+  align-content: start;
+  flex: 1 1 22rem;
+  max-inline-size: 32rem;
 }
 
-.team-panel h2 {
+.invite-label {
+  font-size: var(--text-13);
+  line-height: var(--text-14-lh);
+  color: var(--color-text-secondary);
+}
+
+.invite-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.invite-form input {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  width: auto;
+  min-block-size: 2.5rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--r-md);
+  padding: var(--space-3);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font: inherit;
+}
+
+.invite-form input:focus-visible {
+  outline: none;
+  border-color: var(--color-brand-amber-ui);
+  box-shadow: var(--focus-ring);
+}
+
+.invite-submit {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-block-size: 2.5rem;
+  padding-inline: var(--space-4);
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: var(--color-brand-amber-ui);
+  color: var(--color-on-brand-amber);
+  font-size: var(--text-14);
+  line-height: var(--text-14-lh);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.invite-submit:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-brand-amber-ui) 88%, var(--color-text-primary));
+}
+
+.invite-submit:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.invite-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.members-grid {
+  display: grid;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.members-card {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-md);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.members-card__header {
+  padding: var(--space-3) var(--space-4);
+  border-block-end: 1px solid var(--color-border);
+}
+
+.members-card__header h2 {
   margin: 0;
   font-size: var(--text-16);
   line-height: var(--text-16-lh);
 }
 
-.team-panel label {
-  display: grid;
-  gap: var(--space-2);
+.members-card__empty {
+  margin: 0;
+  padding: var(--space-4);
   color: var(--color-text-secondary);
 }
 
@@ -387,9 +514,6 @@ watch(() => props.workspaceId, () => {
   margin: 0;
   padding: 0;
   list-style: none;
-  border: 1px solid var(--color-border);
-  border-radius: var(--r-md);
-  overflow: hidden;
 }
 
 .team-item {
@@ -422,6 +546,7 @@ watch(() => props.workspaceId, () => {
   padding: 0 var(--space-2);
   border-radius: var(--r-full);
   border: 1px solid var(--color-border);
+  background: var(--surface-brand-soft);
   color: var(--color-text-secondary);
   font-size: var(--text-12);
   line-height: var(--text-12-lh);
@@ -444,6 +569,7 @@ watch(() => props.workspaceId, () => {
 
 .role-field select {
   min-inline-size: 8.5rem;
+  width: auto;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--r-md);
   padding: var(--space-2) var(--space-3);
@@ -452,21 +578,31 @@ watch(() => props.workspaceId, () => {
   font: inherit;
 }
 
+.role-field select:focus-visible {
+  outline: none;
+  border-color: var(--color-brand-amber-ui);
+  box-shadow: var(--focus-ring);
+}
+
 .member-role {
   flex: 0 0 auto;
   padding: var(--space-1) var(--space-2);
   border-radius: var(--r-full);
   border: 1px solid var(--color-border);
+  background: var(--color-surface-raised);
   font-size: var(--text-12);
   line-height: var(--text-12-lh);
 }
 
 .state-card {
   padding: var(--space-5);
-  border-block: 1px solid var(--color-border);
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-md);
+  background: var(--color-surface);
 }
 
 .state-card p {
+  margin: 0 0 var(--space-3);
   color: var(--color-text-secondary);
 }
 
@@ -483,7 +619,31 @@ watch(() => props.workspaceId, () => {
   white-space: nowrap;
 }
 
+@media (min-width: 1100px) {
+  .members-grid {
+    grid-template-columns: minmax(0, 1.35fr) minmax(16rem, 1fr);
+  }
+}
+
 @media (max-width: 720px) {
+  .members-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .invite-form {
+    flex: 0 1 auto;
+    max-inline-size: none;
+  }
+
+  .invite-row {
+    flex-wrap: wrap;
+  }
+
+  .invite-row input {
+    flex: 1 1 100%;
+  }
+
   .team-item {
     align-items: flex-start;
     flex-direction: column;
