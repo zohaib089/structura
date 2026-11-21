@@ -80,6 +80,7 @@ export function linearColumns(
 
 /** Folder depth for a folder centre (project graph): its contents to the right, one column per level. */
 export const LINEAR_FOLDER_DEPTH = 2
+export const LINEAR_ROOT_LABEL = 'Repository'
 
 /**
  * A folder centre has no imports of its own, so Linear lays out what is inside it instead:
@@ -157,10 +158,15 @@ export function buildLinearOverview(
   let top = 0
   let bottom = LINEAR_PILL_HEIGHT
 
+  const isDir = (id: string) => (index.nodesById.get(id)?.kind === 'directory' ? 0 : 1)
   for (const col of [...byColumn.keys()].sort((a, b) => a - b)) {
-    const ids = byColumn.get(col)!.sort((a, b) => compareUtf16(folderOf(index, a), folderOf(index, b)) || compareUtf16(a, b))
+    // Folder centre: folders before files inside each parent folder.
+    const ids = byColumn.get(col)!.sort((a, b) => compareUtf16(folderOf(index, a), folderOf(index, b)) || (folderCentre ? isDir(a) - isDir(b) : 0) || compareUtf16(a, b))
     let rows: Row[] = ids.map((id) => ({ id }))
-    if (ids.length > LINEAR_COLUMN_CAP) {
+    // Folder centre, first column: everything shares one parent, so a single "N files" group would
+    // hide the whole level; list it and let "+N more" page the rest instead.
+    const groupable = !(folderCentre && col === 1)
+    if (groupable && ids.length > LINEAR_COLUMN_CAP) {
       const folders = new Map<string, string[]>()
       for (const id of ids) folders.set(folderOf(index, id), [...(folders.get(folderOf(index, id)) ?? []), id])
       rows = []
@@ -187,7 +193,10 @@ export function buildLinearOverview(
         })
         if (!open) for (const member of row.members) memberOf.set(member, row.id)
       } else {
-        placed.push({ ...nodeModel(index, row.id, depth, false, focusIds), cluster: false, expanded: false, column: col })
+        const model = { ...nodeModel(index, row.id, depth, false, focusIds), cluster: false, expanded: false, column: col }
+        // The project root reads "Repository", as in Radial, not the raw "." path.
+        if (folderCentre && row.id === nucleusId && (model.path === '.' || model.path === '')) model.label = LINEAR_ROOT_LABEL
+        placed.push(model)
       }
     }
     if (hidden.length > 0) {

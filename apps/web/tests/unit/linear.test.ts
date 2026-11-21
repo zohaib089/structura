@@ -133,6 +133,20 @@ describe('linear layout with a folder centre (project graph)', () => {
     expect([...model.columns.values()].every((c) => c >= 0)).toBe(true)
   })
 
+  it('never folds the first level into one group; folders come first and the root reads Repository', () => {
+    const many = {
+      ...document,
+      nodes: [...document.nodes, ...Array.from({ length: 20 }, (_, i) => ({ id: `file:f${String(i).padStart(2, '0')}.md`, kind: 'file', path: `f${String(i).padStart(2, '0')}.md`, label: `f${i}.md` }))],
+      edges: [...document.edges, ...Array.from({ length: 20 }, (_, i) => ({ source: 'dir:.', target: `file:f${String(i).padStart(2, '0')}.md`, type: 'contains', provenance: 'EXTRACTED' }))]
+    } as unknown as GraphDocument
+    const model = buildLinearOverview(indexGraph(many), setNucleus(emptyViewState(), 'dir:.'), defaultFilters())
+    const first = model.nodes.filter((n) => n.column === 1)
+    expect(first.some((n) => n.cluster)).toBe(false)
+    expect(first[0]!.id).toBe('dir:apps')
+    expect(first.at(-1)!.more).toBe(true)
+    expect(model.nodes.find((n) => n.id === 'dir:.')!.label).toBe('Repository')
+  })
+
   it('keeps file centres on the imports layout', () => {
     const model = buildLinearOverview(index, setNucleus(emptyViewState(), 'file:apps/web/main.ts'), defaultFilters())
     expect(model.columns.get('file:packages/engine/index.ts')).toBe(1)

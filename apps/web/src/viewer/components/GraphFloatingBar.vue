@@ -390,7 +390,7 @@ select {
 .floating-bar.density-narrow select,
 .floating-bar.density-xnarrow select { max-inline-size: 8rem; }
 .floating-bar.density-tight select { max-inline-size: 7.5rem; }
-.floating-bar.density-xnarrow .layout-switch button { padding-inline: var(--space-3); }
+.floating-bar.density-xnarrow .layout-switch button { padding-inline: var(--space-2); }
 /* Keep the control row from wrapping under the labelled Fit; the focus chip still uses .below flex-basis 100%. */
 .floating-bar.density-tight,
 .floating-bar.density-narrow { column-gap: var(--space-1); }

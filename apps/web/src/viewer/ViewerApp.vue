@@ -361,7 +361,7 @@ const nucleusLabel = computed(() => {
 /** The centre's visible name ("Repository", not the raw "." path) for the status line. */
 const nucleusShownLabel = computed(() => overview.value?.nodes.find((n) => n.id === nucleusId.value)?.label || nucleusLabel.value)
 const radialStatus = computed(() =>
-  layout.value === 'linear' ? format(messages.statusLinear, { name: nucleusShownLabel.value }) : format(messages.statusRadial, { rings: ringCount.value === 1 ? messages.ringOne : format(messages.ringMany, { n: numbers.format(ringCount.value) }), name: nucleusShownLabel.value })
+  layout.value === 'linear' ? format(index.value?.nodesById.get(nucleusId.value)?.kind === 'directory' ? messages.statusLinearFolder : messages.statusLinear, { name: nucleusShownLabel.value }) : format(messages.statusRadial, { rings: ringCount.value === 1 ? messages.ringOne : format(messages.ringMany, { n: numbers.format(ringCount.value) }), name: nucleusShownLabel.value })
 )
 const panStatus = computed(() =>
   format(messages.statusPanZoom, { nodes: numbers.format(overview.value?.nodes.length ?? 0) })
@@ -654,7 +654,11 @@ function selectNode(id: string, fromClick: boolean, record = fromClick) {
   if (record) remember()
   if (fromClick && !props.fileNeighborhood && props.overviewLayout !== 'folders') recenterOnNode(id, true)
   // Project graph in Linear: a folder click opens that folder's contents (Back returns).
-  else if (fromClick && props.overviewLayout === 'folders' && layout.value === 'linear' && id !== nucleusId.value && index.value?.nodesById.get(id)?.kind === 'directory') recenterOnNode(id, true)
+  else if (fromClick && props.overviewLayout === 'folders' && layout.value === 'linear' && id !== nucleusId.value && index.value?.nodesById.get(id)?.kind === 'directory') {
+    // Keep the folder-overview walk so switching to Radial shows the same folder's contents.
+    viewState.value = setFolderOverview(viewState.value, id)
+    fitSignature.value += 1
+  }
   selection.value = { kind: 'node', id }
   activeId.value = id
   tab.value = 'details'

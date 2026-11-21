@@ -140,6 +140,7 @@ export interface ViewerMessages {
   layoutLinear: string
   linearGroupFiles: string
   statusLinear: string
+  statusLinearFolder: string
   ringOne: string
   ringMany: string
   backTooltip: string
@@ -408,6 +409,7 @@ const en: ViewerMessages = {
   layoutLinear: 'Linear',
   linearGroupFiles: '{n} files',
   statusLinear: 'Linear · used by on the left, uses on the right · centre {name}',
+  statusLinearFolder: 'Linear · what is inside on the right · centre {name}',
   backTooltip: 'Back to the previous graph view',
   announceBack: 'Back to the previous graph view',
   shortcutsTitle: 'Keyboard shortcuts',
