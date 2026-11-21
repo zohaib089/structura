@@ -162,3 +162,20 @@ test('showing the graph again keeps it in its own column (no move beside, no emp
   graph.reveal()
   assert.deepEqual(panel.revealedTo, [2])
 })
+
+test('handleHostMessage routes showImpact', async () => {
+  const vs = createVsCodeMock()
+  let asked = 0
+  await handleHostMessage(vs as unknown as typeof import('vscode'), { type: 'showImpact' }, {
+    folder: undefined,
+    mode: 'project',
+    getState: () => ({ kind: 'declined' }),
+    onScan: () => {},
+    onShowImpact: () => {
+      asked += 1
+    },
+    onShowProjectGraph: () => {},
+    onOpenFolder: () => {}
+  })
+  assert.equal(asked, 1)
+})

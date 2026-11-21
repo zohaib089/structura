@@ -4,7 +4,22 @@ export const GRAPH_MODES = ['file', 'project'] as const
 export type GraphMode = (typeof GRAPH_MODES)[number]
 
 export const HOST_TO_WEBVIEW_TYPES = ['state', 'busy', 'theme'] as const
-export const WEBVIEW_TO_HOST_TYPES = ['ready', 'openFile', 'scan', 'rescan', 'showProjectGraph', 'openFolder'] as const
+export const WEBVIEW_TO_HOST_TYPES = ['ready', 'openFile', 'scan', 'rescan', 'showImpact', 'showProjectGraph', 'openFolder'] as const
+
+export interface ImpactDependent {
+  path: string
+  fileId: string
+  depth: number
+}
+
+/** Downstream dependents of a file, from the engine's impact walk (same as impact_lite). */
+export interface ImpactAlert {
+  targetPath: string
+  targetFileId: string
+  dependents: ImpactDependent[]
+  truncated: boolean
+  depthLimit: number
+}
 
 export type ViewerKind =
   | 'empty-folder'
@@ -38,6 +53,8 @@ export type ViewerState =
       focusPath: string | null
       theme: 'light' | 'dark'
       fileSummaries?: Readonly<Record<string, string | null>>
+      /** Files that depend on the open or saved file; omitted when none was requested. */
+      impact?: ImpactAlert | null
     }
 
 export type HostToWebviewMessage =
@@ -53,6 +70,8 @@ export type WebviewToHostMessage =
   | { type: 'scan' }
   /** Scan again while a graph is open: keep the same file / project view and refresh it. */
   | { type: 'rescan' }
+  /** Compute / show impact for the file open in the editor. */
+  | { type: 'showImpact' }
   | { type: 'showProjectGraph' }
   | { type: 'openFolder' }
 
@@ -62,6 +81,29 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function hasOnlyKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
   return Object.keys(value).every((key) => keys.includes(key))
+}
+
+
+function isImpactDependent(value: unknown): value is ImpactDependent {
+  return (
+    isRecord(value) &&
+    typeof value.path === 'string' &&
+    typeof value.fileId === 'string' &&
+    typeof value.depth === 'number' &&
+    Number.isFinite(value.depth)
+  )
+}
+
+export function isImpactAlert(value: unknown): value is ImpactAlert {
+  return (
+    isRecord(value) &&
+    typeof value.targetPath === 'string' &&
+    typeof value.targetFileId === 'string' &&
+    typeof value.truncated === 'boolean' &&
+    typeof value.depthLimit === 'number' &&
+    Array.isArray(value.dependents) &&
+    value.dependents.every(isImpactDependent)
+  )
 }
 
 export function isGraphMode(value: unknown): value is GraphMode {
@@ -102,7 +144,8 @@ export function isViewerState(value: unknown): value is ViewerState {
         isGraphMode(value.mode) &&
         isGraphPayload(value.graph) &&
         (value.focusPath === null || typeof value.focusPath === 'string') &&
-        (value.theme === 'light' || value.theme === 'dark')
+        (value.theme === 'light' || value.theme === 'dark') &&
+        (value.impact === undefined || value.impact === null || isImpactAlert(value.impact))
       )
     default:
       return false
@@ -123,6 +166,7 @@ export function isWebviewToHostMessage(value: unknown): value is WebviewToHostMe
     case 'ready':
     case 'scan':
     case 'rescan':
+    case 'showImpact':
     case 'showProjectGraph':
     case 'openFolder':
       return hasOnlyKeys(value, ['type'])

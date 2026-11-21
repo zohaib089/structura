@@ -67,6 +67,8 @@ const props = defineProps<{
   insideOpenCaption?: string
   insideCloseCaption?: string
   halfCaptions?: import('../file-neighborhood').HalfRingCaption[]
+  /** File node ids to highlight as change-impact dependents (and the target file). */
+  impactIds?: string[]
 }>()
 
 const hoverId = ref<string | null>(null)
@@ -240,7 +242,7 @@ const flowNodes = () => {
   focusable: false,
   deletable: false,
   data: labelOverrides.value.has(node.id) ? { ...node, label: labelOverrides.value.get(node.id)! } : node,
-  class: hotPath.value.nodes.has(node.id) ? (node.id === activeId.value ? 'is-path is-path-active' : 'is-path') : undefined,
+  class: nodeHighlightClass(node.id),
       ariaLabel: node.more ? props.moreLabel(node.remainder) : node.label,
       domAttributes: {
         'data-node-id': node.id,
@@ -267,6 +269,22 @@ const activeId = computed(() => hoverId.value ?? focusedId.value ?? props.select
 // Radial and Linear both light the route back to the centre file (Linear matched to Radial in ext-g2).
 const hotPath = computed(() => hotPathBetween(props.edges, props.nucleusId ?? null, activeId.value))
 const pathActive = computed(() => hotPath.value.nodes.size > 0)
+const impactIdSet = computed(() => new Set(props.impactIds ?? []))
+function nodeHighlightClass(id: string): string | undefined {
+  const classes: string[] = []
+  if (hotPath.value.nodes.has(id)) {
+    classes.push('is-path')
+    if (id === activeId.value) classes.push('is-path-active')
+  }
+  if (impactIdSet.value.has(id)) classes.push('is-impact')
+  return classes.length ? classes.join(' ') : undefined
+}
+function edgeHighlightClass(id: string, source: string, target: string): string | undefined {
+  const classes: string[] = []
+  if (hotPath.value.edges.has(id)) classes.push('is-path')
+  if (impactIdSet.value.has(source) && impactIdSet.value.has(target)) classes.push('is-impact')
+  return classes.length ? classes.join(' ') : undefined
+}
 function onFocusIn(event: FocusEvent) {
   const el = (event.target as HTMLElement | null)?.closest<HTMLElement>('.vue-flow__node')
   const id = el?.dataset.id
@@ -284,7 +302,7 @@ const flowEdges = () => props.edges.filter((edge) => !foldedIds.value.has(edge.s
   selectable: true,
   deletable: false,
   focusable: false,
-  class: hotPath.value.edges.has(edge.id) ? 'is-path' : undefined,
+  class: edgeHighlightClass(edge.id, edge.source, edge.target),
   data: {
     ...edge,
     flowing: flowing(edge),
@@ -555,6 +573,20 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
 /* Linear path: pills on the route get an amber edge, the hovered / focused one a full amber ring. */
 .canvas[data-layout='linear'] :deep(.vue-flow__node.is-path .linear-pill) { border-color: var(--color-brand-amber-ui); }
 .canvas[data-layout='linear'] :deep(.vue-flow__node.is-path-active .linear-pill) {
+  outline: 2px solid var(--color-brand-amber-ui);
+  outline-offset: 2px;
+}
+/* Change-impact: amber ring on affected files, even when no hover path is active. */
+.canvas :deep(.vue-flow__node.is-impact .kind-mark) {
+  outline: calc(2px * var(--graph-disc-scale, 1)) solid var(--color-brand-amber-ui);
+  outline-offset: calc(5px * var(--graph-disc-scale, 1));
+  border-radius: 50%;
+}
+.canvas :deep(.vue-flow__edge.is-impact .vue-flow__edge-path) {
+  stroke: var(--color-brand-amber-ui) !important;
+  stroke-width: calc(1.7px * var(--graph-disc-scale, 1)) !important;
+}
+.canvas[data-layout='linear'] :deep(.vue-flow__node.is-impact .linear-pill) {
   outline: 2px solid var(--color-brand-amber-ui);
   outline-offset: 2px;
 }

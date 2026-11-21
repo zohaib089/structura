@@ -128,6 +128,7 @@ function latestState(vs: VsCodeMock): ViewerState | undefined {
 test('activate registers both graph commands and the activity bar view', () => {
   const { vs } = setup({ pregranted: true, consentChoice: messages.scanAction })
   assert.equal(vs._commands.has(COMMANDS.showFileGraph), true)
+  assert.equal(vs._commands.has(COMMANDS.showImpact), true)
   assert.equal(vs._commands.has(COMMANDS.showProjectGraph), true)
   assert.equal(vs._treeProviders.has(GRAPH_VIEW_ID), true)
   const provider = vs._treeProviders.get(GRAPH_VIEW_ID) as AtlasmithGraphViewProvider
@@ -333,4 +334,128 @@ test('a VS Code theme change recolours the open graph without a rescan or a new 
   } finally {
     for (const sub of subs) sub.dispose()
   }
+})
+
+function chainGraph(): Graph {
+  const base = testGraph()
+  return {
+    ...base,
+    summary: { nodes: 4, edges: 5, files: 3 },
+    coverage: {
+      ...base.coverage,
+      files: { ...base.coverage.files, discovered: 3, parsed: 3 },
+      accounting: { discovered: 3, accounted: 3 }
+    },
+    nodes: [
+      ...base.nodes,
+      {
+        id: 'file:src/util.ts',
+        kind: 'file',
+        path: 'src/util.ts',
+        label: 'util.ts',
+        language: 'typescript',
+        lineCount: 4,
+        parse: { status: 'parsed' }
+      },
+      {
+        id: 'file:src/entry.ts',
+        kind: 'file',
+        path: 'src/entry.ts',
+        label: 'entry.ts',
+        language: 'typescript',
+        lineCount: 4,
+        parse: { status: 'parsed' }
+      }
+    ],
+    edges: [
+      ...base.edges,
+      { source: 'dir:.', type: 'contains', target: 'file:src/util.ts', provenance: 'EXTRACTED' },
+      { source: 'dir:.', type: 'contains', target: 'file:src/entry.ts', provenance: 'EXTRACTED' },
+      { source: 'file:src/app.ts', type: 'imports', target: 'file:src/util.ts', provenance: 'EXTRACTED', specifier: './util', span: { start: { line: 1, col: 1 }, end: { line: 1, col: 1 } } },
+      { source: 'file:src/entry.ts', type: 'imports', target: 'file:src/app.ts', provenance: 'EXTRACTED', specifier: './app', span: { start: { line: 1, col: 1 }, end: { line: 1, col: 1 } } }
+    ]
+  }
+}
+
+test('a file graph includes an impact alert for the open file', async () => {
+  const graph = chainGraph()
+  const scanner = fakeScanner({ scans: [testOutput(graph)] })
+  const { vs } = setup({ pregranted: true, activeFile: '/repo/demo/src/util.ts', scanner })
+  await vs.commands.executeCommand(COMMANDS.showFileGraph)
+  const state = latestState(vs)
+  assert.equal(state?.kind, 'graph')
+  if (state?.kind !== 'graph') return
+  assert.equal(state.focusPath, 'src/util.ts')
+  assert.ok(state.impact)
+  assert.equal(state.impact?.targetPath, 'src/util.ts')
+  assert.deepEqual(
+    state.impact?.dependents.map((row) => row.path),
+    ['src/app.ts', 'src/entry.ts']
+  )
+})
+
+test('a project graph has no impact until the user asks or saves', async () => {
+  const graph = chainGraph()
+  const scanner = fakeScanner({ scans: [testOutput(graph)] })
+  const { vs } = setup({ pregranted: true, scanner })
+  await vs.commands.executeCommand(COMMANDS.showProjectGraph)
+  const state = latestState(vs)
+  assert.equal(state?.kind, 'graph')
+  if (state?.kind !== 'graph') return
+  assert.equal(state.impact ?? null, null)
+})
+
+test('Show what this change affects uses the open file on a project graph', async () => {
+  const graph = chainGraph()
+  const scanner = fakeScanner({ scans: [testOutput(graph)] })
+  const { vs } = setup({ pregranted: true, activeFile: '/repo/demo/src/util.ts', scanner })
+  await vs.commands.executeCommand(COMMANDS.showProjectGraph)
+  const before = latestState(vs)
+  assert.equal(before?.kind, 'graph')
+  if (before?.kind !== 'graph') return
+  assert.equal(before.impact ?? null, null)
+  await vs.commands.executeCommand(COMMANDS.showImpact)
+  const state = latestState(vs)
+  assert.equal(state?.kind, 'graph')
+  if (state?.kind !== 'graph') return
+  assert.equal(state.mode, 'project')
+  assert.equal(state.impact?.targetPath, 'src/util.ts')
+  assert.equal(state.impact?.dependents.length, 2)
+  assert.equal(scanner.calls, 1)
+})
+
+test('saving a file attaches impact for that file after the refresh', async () => {
+  const graph = chainGraph()
+  const scanner = fakeScanner({ scans: [testOutput(graph), testOutput(graph)] })
+  const { vs, session } = setup({ pregranted: true, scanner })
+  const subs = registerInvalidation(session, vs as unknown as typeof import('vscode'))
+  const original = GraphSession.prototype.scheduleRefresh
+  GraphSession.prototype.scheduleRefresh = function (this: GraphSession, _delay?: number, relativePath?: string) {
+    return original.call(this, 5, relativePath)
+  }
+  try {
+    await vs.commands.executeCommand(COMMANDS.showProjectGraph)
+    const before = latestState(vs)
+    assert.equal(before?.kind, 'graph')
+    if (before?.kind !== 'graph') return
+    assert.equal(before.impact ?? null, null)
+    vs._save('/repo/demo/src/util.ts')
+    await new Promise((resolve) => setTimeout(resolve, 40))
+    const state = latestState(vs)
+    assert.equal(state?.kind, 'graph')
+    if (state?.kind !== 'graph') return
+    assert.equal(state.impact?.targetPath, 'src/util.ts')
+    assert.equal(state.impact?.dependents[0]?.path, 'src/app.ts')
+    assert.equal(scanner.calls, 2)
+  } finally {
+    GraphSession.prototype.scheduleRefresh = original
+    for (const sub of subs) sub.dispose()
+  }
+})
+
+test('asking for impact without an open file explains what to do', async () => {
+  const { vs } = setup({ pregranted: true, activeFile: null, folders: true })
+  await vs.commands.executeCommand(COMMANDS.showImpact)
+  assert.equal(vs._warnings.length, 1)
+  assert.match(vs._warnings[0]!, /Open a file first/)
 })
