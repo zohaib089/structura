@@ -63,4 +63,13 @@ describe('radial fit (S3 mobile)', () => {
     const rightmost = Math.max(...nodes.map((n) => vp.x + (n.x + n.width) * vp.zoom))
     expect(rightmost).toBeLessThanOrEqual(380 - 56 + 1)
   })
+
+  it('refits an automatic first fit when the pane later reaches its real size (VS Code 1024 split)', () => {
+    const frame = read('src/viewer/components/FitFrame.vue')
+    expect(frame).toContain('ResizeObserver')
+    expect(frame).toContain('canvasSizeDrifted')
+    expect(frame).toContain('onCanvasResized')
+    // A zoom or pan the person made must not be overwritten when the pane resizes.
+    expect(frame).toContain('sameViewport(lastFit, flow.viewport.value)')
+  })
 })

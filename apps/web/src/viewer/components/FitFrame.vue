@@ -768,6 +768,8 @@ watch(
 async function fit(opts: { duration?: number } = {}) {
   settledSignature = ''
   const gen = ++fitGen
+  const startCanvas = flow.vueFlowRef.value
+  const startSize = startCanvas ? { width: startCanvas.clientWidth, height: startCanvas.clientHeight } : { width: 0, height: 0 }
   const stale = () => gen !== fitGen
   const restore = props.restore
   if (restore && restore.token !== restoredToken && restore.viewport) {
@@ -840,6 +842,42 @@ async function fit(opts: { duration?: number } = {}) {
     if (Math.abs(flow.viewport.value.zoom - before) <= before * 0.005) break
   }
   lastFit = { ...flow.viewport.value }
+  const canvas = flow.vueFlowRef.value
+  rememberFitSize(canvas)
+  attachCanvasObserver()
+  // The pane changed while this fit was running: go again with the real size.
+  if (canvas && canvas.clientWidth > 0 && (Math.abs(canvas.clientWidth - startSize.width) >= 2 || Math.abs(canvas.clientHeight - startSize.height) >= 2)) {
+    queueFit()
+  }
+}
+
+let lastFitSize = { width: 0, height: 0 }
+function rememberFitSize(canvas: HTMLElement | null) {
+  if (!canvas) return
+  lastFitSize = { width: canvas.clientWidth, height: canvas.clientHeight }
+}
+function canvasSizeDrifted(canvas: HTMLElement) {
+  return Math.abs(canvas.clientWidth - lastFitSize.width) >= 2 || Math.abs(canvas.clientHeight - lastFitSize.height) >= 2
+}
+// First open in a VS Code split often runs the fit before the webview has its final width (a 1024px
+// window left the right-hand pills cut off until Fit was pressed). Re-fit when the pane settles, but
+// only while the view is still the automatic fit — a zoom or pan the person made is left alone.
+let canvasObserver: ResizeObserver | null = null
+function onCanvasResized() {
+  const canvas = flow.vueFlowRef.value
+  if (!canvas || canvas.clientWidth === 0 || !canvasSizeDrifted(canvas)) return
+  // lastFit is null during a restore / keep-view, or before the first fit finishes — don't overwrite those.
+  if (lastFit && sameViewport(lastFit, flow.viewport.value)) {
+    queueFit()
+    return
+  }
+  rememberFitSize(canvas)
+}
+function attachCanvasObserver() {
+  const canvas = flow.vueFlowRef.value
+  if (!canvas || typeof ResizeObserver === 'undefined' || canvasObserver) return
+  canvasObserver = new ResizeObserver(() => onCanvasResized())
+  canvasObserver.observe(canvas)
 }
 
 let fitQueued = false
@@ -901,9 +939,12 @@ const onFontsDone = () => scheduleDeclutter()
 onMounted(() => {
   fonts?.addEventListener?.('loadingdone', onFontsDone)
   void fonts?.ready?.then(onFontsDone)
+  attachCanvasObserver()
 })
 onBeforeUnmount(() => {
   fonts?.removeEventListener?.('loadingdone', onFontsDone)
+  canvasObserver?.disconnect()
+  canvasObserver = null
   window.clearTimeout(declutterTimer)
 })
 defineExpose({ fit, getViewport })

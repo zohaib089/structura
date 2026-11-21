@@ -44,6 +44,8 @@ const props = defineProps<{
   insideOpenCaption?: string
   insideCloseCaption?: string
   expandCaption?: string
+  /** Folder group caption, e.g. "12 files". Falls back to the raw count. */
+  groupLabel?: string
 }>()
 
 const emit = defineEmits<{ select: []; toggle: [] }>()
@@ -213,7 +215,7 @@ function onSpace(event: KeyboardEvent) {
         />
         <span v-if="fileChips.overflow > 0" class="severity-overflow">+{{ fileChips.overflow }}</span>
       </span>
-      <span v-if="cluster && !plainMarks" class="count tnum">{{ clusterSize }}</span>
+      <span v-if="cluster && !plainMarks" class="count tnum">{{ groupLabel || clusterSize }}</span>
       <button
         v-if="insideLabel"
         type="button"

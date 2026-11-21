@@ -20,6 +20,7 @@ import type { GraphDocument, GraphError, GraphNode } from './graph-types'
 import { formatMessage, viewerMessages } from './messages'
 import { GraphHistory, type GraphSnapshot } from './graph-history'
 import { buildLinearOverview, isLinearControlId, toggleLinear } from './linear'
+import { restorePreservedView, type PreservedView } from './preserve-view'
 import { readLayoutPreference, writeLayoutPreference } from './layout-preference'
 import {
   buildOverview,
@@ -494,18 +495,34 @@ async function openSample() {
   await openBlob(file, true)
 }
 
-async function loadGraphDocument(document: GraphDocument) {
+async function loadGraphDocument(document: GraphDocument, opts: { preserveView?: boolean } = {}) {
+  const preserved: PreservedView | null = opts.preserveView
+    ? {
+        viewState: {
+          ...viewState.value,
+          expanded: [...viewState.value.expanded],
+          revealed: { ...viewState.value.revealed },
+          pinned: [...viewState.value.pinned]
+        },
+        filters: { ...filters.value, kinds: filters.value.kinds ? [...filters.value.kinds] : null, languages: filters.value.languages ? [...filters.value.languages] : null },
+        selection: selection.value,
+        focus: focus.value,
+        viewport: graphCanvas.value?.getViewport() ?? null
+      }
+    : null
   handle?.cancel()
   graph.value = document
   error.value = null
   loading.value = false
   loadingVisible.value = false
   ready.value = false
-  selection.value = null
-  focus.value = null
-  forgetHistory()
+  if (!preserved) {
+    selection.value = null
+    focus.value = null
+    forgetHistory()
+    filters.value = defaultFilters()
+  }
   viewState.value = freshViewState()
-  filters.value = defaultFilters()
   sample.value = false
   fileName.value = 'scan-graph.json'
   const indexed = indexGraph(document)
@@ -518,6 +535,19 @@ async function loadGraphDocument(document: GraphDocument) {
   }
   if (document.nodes.length === 0) ready.value = true
   applyFocusPath(props.focusPath)
+  if (preserved) {
+    const restored = restorePreservedView(preserved, indexed, viewState.value)
+    viewState.value = restored.viewState
+    filters.value = restored.filters
+    focus.value = restored.focus
+    if (restored.selection?.kind === 'node') {
+      selection.value = restored.selection
+      activeId.value = restored.selection.id
+    } else {
+      selection.value = restored.selection
+    }
+    if (restored.viewport) restoreView.value = { token: ++viewToken, viewport: restored.viewport }
+  }
 }
 
 function applyFocusPath(path: string | null) {
@@ -535,17 +565,24 @@ function applyFocusPath(path: string | null) {
 }
 
 watch(
-  () => props.graphDocument,
-  (document, previous) => {
-    if (!document || document === previous) return
-    void loadGraphDocument(document)
+  () => ({ document: props.graphDocument, focusPath: props.focusPath, overviewLayout: props.overviewLayout, fileNeighborhood: props.fileNeighborhood }),
+  (next, prev) => {
+    if (!next.document || next.document === prev?.document) return
+    // Keep zoom and selection only when the host refreshes the same view (Scan again / save),
+    // not when switching file ↔ project or opening a different file.
+    const sameView = Boolean(prev?.document) &&
+      prev.focusPath === next.focusPath &&
+      prev.overviewLayout === next.overviewLayout &&
+      prev.fileNeighborhood === next.fileNeighborhood
+    void loadGraphDocument(next.document, { preserveView: sameView })
   }
 )
 
 watch(
-  () => [props.focusPath, index.value] as const,
-  ([path, idx]) => {
-    if (!idx) return
+  () => props.focusPath,
+  (path) => {
+    // Only when the host points at a different file — a refresh of the same graph keeps the selection.
+    if (!index.value) return
     applyFocusPath(path)
   }
 )
@@ -1727,6 +1764,15 @@ button:disabled { opacity: var(--alpha-40); }
 .inspector-head [role='tab'] { flex: 1 1 auto; gap: 4px; padding: 0 6px; white-space: nowrap; overflow: hidden; }
 .inspector-head [role='tab'] svg { flex-shrink: 0; }
 .inspector-head [role='tab'][aria-selected='false'] { flex: 0 0 auto; }
+/* The selected name ("Details") must stay in full; unselected tabs are already icon-only. Below 260px the
+ * coverage count used to steal the space and cut the label down to "Det". */
+.inspector-head [role='tab'][aria-selected='true'] { flex: 0 0 auto; min-inline-size: auto; overflow: visible; }
+.inspector-head [role='tab'][aria-selected='true'] .tab-label { overflow: visible; }
+@media (max-width: 260px) {
+  .inspector-head .tab-count {
+    position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
+}
 /* Narrow panel: unselected tabs show icon (+ count); the label stays for screen readers and the tooltip. */
 .inspector-head [role='tab'][aria-selected='false'] .tab-label {
   position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;

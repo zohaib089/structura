@@ -81,7 +81,7 @@ function activate() {
     <span v-else-if="more" class="mark" aria-hidden="true">+</span>
     <span class="text text-wide" dir="ltr" aria-hidden="true">{{ wide }}</span>
     <span class="text text-narrow" dir="ltr" aria-hidden="true">{{ narrow }}</span>
-    <span v-if="cluster" class="count">{{ clusterSize }}</span>
+    <span v-if="cluster" class="count">{{ groupLabel }}</span>
     <span :id="tipId" class="full" :class="{ 'is-dismissed': tipDismissed }" role="tooltip" dir="ltr">{{ full }}</span>
     <Handle type="source" :position="Position.Right" />
   </div>

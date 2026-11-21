@@ -147,6 +147,40 @@ describe('linear layout with a folder centre (project graph)', () => {
     expect(model.nodes.find((n) => n.id === 'dir:.')!.label).toBe('Repository')
   })
 
+
+  it('lists each top folder only once (no second-column group with the same name)', () => {
+    const extraDirs = ['docs', 'scripts', 'knowledge', '.github']
+    const extraFiles = [
+      ...Array.from({ length: 8 }, (_, i) => `knowledge/n${i}.md`),
+      ...Array.from({ length: 8 }, (_, i) => `packages/p${i}.ts`),
+      ...Array.from({ length: 3 }, (_, i) => `docs/d${i}.md`),
+      ...Array.from({ length: 3 }, (_, i) => `scripts/s${i}.ts`),
+      ...Array.from({ length: 2 }, (_, i) => `.github/g${i}.yml`)
+    ]
+    const parent = (p: string) => (p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : '.')
+    const many = {
+      ...document,
+      nodes: [
+        ...document.nodes,
+        ...extraDirs.filter((d) => !dirs.includes(d)).map((path) => ({ id: `dir:${path}`, kind: 'directory', path, label: path })),
+        ...extraFiles.map((path) => ({ id: `file:${path}`, kind: 'file', path, label: path.split('/').pop(), language: 'typescript' }))
+      ],
+      edges: [
+        ...document.edges,
+        ...extraDirs.filter((d) => !dirs.includes(d)).map((d) => ({ source: `dir:${parent(d)}`, target: `dir:${d}`, type: 'contains', provenance: 'EXTRACTED' })),
+        ...extraFiles.map((f) => ({ source: `dir:${parent(f)}`, target: `file:${f}`, type: 'contains', provenance: 'EXTRACTED' }))
+      ]
+    } as unknown as GraphDocument
+    const model = buildLinearOverview(indexGraph(many), setNucleus(emptyViewState(), 'dir:.'), defaultFilters())
+    const names = (col: number) => model.nodes.filter((n) => n.column === col && !n.more).map((n) => n.label)
+    const firstFolders = names(1).filter((label, i, all) => all.indexOf(label) === i)
+    const second = names(2)
+    for (const folder of firstFolders) {
+      expect(second).not.toContain(folder)
+    }
+    expect(model.nodes.some((n) => n.cluster && (n.column ?? 0) > 0)).toBe(false)
+  })
+
   it('keeps file centres on the imports layout', () => {
     const model = buildLinearOverview(index, setNucleus(emptyViewState(), 'file:apps/web/main.ts'), defaultFilters())
     expect(model.columns.get('file:packages/engine/index.ts')).toBe(1)

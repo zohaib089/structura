@@ -13,6 +13,7 @@ import FocusBar from '../../src/viewer/components/FocusBar.vue'
 import GraphLegend from '../../src/viewer/components/GraphLegend.vue'
 import GraphSourcePicker from '../../src/viewer/components/GraphSourcePicker.vue'
 import NodeDetail from '../../src/viewer/components/NodeDetail.vue'
+import LinearPill from '../../src/viewer/components/LinearPill.vue'
 import OverviewNode from '../../src/viewer/components/OverviewNode.vue'
 import SearchPalette from '../../src/viewer/components/SearchPalette.vue'
 import { readGraph } from '../../src/viewer/read-graph'
@@ -278,5 +279,37 @@ describe('viewer components', () => {
     })
     expect(palette.get('[data-testid="search-input"]').element).toBeInstanceOf(HTMLInputElement)
     await flushPromises()
+  })
+
+  it("shows 'N files' on a Linear folder group, not a plain number", () => {
+    const wrapper = mount(LinearPill, {
+      global: { stubs: { Handle: true } },
+      props: {
+        id: 'lgroup:1:apps',
+        label: 'apps',
+        path: 'apps',
+        kind: 'directory',
+        cluster: true,
+        clusterSize: 12,
+        expanded: false,
+        more: false,
+        remainder: 0,
+        selected: false,
+        nucleus: false,
+        dimmed: false,
+        tabIndex: 0,
+        moreLabel: '+1 more',
+        groupLabel: '12 files'
+      }
+    })
+    expect(wrapper.get('.count').text()).toBe('12 files')
+    expect(wrapper.attributes('aria-label')).toContain('12 files')
+  })
+
+  it('keeps the selected Details tab label fully visible below 260px', () => {
+    const css = readFileSync(resolve('src/viewer/ViewerApp.vue'), 'utf8')
+    expect(css).toContain("[role='tab'][aria-selected='true']")
+    expect(css).toContain('@media (max-width: 260px)')
+    expect(css).toContain('.tab-count')
   })
 })
