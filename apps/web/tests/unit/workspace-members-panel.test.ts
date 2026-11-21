@@ -10,6 +10,7 @@ const inviteWorkspaceMember = vi.fn()
 const revokeWorkspaceInvitation = vi.fn()
 const updateWorkspaceMemberRole = vi.fn()
 const removeWorkspaceMember = vi.fn()
+const transferWorkspaceOwnership = vi.fn()
 
 vi.mock('../../src/services/workspaces', async () => {
   const actual = await vi.importActual<typeof import('../../src/services/workspaces')>('../../src/services/workspaces')
@@ -20,7 +21,8 @@ vi.mock('../../src/services/workspaces', async () => {
     inviteWorkspaceMember: (...args: unknown[]) => inviteWorkspaceMember(...args),
     revokeWorkspaceInvitation: (...args: unknown[]) => revokeWorkspaceInvitation(...args),
     updateWorkspaceMemberRole: (...args: unknown[]) => updateWorkspaceMemberRole(...args),
-    removeWorkspaceMember: (...args: unknown[]) => removeWorkspaceMember(...args)
+    removeWorkspaceMember: (...args: unknown[]) => removeWorkspaceMember(...args),
+    transferWorkspaceOwnership: (...args: unknown[]) => transferWorkspaceOwnership(...args)
   }
 })
 
@@ -155,4 +157,67 @@ describe('WorkspaceMembersPanel', () => {
     expect(wrapper.get('[role="alert"]').text()).toContain('This workspace needs at least one owner')
     wrapper.unmount()
   })
+
+  it('asks to transfer ownership when an owner is chosen, and stays on as an admin by default', async () => {
+    const wrapper = await mountPanel()
+    const roleSelect = wrapper.findAll('select').find(select =>
+      (select.element as HTMLSelectElement).value === 'member'
+    )
+    expect(roleSelect).toBeTruthy()
+    await roleSelect!.setValue('owner')
+    await flushPromises()
+    const dialog = document.body.querySelector('[role="dialog"]') as HTMLElement | null
+    expect(dialog).not.toBeNull()
+    expect(dialog?.textContent).toContain('Make Jordan Writer the owner?')
+    expect(dialog?.textContent).toContain("You'll stay on as an admin.")
+    const checkbox = dialog?.querySelector('input[type="checkbox"]') as HTMLInputElement | null
+    expect(checkbox?.checked).toBe(true)
+    expect(transferWorkspaceOwnership).not.toHaveBeenCalled()
+
+    transferWorkspaceOwnership.mockResolvedValue({
+      member: { id: 'user-2', role: 'owner', created_at: member.created_at },
+      left: false
+    })
+    const confirm = [...document.body.querySelectorAll('button')].find(button =>
+      button.textContent?.trim() === 'Make owner'
+    )
+    expect(confirm).toBeTruthy()
+    confirm!.click()
+    await flushPromises()
+    expect(transferWorkspaceOwnership).toHaveBeenCalledWith('workspace-1', 'user-2', true)
+    expect(updateWorkspaceMemberRole).not.toHaveBeenCalled()
+    expect(wrapper.emitted('roleChanged')).toEqual([['admin']])
+    expect(wrapper.text()).toContain('Admin')
+    wrapper.unmount()
+  })
+
+  it('lets the owner leave instead of staying on as an admin', async () => {
+    const wrapper = await mountPanel()
+    const roleSelect = wrapper.findAll('select').find(select =>
+      (select.element as HTMLSelectElement).value === 'member'
+    )
+    await roleSelect!.setValue('owner')
+    await flushPromises()
+    const dialog = document.body.querySelector('[role="dialog"]') as HTMLElement
+    const checkbox = dialog.querySelector('input[type="checkbox"]') as HTMLInputElement
+    checkbox.checked = false
+    checkbox.dispatchEvent(new Event('input', { bubbles: true }))
+    checkbox.dispatchEvent(new Event('change', { bubbles: true }))
+    await flushPromises()
+    expect(dialog.textContent).toContain("You'll leave this workspace.")
+
+    transferWorkspaceOwnership.mockResolvedValue({
+      member: { id: 'user-2', role: 'owner', created_at: member.created_at },
+      left: true
+    })
+    const confirm = [...document.body.querySelectorAll('button')].find(button =>
+      button.textContent?.trim() === 'Make owner'
+    )
+    confirm!.click()
+    await flushPromises()
+    expect(transferWorkspaceOwnership).toHaveBeenCalledWith('workspace-1', 'user-2', false)
+    expect(wrapper.emitted('left')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
 })

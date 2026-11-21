@@ -371,6 +371,111 @@ export function registerWorkspaceRoutes(app: FastifyInstance, database: Workspac
       return { success: true }
     }
   )
+
+  app.post<{ Params: { workspaceId: string } }>(
+    '/api/workspaces/:workspaceId/transfer-ownership',
+    async (request, reply) => {
+      const userId = await authenticatedUserId(request.headers.authorization, database)
+      if (!userId) return unauthenticated(reply)
+
+      const body = readRecord(request.body)
+      const memberId = typeof body?.memberId === 'string' ? body.memberId.trim() : ''
+      if (!memberId) {
+        return reply.code(400).send({
+          success: false,
+          message: 'A member id is required.'
+        })
+      }
+      if (body?.stayAsAdmin !== undefined && typeof body.stayAsAdmin !== 'boolean') {
+        return reply.code(400).send({
+          success: false,
+          message: 'stayAsAdmin must be true or false.'
+        })
+      }
+      const stayAsAdmin = body?.stayAsAdmin !== false
+      if (memberId === userId) {
+        return reply.code(400).send({
+          success: false,
+          message: 'You cannot transfer ownership to yourself.'
+        })
+      }
+
+      const result = await database.transaction(async query => {
+        const locked = await query(
+          `SELECT user_id, role
+           FROM workspace_members
+           WHERE workspace_id = $1
+             AND (role = 'owner' OR user_id IN ($2, $3))
+           FOR UPDATE`,
+          [request.params.workspaceId, userId, memberId]
+        )
+        const actorRole = memberRoleOf(locked.rows, userId)
+        if (!actorRole) {
+          return { status: 404 as const, message: 'Workspace not found.' }
+        }
+        if (actorRole !== 'owner') {
+          return {
+            status: 403 as const,
+            message: 'Only an owner can transfer ownership.'
+          }
+        }
+
+        const targetRole = memberRoleOf(locked.rows, memberId)
+        if (!targetRole) {
+          return { status: 404 as const, message: 'Member not found.' }
+        }
+
+        // Promote the new owner first so last-owner protection holds when the
+        // acting owner is then demoted to admin or removed in this transaction.
+        const updated = await query(
+          `UPDATE workspace_members
+           SET role = $3
+           WHERE workspace_id = $1 AND user_id = $2
+           RETURNING user_id, role, created_at`,
+          [request.params.workspaceId, memberId, 'owner']
+        )
+        const member = updated.rows[0]
+        if (!member) {
+          return { status: 404 as const, message: 'Member not found.' }
+        }
+
+        if (stayAsAdmin) {
+          const demoted = await query(
+            `UPDATE workspace_members
+             SET role = $3
+             WHERE workspace_id = $1 AND user_id = $2
+             RETURNING user_id, role, created_at`,
+            [request.params.workspaceId, userId, 'admin']
+          )
+          if (!demoted.rows[0]) {
+            return { status: 404 as const, message: 'Workspace not found.' }
+          }
+        } else {
+          const removed = await query(
+            `DELETE FROM workspace_members
+             WHERE workspace_id = $1 AND user_id = $2
+             RETURNING user_id`,
+            [request.params.workspaceId, userId]
+          )
+          if (removed.rows.length === 0) {
+            return { status: 404 as const, message: 'Workspace not found.' }
+          }
+        }
+
+        return {
+          status: 200 as const,
+          member: { id: member.user_id, role: member.role, created_at: member.created_at },
+          left: !stayAsAdmin
+        }
+      })
+
+      if (result.status !== 200) {
+        return reply.code(result.status).send({ success: false, message: result.message })
+      }
+      return { success: true, member: result.member, left: result.left }
+    }
+  )
+
 }
 
 export function registerWorkspaceInvitationRoutes(

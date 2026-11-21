@@ -13,6 +13,7 @@ import {
   listWorkspaceMembers,
   removeWorkspaceMember,
   revokeWorkspaceInvitation,
+  transferWorkspaceOwnership,
   updateWorkspaceMemberRole,
   WorkspaceApiError,
   type Workspace,
@@ -30,6 +31,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   left: []
+  roleChanged: [role: Workspace['role']]
 }>()
 
 const messages = computed(() => dashboardMessages(props.locale))
@@ -45,15 +47,18 @@ const canManageTeam = computed(() => props.currentRole === 'owner' || props.curr
 
 type PendingAction =
   | { type: 'role'; member: WorkspaceMember; role: Workspace['role'] }
+  | { type: 'transfer'; member: WorkspaceMember }
   | { type: 'remove'; member: WorkspaceMember }
   | { type: 'leave' }
   | null
 
 const pending = ref<PendingAction>(null)
+const stayAsAdmin = ref(true)
 
 const dialogTitle = computed(() => {
   if (!pending.value) return ''
   if (pending.value.type === 'role') return messages.value.confirmChangeRoleTitle
+  if (pending.value.type === 'transfer') return messages.value.confirmTransferTitle(pending.value.member.full_name)
   if (pending.value.type === 'remove') return messages.value.confirmRemoveTitle
   return messages.value.confirmLeaveTitle
 })
@@ -66,6 +71,11 @@ const dialogBody = computed(() => {
       roleLabel(pending.value.role)
     )
   }
+  if (pending.value.type === 'transfer') {
+    return stayAsAdmin.value
+      ? messages.value.confirmTransferBodyStay
+      : messages.value.confirmTransferBodyLeave
+  }
   if (pending.value.type === 'remove') return messages.value.confirmRemoveBody(pending.value.member.full_name)
   return messages.value.confirmLeaveBody
 })
@@ -73,6 +83,7 @@ const dialogBody = computed(() => {
 const dialogConfirm = computed(() => {
   if (!pending.value) return ''
   if (pending.value.type === 'role') return messages.value.confirmChangeRole
+  if (pending.value.type === 'transfer') return messages.value.confirmTransfer
   if (pending.value.type === 'remove') return messages.value.confirmRemove
   return messages.value.confirmLeave
 })
@@ -161,6 +172,11 @@ function onRoleInput(member: WorkspaceMember, event: Event) {
   if (value === member.role || (value !== 'owner' && value !== 'admin' && value !== 'member')) {
     return
   }
+  if (value === 'owner' && member.id !== props.currentUserId && props.currentRole === 'owner') {
+    stayAsAdmin.value = true
+    pending.value = { type: 'transfer', member }
+    return
+  }
   pending.value = { type: 'role', member, role: value }
 }
 
@@ -188,6 +204,27 @@ async function confirmPending() {
         member.id === updated.id ? { ...member, role: updated.role, created_at: updated.created_at } : member
       )
       showToast(messages.value.roleChanged)
+    } else if (action.type === 'transfer') {
+      const transferred = await transferWorkspaceOwnership(
+        props.workspaceId,
+        action.member.id,
+        stayAsAdmin.value
+      )
+      if (transferred.left) {
+        pending.value = null
+        showToast(messages.value.ownershipTransferred)
+        emit('left')
+        return
+      }
+      members.value = members.value.map(member => {
+        if (member.id === transferred.member.id) {
+          return { ...member, role: transferred.member.role, created_at: transferred.member.created_at }
+        }
+        if (member.id === props.currentUserId) return { ...member, role: 'admin' }
+        return member
+      })
+      emit('roleChanged', 'admin')
+      showToast(messages.value.ownershipTransferred)
     } else if (action.type === 'remove') {
       await removeWorkspaceMember(props.workspaceId, action.member.id)
       members.value = members.value.filter(member => member.id !== action.member.id)
@@ -350,7 +387,12 @@ watch(() => props.workspaceId, () => {
       :busy="submitting"
       @confirm="confirmPending"
       @cancel="cancelPending"
-    />
+    >
+      <label v-if="pending?.type === 'transfer'" class="stay-admin">
+        <input v-model="stayAsAdmin" type="checkbox" :disabled="submitting">
+        {{ messages.stayAsAdminLabel }}
+      </label>
+    </ConfirmDialog>
   </section>
 </template>
 
@@ -608,6 +650,20 @@ watch(() => props.workspaceId, () => {
 
 .error-state {
   border-color: color-mix(in srgb, var(--color-danger) var(--alpha-40), var(--color-border));
+}
+
+.stay-admin {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  color: var(--color-text-primary);
+  font-size: var(--text-14);
+  line-height: var(--text-14-lh);
+}
+
+.stay-admin input {
+  margin-block: 0.2em 0;
+  accent-color: var(--color-accent-primary);
 }
 
 .sr-only {
