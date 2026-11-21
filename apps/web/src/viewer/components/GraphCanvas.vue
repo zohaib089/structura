@@ -418,6 +418,7 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
           :inside-open-caption="insideOpenCaption"
           :inside-close-caption="insideCloseCaption"
           :expand-caption="nodeProps.data?.expandCaption"
+          :group-label="groupLabel ? groupLabel(nodeProps.data?.clusterSize ?? 0) : undefined"
           @select="emit('select', nodeProps.id)"
           @toggle="emit('toggle', nodeProps.id)"
         />
