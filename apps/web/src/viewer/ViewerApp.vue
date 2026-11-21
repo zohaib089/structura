@@ -565,10 +565,16 @@ function applyFocusPath(path: string | null) {
 }
 
 watch(
-  () => props.graphDocument,
-  (document, previous) => {
-    if (!document || document === previous) return
-    void loadGraphDocument(document, { preserveView: Boolean(previous) })
+  () => ({ document: props.graphDocument, focusPath: props.focusPath, overviewLayout: props.overviewLayout, fileNeighborhood: props.fileNeighborhood }),
+  (next, prev) => {
+    if (!next.document || next.document === prev?.document) return
+    // Keep zoom and selection only when the host refreshes the same view (Scan again / save),
+    // not when switching file ↔ project or opening a different file.
+    const sameView = Boolean(prev?.document) &&
+      prev.focusPath === next.focusPath &&
+      prev.overviewLayout === next.overviewLayout &&
+      prev.fileNeighborhood === next.fileNeighborhood
+    void loadGraphDocument(next.document, { preserveView: sameView })
   }
 )
 

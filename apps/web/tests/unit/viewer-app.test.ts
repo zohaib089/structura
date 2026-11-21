@@ -168,7 +168,8 @@ describe('ViewerApp', () => {
 
   it('keeps the current view when the host refreshes the graph document', () => {
     const src = readFileSync(resolve('src/viewer/ViewerApp.vue'), 'utf8')
-    expect(src).toContain('preserveView: Boolean(previous)')
+    expect(src).toContain('preserveView: sameView')
+    expect(src).toContain('prev.focusPath === next.focusPath')
     expect(src).toContain('restorePreservedView')
     expect(src).toContain('graphCanvas.value?.getViewport()')
   })
