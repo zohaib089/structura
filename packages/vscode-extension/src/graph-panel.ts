@@ -20,6 +20,8 @@ export interface PanelHost {
   getState: () => ViewerState
   onReady?: () => void
   onScan: () => void
+  /** Scan again while a graph is open (toolbar button). */
+  onRescan?: () => void
   onShowProjectGraph: () => void
   onOpenFolder: () => void
   /** Editor column the graph panel sits in, so opened files land beside it instead of replacing it. */
@@ -31,6 +33,7 @@ export interface GraphPanel {
   readonly mode: GraphMode
   reveal(): void
   postState(state: ViewerState): void
+  postBusy(busy: boolean): void
   dispose(): void
 }
 
@@ -83,6 +86,9 @@ export async function handleHostMessage(
       return
     case 'scan':
       host.onScan()
+      return
+    case 'rescan':
+      host.onRescan?.()
       return
     case 'showProjectGraph':
       host.onShowProjectGraph()
@@ -164,6 +170,10 @@ export function createGraphPanel(
     },
     postState(state) {
       send(state)
+    },
+    postBusy(busy) {
+      const message: HostToWebviewMessage = { type: 'busy', busy }
+      void webview.postMessage(message)
     },
     dispose() {
       panel.dispose()

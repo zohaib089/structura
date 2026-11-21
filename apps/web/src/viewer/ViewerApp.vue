@@ -74,6 +74,8 @@ import SearchPalette from './components/SearchPalette.vue'
 const emit = defineEmits<{
   /** Open a workspace file; line (1-based) when the user picked a symbol in the file panel. */
   openFile: [path: string, line?: number]
+  /** "Scan again" from the toolbar (editor hosts that pass canRescan). */
+  rescan: []
 }>()
 
 const props = withDefaults(
@@ -109,6 +111,10 @@ const props = withDefaults(
      * and workspace packages. Default 'entry' keeps the web dashboard unchanged.
      */
     overviewLayout?: 'entry' | 'folders'
+    /** Editor hosts: show a "Scan again" toolbar button that emits rescan. */
+    canRescan?: boolean
+    /** The host is scanning again: the button spins until the new graph arrives. */
+    rescanBusy?: boolean
   }>(),
   {
     embedded: false,
@@ -122,7 +128,9 @@ const props = withDefaults(
     openInspectorOnFocus: true,
     fileNeighborhood: false,
     canOpenFiles: false,
-    overviewLayout: 'entry'
+    overviewLayout: 'entry',
+    canRescan: false,
+    rescanBusy: false
   }
 )
 
@@ -1168,6 +1176,11 @@ const snippet = 'layers: []\nrules: []\n'
         :radial-label="messages.layoutRadial"
         :linear-label="messages.layoutLinear"
         @update:layout="setLayout"
+        :rescan-label="canRescan ? messages.rescanLabel : undefined"
+        :rescan-tooltip="messages.rescanTooltip"
+        :rescan-busy="rescanBusy"
+        :rescan-busy-label="messages.rescanBusy"
+        @rescan="emit('rescan')"
       >
         <template v-if="focus && focusSummary" #below>
           <FocusBar

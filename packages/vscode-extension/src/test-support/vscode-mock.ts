@@ -165,6 +165,10 @@ export function createVsCodeMock(options: TestVscodeOptions = {}) {
   let consentChoice: string | undefined = options.consentChoice
 
   const workspaceStateData = new Map<string, unknown>()
+  const warnings: string[] = []
+  const saveListeners: Array<(doc: { uri: Uri }) => void> = []
+  const themeListeners: Array<(theme: { kind: number }) => void> = []
+  const activeColorTheme = { kind: options.colorThemeKind ?? ColorThemeKind.Dark }
 
   const vscode = {
     Uri,
@@ -177,7 +181,17 @@ export function createVsCodeMock(options: TestVscodeOptions = {}) {
     ViewColumn,
     ColorThemeKind,
     window: {
-      activeColorTheme: { kind: options.colorThemeKind ?? ColorThemeKind.Dark },
+      get activeColorTheme() {
+        return activeColorTheme
+      },
+      onDidChangeActiveColorTheme: (listener: (theme: { kind: number }) => void) => {
+        themeListeners.push(listener)
+        return new Disposable(() => themeListeners.splice(themeListeners.indexOf(listener), 1))
+      },
+      showWarningMessage: async (message: string) => {
+        warnings.push(message)
+        return undefined
+      },
       get activeTextEditor() {
         if (!activeFile) return undefined
         return { document: { uri: Uri.file(activeFile) } }
@@ -207,6 +221,14 @@ export function createVsCodeMock(options: TestVscodeOptions = {}) {
       }
     },
     workspace: {
+      onDidSaveTextDocument: (listener: (doc: { uri: Uri }) => void) => {
+        saveListeners.push(listener)
+        return new Disposable(() => saveListeners.splice(saveListeners.indexOf(listener), 1))
+      },
+      createFileSystemWatcher: (_glob: string) => {
+        const none = () => new Disposable(() => {})
+        return { onDidChange: none, onDidCreate: none, onDidDelete: none, dispose() {} }
+      },
       get workspaceFolders() {
         return folders.length ? folders : undefined
       },
@@ -235,6 +257,14 @@ export function createVsCodeMock(options: TestVscodeOptions = {}) {
     _setActiveFile(path: string | null) {
       activeFile = path
     },
+    _save(path: string) {
+      for (const listener of [...saveListeners]) listener({ uri: Uri.file(path) })
+    },
+    _setTheme(kind: number) {
+      activeColorTheme.kind = kind
+      for (const listener of [...themeListeners]) listener(activeColorTheme)
+    },
+    _warnings: warnings,
     _setConsentChoice(choice: string | undefined) {
       consentChoice = choice
     },

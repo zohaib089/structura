@@ -131,6 +131,9 @@ export interface ViewerMessages {
   zoomIn: string
   zoomOut: string
   zoomFit: string
+  rescanLabel: string
+  rescanTooltip: string
+  rescanBusy: string
   backLabel: string
   layoutLabel: string
   layoutRadial: string
@@ -396,6 +399,9 @@ const en: ViewerMessages = {
   zoomIn: 'Zoom in',
   zoomOut: 'Zoom out',
   zoomFit: 'Fit to view',
+  rescanLabel: 'Scan again',
+  rescanTooltip: 'Scan the project again so the graph shows your latest changes',
+  rescanBusy: 'Updating the graph…',
   backLabel: 'Back',
   layoutLabel: 'Layout',
   layoutRadial: 'Radial',

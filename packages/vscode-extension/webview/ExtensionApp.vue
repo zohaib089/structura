@@ -20,6 +20,8 @@ const panelPrefs = {
   }
 }
 const state = ref<ViewerState>({ kind: 'loading' })
+/** The host is scanning again behind the graph on screen (Scan again, or after a save). */
+const busy = ref(false)
 
 function applyTheme(theme: 'light' | 'dark' | undefined) {
   const next = theme ?? (document.body.classList.contains('vscode-light') ? 'light' : 'dark')
@@ -29,6 +31,11 @@ function applyTheme(theme: 'light' | 'dark' | undefined) {
 function onMessage(event: MessageEvent) {
   const data = event.data
   if (!isHostToWebviewMessage(data)) return
+  if (data.type === 'busy') {
+    busy.value = data.busy
+    return
+  }
+  busy.value = false
   state.value = data.state
   if (data.state.kind === 'graph') applyTheme(data.state.theme)
   else applyTheme(undefined)
@@ -56,6 +63,11 @@ function openFile(path: string, line?: number) {
 
 function scan() {
   vscode?.postMessage({ type: 'scan' })
+}
+
+function rescan() {
+  busy.value = true
+  vscode?.postMessage({ type: 'rescan' })
 }
 
 function showProject() {
@@ -90,7 +102,10 @@ watch(
       :overview-layout="state.kind === 'graph' && state.mode === 'project' ? 'folders' : 'entry'"
       :load-file-summary="loadFileSummary"
       can-open-files
+      can-rescan
+      :rescan-busy="busy"
       @open-file="openFile"
+      @rescan="rescan"
     />
 
     <div v-else class="state-screen" role="status">

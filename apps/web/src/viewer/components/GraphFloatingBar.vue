@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChartNoAxesGantt, ListFilter, Maximize, Orbit, Search } from '@lucide/vue'
+import { ChartNoAxesGantt, ListFilter, Maximize, Orbit, RefreshCw, Search } from '@lucide/vue'
 import { computed } from 'vue'
 import { middleEllipsis } from '../pill-label'
 import Tip from './Tip.vue'
@@ -31,6 +31,12 @@ const props = defineProps<{
    * Hidden labels stay as accessible names and tooltips.
    */
   density?: 'full' | 'tight' | 'narrow' | 'xnarrow'
+  /** Editor hosts: "Scan again" icon button (hidden when no label is passed). */
+  rescanLabel?: string
+  rescanTooltip?: string
+  /** A scan is running: the icon spins and the button waits. */
+  rescanBusy?: boolean
+  rescanBusyLabel?: string
 }>()
 
 const emit = defineEmits<{
@@ -40,6 +46,7 @@ const emit = defineEmits<{
   'update:entryId': [id: string]
   toggleShowAllCross: []
   'update:layout': [layout: 'radial' | 'linear']
+  rescan: []
 }>()
 /** Compact bars: the closed picker shows a middle-ellipsis name (start + tail + extension) that fits its
  * box; the list keeps full names, and the tooltip names the current file's full path. */
@@ -133,6 +140,20 @@ const entryTitle = computed(() => {
     >
       <span aria-hidden="true">⇄ {{ crossLinkCount }}</span>
     </button>
+    <Tip v-if="rescanLabel" :text="rescanBusy ? (rescanBusyLabel ?? rescanTooltip ?? rescanLabel) : (rescanTooltip ?? rescanLabel)">
+      <button
+        type="button"
+        class="icon-button rescan-button"
+        :class="{ 'is-busy': rescanBusy }"
+        :aria-label="rescanBusy ? (rescanBusyLabel ?? rescanLabel) : rescanLabel"
+        :aria-busy="rescanBusy ? 'true' : 'false'"
+        :disabled="rescanBusy"
+        data-testid="graph-rescan"
+        @click="emit('rescan')"
+      >
+        <RefreshCw :size="16" aria-hidden="true" />
+      </button>
+    </Tip>
     <div v-if="$slots.below" class="below"><slot name="below" /></div>
   </div>
 </template>
@@ -374,4 +395,8 @@ select {
 .floating-bar.density-tight,
 .floating-bar.density-narrow { column-gap: var(--space-1); }
 
+.rescan-button:disabled { cursor: progress; opacity: 0.85; }
+.rescan-button.is-busy svg { color: var(--color-brand-amber, #d4a017); animation: rescan-spin 0.9s linear infinite; }
+@keyframes rescan-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .rescan-button.is-busy svg { animation: none; } }
 </style>

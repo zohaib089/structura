@@ -77,3 +77,11 @@ test('sanitizeWorkspaceRelativePath rejects escapes and absolute paths', () => {
   assert.equal(sanitizeWorkspaceRelativePath(''), null)
   assert.equal(sanitizeWorkspaceRelativePath('src//file.ts'), null)
 })
+
+test('rescan (webview) and busy (host) messages are strict', () => {
+  assert.equal(isWebviewToHostMessage({ type: 'rescan' }), true)
+  assert.equal(isWebviewToHostMessage({ type: 'rescan', now: true }), false)
+  assert.equal(isHostToWebviewMessage({ type: 'busy', busy: true }), true)
+  assert.equal(isHostToWebviewMessage({ type: 'busy', busy: 'yes' }), false)
+  assert.equal(isHostToWebviewMessage({ type: 'busy', busy: false, extra: 1 }), false)
+})
