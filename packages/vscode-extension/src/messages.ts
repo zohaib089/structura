@@ -20,6 +20,7 @@ export const messages = {
   loadingBody: 'This can take a minute the first time. You can keep working in the editor.',
   errorTitle: 'The scan could not finish',
   errorRetry: 'Try again',
+  refreshFailed: 'The graph could not be updated, so it still shows the last scan.',
   fileMissingTitle: 'This file is not in the graph',
   fileMissingBody: '{name} has no node for {path}. It may be ignored, unsupported, or outside the project folder.',
   fileMissingShowProject: 'Show the whole project graph',

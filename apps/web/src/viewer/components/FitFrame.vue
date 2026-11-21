@@ -826,6 +826,19 @@ async function fit(opts: { duration?: number } = {}) {
   await frame(); await frame()
   if (stale()) return
   declutter()
+  // From a far zoom-out (zoom pad − pressed several times) the labels start hidden, and each pass
+  // re-measures with more of them back, so a few passes may not settle: Fit then landed ~7% closer
+  // than a Fit from a fitted view. Keep fitting until the zoom stops moving (ext-g2 item 6).
+  for (let extra = 0; extra < 4; extra += 1) {
+    const before = flow.viewport.value.zoom
+    await frame()
+    if (stale()) return
+    fitOnce()
+    await frame(); await frame()
+    if (stale()) return
+    declutter()
+    if (Math.abs(flow.viewport.value.zoom - before) <= before * 0.005) break
+  }
   lastFit = { ...flow.viewport.value }
 }
 

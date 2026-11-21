@@ -99,7 +99,10 @@ export class WebviewPanelMock {
     _posted: unknown[]
   }
 
-  constructor(public viewType: string, title: string, _column: number, options: { localResourceRoots?: Uri[] }) {
+  viewColumn: number | undefined
+  revealedTo: Array<number | undefined> = []
+  constructor(public viewType: string, title: string, column: number | { viewColumn: number }, options: { localResourceRoots?: Uri[] }) {
+    this.viewColumn = typeof column === 'number' ? column : column.viewColumn
     this.title = title
     const incoming = new EventBus<unknown>()
     const posted: unknown[] = []
@@ -129,7 +132,8 @@ export class WebviewPanelMock {
     return this.onDidDisposeBus.event
   }
 
-  reveal(_column?: number): void {
+  reveal(column?: number): void {
+    this.revealedTo.push(column)
     this.visible = true
     this.active = true
   }
@@ -151,6 +155,7 @@ export interface TestVscodeOptions {
   activeFile?: string | null
   consentChoice?: string | undefined
   colorThemeKind?: number
+  tabGroups?: Array<{ viewColumn: number; tabs: unknown[] }>
 }
 
 export function createVsCodeMock(options: TestVscodeOptions = {}) {
@@ -165,6 +170,11 @@ export function createVsCodeMock(options: TestVscodeOptions = {}) {
   let consentChoice: string | undefined = options.consentChoice
 
   const workspaceStateData = new Map<string, unknown>()
+  const warnings: string[] = []
+  const tabGroups: Array<{ viewColumn: number; tabs: unknown[] }> = options.tabGroups ?? []
+  const saveListeners: Array<(doc: { uri: Uri }) => void> = []
+  const themeListeners: Array<(theme: { kind: number }) => void> = []
+  const activeColorTheme = { kind: options.colorThemeKind ?? ColorThemeKind.Dark }
 
   const vscode = {
     Uri,
@@ -177,7 +187,18 @@ export function createVsCodeMock(options: TestVscodeOptions = {}) {
     ViewColumn,
     ColorThemeKind,
     window: {
-      activeColorTheme: { kind: options.colorThemeKind ?? ColorThemeKind.Dark },
+      tabGroups: { all: tabGroups },
+      get activeColorTheme() {
+        return activeColorTheme
+      },
+      onDidChangeActiveColorTheme: (listener: (theme: { kind: number }) => void) => {
+        themeListeners.push(listener)
+        return new Disposable(() => themeListeners.splice(themeListeners.indexOf(listener), 1))
+      },
+      showWarningMessage: async (message: string) => {
+        warnings.push(message)
+        return undefined
+      },
       get activeTextEditor() {
         if (!activeFile) return undefined
         return { document: { uri: Uri.file(activeFile) } }
@@ -190,7 +211,7 @@ export function createVsCodeMock(options: TestVscodeOptions = {}) {
       createWebviewPanel: (
         viewType: string,
         title: string,
-        column: number,
+        column: number | { viewColumn: number },
         panelOptions: { localResourceRoots?: Uri[] }
       ) => {
         const panel = new WebviewPanelMock(viewType, title, column, panelOptions)
@@ -207,6 +228,14 @@ export function createVsCodeMock(options: TestVscodeOptions = {}) {
       }
     },
     workspace: {
+      onDidSaveTextDocument: (listener: (doc: { uri: Uri }) => void) => {
+        saveListeners.push(listener)
+        return new Disposable(() => saveListeners.splice(saveListeners.indexOf(listener), 1))
+      },
+      createFileSystemWatcher: (_glob: string) => {
+        const none = () => new Disposable(() => {})
+        return { onDidChange: none, onDidCreate: none, onDidDelete: none, dispose() {} }
+      },
       get workspaceFolders() {
         return folders.length ? folders : undefined
       },
@@ -235,6 +264,14 @@ export function createVsCodeMock(options: TestVscodeOptions = {}) {
     _setActiveFile(path: string | null) {
       activeFile = path
     },
+    _save(path: string) {
+      for (const listener of [...saveListeners]) listener({ uri: Uri.file(path) })
+    },
+    _setTheme(kind: number) {
+      activeColorTheme.kind = kind
+      for (const listener of [...themeListeners]) listener(activeColorTheme)
+    },
+    _warnings: warnings,
     _setConsentChoice(choice: string | undefined) {
       consentChoice = choice
     },

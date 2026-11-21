@@ -78,6 +78,39 @@ export function linearColumns(
   return column
 }
 
+/** Folder depth for a folder centre (project graph): its contents to the right, one column per level. */
+export const LINEAR_FOLDER_DEPTH = 2
+export const LINEAR_ROOT_LABEL = 'Repository'
+
+/**
+ * A folder centre has no imports of its own, so Linear lays out what is inside it instead:
+ * column +1 holds its folders and files, +2 what sits inside those (a left-to-right tree).
+ */
+export function linearFolderColumns(
+  index: GraphIndex,
+  nucleusId: string,
+  filters: ViewFilters,
+  depth = LINEAR_FOLDER_DEPTH
+): Map<string, number> {
+  const column = new Map<string, number>([[nucleusId, 0]])
+  let frontier = [nucleusId]
+  for (let d = 1; d <= depth && frontier.length > 0; d += 1) {
+    const next: string[] = []
+    for (const id of frontier) {
+      for (const child of index.children.get(id) ?? []) {
+        const kind = index.nodesById.get(child)?.kind
+        if (kind !== 'directory' && kind !== 'file') continue
+        if (!radialNodePasses(index, filters, child)) continue
+        if (column.has(child)) continue
+        column.set(child, d)
+        next.push(child)
+      }
+    }
+    frontier = next
+  }
+  return column
+}
+
 function folderOf(index: GraphIndex, id: string): string {
   const node = index.nodesById.get(id)
   if (node && 'path' in node && typeof node.path === 'string') {
@@ -113,7 +146,8 @@ export function buildLinearOverview(
   const columnGap = phone ? LINEAR_COLUMN_GAP_PHONE : LINEAR_COLUMN_GAP
   const pillWidth = phone ? LINEAR_PILL_WIDTH_PHONE : LINEAR_PILL_WIDTH
   const nucleusId = resolveNucleusId(index, state.nucleusId)
-  const columns = linearColumns(index, nucleusId, filters)
+  const folderCentre = index.nodesById.get(nucleusId)?.kind === 'directory'
+  const columns = folderCentre ? linearFolderColumns(index, nucleusId, filters) : linearColumns(index, nucleusId, filters)
   const expanded = new Set(state.expanded)
   const byColumn = new Map<number, string[]>()
   for (const [id, col] of columns) byColumn.set(col, [...(byColumn.get(col) ?? []), id])
@@ -124,10 +158,15 @@ export function buildLinearOverview(
   let top = 0
   let bottom = LINEAR_PILL_HEIGHT
 
+  const isDir = (id: string) => (index.nodesById.get(id)?.kind === 'directory' ? 0 : 1)
   for (const col of [...byColumn.keys()].sort((a, b) => a - b)) {
-    const ids = byColumn.get(col)!.sort((a, b) => compareUtf16(folderOf(index, a), folderOf(index, b)) || compareUtf16(a, b))
+    // Folder centre: folders before files inside each parent folder.
+    const ids = byColumn.get(col)!.sort((a, b) => compareUtf16(folderOf(index, a), folderOf(index, b)) || (folderCentre ? isDir(a) - isDir(b) : 0) || compareUtf16(a, b))
     let rows: Row[] = ids.map((id) => ({ id }))
-    if (ids.length > LINEAR_COLUMN_CAP) {
+    // Folder centre, first column: everything shares one parent, so a single "N files" group would
+    // hide the whole level; list it and let "+N more" page the rest instead.
+    const groupable = !(folderCentre && col === 1)
+    if (groupable && ids.length > LINEAR_COLUMN_CAP) {
       const folders = new Map<string, string[]>()
       for (const id of ids) folders.set(folderOf(index, id), [...(folders.get(folderOf(index, id)) ?? []), id])
       rows = []
@@ -154,7 +193,10 @@ export function buildLinearOverview(
         })
         if (!open) for (const member of row.members) memberOf.set(member, row.id)
       } else {
-        placed.push({ ...nodeModel(index, row.id, depth, false, focusIds), cluster: false, expanded: false, column: col })
+        const model = { ...nodeModel(index, row.id, depth, false, focusIds), cluster: false, expanded: false, column: col }
+        // The project root reads "Repository", as in Radial, not the raw "." path.
+        if (folderCentre && row.id === nucleusId && (model.path === '.' || model.path === '')) model.label = LINEAR_ROOT_LABEL
+        placed.push(model)
       }
     }
     if (hidden.length > 0) {
@@ -191,13 +233,14 @@ export function buildLinearOverview(
   const bundles = new Map<string, Bundle>()
   let hiddenEdges = 0
   for (const edge of index.document.edges) {
-    if (edge.type === 'contains') continue
+    // A folder centre draws its "inside" tree; a file centre draws imports and calls.
+    if ((edge.type === 'contains') !== folderCentre) continue
     if (!columns.has(edge.source) || !columns.has(edge.target)) continue
-    if (!edgePasses(index, filters, edge)) { hiddenEdges += 1; continue }
+    if (!folderCentre && !edgePasses(index, filters, edge)) { hiddenEdges += 1; continue }
     const source = rep(edge.source)
     const target = rep(edge.target)
     if (!source || !target || source === target) continue
-    addBundle(bundles, source, target, edge, false, index)
+    addBundle(bundles, source, target, edge, folderCentre, index)
   }
   const gutter = columnGap - pillWidth
   let lane = 0

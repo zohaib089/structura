@@ -29,6 +29,9 @@ export class GraphSession {
   private ref: WorkspaceRef | undefined
   private cache: CachedScan | undefined
   private inflight: AbortController | undefined
+  private refreshTimer: ReturnType<typeof setTimeout> | undefined
+  /** Delay after a save before the open graph refreshes (several quick saves → one scan). */
+  static readonly SAVE_REFRESH_MS = 800
 
   constructor(private readonly deps: SessionDeps) {}
 
@@ -85,7 +88,30 @@ export class GraphSession {
     void this.deps.vscode.commands.executeCommand('workbench.action.files.openFolder')
   }
 
+  /**
+   * Scan again and redraw the open graph in place: same mode and focus file, the graph stays on
+   * screen while the scan runs (the toolbar button spins), no consent prompt (already granted).
+   */
+  async refresh(): Promise<void> {
+    if (this.refreshTimer) clearTimeout(this.refreshTimer)
+    this.refreshTimer = undefined
+    if (!this.panel || !this.ref) return
+    this.cache = undefined
+    await this.runScanAndRender({ quiet: this.state.kind === 'graph' })
+  }
+
+  /** After a save: refresh the open graph once things settle. Nothing happens without a shown graph. */
+  scheduleRefresh(delayMs = GraphSession.SAVE_REFRESH_MS): void {
+    if (!this.panel || this.state.kind !== 'graph') return
+    if (this.refreshTimer) clearTimeout(this.refreshTimer)
+    this.refreshTimer = setTimeout(() => {
+      this.refreshTimer = undefined
+      void this.refresh()
+    }, delayMs)
+  }
+
   dispose(): void {
+    if (this.refreshTimer) clearTimeout(this.refreshTimer)
     this.inflight?.abort()
     this.panel?.dispose()
     this.panel = undefined
@@ -94,6 +120,23 @@ export class GraphSession {
   /** A workspace file changed: the next show / command rescans instead of reusing the cached graph. */
   invalidate(): void {
     this.cache = undefined
+  }
+
+  /** Light and high-contrast light themes draw the light graph; everything else the dark one. */
+  currentTheme(): 'light' | 'dark' {
+    const kinds = this.deps.vscode.ColorThemeKind
+    const kind = this.deps.vscode.window.activeColorTheme?.kind
+    return kind !== undefined && (kind === kinds?.Light || kind === kinds?.HighContrastLight) ? 'light' : 'dark'
+  }
+
+  /** VS Code changed colour theme: recolour the open graph in place (no rescan, view kept). */
+  syncTheme(): void {
+    const theme = this.currentTheme()
+    if (this.state.kind === 'graph') {
+      if (this.state.theme === theme) return
+      this.state = { ...this.state, theme }
+    }
+    this.panel?.postTheme(theme)
   }
 
   getState(): ViewerState {
@@ -118,6 +161,9 @@ export class GraphSession {
       onScan: () => {
         void session.scanFromWebview()
       },
+      onRescan: () => {
+        void session.refresh()
+      },
       onShowProjectGraph: () => {
         void session.showProjectFromWebview()
       },
@@ -134,7 +180,7 @@ export class GraphSession {
     this.panel?.postState(state)
   }
 
-  private async runScanAndRender(): Promise<void> {
+  private async runScanAndRender(options: { quiet?: boolean } = {}): Promise<void> {
     const current = this.ref
     if (!current) {
       this.setState({ kind: 'empty-folder' })
@@ -149,7 +195,9 @@ export class GraphSession {
     this.inflight?.abort()
     const abort = new AbortController()
     this.inflight = abort
-    this.setState({ kind: 'loading', message: copy('loadingTitle') })
+    // Quiet refresh: keep the graph on screen and spin the Scan again button instead.
+    if (options.quiet) this.panel?.postBusy(true)
+    else this.setState({ kind: 'loading', message: copy('loadingTitle') })
 
     try {
       const storage = this.deps.context.storageUri ?? this.deps.context.globalStorageUri
@@ -165,7 +213,10 @@ export class GraphSession {
     } catch (cause) {
       if (abort.signal.aborted) return
       const message = cause instanceof Error && cause.message.trim() ? cause.message : copy('errorTitle')
-      this.setState({ kind: 'error', message })
+      if (options.quiet) void this.deps.vscode.window.showWarningMessage?.(`${copy('refreshFailed')} ${message}`)
+      else this.setState({ kind: 'error', message })
+    } finally {
+      if (options.quiet && this.inflight === abort) this.panel?.postBusy(false)
     }
   }
 
@@ -181,8 +232,7 @@ export class GraphSession {
       }
     }
 
-    const theme: 'light' | 'dark' =
-      this.deps.vscode.window.activeColorTheme?.kind === this.deps.vscode.ColorThemeKind?.Light ? 'light' : 'dark'
+    const theme = this.currentTheme()
 
     this.setState({
       kind: 'graph',
@@ -203,12 +253,22 @@ export function registerInvalidation(session: GraphSession, vs: typeof vscode): 
   }
   const watcher = vs.workspace.createFileSystemWatcher('**/*')
   return [
-    vs.workspace.onDidSaveTextDocument((doc) => drop(doc.uri)),
+    vs.workspace.onDidSaveTextDocument((doc) => {
+      if (skip(doc.uri.fsPath)) return
+      session.invalidate()
+      // An open graph redraws itself after a save (debounced); other edits only drop the cache.
+      session.scheduleRefresh()
+    }),
     watcher,
     watcher.onDidChange(drop),
     watcher.onDidCreate(drop),
     watcher.onDidDelete(drop)
   ]
+}
+
+/** Keep an open graph in step with VS Code's light / dark colour theme. */
+export function registerThemeSync(session: GraphSession, vs: typeof vscode): vscode.Disposable[] {
+  return [vs.window.onDidChangeActiveColorTheme(() => session.syncTheme())]
 }
 
 export function registerCommands(session: GraphSession, vs: typeof vscode): vscode.Disposable[] {

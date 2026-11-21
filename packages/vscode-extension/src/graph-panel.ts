@@ -20,6 +20,8 @@ export interface PanelHost {
   getState: () => ViewerState
   onReady?: () => void
   onScan: () => void
+  /** Scan again while a graph is open (toolbar button). */
+  onRescan?: () => void
   onShowProjectGraph: () => void
   onOpenFolder: () => void
   /** Editor column the graph panel sits in, so opened files land beside it instead of replacing it. */
@@ -31,6 +33,8 @@ export interface GraphPanel {
   readonly mode: GraphMode
   reveal(): void
   postState(state: ViewerState): void
+  postBusy(busy: boolean): void
+  postTheme(theme: 'light' | 'dark'): void
   dispose(): void
 }
 
@@ -84,6 +88,9 @@ export async function handleHostMessage(
     case 'scan':
       host.onScan()
       return
+    case 'rescan':
+      host.onRescan?.()
+      return
     case 'showProjectGraph':
       host.onShowProjectGraph()
       return
@@ -108,6 +115,16 @@ export async function handleHostMessage(
   }
 }
 
+/**
+ * Where a new graph opens: an editor group that is already empty (reuse it, no extra split), else
+ * beside the active editor. Fewer groups leave the graph wide enough for its desktop toolbar.
+ */
+export function graphColumn(vs: typeof vscode): vscode.ViewColumn {
+  const groups = vs.window.tabGroups?.all ?? []
+  const empty = groups.find((group) => group.tabs.length === 0 && group.viewColumn !== undefined)
+  return empty ? empty.viewColumn : vs.ViewColumn.Beside
+}
+
 export function createGraphPanel(
   vs: typeof vscode,
   extensionUri: vscode.Uri,
@@ -117,7 +134,7 @@ export function createGraphPanel(
   const panel = vs.window.createWebviewPanel(
     'atlasmith.graph',
     title,
-    vs.ViewColumn.Beside,
+    { viewColumn: graphColumn(vs), preserveFocus: true },
     {
       enableScripts: true,
       retainContextWhenHidden: true,
@@ -159,11 +176,21 @@ export function createGraphPanel(
     panel,
     mode: host.mode,
     reveal() {
-      panel.reveal(vs.ViewColumn.Beside)
+      // Stay in the graph's own column: moving it "beside" again can leave an empty group behind and
+      // squeeze every column (a 1024px window ended up with a 220px graph).
+      panel.reveal(panel.viewColumn ?? graphColumn(vs), true)
       panel.title = host.mode === 'file' ? copy('panelTitleFile') : copy('panelTitleProject')
     },
     postState(state) {
       send(state)
+    },
+    postTheme(theme) {
+      const message: HostToWebviewMessage = { type: 'theme', theme }
+      void webview.postMessage(message)
+    },
+    postBusy(busy) {
+      const message: HostToWebviewMessage = { type: 'busy', busy }
+      void webview.postMessage(message)
     },
     dispose() {
       panel.dispose()

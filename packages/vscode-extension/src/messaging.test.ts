@@ -141,3 +141,24 @@ test('openFile lands beside the graph panel instead of replacing its tab', async
   await handleHostMessage(vs as unknown as typeof import('vscode'), { type: 'openFile', path: 'src/app.ts' }, host)
   assert.equal(vs._documents[1]?.viewColumn, -2)
 })
+
+test('a new graph reuses an empty editor group instead of adding another split', async () => {
+  const { graphColumn } = await import('./graph-panel.js')
+  const busy = createVsCodeMock({ tabGroups: [{ viewColumn: 1, tabs: [{}] }] })
+  assert.equal(graphColumn(busy as unknown as typeof import('vscode')), busy.ViewColumn.Beside)
+  const withEmpty = createVsCodeMock({ tabGroups: [{ viewColumn: 1, tabs: [{}] }, { viewColumn: 2, tabs: [] }] })
+  assert.equal(graphColumn(withEmpty as unknown as typeof import('vscode')), 2)
+  assert.equal(graphColumn(createVsCodeMock() as unknown as typeof import('vscode')), busy.ViewColumn.Beside)
+})
+
+test('showing the graph again keeps it in its own column (no move beside, no empty group left)', async () => {
+  const { createGraphPanel } = await import('./graph-panel.js')
+  const vs = createVsCodeMock({ tabGroups: [{ viewColumn: 1, tabs: [{}] }, { viewColumn: 2, tabs: [] }] })
+  const graph = createGraphPanel(vs as unknown as typeof import('vscode'), Uri.file('/ext'), {
+    folder: undefined, mode: 'file', getState: () => ({ kind: 'declined' }), onScan() {}, onShowProjectGraph() {}, onOpenFolder() {}
+  })
+  const panel = vs._panels.at(-1)!
+  assert.equal(panel.viewColumn, 2)
+  graph.reveal()
+  assert.deepEqual(panel.revealedTo, [2])
+})

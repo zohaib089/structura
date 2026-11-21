@@ -3,8 +3,8 @@
 export const GRAPH_MODES = ['file', 'project'] as const
 export type GraphMode = (typeof GRAPH_MODES)[number]
 
-export const HOST_TO_WEBVIEW_TYPES = ['state'] as const
-export const WEBVIEW_TO_HOST_TYPES = ['ready', 'openFile', 'scan', 'showProjectGraph', 'openFolder'] as const
+export const HOST_TO_WEBVIEW_TYPES = ['state', 'busy', 'theme'] as const
+export const WEBVIEW_TO_HOST_TYPES = ['ready', 'openFile', 'scan', 'rescan', 'showProjectGraph', 'openFolder'] as const
 
 export type ViewerKind =
   | 'empty-folder'
@@ -40,15 +40,19 @@ export type ViewerState =
       fileSummaries?: Readonly<Record<string, string | null>>
     }
 
-export interface HostToWebviewMessage {
-  type: 'state'
-  state: ViewerState
-}
+export type HostToWebviewMessage =
+  | { type: 'state'; state: ViewerState }
+  /** A refresh is running behind the graph that is on screen (Scan again, or a save). */
+  | { type: 'busy'; busy: boolean }
+  /** VS Code switched between a light and a dark colour theme while the graph is open. */
+  | { type: 'theme'; theme: 'light' | 'dark' }
 
 export type WebviewToHostMessage =
   | { type: 'ready' }
   | { type: 'openFile'; path: string; line?: number }
   | { type: 'scan' }
+  /** Scan again while a graph is open: keep the same file / project view and refresh it. */
+  | { type: 'rescan' }
   | { type: 'showProjectGraph' }
   | { type: 'openFolder' }
 
@@ -106,7 +110,10 @@ export function isViewerState(value: unknown): value is ViewerState {
 }
 
 export function isHostToWebviewMessage(value: unknown): value is HostToWebviewMessage {
-  if (!isRecord(value) || value.type !== 'state') return false
+  if (!isRecord(value)) return false
+  if (value.type === 'busy') return hasOnlyKeys(value, ['type', 'busy']) && typeof value.busy === 'boolean'
+  if (value.type === 'theme') return hasOnlyKeys(value, ['type', 'theme']) && (value.theme === 'light' || value.theme === 'dark')
+  if (value.type !== 'state') return false
   return isViewerState(value.state)
 }
 
@@ -115,6 +122,7 @@ export function isWebviewToHostMessage(value: unknown): value is WebviewToHostMe
   switch (value.type) {
     case 'ready':
     case 'scan':
+    case 'rescan':
     case 'showProjectGraph':
     case 'openFolder':
       return hasOnlyKeys(value, ['type'])

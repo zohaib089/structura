@@ -74,6 +74,8 @@ import SearchPalette from './components/SearchPalette.vue'
 const emit = defineEmits<{
   /** Open a workspace file; line (1-based) when the user picked a symbol in the file panel. */
   openFile: [path: string, line?: number]
+  /** "Scan again" from the toolbar (editor hosts that pass canRescan). */
+  rescan: []
 }>()
 
 const props = withDefaults(
@@ -109,6 +111,10 @@ const props = withDefaults(
      * and workspace packages. Default 'entry' keeps the web dashboard unchanged.
      */
     overviewLayout?: 'entry' | 'folders'
+    /** Editor hosts: show a "Scan again" toolbar button that emits rescan. */
+    canRescan?: boolean
+    /** The host is scanning again: the button spins until the new graph arrives. */
+    rescanBusy?: boolean
   }>(),
   {
     embedded: false,
@@ -122,7 +128,9 @@ const props = withDefaults(
     openInspectorOnFocus: true,
     fileNeighborhood: false,
     canOpenFiles: false,
-    overviewLayout: 'entry'
+    overviewLayout: 'entry',
+    canRescan: false,
+    rescanBusy: false
   }
 )
 
@@ -177,6 +185,8 @@ function setPanelCollapsed(next: boolean, nextTab?: 'details' | 'coverage' | 'dr
 watch(panelCollapsed, () => { void nextTick(measurePanelInset) }, { flush: 'post' })
 /** Room for the floating toolbar (pane minus the side panel) picks its density so it stays on one row. */
 const viewerWidth = ref(0)
+/** Below this pane width an editor host (never the dashboard or a phone browser) gets the compact toolbar. */
+const COMPACT_HOST_WIDTH = 420
 let viewerResize: ResizeObserver | null = null
 onMounted(() => {
   if (typeof ResizeObserver === 'undefined' || !viewerEl.value) return
@@ -191,6 +201,8 @@ onBeforeUnmount(() => viewerResize?.disconnect())
 /** Narrow hosts (VS Code webview below autoCollapseBelow): slimmer open panel, status line clipped cleanly. */
 const isNarrowHost = computed(() => Boolean(props.autoCollapseBelow) && viewerWidth.value > 640 && viewerWidth.value < (props.autoCollapseBelow ?? 0))
 const barDensity = computed<'full' | 'tight' | 'narrow' | 'xnarrow'>(() => {
+  // Editor hosts squeezed below phone width (a VS Code split in a small window): icon-only controls that wrap.
+  if (props.autoCollapseBelow && viewerWidth.value > 0 && viewerWidth.value < COMPACT_HOST_WIDTH) return 'xnarrow'
   if (!viewerWidth.value || viewerWidth.value <= 640) return 'full'
   const space = viewerWidth.value - panelInset.value - 48
   // Prefer keeping "Fit to view" at 1280 with both the sidebar and the details panel open.
@@ -349,7 +361,7 @@ const nucleusLabel = computed(() => {
 /** The centre's visible name ("Repository", not the raw "." path) for the status line. */
 const nucleusShownLabel = computed(() => overview.value?.nodes.find((n) => n.id === nucleusId.value)?.label || nucleusLabel.value)
 const radialStatus = computed(() =>
-  layout.value === 'linear' ? format(messages.statusLinear, { name: nucleusShownLabel.value }) : format(messages.statusRadial, { rings: ringCount.value === 1 ? messages.ringOne : format(messages.ringMany, { n: numbers.format(ringCount.value) }), name: nucleusShownLabel.value })
+  layout.value === 'linear' ? format(index.value?.nodesById.get(nucleusId.value)?.kind === 'directory' ? messages.statusLinearFolder : messages.statusLinear, { name: nucleusShownLabel.value }) : format(messages.statusRadial, { rings: ringCount.value === 1 ? messages.ringOne : format(messages.ringMany, { n: numbers.format(ringCount.value) }), name: nucleusShownLabel.value })
 )
 const panStatus = computed(() =>
   format(messages.statusPanZoom, { nodes: numbers.format(overview.value?.nodes.length ?? 0) })
@@ -641,6 +653,12 @@ function toggleNode(id: string) {
 function selectNode(id: string, fromClick: boolean, record = fromClick) {
   if (record) remember()
   if (fromClick && !props.fileNeighborhood && props.overviewLayout !== 'folders') recenterOnNode(id, true)
+  // Project graph in Linear: a folder click opens that folder's contents (Back returns).
+  else if (fromClick && props.overviewLayout === 'folders' && layout.value === 'linear' && id !== nucleusId.value && index.value?.nodesById.get(id)?.kind === 'directory') {
+    // Keep the folder-overview walk so switching to Radial shows the same folder's contents.
+    viewState.value = setFolderOverview(viewState.value, id)
+    fitSignature.value += 1
+  }
   selection.value = { kind: 'node', id }
   activeId.value = id
   tab.value = 'details'
@@ -1166,6 +1184,11 @@ const snippet = 'layers: []\nrules: []\n'
         :radial-label="messages.layoutRadial"
         :linear-label="messages.layoutLinear"
         @update:layout="setLayout"
+        :rescan-label="canRescan ? messages.rescanLabel : undefined"
+        :rescan-tooltip="messages.rescanTooltip"
+        :rescan-busy="rescanBusy"
+        :rescan-busy-label="messages.rescanBusy"
+        @rescan="emit('rescan')"
       >
         <template v-if="focus && focusSummary" #below>
           <FocusBar

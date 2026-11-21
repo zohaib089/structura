@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { COMMANDS } from './commands.js'
 import { CONSENT_STATE_KEY, workspaceConsentStore } from './consent.js'
-import { GraphSession, registerCommands } from './graph-session.js'
+import { GraphSession, registerCommands, registerInvalidation, registerThemeSync } from './graph-session.js'
 import { GRAPH_VIEW_ID, AtlasmithGraphViewProvider, registerGraphView } from './graph-view.js'
 import { copy, messages } from './messages.js'
 import type { ViewerState } from './protocol.js'
@@ -245,4 +245,92 @@ test('a workspace edit invalidates the cached scan so the next command rescans',
   session.invalidate()
   await vs.commands.executeCommand(COMMANDS.showFileGraph)
   assert.equal(scanner.calls, 2)
+})
+
+function postedOf(vs: VsCodeMock) {
+  return vs._panels.at(-1)?.webview._posted as Array<{ type?: string; state?: ViewerState; busy?: boolean }>
+}
+
+test('Scan again refreshes the open graph in place: no loading screen, busy on then off, same focus file', async () => {
+  const scanner = fakeScanner()
+  const { vs } = setup({ pregranted: true, scanner })
+  await vs.commands.executeCommand(COMMANDS.showFileGraph)
+  assert.equal(scanner.calls, 1)
+  // The webview has focus now, so there is no active editor; the focus file must not be lost.
+  vs._setActiveFile(null)
+  const posted = postedOf(vs)
+  const before = posted.length
+  vs._panels.at(-1)!.webview._incoming.fire({ type: 'rescan' })
+  await new Promise((resolve) => setTimeout(resolve, 10))
+  assert.equal(scanner.calls, 2)
+  const after = posted.slice(before)
+  assert.deepEqual(after.map((m) => m.type), ['busy', 'state', 'busy'])
+  assert.equal(after[0]?.busy, true)
+  assert.equal(after.at(-1)?.busy, false)
+  assert.equal(after.some((m) => m.state?.kind === 'loading'), false)
+  const state = latestState(vs)
+  assert.equal(state?.kind === 'graph' && state.focusPath, 'src/app.ts')
+})
+
+test('a failed refresh keeps the last graph on screen and says so', async () => {
+  let fail = false
+  const base = fakeScanner()
+  const scanner: Scanner & { calls: number } = { ...base, calls: 0, async scan(o) { if (fail) throw new Error('disk busy'); return base.scan(o) } }
+  const { vs, session } = setup({ pregranted: true, scanner })
+  await vs.commands.executeCommand(COMMANDS.showProjectGraph)
+  fail = true
+  await session.refresh()
+  assert.equal(latestState(vs)?.kind, 'graph')
+  assert.equal(vs._warnings.length, 1)
+  assert.match(vs._warnings[0]!, /could not be updated/)
+})
+
+test('saving a file refreshes an open graph once (debounced); no graph open means no scan', async () => {
+  const scanner = fakeScanner()
+  const { vs, session } = setup({ pregranted: true, scanner })
+  const subs = registerInvalidation(session, vs as unknown as typeof import('vscode'))
+  try {
+    vs._save('/repo/demo/src/app.ts')
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    assert.equal(scanner.calls, 0)
+    await vs.commands.executeCommand(COMMANDS.showFileGraph)
+    assert.equal(scanner.calls, 1)
+    const original = GraphSession.prototype.scheduleRefresh
+    GraphSession.prototype.scheduleRefresh = function (this: GraphSession) { original.call(this, 5) }
+    try {
+      vs._save('/repo/demo/src/app.ts')
+      vs._save('/repo/demo/src/app.ts')
+      vs._save('/repo/demo/node_modules/x/index.js')
+      await new Promise((resolve) => setTimeout(resolve, 40))
+    } finally {
+      GraphSession.prototype.scheduleRefresh = original
+    }
+    assert.equal(scanner.calls, 2)
+    assert.equal(latestState(vs)?.kind, 'graph')
+  } finally {
+    for (const sub of subs) sub.dispose()
+  }
+})
+
+test('a VS Code theme change recolours the open graph without a rescan or a new state', async () => {
+  const scanner = fakeScanner()
+  const { vs, session } = setup({ pregranted: true, scanner })
+  const subs = registerThemeSync(session, vs as unknown as typeof import('vscode'))
+  try {
+    await vs.commands.executeCommand(COMMANDS.showFileGraph)
+    const posted = postedOf(vs)
+    const before = posted.length
+    vs._setTheme(vs.ColorThemeKind.Light)
+    assert.deepEqual(posted.slice(before), [{ type: 'theme', theme: 'light' }])
+    vs._setTheme(vs.ColorThemeKind.HighContrastLight)
+    assert.equal(posted.length, before + 1, 'same light theme: nothing to send')
+    vs._setTheme(vs.ColorThemeKind.HighContrast)
+    assert.deepEqual(posted.at(-1), { type: 'theme', theme: 'dark' })
+    assert.equal(scanner.calls, 1)
+    // A webview that reloads (ready) gets the current theme in its state.
+    const state = session.getState()
+    assert.equal(state.kind === 'graph' && state.theme, 'dark')
+  } finally {
+    for (const sub of subs) sub.dispose()
+  }
 })

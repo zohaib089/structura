@@ -131,12 +131,16 @@ export interface ViewerMessages {
   zoomIn: string
   zoomOut: string
   zoomFit: string
+  rescanLabel: string
+  rescanTooltip: string
+  rescanBusy: string
   backLabel: string
   layoutLabel: string
   layoutRadial: string
   layoutLinear: string
   linearGroupFiles: string
   statusLinear: string
+  statusLinearFolder: string
   ringOne: string
   ringMany: string
   backTooltip: string
@@ -396,12 +400,16 @@ const en: ViewerMessages = {
   zoomIn: 'Zoom in',
   zoomOut: 'Zoom out',
   zoomFit: 'Fit to view',
+  rescanLabel: 'Scan again',
+  rescanTooltip: 'Scan the project again so the graph shows your latest changes',
+  rescanBusy: 'Updating the graph…',
   backLabel: 'Back',
   layoutLabel: 'Layout',
   layoutRadial: 'Radial',
   layoutLinear: 'Linear',
   linearGroupFiles: '{n} files',
   statusLinear: 'Linear · used by on the left, uses on the right · centre {name}',
+  statusLinearFolder: 'Linear · what is inside on the right · centre {name}',
   backTooltip: 'Back to the previous graph view',
   announceBack: 'Back to the previous graph view',
   shortcutsTitle: 'Keyboard shortcuts',
