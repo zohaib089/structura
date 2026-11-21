@@ -163,9 +163,10 @@ export function buildLinearOverview(
     // Folder centre: folders before files inside each parent folder.
     const ids = byColumn.get(col)!.sort((a, b) => compareUtf16(folderOf(index, a), folderOf(index, b)) || (folderCentre ? isDir(a) - isDir(b) : 0) || compareUtf16(a, b))
     let rows: Row[] = ids.map((id) => ({ id }))
-    // Folder centre, first column: everything shares one parent, so a single "N files" group would
-    // hide the whole level; list it and let "+N more" page the rest instead.
-    const groupable = !(folderCentre && col === 1)
+    // Folder centre: each folder is already a pill in the previous column. Grouping this column
+    // by those same folder names would list them twice. List the children and let "+N more" page.
+    // The first column also must not fold into one group (that would hide the whole level).
+    const groupable = !folderCentre
     if (groupable && ids.length > LINEAR_COLUMN_CAP) {
       const folders = new Map<string, string[]>()
       for (const id of ids) folders.set(folderOf(index, id), [...(folders.get(folderOf(index, id)) ?? []), id])
