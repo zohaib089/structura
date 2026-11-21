@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { readGraph } from '../../src/viewer/read-graph'
@@ -162,5 +164,12 @@ describe('ViewerApp', () => {
     expect(Number(canvas.attributes('data-visible-nodes'))).toBeGreaterThanOrEqual(visibleBefore)
     expect(wrapper.find('[data-testid="graph-entry-switcher"]').exists()).toBe(true)
     wrapper.unmount()
+  })
+
+  it('keeps the current view when the host refreshes the graph document', () => {
+    const src = readFileSync(resolve('src/viewer/ViewerApp.vue'), 'utf8')
+    expect(src).toContain('preserveView: Boolean(previous)')
+    expect(src).toContain('restorePreservedView')
+    expect(src).toContain('graphCanvas.value?.getViewport()')
   })
 })

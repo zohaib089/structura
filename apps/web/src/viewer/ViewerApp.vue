@@ -20,6 +20,7 @@ import type { GraphDocument, GraphError, GraphNode } from './graph-types'
 import { formatMessage, viewerMessages } from './messages'
 import { GraphHistory, type GraphSnapshot } from './graph-history'
 import { buildLinearOverview, isLinearControlId, toggleLinear } from './linear'
+import { restorePreservedView, type PreservedView } from './preserve-view'
 import { readLayoutPreference, writeLayoutPreference } from './layout-preference'
 import {
   buildOverview,
@@ -494,18 +495,34 @@ async function openSample() {
   await openBlob(file, true)
 }
 
-async function loadGraphDocument(document: GraphDocument) {
+async function loadGraphDocument(document: GraphDocument, opts: { preserveView?: boolean } = {}) {
+  const preserved: PreservedView | null = opts.preserveView
+    ? {
+        viewState: {
+          ...viewState.value,
+          expanded: [...viewState.value.expanded],
+          revealed: { ...viewState.value.revealed },
+          pinned: [...viewState.value.pinned]
+        },
+        filters: { ...filters.value, kinds: filters.value.kinds ? [...filters.value.kinds] : null, languages: filters.value.languages ? [...filters.value.languages] : null },
+        selection: selection.value,
+        focus: focus.value,
+        viewport: graphCanvas.value?.getViewport() ?? null
+      }
+    : null
   handle?.cancel()
   graph.value = document
   error.value = null
   loading.value = false
   loadingVisible.value = false
   ready.value = false
-  selection.value = null
-  focus.value = null
-  forgetHistory()
+  if (!preserved) {
+    selection.value = null
+    focus.value = null
+    forgetHistory()
+    filters.value = defaultFilters()
+  }
   viewState.value = freshViewState()
-  filters.value = defaultFilters()
   sample.value = false
   fileName.value = 'scan-graph.json'
   const indexed = indexGraph(document)
@@ -518,6 +535,19 @@ async function loadGraphDocument(document: GraphDocument) {
   }
   if (document.nodes.length === 0) ready.value = true
   applyFocusPath(props.focusPath)
+  if (preserved) {
+    const restored = restorePreservedView(preserved, indexed, viewState.value)
+    viewState.value = restored.viewState
+    filters.value = restored.filters
+    focus.value = restored.focus
+    if (restored.selection?.kind === 'node') {
+      selection.value = restored.selection
+      activeId.value = restored.selection.id
+    } else {
+      selection.value = restored.selection
+    }
+    if (restored.viewport) restoreView.value = { token: ++viewToken, viewport: restored.viewport }
+  }
 }
 
 function applyFocusPath(path: string | null) {
@@ -538,14 +568,15 @@ watch(
   () => props.graphDocument,
   (document, previous) => {
     if (!document || document === previous) return
-    void loadGraphDocument(document)
+    void loadGraphDocument(document, { preserveView: Boolean(previous) })
   }
 )
 
 watch(
-  () => [props.focusPath, index.value] as const,
-  ([path, idx]) => {
-    if (!idx) return
+  () => props.focusPath,
+  (path) => {
+    // Only when the host points at a different file — a refresh of the same graph keeps the selection.
+    if (!index.value) return
     applyFocusPath(path)
   }
 )
