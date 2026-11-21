@@ -12,7 +12,7 @@ The product name in the UI is Atlasmith. The scan runs on this computer with `@a
 - Consent before the first scan of a folder, remembered in `workspaceState`
 - Empty, loading, error, and "file not in the graph" states in plain language
 
-Out of scope: rescan on save, impact alerts, duplicate warnings, packaging, and marketplace publishing.
+Out of scope: duplicate warnings, packaging, and marketplace publishing.
 
 ## Develop
 

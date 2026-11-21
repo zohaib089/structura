@@ -64,19 +64,22 @@ import ErrorBanner from './components/ErrorBanner.vue'
 import FilterRail from './components/FilterRail.vue'
 import FocusBar from './components/FocusBar.vue'
 import GraphCanvas from './components/GraphCanvas.vue'
-import { ArrowLeft, ChartPie, GitCompareArrows, PanelRightClose, PanelRightOpen } from '@lucide/vue'
+import { ArrowLeft, ChartPie, GitCompareArrows, PanelRightClose, PanelRightOpen, Waypoints } from '@lucide/vue'
 import GraphFloatingBar from './components/GraphFloatingBar.vue'
 import Tip from './components/Tip.vue'
 import GraphLegend from './components/GraphLegend.vue'
 import GraphSourcePicker from './components/GraphSourcePicker.vue'
 import NodeDetail, { type FileSummaryState } from './components/NodeDetail.vue'
 import SearchPalette from './components/SearchPalette.vue'
+import { impactFileLabel, impactHeadline, impactNodeIds, type ViewerImpactAlert } from './impact-copy'
 
 const emit = defineEmits<{
   /** Open a workspace file; line (1-based) when the user picked a symbol in the file panel. */
   openFile: [path: string, line?: number]
   /** "Scan again" from the toolbar (editor hosts that pass canRescan). */
   rescan: []
+  /** Editor hosts: show impact for the file open in the editor. */
+  showImpact: []
 }>()
 
 const props = withDefaults(
@@ -116,6 +119,10 @@ const props = withDefaults(
     canRescan?: boolean
     /** The host is scanning again: the button spins until the new graph arrives. */
     rescanBusy?: boolean
+    /** Change-impact alert computed by the host (engine walkFileImpact / impact_lite). */
+    impact?: ViewerImpactAlert | null
+    /** Editor hosts: show a button to ask for impact when it is not already on screen. */
+    canAskImpact?: boolean
   }>(),
   {
     embedded: false,
@@ -131,7 +138,9 @@ const props = withDefaults(
     canOpenFiles: false,
     overviewLayout: 'entry',
     canRescan: false,
-    rescanBusy: false
+    rescanBusy: false,
+    impact: null,
+    canAskImpact: false
   }
 )
 
@@ -462,6 +471,18 @@ function showToast(text: string) {
 
 function format(template: string, values: Record<string, string | number> = {}) {
   return formatMessage(template, values)
+}
+
+const impactLine = computed(() => (props.impact ? impactHeadline(props.impact, messages, format) : ''))
+const impactIds = computed(() => impactNodeIds(props.impact))
+const impactPreview = computed(() => props.impact?.dependents.slice(0, 6) ?? [])
+const impactMore = computed(() => Math.max((props.impact?.dependents.length ?? 0) - impactPreview.value.length, 0))
+const showImpactBanner = computed(() => Boolean(props.impact || props.canAskImpact))
+
+function openImpactList() {
+  tab.value = 'details'
+  inspectorOpen.value = true
+  if (panelCollapsed.value) setPanelCollapsed(false, 'details')
 }
 
 async function copyText(text: string) {
@@ -1258,6 +1279,39 @@ const snippet = 'layers: []\nrules: []\n'
       <p v-if="overview && graph && graph.nodes.length > 0" class="graph-hint" role="note">
         {{ messages.graphOverviewHint }}
       </p>
+      <aside
+        v-if="showImpactBanner && overview && graph && graph.nodes.length > 0 && !(inspectorOpen && !panelCollapsed)"
+        class="impact-banner"
+        data-testid="impact-alert"
+        :aria-label="impactLine || messages.impactAskLabel"
+      >
+        <p class="impact-banner-line">
+          <Waypoints :size="16" aria-hidden="true" />
+          <span>{{ impactLine || messages.impactAskTooltip }}</span>
+        </p>
+        <ul v-if="impact && impact.dependents.length" class="impact-chips" :aria-label="messages.impactListLabel">
+          <li v-for="row in impactPreview" :key="row.fileId">
+            <Tip :text="canOpenFiles ? format(messages.impactOpenTooltip, { path: row.path }) : row.path" side="below">
+              <button
+                type="button"
+                class="impact-chip"
+                :data-testid="'impact-file-' + row.fileId"
+                @click="canOpenFiles ? emit('openFile', row.path) : openImpactList()"
+              >{{ impactFileLabel(row.path) }}</button>
+            </Tip>
+          </li>
+          <li v-if="impactMore > 0">
+            <button type="button" class="impact-more" @click="openImpactList">+{{ numbers.format(impactMore) }}</button>
+          </li>
+        </ul>
+        <p v-if="impact?.truncated" class="impact-truncated">{{ format(messages.impactTruncated, { n: impact.dependents.length }) }}</p>
+        <div class="impact-banner-actions">
+          <button v-if="impact && impact.dependents.length" type="button" class="impact-see" @click="openImpactList">{{ messages.impactSeeFiles }}</button>
+          <Tip v-else-if="canAskImpact && !impact" :text="messages.impactAskTooltip" side="below">
+            <button type="button" class="impact-ask" data-testid="impact-ask" @click="emit('showImpact')">{{ messages.impactAskLabel }}</button>
+          </Tip>
+        </div>
+      </aside>
       <GraphCanvas
         v-if="overview && graph && graph.nodes.length > 0"
         ref="graphCanvas"
@@ -1296,6 +1350,7 @@ const snippet = 'layers: []\nrules: []\n'
         :hide-overlapping-ring1="embedded"
         :panel-inset="panelInset"
         :panel-bottom-inset="panelBottomInset"
+        :impact-ids="impactIds"
         :inside-open-caption="embedded && overviewLayout === 'folders' ? messages.insideOpenCaption : undefined"
         :inside-close-caption="embedded && overviewLayout === 'folders' ? messages.insideCloseCaption : undefined"
         :layout="layout"
@@ -1374,6 +1429,35 @@ const snippet = 'layers: []\nrules: []\n'
           <PanelRightClose :size="16" aria-hidden="true" />
         </button>
       </div>
+      <section
+        v-if="tab === 'details' && (impact || canAskImpact)"
+        class="impact-panel"
+        data-testid="impact-panel"
+      >
+        <h3 class="impact-panel-title">
+          <Waypoints :size="16" aria-hidden="true" />
+          <span>{{ impactLine || messages.impactAskLabel }}</span>
+        </h3>
+        <p v-if="impact?.truncated" class="impact-truncated">{{ format(messages.impactTruncated, { n: impact.dependents.length }) }}</p>
+        <ul v-if="impact && impact.dependents.length" class="impact-list" :aria-label="messages.impactListLabel">
+          <li v-for="row in impact.dependents" :key="row.fileId">
+            <button
+              type="button"
+              class="impact-list-item"
+              :title="canOpenFiles ? format(messages.impactOpenTooltip, { path: row.path }) : row.path"
+              :data-testid="'impact-panel-file-' + row.fileId"
+              @click="canOpenFiles && emit('openFile', row.path)"
+            >
+              <span class="impact-list-name">{{ impactFileLabel(row.path) }}</span>
+              <span class="impact-list-path">{{ row.path }}</span>
+              <span class="impact-list-how">{{ row.depth <= 1 ? messages.impactDirect : messages.impactThrough }}</span>
+            </button>
+          </li>
+        </ul>
+        <Tip v-else-if="canAskImpact && !impact" :text="messages.impactAskTooltip" side="below">
+          <button type="button" class="impact-ask" data-testid="impact-ask-panel" @click="emit('showImpact')">{{ messages.impactAskLabel }}</button>
+        </Tip>
+      </section>
       <NodeDetail
         v-if="tab === 'details'"
         :empty="messages.detailsEmpty"
@@ -1718,6 +1802,90 @@ const snippet = 'layers: []\nrules: []\n'
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+.impact-banner {
+  position: absolute;
+  z-index: var(--z-graph-controls, 6);
+  inset-inline-start: var(--space-3, 12px);
+  inset-block-end: calc(var(--space-3, 12px) + var(--viewer-statusbar-height, 0px));
+  max-inline-size: min(22rem, calc(100% - var(--graph-controls-inset-end, 0px) - var(--space-6, 24px)));
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  border: 1px solid color-mix(in srgb, var(--color-brand-amber-ui, #d4a017) 55%, var(--color-border, #3a4a5c));
+  border-radius: var(--r-md, 8px);
+  background: color-mix(in srgb, var(--color-brand-navy, #102a43) 32%, var(--color-surface-raised, #0d1a2d) 68%);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-brand-navy, #102a43) 35%, transparent);
+  color: var(--color-text-primary, #f4efe4);
+  pointer-events: auto;
+}
+.impact-banner-line,
+.impact-panel-title {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2, 8px);
+  margin: 0;
+  font-size: var(--font-size-sm, 0.875rem);
+  line-height: 1.35;
+  font-weight: 600;
+}
+.impact-banner-line svg,
+.impact-panel-title svg { flex-shrink: 0; color: var(--color-brand-amber-ui, #d4a017); margin-block-start: 0.1em; }
+.impact-chips,
+.impact-list { list-style: none; margin: var(--space-2, 8px) 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-1, 4px); }
+.impact-list { flex-direction: column; flex-wrap: nowrap; }
+.impact-chip,
+.impact-list-item,
+.impact-see,
+.impact-ask,
+.impact-more {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+  max-inline-size: 100%;
+  margin: 0;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid color-mix(in srgb, var(--color-brand-amber-ui, #d4a017) 40%, var(--color-border, #3a4a5c));
+  border-radius: var(--r-sm, 6px);
+  background: color-mix(in srgb, var(--color-brand-navy, #102a43) 18%, var(--color-surface, #07111f));
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-12, 0.75rem);
+  cursor: pointer;
+  text-align: start;
+}
+.impact-chip:hover,
+.impact-list-item:hover,
+.impact-see:hover,
+.impact-ask:hover,
+.impact-more:hover {
+  border-color: var(--color-brand-amber-ui, #d4a017);
+  color: var(--color-brand-amber-ui, #d4a017);
+}
+.impact-chip:focus-visible,
+.impact-list-item:focus-visible,
+.impact-see:focus-visible,
+.impact-ask:focus-visible,
+.impact-more:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.impact-banner-actions { margin-block-start: var(--space-2, 8px); }
+.impact-see, .impact-ask { font-weight: 600; }
+.impact-truncated { margin: var(--space-1, 4px) 0 0; font-size: var(--text-12, 0.75rem); color: var(--color-text-secondary, #c9c1b2); }
+.impact-panel {
+  padding: var(--space-2, 8px);
+  border: 1px solid color-mix(in srgb, var(--color-brand-amber-ui, #d4a017) 45%, var(--color-border, #3a4a5c));
+  border-radius: var(--r-md, 8px);
+  background: color-mix(in srgb, var(--color-brand-navy, #102a43) 16%, transparent);
+}
+.impact-list-item {
+  width: 100%;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  padding-block: 0.4rem;
+}
+.impact-list-name { font-weight: 600; }
+.impact-list-path { font-family: var(--font-family-mono, ui-monospace, monospace); font-size: 0.7rem; color: var(--color-text-secondary, #c9c1b2); overflow-wrap: anywhere; }
+.impact-list-how { font-size: 0.7rem; color: var(--color-text-secondary, #c9c1b2); }
+@media (max-width: 640px) {
+  .impact-banner { max-inline-size: calc(100% - var(--space-6, 24px)); }
 }
 .topbar {
   grid-column: 1 / -1;

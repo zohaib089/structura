@@ -22,6 +22,8 @@ export interface PanelHost {
   onScan: () => void
   /** Scan again while a graph is open (toolbar button). */
   onRescan?: () => void
+  /** Show what a change to the open file would affect. */
+  onShowImpact?: () => void
   onShowProjectGraph: () => void
   onOpenFolder: () => void
   /** Editor column the graph panel sits in, so opened files land beside it instead of replacing it. */
@@ -90,6 +92,9 @@ export async function handleHostMessage(
       return
     case 'rescan':
       host.onRescan?.()
+      return
+    case 'showImpact':
+      host.onShowImpact?.()
       return
     case 'showProjectGraph':
       host.onShowProjectGraph()

@@ -6,8 +6,9 @@ import { ensureScanConsent, grantConsent, type ConsentStore } from './consent.js
 import { createGraphPanel, type GraphPanel } from './graph-panel.js'
 import { copy } from './messages.js'
 import type { GraphMode, ViewerState } from './protocol.js'
+import { buildImpactAlert } from './impact-alert.js'
 import { type Scanner } from './workspace-scan.js'
-import { resolveWorkspaceRef, type WorkspaceRef } from './workspace-paths.js'
+import { resolveWorkspaceRef, toRelativePath, type WorkspaceRef } from './workspace-paths.js'
 
 export interface SessionDeps {
   vscode: typeof vscode
@@ -30,6 +31,8 @@ export class GraphSession {
   private cache: CachedScan | undefined
   private inflight: AbortController | undefined
   private refreshTimer: ReturnType<typeof setTimeout> | undefined
+  /** File whose dependents should be shown (saved file, or the file the user asked about). */
+  private impactPath: string | undefined
   /** Delay after a save before the open graph refreshes (several quick saves → one scan). */
   static readonly SAVE_REFRESH_MS = 800
 
@@ -101,13 +104,39 @@ export class GraphSession {
   }
 
   /** After a save: refresh the open graph once things settle. Nothing happens without a shown graph. */
-  scheduleRefresh(delayMs = GraphSession.SAVE_REFRESH_MS): void {
+  scheduleRefresh(delayMs = GraphSession.SAVE_REFRESH_MS, relativePath?: string): void {
+    if (relativePath) this.impactPath = relativePath
     if (!this.panel || this.state.kind !== 'graph') return
     if (this.refreshTimer) clearTimeout(this.refreshTimer)
     this.refreshTimer = setTimeout(() => {
       this.refreshTimer = undefined
       void this.refresh()
     }, delayMs)
+  }
+
+  /**
+   * Show which files depend on the file open in the editor. Opens the file graph if none is shown.
+   * Reuses the cached scan when one is already on screen.
+   */
+  async requestImpact(): Promise<void> {
+    const next = resolveWorkspaceRef(this.deps.vscode)
+    const path = next?.activeRelativePath ?? this.ref?.activeRelativePath
+    if (!path) {
+      void this.deps.vscode.window.showWarningMessage?.(copy('impactNeedsFile'))
+      return
+    }
+    // Do not drop the file-graph focus if the webview has stolen the editor's focus.
+    if (next?.activeRelativePath) this.ref = next
+    this.impactPath = path
+    if (!this.panel) {
+      await this.show('file')
+      return
+    }
+    if (this.cache) {
+      this.renderGraph(this.cache)
+      return
+    }
+    await this.runScanAndRender({ quiet: this.state.kind === 'graph' })
   }
 
   dispose(): void {
@@ -163,6 +192,9 @@ export class GraphSession {
       },
       onRescan: () => {
         void session.refresh()
+      },
+      onShowImpact: () => {
+        void session.requestImpact()
       },
       onShowProjectGraph: () => {
         void session.showProjectFromWebview()
@@ -233,6 +265,10 @@ export class GraphSession {
     }
 
     const theme = this.currentTheme()
+    // File graphs always show impact for the focus file. Project graphs show it after a save
+    // or when the user asks (impactPath).
+    const impactSource = this.mode === 'file' ? (focusPath ?? this.impactPath) : this.impactPath
+    const impact = impactSource ? buildImpactAlert(cache.graph, impactSource) : null
 
     this.setState({
       kind: 'graph',
@@ -240,7 +276,8 @@ export class GraphSession {
       graph: this.deps.scanner.toGraphPayload(cache.graph),
       focusPath,
       theme,
-      fileSummaries: cache.output.fileSummaries
+      fileSummaries: cache.output.fileSummaries,
+      impact
     })
   }
 }
@@ -256,8 +293,10 @@ export function registerInvalidation(session: GraphSession, vs: typeof vscode): 
     vs.workspace.onDidSaveTextDocument((doc) => {
       if (skip(doc.uri.fsPath)) return
       session.invalidate()
+      const folder = vs.workspace.getWorkspaceFolder(doc.uri) ?? vs.workspace.workspaceFolders?.[0]
+      const relative = folder ? toRelativePath(vs, folder, doc.uri) : null
       // An open graph redraws itself after a save (debounced); other edits only drop the cache.
-      session.scheduleRefresh()
+      session.scheduleRefresh(GraphSession.SAVE_REFRESH_MS, relative ?? undefined)
     }),
     watcher,
     watcher.onDidChange(drop),
@@ -274,6 +313,7 @@ export function registerThemeSync(session: GraphSession, vs: typeof vscode): vsc
 export function registerCommands(session: GraphSession, vs: typeof vscode): vscode.Disposable[] {
   return [
     vs.commands.registerCommand(COMMANDS.showFileGraph, () => session.show('file')),
-    vs.commands.registerCommand(COMMANDS.showProjectGraph, () => session.show('project'))
+    vs.commands.registerCommand(COMMANDS.showProjectGraph, () => session.show('project')),
+    vs.commands.registerCommand(COMMANDS.showImpact, () => session.requestImpact())
   ]
 }

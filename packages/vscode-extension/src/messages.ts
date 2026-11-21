@@ -29,7 +29,9 @@ export const messages = {
   graphViewTitle: '{name} graph',
   showFileGraphItem: 'Show graph for this file',
   showProjectGraphItem: 'Show whole project graph',
-  webviewTitle: '{name} graph'
+  webviewTitle: '{name} graph',
+  impactNeedsFile: 'Open a file first to see what a change would affect.',
+  showImpactItem: 'Show what this change affects'
 } as const
 
 export type MessageKey = keyof typeof messages

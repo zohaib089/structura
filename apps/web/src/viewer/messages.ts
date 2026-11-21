@@ -134,6 +134,17 @@ export interface ViewerMessages {
   rescanLabel: string
   rescanTooltip: string
   rescanBusy: string
+  impactNone: string
+  impactOne: string
+  impactMany: string
+  impactTruncated: string
+  impactListLabel: string
+  impactSeeFiles: string
+  impactOpenTooltip: string
+  impactAskLabel: string
+  impactAskTooltip: string
+  impactDirect: string
+  impactThrough: string
   backLabel: string
   layoutLabel: string
   layoutRadial: string
@@ -403,6 +414,17 @@ const en: ViewerMessages = {
   rescanLabel: 'Scan again',
   rescanTooltip: 'Scan the project again so the graph shows your latest changes',
   rescanBusy: 'Updating the graph…',
+  impactNone: 'Changing this file does not affect other files.',
+  impactOne: 'Changing this file can affect 1 file',
+  impactMany: 'Changing this file can affect {n} files',
+  impactTruncated: 'The list stops at {n}.',
+  impactListLabel: 'Files that depend on this one',
+  impactSeeFiles: 'See the files',
+  impactOpenTooltip: 'Open {path} beside the graph',
+  impactAskLabel: 'Show what this change affects',
+  impactAskTooltip: 'List the files that depend on the file open in the editor',
+  impactDirect: 'Uses this file directly',
+  impactThrough: 'Depends on this file through other files',
   backLabel: 'Back',
   layoutLabel: 'Layout',
   layoutRadial: 'Radial',

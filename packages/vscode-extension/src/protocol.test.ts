@@ -8,8 +8,8 @@ import {
   sanitizeWorkspaceRelativePath
 } from './protocol.js'
 
-test('accepts a ready / scan / openFolder / showProjectGraph message with only type', () => {
-  for (const type of ['ready', 'scan', 'openFolder', 'showProjectGraph'] as const) {
+test('accepts a ready / scan / openFolder / showProjectGraph / showImpact message with only type', () => {
+  for (const type of ['ready', 'scan', 'openFolder', 'showProjectGraph', 'showImpact'] as const) {
     assert.equal(isWebviewToHostMessage({ type }), true)
   }
 })
@@ -91,4 +91,37 @@ test('theme messages carry only light or dark', () => {
   assert.equal(isHostToWebviewMessage({ type: 'theme', theme: 'dark' }), true)
   assert.equal(isHostToWebviewMessage({ type: 'theme', theme: 'high-contrast' }), false)
   assert.equal(isHostToWebviewMessage({ type: 'theme', theme: 'dark', more: 1 }), false)
+})
+
+test('graph state may include a well-formed impact alert and rejects a bad one', () => {
+  const graph = {
+    schemaVersion: 'graph.v1',
+    summary: { nodes: 1, edges: 0, files: 1 },
+    coverage: {},
+    nodes: [],
+    edges: []
+  }
+  const impact = {
+    targetPath: 'src/util.ts',
+    targetFileId: 'file:src/util.ts',
+    dependents: [{ path: 'src/app.ts', fileId: 'file:src/app.ts', depth: 1 }],
+    truncated: false,
+    depthLimit: 3
+  }
+  assert.equal(
+    isHostToWebviewMessage({
+      type: 'state',
+      state: { kind: 'graph', mode: 'file', graph, focusPath: 'src/util.ts', theme: 'dark', impact }
+    }),
+    true
+  )
+  assert.equal(
+    isHostToWebviewMessage({
+      type: 'state',
+      state: { kind: 'graph', mode: 'file', graph, focusPath: 'src/util.ts', theme: 'dark', impact: { targetPath: 'src/util.ts' } }
+    }),
+    false
+  )
+  assert.equal(isWebviewToHostMessage({ type: 'showImpact' }), true)
+  assert.equal(isWebviewToHostMessage({ type: 'showImpact', extra: true }), false)
 })

@@ -51,6 +51,10 @@
           "light": "media/graph-icon.svg",
           "dark": "media/graph-icon.svg"
         }
+      },
+      {
+        "command": "atlasmith.showImpact",
+        "title": "Atlasmith: Show what this change affects"
       }
     ],
     "menus": {

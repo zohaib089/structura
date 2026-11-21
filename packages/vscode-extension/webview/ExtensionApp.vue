@@ -79,6 +79,10 @@ function rescan() {
   vscode?.postMessage({ type: 'rescan' })
 }
 
+function showImpact() {
+  vscode?.postMessage({ type: 'showImpact' })
+}
+
 function showProject() {
   vscode?.postMessage({ type: 'showProjectGraph' })
 }
@@ -113,8 +117,11 @@ watch(
       can-open-files
       can-rescan
       :rescan-busy="busy"
+      :impact="state.kind === 'graph' ? state.impact ?? null : null"
+      can-ask-impact
       @open-file="openFile"
       @rescan="rescan"
+      @show-impact="showImpact"
     />
 
     <div v-else class="state-screen" role="status">
