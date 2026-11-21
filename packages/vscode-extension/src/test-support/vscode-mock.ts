@@ -159,7 +159,7 @@ export function createVsCodeMock(options: TestVscodeOptions = {}) {
   const messages: Array<{ message: string; items: string[] }> = []
   const panels: WebviewPanelMock[] = []
   const treeProviders = new Map<string, unknown>()
-  const documents: Array<{ uri: Uri; preview?: boolean; selection?: Range }> = []
+  const documents: Array<{ uri: Uri; preview?: boolean; selection?: Range; viewColumn?: number }> = []
   let folders = options.folders ?? []
   let activeFile = options.activeFile ?? null
   let consentChoice: string | undefined = options.consentChoice
@@ -201,8 +201,8 @@ export function createVsCodeMock(options: TestVscodeOptions = {}) {
         treeProviders.set(id, provider)
         return new Disposable(() => treeProviders.delete(id))
       },
-      showTextDocument: async (uri: Uri, opts?: { preview?: boolean; selection?: Range }) => {
-        documents.push({ uri, preview: opts?.preview, selection: opts?.selection })
+      showTextDocument: async (uri: Uri, opts?: { preview?: boolean; selection?: Range; viewColumn?: number }) => {
+        documents.push({ uri, preview: opts?.preview, selection: opts?.selection, viewColumn: opts?.viewColumn })
         return {}
       }
     },
