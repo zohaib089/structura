@@ -89,6 +89,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
       >
         <h2 :id="titleId">{{ title }}</h2>
         <p :id="bodyId">{{ body }}</p>
+        <div v-if="$slots.default" class="confirm-extra">
+          <slot />
+        </div>
         <div class="confirm-actions">
           <button ref="cancelRef" class="secondary-button" type="button" :disabled="busy" @click="close">
             {{ cancelLabel }}
@@ -152,6 +155,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   color: var(--color-text-secondary);
   font-size: var(--text-14);
   line-height: var(--text-14-lh);
+}
+
+.confirm-extra {
+  display: grid;
+  gap: var(--space-2);
 }
 
 .confirm-actions {

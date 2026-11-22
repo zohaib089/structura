@@ -450,3 +450,153 @@ test('the last owner cannot leave a workspace', async () => {
     await api.app.close()
   }
 })
+
+const transferOwnership = '/api/workspaces/workspace-1/transfer-ownership'
+
+test('an owner can transfer ownership and stay on as an admin', async () => {
+  const api = createMemberApi([
+    { userId: 'owner-1', role: 'owner' },
+    { userId: 'member-1', role: 'member' }
+  ])
+  try {
+    const transferred = await api.app.inject({
+      method: 'POST',
+      url: transferOwnership,
+      headers: { authorization: 'Bearer owner-session' },
+      payload: { memberId: 'member-1', stayAsAdmin: true }
+    })
+    assert.equal(transferred.statusCode, 200)
+    assert.deepEqual(transferred.json(), {
+      success: true,
+      member: {
+        id: 'member-1',
+        role: 'owner',
+        created_at: '2026-10-20T00:00:00.000Z'
+      },
+      left: false
+    })
+    assert.equal(api.memberships.get('workspace-1:member-1'), 'owner')
+    assert.equal(api.memberships.get('workspace-1:owner-1'), 'admin')
+  } finally {
+    await api.app.close()
+  }
+})
+
+test('an owner can transfer ownership and leave the workspace', async () => {
+  const api = createMemberApi([
+    { userId: 'owner-1', role: 'owner' },
+    { userId: 'admin-1', role: 'admin' }
+  ])
+  try {
+    const transferred = await api.app.inject({
+      method: 'POST',
+      url: transferOwnership,
+      headers: { authorization: 'Bearer owner-session' },
+      payload: { memberId: 'admin-1', stayAsAdmin: false }
+    })
+    assert.equal(transferred.statusCode, 200)
+    assert.equal(transferred.json().success, true)
+    assert.equal(transferred.json().left, true)
+    assert.equal(transferred.json().member.role, 'owner')
+    assert.equal(api.memberships.get('workspace-1:admin-1'), 'owner')
+    assert.equal(api.memberships.has('workspace-1:owner-1'), false)
+  } finally {
+    await api.app.close()
+  }
+})
+
+test('only an owner can transfer ownership', async () => {
+  const api = createMemberApi([
+    { userId: 'owner-1', role: 'owner' },
+    { userId: 'admin-1', role: 'admin' },
+    { userId: 'member-1', role: 'member' }
+  ])
+  try {
+    const asAdmin = await api.app.inject({
+      method: 'POST',
+      url: transferOwnership,
+      headers: { authorization: 'Bearer admin-session' },
+      payload: { memberId: 'member-1', stayAsAdmin: true }
+    })
+    assert.equal(asAdmin.statusCode, 403)
+    assert.equal(asAdmin.json().message, 'Only an owner can transfer ownership.')
+    assert.equal(api.memberships.get('workspace-1:owner-1'), 'owner')
+    assert.equal(api.memberships.get('workspace-1:member-1'), 'member')
+
+    const asMember = await api.app.inject({
+      method: 'POST',
+      url: transferOwnership,
+      headers: { authorization: 'Bearer member-session' },
+      payload: { memberId: 'admin-1', stayAsAdmin: true }
+    })
+    assert.equal(asMember.statusCode, 403)
+    assert.equal(asMember.json().message, 'Only an owner can transfer ownership.')
+  } finally {
+    await api.app.close()
+  }
+})
+
+test('transfer ownership returns 404 for an unknown workspace or member', async () => {
+  const api = createMemberApi([
+    { userId: 'owner-1', role: 'owner' },
+    { userId: 'member-1', role: 'member' }
+  ])
+  try {
+    const outsider = await api.app.inject({
+      method: 'POST',
+      url: transferOwnership,
+      headers: { authorization: 'Bearer outsider-session' },
+      payload: { memberId: 'member-1', stayAsAdmin: true }
+    })
+    assert.equal(outsider.statusCode, 404)
+    assert.equal(outsider.json().message, 'Workspace not found.')
+
+    const missing = await api.app.inject({
+      method: 'POST',
+      url: transferOwnership,
+      headers: { authorization: 'Bearer owner-session' },
+      payload: { memberId: 'missing-1', stayAsAdmin: true }
+    })
+    assert.equal(missing.statusCode, 404)
+    assert.equal(missing.json().message, 'Member not found.')
+    assert.equal(api.memberships.get('workspace-1:owner-1'), 'owner')
+  } finally {
+    await api.app.close()
+  }
+})
+
+test('transfer ownership rejects an unauthenticated request, a missing member, and a self transfer', async () => {
+  const api = createMemberApi([
+    { userId: 'owner-1', role: 'owner' },
+    { userId: 'member-1', role: 'member' }
+  ])
+  try {
+    const unauthenticated = await api.app.inject({
+      method: 'POST',
+      url: transferOwnership,
+      payload: { memberId: 'member-1', stayAsAdmin: true }
+    })
+    assert.equal(unauthenticated.statusCode, 401)
+
+    const missingId = await api.app.inject({
+      method: 'POST',
+      url: transferOwnership,
+      headers: { authorization: 'Bearer owner-session' },
+      payload: { stayAsAdmin: true }
+    })
+    assert.equal(missingId.statusCode, 400)
+    assert.equal(missingId.json().message, 'A member id is required.')
+
+    const toSelf = await api.app.inject({
+      method: 'POST',
+      url: transferOwnership,
+      headers: { authorization: 'Bearer owner-session' },
+      payload: { memberId: 'owner-1', stayAsAdmin: true }
+    })
+    assert.equal(toSelf.statusCode, 400)
+    assert.equal(toSelf.json().message, 'You cannot transfer ownership to yourself.')
+    assert.equal(api.memberships.get('workspace-1:owner-1'), 'owner')
+  } finally {
+    await api.app.close()
+  }
+})

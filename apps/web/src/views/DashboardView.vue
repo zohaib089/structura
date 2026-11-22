@@ -219,6 +219,12 @@ async function onLeftWorkspace() {
   )
 }
 
+function onWorkspaceRoleChanged(role: Workspace['role']) {
+  workspaces.value = workspaces.value.map(workspace =>
+    workspace.id === selectedWorkspaceId.value ? { ...workspace, role } : workspace
+  )
+}
+
 onMounted(loadDashboard)
 </script>
 
@@ -366,6 +372,7 @@ onMounted(loadDashboard)
             :current-role="selectedWorkspace?.role ?? 'member'"
             :current-user-id="currentUserId"
             @left="onLeftWorkspace"
+            @role-changed="onWorkspaceRoleChanged"
           />
 
         </template>

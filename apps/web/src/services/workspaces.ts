@@ -316,3 +316,19 @@ export async function removeWorkspaceMember(workspaceId: string, memberId: strin
   )
 }
 
+export async function transferWorkspaceOwnership(
+  workspaceId: string,
+  memberId: string,
+  stayAsAdmin: boolean
+): Promise<{ member: Pick<WorkspaceMember, 'id' | 'role' | 'created_at'>; left: boolean }> {
+  const result = await request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/transfer-ownership`,
+    'POST',
+    { memberId, stayAsAdmin }
+  )
+  if (typeof result.left !== 'boolean') {
+    throw new Error('The ownership transfer response was invalid.')
+  }
+  return { member: parseUpdatedMember(result.member), left: result.left }
+}
+
