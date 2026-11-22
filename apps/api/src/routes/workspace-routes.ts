@@ -91,6 +91,54 @@ function memberRoleOf(rows: Array<Record<string, unknown>>, userId: string): Wor
   return isWorkspaceRole(role) ? role : null
 }
 
+function isTruthyFlag(value: unknown): boolean {
+  return value === true || value === 't' || value === 'true'
+}
+
+function hasProjectAccess(role: unknown, accessRestricted: unknown, isListed: unknown): boolean {
+  if (role === 'owner' || role === 'admin') return true
+  if (!isTruthyFlag(accessRestricted)) return true
+  return isTruthyFlag(isListed)
+}
+
+function readMemberIds(value: unknown): string[] | null {
+  if (value === undefined) return []
+  if (!Array.isArray(value)) return null
+  const ids: string[] = []
+  const seen = new Set<string>()
+  for (const item of value) {
+    if (typeof item !== 'string') return null
+    const id = item.trim()
+    if (!id) return null
+    if (!seen.has(id)) {
+      seen.add(id)
+      ids.push(id)
+    }
+  }
+  return ids
+}
+
+async function deleteProjectMemberships(
+  query: WorkspaceDatabase['query'],
+  workspaceId: string,
+  userId: string
+) {
+  await query(
+    `DELETE FROM project_members
+     WHERE user_id = $2
+       AND project_id IN (SELECT id FROM projects WHERE workspace_id = $1)`,
+    [workspaceId, userId]
+  )
+}
+
+function serializeAccessMembers(rows: Array<Record<string, unknown>>) {
+  return rows.map(row => ({
+    id: row.id,
+    role: row.role,
+    created_at: row.created_at
+  }))
+}
+
 export function registerWorkspaceRoutes(app: FastifyInstance, database: WorkspaceDatabase) {
   app.get('/api/workspaces', async (request, reply) => {
     const userId = await authenticatedUserId(request.headers.authorization, database)
@@ -158,15 +206,21 @@ export function registerWorkspaceRoutes(app: FastifyInstance, database: Workspac
       }
 
       const result = await database.query(
-        `SELECT id, name, description, created_at, updated_at
-         FROM projects
-         WHERE workspace_id = $1
-           AND EXISTS (
-             SELECT 1
-             FROM workspace_members
-             WHERE workspace_id = $1 AND user_id = $2
+        `SELECT p.id, p.name, p.description, p.created_at, p.updated_at
+         FROM projects p
+         JOIN workspace_members wm
+           ON wm.workspace_id = p.workspace_id AND wm.user_id = $2
+         WHERE p.workspace_id = $1
+           AND (
+             wm.role IN ('owner', 'admin')
+             OR p.access_restricted IS NOT TRUE
+             OR EXISTS (
+               SELECT 1
+               FROM project_members pm
+               WHERE pm.project_id = p.id AND pm.user_id = $2
+             )
            )
-         ORDER BY updated_at DESC, id`,
+         ORDER BY p.updated_at DESC, p.id`,
         [request.params.workspaceId, userId]
       )
       return { success: true, projects: result.rows }
@@ -229,6 +283,214 @@ export function registerWorkspaceRoutes(app: FastifyInstance, database: Workspac
         })
       }
       return reply.code(201).send({ success: true, project })
+    }
+  )
+
+  app.get<{ Params: { workspaceId: string; projectId: string } }>(
+    '/api/workspaces/:workspaceId/projects/:projectId',
+    async (request, reply) => {
+      const userId = await authenticatedUserId(request.headers.authorization, database)
+      if (!userId) return unauthenticated(reply)
+
+      const membership = await database.query(
+        'SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2',
+        [request.params.workspaceId, userId]
+      )
+      const role = membership.rows[0]?.role
+      if (typeof role !== 'string') {
+        return reply.code(404).send({ success: false, message: 'Workspace not found.' })
+      }
+
+      const result = await database.query(
+        `SELECT p.id, p.name, p.description, p.created_at, p.updated_at, p.access_restricted,
+                EXISTS (
+                  SELECT 1 FROM project_members pm
+                  WHERE pm.project_id = p.id AND pm.user_id = $3
+                ) AS is_listed
+         FROM projects p
+         WHERE p.workspace_id = $1 AND p.id = $2`,
+        [request.params.workspaceId, request.params.projectId, userId]
+      )
+      const project = result.rows[0]
+      if (!project || !hasProjectAccess(role, project.access_restricted, project.is_listed)) {
+        return reply.code(404).send({ success: false, message: 'Project not found.' })
+      }
+
+      return {
+        success: true,
+        project: {
+          id: project.id,
+          name: project.name,
+          description: project.description,
+          created_at: project.created_at,
+          updated_at: project.updated_at
+        }
+      }
+    }
+  )
+
+  app.get<{ Params: { workspaceId: string; projectId: string } }>(
+    '/api/workspaces/:workspaceId/projects/:projectId/access',
+    async (request, reply) => {
+      const userId = await authenticatedUserId(request.headers.authorization, database)
+      if (!userId) return unauthenticated(reply)
+
+      const membership = await database.query(
+        'SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2',
+        [request.params.workspaceId, userId]
+      )
+      const role = membership.rows[0]?.role
+      if (typeof role !== 'string') {
+        return reply.code(404).send({ success: false, message: 'Workspace not found.' })
+      }
+
+      const result = await database.query(
+        `SELECT p.id, p.access_restricted,
+                EXISTS (
+                  SELECT 1 FROM project_members pm
+                  WHERE pm.project_id = p.id AND pm.user_id = $3
+                ) AS is_listed
+         FROM projects p
+         WHERE p.workspace_id = $1 AND p.id = $2`,
+        [request.params.workspaceId, request.params.projectId, userId]
+      )
+      const project = result.rows[0]
+      if (!project || !hasProjectAccess(role, project.access_restricted, project.is_listed)) {
+        return reply.code(404).send({ success: false, message: 'Project not found.' })
+      }
+
+      const listed = await database.query(
+        `SELECT wm.user_id AS id, wm.role, pm.created_at
+         FROM project_members pm
+         JOIN workspace_members wm
+           ON wm.user_id = pm.user_id AND wm.workspace_id = $1
+         WHERE pm.project_id = $2
+         ORDER BY wm.user_id`,
+        [request.params.workspaceId, request.params.projectId]
+      )
+      return {
+        success: true,
+        access: {
+          restricted: isTruthyFlag(project.access_restricted),
+          members: serializeAccessMembers(listed.rows)
+        }
+      }
+    }
+  )
+
+  app.put<{ Params: { workspaceId: string; projectId: string } }>(
+    '/api/workspaces/:workspaceId/projects/:projectId/access',
+    async (request, reply) => {
+      const userId = await authenticatedUserId(request.headers.authorization, database)
+      if (!userId) return unauthenticated(reply)
+
+      const body = readRecord(request.body)
+      if (!body || typeof body.restricted !== 'boolean') {
+        return reply.code(400).send({
+          success: false,
+          message: 'restricted must be true or false.'
+        })
+      }
+      const memberIds = readMemberIds(body.member_ids)
+      if (!memberIds) {
+        return reply.code(400).send({
+          success: false,
+          message: 'member_ids must be an array of member ids.'
+        })
+      }
+      const restricted = body.restricted
+
+      const result = await database.transaction(async query => {
+        const membership = await query(
+          `SELECT role
+           FROM workspace_members
+           WHERE workspace_id = $1 AND user_id = $2
+           FOR UPDATE`,
+          [request.params.workspaceId, userId]
+        )
+        const actorRole = membership.rows[0]?.role
+        if (!isWorkspaceRole(actorRole)) {
+          return { status: 404 as const, message: 'Workspace not found.' }
+        }
+
+        const locked = await query(
+          `SELECT p.id, p.access_restricted,
+                  EXISTS (
+                    SELECT 1 FROM project_members pm
+                    WHERE pm.project_id = p.id AND pm.user_id = $3
+                  ) AS is_listed
+           FROM projects p
+           WHERE p.workspace_id = $1 AND p.id = $2
+           FOR UPDATE`,
+          [request.params.workspaceId, request.params.projectId, userId]
+        )
+        const project = locked.rows[0]
+        if (!project || !hasProjectAccess(actorRole, project.access_restricted, project.is_listed)) {
+          return { status: 404 as const, message: 'Project not found.' }
+        }
+        if (actorRole !== 'owner' && actorRole !== 'admin') {
+          return {
+            status: 403 as const,
+            message: 'Workspace admin access is required to update project access.'
+          }
+        }
+
+        if (memberIds.length > 0) {
+          const members = await query(
+            `SELECT user_id
+             FROM workspace_members
+             WHERE workspace_id = $1 AND user_id = ANY($2::text[])`,
+            [request.params.workspaceId, memberIds]
+          )
+          if (members.rows.length !== memberIds.length) {
+            return {
+              status: 400 as const,
+              message: 'Every listed user must be a member of this workspace.'
+            }
+          }
+        }
+
+        await query(
+          `UPDATE projects
+           SET access_restricted = $3, updated_at = NOW()
+           WHERE workspace_id = $1 AND id = $2`,
+          [request.params.workspaceId, request.params.projectId, restricted]
+        )
+        await query(
+          'DELETE FROM project_members WHERE project_id = $1',
+          [request.params.projectId]
+        )
+        if (memberIds.length > 0) {
+          await query(
+            `INSERT INTO project_members (project_id, user_id)
+             SELECT $1, user_id
+             FROM unnest($2::text[]) AS user_id`,
+            [request.params.projectId, memberIds]
+          )
+        }
+
+        const listed = await query(
+          `SELECT wm.user_id AS id, wm.role, pm.created_at
+           FROM project_members pm
+           JOIN workspace_members wm
+             ON wm.user_id = pm.user_id AND wm.workspace_id = $1
+           WHERE pm.project_id = $2
+           ORDER BY wm.user_id`,
+          [request.params.workspaceId, request.params.projectId]
+        )
+        return {
+          status: 200 as const,
+          access: {
+            restricted,
+            members: serializeAccessMembers(listed.rows)
+          }
+        }
+      })
+
+      if (result.status !== 200) {
+        return reply.code(result.status).send({ success: false, message: result.message })
+      }
+      return { success: true, access: result.access }
     }
   )
 
@@ -362,6 +624,7 @@ export function registerWorkspaceRoutes(app: FastifyInstance, database: Workspac
         if (removed.rows.length === 0) {
           return { status: 404 as const, message: 'Member not found.' }
         }
+        await deleteProjectMemberships(query, request.params.workspaceId, request.params.memberId)
         return { status: 200 as const }
       })
 
@@ -460,6 +723,7 @@ export function registerWorkspaceRoutes(app: FastifyInstance, database: Workspac
           if (removed.rows.length === 0) {
             return { status: 404 as const, message: 'Workspace not found.' }
           }
+          await deleteProjectMemberships(query, request.params.workspaceId, userId)
         }
 
         return {
