@@ -247,6 +247,21 @@ const migrations: Migration[] = [
       CREATE INDEX IF NOT EXISTS workspace_scan_file_meta_scan_idx
         ON workspace_scan_file_meta (scan_id);
     `
+  },
+  {
+    version: '010_project_access',
+    sql: `
+      ALTER TABLE projects
+        ADD COLUMN IF NOT EXISTS access_restricted BOOLEAN NOT NULL DEFAULT false;
+      CREATE TABLE IF NOT EXISTS project_members (
+        project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (project_id, user_id)
+      );
+      CREATE INDEX IF NOT EXISTS project_members_user_id_idx
+        ON project_members (user_id, project_id);
+    `
   }
 ]
 
