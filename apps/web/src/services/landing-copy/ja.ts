@@ -115,7 +115,7 @@ export const ja: LandingStrings = {
     comments: ['# 1. {name} を取得', '# 2. 起動', '# 3. 開く']
   },
   closing: { title: 'プロジェクトをマップで見てみませんか？', lead: 'まずはブラウザでサンプルを試すか、自分でホストしてください。' },
-  footer: { label: 'フッター', docs: 'ドキュメント', selfHost: 'セルフホスト' },
+  footer: { label: 'フッター', docs: 'ドキュメント', selfHost: 'セルフホスト', resources: 'リソース' },
   severity: { critical: '重大', high: '高', medium: '中', low: '低', info: '問題なし' },
   linkKind: { extracted: 'コード内で確認', inferred: '推定', unresolved: '確認できず', start: 'エントリーポイント' }
 }

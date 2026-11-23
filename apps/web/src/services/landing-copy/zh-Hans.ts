@@ -115,7 +115,7 @@ export const zhHans: LandingStrings = {
     comments: ['# 1. 获取 {name}', '# 2. 启动', '# 3. 打开']
   },
   closing: { title: '准备好把项目看成一张地图了吗？', lead: '先在浏览器中试用示例，或自行托管。' },
-  footer: { label: '页脚', docs: '文档', selfHost: '自托管' },
+  footer: { label: '页脚', docs: '文档', selfHost: '自托管', resources: '资源' },
   severity: { critical: '严重', high: '高', medium: '中', low: '低', info: '无问题' },
   linkKind: { extracted: '在代码中找到', inferred: '推断', unresolved: '无法确认', start: '入口点' }
 }

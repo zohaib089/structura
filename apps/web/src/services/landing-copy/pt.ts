@@ -115,7 +115,7 @@ export const pt: LandingStrings = {
     comments: ['# 1. obter o {name}', '# 2. iniciar', '# 3. abrir']
   },
   closing: { title: 'Pronto para ver o seu projeto como um mapa?', lead: 'Experimente primeiro um exemplo no navegador, ou aloje-o você mesmo.' },
-  footer: { label: 'Rodapé', docs: 'Documentação', selfHost: 'Alojar localmente' },
+  footer: { label: 'Rodapé', docs: 'Documentação', selfHost: 'Alojar localmente', resources: 'Recursos' },
   severity: { critical: 'Crítico', high: 'Alto', medium: 'Médio', low: 'Baixo', info: 'Sem problemas' },
   linkKind: { extracted: 'Encontrada no código', inferred: 'Provável', unresolved: 'Não confirmada', start: 'Ponto de entrada' }
 }

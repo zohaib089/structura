@@ -27,7 +27,7 @@ const links = useLandingLinks()
         </div>
       </div>
       <div class="sh__term" role="group" :aria-label="copy.selfHost.terminalLabel">
-        <div class="sh__term-head"><span>{{ copy.selfHost.terminalBadge }}</span><span>{{ copy.selfHost.terminalTitle }}</span></div>
+        <div class="sh__term-head"><i class="sh__dots" aria-hidden="true"><b /><b /><b /></i><span>{{ copy.selfHost.terminalBadge }}</span><span>{{ copy.selfHost.terminalTitle }}</span></div>
         <pre><span v-for="line in copy.selfHost.terminalLines" :key="line.comment" class="sh__group"><span class="sh__comment">{{ line.comment }}</span><span class="sh__command" dir="ltr">{{ line.command }}</span></span></pre>
       </div>
     </div>
@@ -75,12 +75,14 @@ const links = useLandingLinks()
 .sh__term {
   overflow: hidden;
   border: 1px solid var(--landing-navy-line);
-  border-radius: 10px;
-  background: var(--landing-navy-deep);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--landing-navy-deep) 88%, #000);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.02) inset, 0 30px 60px -30px rgb(0 0 0 / 0.7), 0 0 80px -20px color-mix(in srgb, var(--landing-navy-ring) 45%, transparent);
 }
 .sh__term-head {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
   padding: 10px 14px;
   border-block-end: 1px solid var(--landing-navy-line);
   color: var(--landing-navy-accent);
@@ -88,9 +90,25 @@ const links = useLandingLinks()
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
+.sh__term-head span:last-child {
+  margin-inline-start: auto;
+}
+.sh__dots {
+  display: inline-flex;
+  gap: 6px;
+}
+.sh__dots b {
+  inline-size: 9px;
+  block-size: 9px;
+  border-radius: 50%;
+  background: var(--landing-navy-line);
+}
+.sh__dots b:first-child {
+  background: var(--color-brand-amber-ui);
+}
 pre {
   margin: 0;
-  padding: 16px 18px;
+  padding: 20px 22px 24px;
   overflow-x: auto;
   color: var(--gray-10);
   font: 400 13.5px/1.8 var(--landing-font-mono);
@@ -105,6 +123,10 @@ pre {
 }
 .sh__comment {
   color: var(--landing-navy-comment);
+}
+.sh__command::before {
+  content: '$ ';
+  color: var(--color-brand-amber-ui);
 }
 
 @media (max-width: 900px) {

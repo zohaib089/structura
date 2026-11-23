@@ -115,7 +115,7 @@ export const nl: LandingStrings = {
     comments: ['# 1. haal {name} op', '# 2. start het', '# 3. open het']
   },
   closing: { title: 'Klaar om je project als kaart te zien?', lead: 'Probeer eerst een voorbeeld in je browser, of host het zelf.' },
-  footer: { label: 'Voettekst', docs: 'Documentatie', selfHost: 'Zelf hosten' },
+  footer: { label: 'Voettekst', docs: 'Documentatie', selfHost: 'Zelf hosten', resources: 'Bronnen' },
   severity: { critical: 'Kritiek', high: 'Hoog', medium: 'Middel', low: 'Laag', info: 'Geen problemen' },
   linkKind: { extracted: 'Gevonden in de code', inferred: 'Waarschijnlijk', unresolved: 'Niet bevestigd', start: 'Startpunt' }
 }

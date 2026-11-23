@@ -15,7 +15,7 @@ const copy = useLandingCopy()
         <p class="landing-lead">{{ copy.coverage.lead }}</p>
         <p class="cov__note">{{ copy.coverage.note }}</p>
       </div>
-      <div>
+      <div class="cov__panel landing-card">
         <div class="cov__stat"><b>{{ copy.coverage.statValue }}</b><span>{{ copy.coverage.statLabel }}</span></div>
         <div class="cov__bar" role="img" :aria-label="copy.coverage.barLabel">
           <div class="cov__ok" :style="{ inlineSize: `${copy.coverage.checkedPercent}%` }" />
@@ -40,8 +40,13 @@ const copy = useLandingCopy()
   gap: clamp(32px, 6vw, 96px);
   align-items: start;
 }
+.cov__panel {
+  padding: clamp(22px, 2.6vw, 32px);
+}
 .cov__note {
   margin: 18px 0 0;
+  padding-inline-start: 12px;
+  border-inline-start: 2px solid color-mix(in srgb, var(--color-brand-amber-ui) 55%, transparent);
   color: var(--gray-7);
   font-size: var(--text-13);
 }
@@ -67,9 +72,10 @@ const copy = useLandingCopy()
   overflow: hidden;
   border: 1px solid var(--gray-5);
   border-radius: 7px;
+  background: var(--gray-2);
 }
 .cov__ok {
-  background: var(--gray-10);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--color-brand-amber-ui) 75%, var(--gray-10)), var(--color-brand-amber-ui));
 }
 .cov__skipped {
   background: repeating-linear-gradient(135deg, var(--gray-5) 0 4px, var(--gray-2) 4px 8px);
@@ -79,6 +85,10 @@ const copy = useLandingCopy()
   padding: 0;
   list-style: none;
   border-block-start: 1px solid var(--gray-4);
+}
+.cov__rows li:last-child {
+  border-block-end: 0;
+  padding-block-end: 0;
 }
 .cov__rows li {
   display: grid;

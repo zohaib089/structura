@@ -115,7 +115,7 @@ export const en: LandingStrings = {
     comments: ['# 1. get {name}', '# 2. start it', '# 3. open it']
   },
   closing: { title: 'Ready to see your project as a map?', lead: 'Try a sample in your browser first, or host it yourself.' },
-  footer: { label: 'Footer', docs: 'Docs', selfHost: 'Self-host' },
+  footer: { label: 'Footer', docs: 'Docs', selfHost: 'Self-host', resources: 'Resources' },
   severity: { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low', info: 'No issues' },
   linkKind: { extracted: 'Found in the code', inferred: 'Likely', unresolved: "Couldn't confirm", start: 'Entry point' }
 }

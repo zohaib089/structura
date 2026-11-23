@@ -82,20 +82,19 @@ function onInput(event: Event) {
 }
 
 .field-label {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: var(--tracking-widest);
-  text-transform: uppercase;
-  color: var(--gray-8);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--gray-10);
 }
 
 input {
   width: 100%;
+  height: 44px;
   border: 1px solid var(--gray-5);
-  background: var(--gray-2);
+  background: var(--gray-0);
   color: var(--gray-10);
-  border-radius: var(--r-md);
-  padding: var(--space-3) var(--space-3);
+  border-radius: 10px;
+  padding: 0 var(--space-3);
   font-size: var(--font-size-md);
   outline: none;
   transition: border-color var(--dur-1) var(--easing-product), box-shadow var(--dur-1) var(--easing-product), background var(--dur-1) var(--easing-product);
@@ -139,10 +138,20 @@ input::placeholder {
   color: var(--gray-7);
 }
 
+input:hover:not(:focus) {
+  border-color: var(--gray-7);
+}
+
 input:focus {
   border-color: var(--color-brand-amber-ui);
-  box-shadow: var(--focus-ring);
-  background: var(--gray-2);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand-amber-ui) 28%, transparent);
+  background: var(--gray-0);
+}
+
+/* Inline validation: only after the person has interacted (e.g. a malformed email), never on first paint. */
+input:user-invalid {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-danger) 22%, transparent);
 }
 
 small {
@@ -152,7 +161,7 @@ small {
 }
 
 [data-theme='light'] input {
-  background: var(--gray-2);
+  background: #ffffff;
   border-color: var(--gray-5);
   color: var(--gray-10);
 }
