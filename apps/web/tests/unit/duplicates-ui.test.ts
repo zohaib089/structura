@@ -76,6 +76,7 @@ async function mountSection(data: GraphDuplicates | null | undefined | 'default'
       lineRange: messages.duplicatesLineRange,
       openLabel: messages.duplicatesOpen,
       showing: messages.duplicatesShowing,
+      descriptionMessages: messages,
       graphHref: (path?: string) => ({ path: '/graph', query: path ? { node: path } : {} })
     },
     global: { plugins: [router] }

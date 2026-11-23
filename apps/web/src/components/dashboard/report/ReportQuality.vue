@@ -6,13 +6,17 @@ import type { GraphQuality, QualityCategory } from '../../../viewer/graph-types'
 import {
   cappedFolderQuality,
   cappedQualityTips,
-  folderQualitySummary,
   hasGraphQuality,
   orderedBreakdown,
   qualityFolderName,
   qualityFolderShortPath,
   tipActionText
 } from '../../../viewer/quality-score'
+import {
+  qualityBreakdownLabel,
+  localizedFolderQualitySummary,
+  type QualityBreakdownMessages
+} from '../../../viewer/quality-breakdown-label'
 
 const props = defineProps<{
   quality?: GraphQuality | null
@@ -32,6 +36,7 @@ const props = defineProps<{
   openLabel: string
   folderEmptySummary: string
   graphHref: (path?: string) => RouteLocationRaw
+  breakdownMessages: QualityBreakdownMessages
 }>()
 
 const visible = computed(() => hasGraphQuality(props.quality))
@@ -50,7 +55,7 @@ const folders = computed(() =>
     grade: folder.grade,
     name: qualityFolderName(folder.path),
     shortPath: qualityFolderShortPath(folder.path),
-    summary: folderQualitySummary(folder, props.folderEmptySummary),
+    summary: localizedFolderQualitySummary(folder, props.breakdownMessages, props.folderEmptySummary),
     scoreText: props.scoreLabel(folder.score, folder.grade)
   }))
 )
@@ -83,7 +88,7 @@ const folders = computed(() =>
               {{ pointsOff(item.penalty) }}
             </span>
           </span>
-          <span class="category__label">{{ item.label }}</span>
+          <span class="category__label">{{ qualityBreakdownLabel(item, breakdownMessages) }}</span>
         </li>
       </ul>
     </section>

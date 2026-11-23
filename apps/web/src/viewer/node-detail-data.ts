@@ -128,7 +128,23 @@ export function dependencyCounts(index: GraphIndex, nodeId: string): { out: numb
   return { out: outTargets.size, in: inSources.size }
 }
 
-export function importProvenanceLabel(document: GraphDocument, nodeId: string): string {
+export interface ImportProvenanceLabels {
+  foundInCode: string
+  likely: string
+  mixed: (extracted: number, inferred: number) => string
+}
+
+const DEFAULT_PROVENANCE_LABELS: ImportProvenanceLabels = {
+  foundInCode: 'Found in the code',
+  likely: 'Likely',
+  mixed: (extracted, inferred) => `${extracted} found in source · ${inferred} guessed from context`
+}
+
+export function importProvenanceLabel(
+  document: GraphDocument,
+  nodeId: string,
+  labels: ImportProvenanceLabels = DEFAULT_PROVENANCE_LABELS
+): string {
   let extracted = 0
   let inferred = 0
   for (const edge of document.edges) {
@@ -138,9 +154,9 @@ export function importProvenanceLabel(document: GraphDocument, nodeId: string): 
     else extracted += 1
   }
   if (extracted === 0 && inferred === 0) return ''
-  if (inferred === 0) return 'Found in the code'
-  if (extracted === 0) return 'Likely'
-  return `${extracted} found in source · ${inferred} guessed from context`
+  if (inferred === 0) return labels.foundInCode
+  if (extracted === 0) return labels.likely
+  return labels.mixed(extracted, inferred)
 }
 
 function isImportEdge(edge: GraphEdge): edge is GraphEdge & { type: 'imports' | 'reexports' } {
@@ -241,6 +257,7 @@ export function buildNodeDetailSections(input: {
   findings: ViewerReportFinding[]
   pathSeverityCounts?: Map<string, SeverityCounts>
   apiSummary?: string | null
+  provenanceLabels?: ImportProvenanceLabels
 }): NodeDetailSections {
   const node = input.index.nodesById.get(input.nodeId)
   const pathKey = resolveFileKey(input.index, input.nodeId)
@@ -275,7 +292,7 @@ export function buildNodeDetailSections(input: {
       depth: input.depth,
       depsOut: deps.out,
       depsIn: deps.in,
-      provenance: importProvenanceLabel(input.index.document, input.nodeId)
+      provenance: importProvenanceLabel(input.index.document, input.nodeId, input.provenanceLabels)
     },
     summary,
     summarySource,

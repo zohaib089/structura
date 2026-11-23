@@ -7,6 +7,8 @@ import LocaleSwitcher from '../../components/layout/LocaleSwitcher.vue'
 import { getCurrentSession, logoutUser } from '../../services/auth'
 import ThemeToggle from '../../components/layout/ThemeToggle.vue'
 import { dashboardMessages } from '../../services/dashboard-messages'
+import { scanReportMessages } from '../../services/scan-report-messages'
+import { reportTabBreadcrumbLabel } from '../../services/report-tab-label'
 import { navigationMessages } from '../../services/navigation-messages'
 import { isSupportedWebLocale, readLocalePreference, resolvePreferredWebLocale } from '../../services/locale'
 import {
@@ -54,6 +56,7 @@ const locale = computed(() => {
 })
 
 const messages = computed(() => dashboardMessages(locale.value))
+const reportMessages = computed(() => scanReportMessages(locale.value))
 const navMessages = computed(() => navigationMessages(locale.value))
 
 const workspaceParam = computed(() =>
@@ -196,7 +199,7 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => {
   if (route.name === 'project-graph' || scanTab.value === 'graph') {
     items.push({ label: messages.value.graphTabBreadcrumb })
   } else if (scanTab.value) {
-    items.push({ label: scanTab.value })
+    items.push({ label: reportTabBreadcrumbLabel(scanTab.value, reportMessages.value) })
   } else if (route.name === 'open-project') {
     items.push({ label: messages.value.openProjectNav })
   } else if (route.name === 'workspace-settings') {

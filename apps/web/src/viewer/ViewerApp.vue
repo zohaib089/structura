@@ -932,7 +932,12 @@ const nodeDetailSections = computed(() => {
     depth: model.depth,
     findings: props.scanFindings ?? [],
     pathSeverityCounts: props.pathSeverityCounts,
-    apiSummary: fileSummaryStatus.value === 'ready' ? (fileSummary.value ?? null) : null
+    apiSummary: fileSummaryStatus.value === 'ready' ? (fileSummary.value ?? null) : null,
+    provenanceLabels: {
+      foundInCode: messages.provExtracted,
+      likely: messages.provInferred,
+      mixed: messages.provMixedCounts
+    }
   })
 })
 
@@ -1160,7 +1165,7 @@ const snippet = 'layers: []\nrules: []\n'
 </script>
 
 <template>
-  <div ref="viewerEl" class="viewer viewer-radial" :class="{ 'viewer-embedded': embedded, 'is-inspector-open': inspectorOpen, 'is-panel-collapsed': inspectorOpen && panelCollapsed, 'is-focusing': Boolean(focus && focusSummary), 'is-narrow-host': isNarrowHost }" :style="panelBottomInset ? { '--viewer-sheet-cover': `${panelBottomInset}px` } : undefined" :dir="direction">
+  <div ref="viewerEl" class="viewer viewer-radial" :class="{ 'viewer-embedded': embedded, 'is-inspector-open': inspectorOpen, 'is-panel-collapsed': inspectorOpen && panelCollapsed, 'is-focusing': Boolean(focus && focusSummary), 'is-narrow-host': isNarrowHost, 'has-hotspot-legend': showHotspots && hasHotspots }" :style="panelBottomInset ? { '--viewer-sheet-cover': `${panelBottomInset}px` } : undefined" :dir="direction">
     <a v-if="!embedded" class="skip" href="#graph-canvas">{{ messages.skip }}</a>
     <header v-if="!embedded" class="topbar" role="banner">
       <BrandMark :size="24" />
@@ -1374,6 +1379,8 @@ const snippet = 'layers: []\nrules: []\n'
         :zoom-in="messages.zoomIn"
         :zoom-out="messages.zoomOut"
         :zoom-fit="messages.zoomFit"
+        :zoom-fit-short="messages.zoomFitShort"
+        :file-list-label="messages.fileListLabel"
         :focus-ids="focusMembers ? [...focusMembers] : []"
         :fit-duration="cameraDuration"
         :fit-padding="cameraPadding"
@@ -1407,12 +1414,12 @@ const snippet = 'layers: []\nrules: []\n'
       <p v-else-if="graph && graph.nodes.length === 0" class="empty-graph">{{ messages.detailsEmpty }}</p>
       <p v-if="overview && overview.nodes.length === 0 && graph" class="empty-graph">{{ messages.filterEmpty }}</p>
       <GraphLegend class="stage-legend" :title="messages.legendTitle" :rows="legendRows" @toggle="legendToggle" />
-      <HotspotLegend
-        v-if="showHotspots && hasHotspots"
-        class="hotspot-legend-wrap"
-        :title="messages.hotspotLegendTitle"
-        :bands="hotspotLegendBands"
-      />
+      <div v-if="showHotspots && hasHotspots" class="hotspot-legend-wrap">
+        <HotspotLegend
+          :title="messages.hotspotLegendTitle"
+          :bands="hotspotLegendBands"
+        />
+      </div>
       <CoachMark
         v-if="overview && graph && graph.nodes.length > 0 && !coachDismissed"
         :steps="coachSteps"
@@ -1648,7 +1655,7 @@ const snippet = 'layers: []\nrules: []\n'
       <span class="status-pan">{{ panStatus }}</span>
       <BudgetMeter
         class="status-budget"
-        :text="format(meterTone === 'limit' ? messages.budgetCapped : messages.budgetMeter, { nodes: numbers.format(overview?.nodes.length ?? 0), nodeBudget: numbers.format(HARD_NODE_CAP), edges: numbers.format(overview?.edges.length ?? 0), edgeBudget: numbers.format(HARD_EDGE_CAP) })"
+        :text="meterTone === 'limit' ? format(messages.budgetCapped, { nodes: numbers.format(overview?.nodes.length ?? 0), nodeBudget: numbers.format(HARD_NODE_CAP), edges: numbers.format(overview?.edges.length ?? 0), edgeBudget: numbers.format(HARD_EDGE_CAP) }) : messages.budgetMeter(numbers.format(overview?.nodes.length ?? 0), numbers.format(overview?.edges.length ?? 0), overview?.edges.length ?? 0)"
         :ratio="ratio"
         :warn="meterTone === 'detail'"
         :full="meterTone === 'limit'"
@@ -2068,6 +2075,14 @@ button:disabled { opacity: var(--alpha-40); }
   inset-block-start: 8rem;
   inset-block-end: auto;
   z-index: var(--z-graph-controls);
+  /* Positioning only — the inner legend owns the border and shadow, so a
+     transform on this wrap cannot leave a second empty card behind the pill. */
+  inline-size: max-content;
+  max-inline-size: calc(100% - var(--space-6));
+  pointer-events: none;
+  background: none;
+  border: 0;
+  box-shadow: none;
 }
 .viewer:not(.viewer-radial) .hotspot-legend-wrap {
   /* Linear: the edge legend uses the lower-start corner; stay at the top. */
@@ -2079,6 +2094,12 @@ button:disabled { opacity: var(--alpha-40); }
     transform: translateX(-50%);
     inset-block-start: calc(var(--space-3) + var(--space-1) + var(--viewer-hit-target, 2.75rem) + var(--space-1) + 2px + var(--space-2));
     max-inline-size: calc(100% - var(--space-4));
+  }
+}
+@media (max-width: 640px) {
+  /* The phone "files in view" chip shares this band; sit it under the legend pill. */
+  .viewer.has-hotspot-legend {
+    --graph-file-list-extra-top: calc(2rem + var(--space-2));
   }
 }
 .viewer { font-feature-settings: var(--font-feature-ui); }

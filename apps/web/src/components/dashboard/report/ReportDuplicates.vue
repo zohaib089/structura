@@ -6,6 +6,8 @@ import type { GraphDuplicates } from '../../../viewer/graph-types'
 import {
   cappedDuplicateGroups,
   descriptionSegments,
+  duplicateGroupDescription,
+  type DuplicateDescriptionMessages,
   duplicateFileName,
   duplicateShortPath,
   hasGraphDuplicates
@@ -26,6 +28,7 @@ const props = defineProps<{
   openLabel: string
   showing: (shown: number, total: number) => string
   graphHref: (path?: string) => RouteLocationRaw
+  descriptionMessages: DuplicateDescriptionMessages
 }>()
 
 const visible = computed(() => hasGraphDuplicates(props.duplicates))
@@ -37,8 +40,8 @@ const groupTotal = computed(() => props.duplicates?.summary.groups ?? props.dupl
 const groups = computed(() =>
   cappedDuplicateGroups(props.duplicates?.groups ?? []).map((group) => ({
     id: group.id,
-    description: group.description,
-    descriptionParts: descriptionSegments(group.description),
+    description: duplicateGroupDescription(group, props.descriptionMessages),
+    descriptionParts: descriptionSegments(duplicateGroupDescription(group, props.descriptionMessages)),
     linesText: props.groupLines(group.lineCount),
     placesText: props.groupPlaces(group.occurrences.length),
     occurrences: group.occurrences.map((item, index) => {

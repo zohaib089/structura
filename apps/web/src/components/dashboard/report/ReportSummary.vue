@@ -134,6 +134,7 @@ const nextSteps = computed(() => {
       :folders-showing="messages.qualityFoldersShowing"
       :open-label="messages.qualityFoldersOpen"
       :folder-empty-summary="messages.qualityFolderSummaryNone"
+      :breakdown-messages="messages"
       :graph-href="graphHref"
     />
 
@@ -193,6 +194,7 @@ const nextSteps = computed(() => {
       :line-range="messages.duplicatesLineRange"
       :open-label="messages.duplicatesOpen"
       :showing="messages.duplicatesShowing"
+      :description-messages="messages"
       :graph-href="graphHref"
     />
 

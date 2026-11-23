@@ -1,5 +1,6 @@
 import type { WebLocale } from './locale'
 import { scanReportNewScreenMessages } from './scan-report-locale-overrides'
+import { scanReportStructuredMessages } from './scan-report-structured-locale-overrides'
 import type { AnalyserRunStatus, ReportSection, ReportSeverity } from '../api/scan-report-types'
 
 export type ReportTabId =
@@ -131,6 +132,23 @@ export interface ScanReportMessages {
   qualityFoldersShowing: (shown: number, total: number) => string
   qualityFoldersOpen: string
   qualityFolderSummaryNone: string
+
+  qualityLabelArchitectureNone: string
+  qualityLabelCyclesNone: string
+  qualityLabelCycles: (count: number) => string
+  qualityLabelHotspotsNone: string
+  qualityLabelHotspots: (count: number) => string
+  qualityLabelHotspotsWithMax: (count: number, maxCount: number) => string
+  qualityLabelImportsNone: string
+  qualityLabelImportsUnresolved: (percent: number) => string
+  qualityLabelImportsExternal: (percent: number) => string
+  qualityLabelSizeNone: string
+  qualityLabelSizeFiles: (count: number) => string
+  qualityLabelSizeFunctions: (count: number) => string
+  qualityLabelForbiddenDeps: (count: number) => string
+  qualityLabelUndeclaredImports: (count: number) => string
+  qualityListAnd: (parts: string[]) => string
+  qualitySmallPenalty: (categoryTitle: string) => string
   duplicatesTitle: string
   duplicatesHint: string
   duplicatesGroupsValueLabel: (count: number) => string
@@ -145,6 +163,10 @@ export interface ScanReportMessages {
   duplicatesLineRange: (startLine: number, endLine: number) => string
   duplicatesOpen: string
   duplicatesShowing: (shown: number, total: number) => string
+
+  duplicatesDescriptionTwoPaths: (lines: number, pathA: string, pathB: string) => string
+  duplicatesDescriptionOnePath: (lines: number, count: number, path: string) => string
+  duplicatesDescriptionManyPaths: (lines: number, fileCount: number) => string
   askTitle: string
   askHint: string
   askInputLabel: string
@@ -422,6 +444,50 @@ const en: ScanReportMessages = {
   },
   qualityFoldersOpen: 'Show in graph',
   qualityFolderSummaryNone: 'No issues in this folder.',
+
+  qualityLabelArchitectureNone: 'No architecture rule breaks',
+  qualityLabelCyclesNone: 'No import cycles',
+  qualityLabelCycles(count) {
+    return count === 1 ? '1 import cycle' : `${count} import cycles`
+  },
+  qualityLabelHotspotsNone: 'No highly connected hotspots',
+  qualityLabelHotspots(count) {
+    return count === 1 ? '1 file is a heavy hotspot' : `${count} files are heavy hotspots`
+  },
+  qualityLabelHotspotsWithMax(count, maxCount) {
+    const base = count === 1 ? '1 file is a heavy hotspot' : `${count} files are heavy hotspots`
+    const extra = maxCount === 1 ? '1 file at the maximum score' : `${maxCount} files at the maximum score`
+    return `${base}, including ${extra}`
+  },
+  qualityLabelImportsNone: 'Imports resolve cleanly',
+  qualityLabelImportsUnresolved(percent) {
+    return `${percent}% of imports could not be resolved`
+  },
+  qualityLabelImportsExternal(percent) {
+    return `${percent}% of imports come from third-party packages`
+  },
+  qualityLabelSizeNone: 'No unusually large files or functions',
+  qualityLabelSizeFiles(count) {
+    return count === 1 ? '1 very large file' : `${count} very large files`
+  },
+  qualityLabelSizeFunctions(count) {
+    return count === 1 ? '1 very large function' : `${count} very large functions`
+  },
+  qualityLabelForbiddenDeps(count) {
+    return count === 1 ? '1 forbidden dependency' : `${count} forbidden dependencies`
+  },
+  qualityLabelUndeclaredImports(count) {
+    return count === 1 ? '1 undeclared import' : `${count} undeclared imports`
+  },
+  qualityListAnd(parts) {
+    if (parts.length === 0) return ''
+    if (parts.length === 1) return parts[0] ?? ''
+    if (parts.length === 2) return `${parts[0]} and ${parts[1]}`
+    return `${parts.slice(0, -1).join(', ')}, and ${parts.at(-1)}`
+  },
+  qualitySmallPenalty(categoryTitle) {
+    return `a small ${categoryTitle.toLowerCase()} penalty`
+  },
   duplicatesTitle: 'Duplicated code',
   duplicatesHint: 'These are places where the same block of code appears more than once. Open a file to see it on the graph.',
   duplicatesGroupsValueLabel(count) {
@@ -458,6 +524,19 @@ const en: ScanReportMessages = {
   duplicatesOpen: 'Show in graph',
   duplicatesShowing(shown, total) {
     return `Showing the ${shown} largest repeated blocks, of ${total}. Open a file to see it on the graph.`
+  },
+  duplicatesDescriptionTwoPaths(lines, pathA, pathB) {
+    const block = lines === 1 ? '1 identical line' : `${lines} identical lines`
+    return `${block} in ${pathA} and ${pathB}`
+  },
+  duplicatesDescriptionOnePath(lines, count, path) {
+    const block = lines === 1 ? '1 identical line' : `${lines} identical lines`
+    const times = count === 2 ? 'twice' : `${count} times`
+    return `${block} appear ${times} in ${path}`
+  },
+  duplicatesDescriptionManyPaths(lines, fileCount) {
+    const block = lines === 1 ? '1 identical line' : `${lines} identical lines`
+    return `${block} in ${fileCount} files`
   },
   askTitle: 'Ask about this project',
   askHint: 'Ask a short question about this scan. Answers come from the scan results, not from a chatbot.',
@@ -657,15 +736,15 @@ const en: ScanReportMessages = {
 
 const messages: Record<WebLocale, ScanReportMessages> = {
   en,
-  pt: { ...en, ...scanReportNewScreenMessages.pt },
-  it: { ...en, ...scanReportNewScreenMessages.it },
-  fr: { ...en, ...scanReportNewScreenMessages.fr },
-  nl: { ...en, ...scanReportNewScreenMessages.nl },
-  es: { ...en, ...scanReportNewScreenMessages.es },
-  ja: { ...en, ...scanReportNewScreenMessages.ja },
-  'zh-Hans': { ...en, ...scanReportNewScreenMessages['zh-Hans'] },
-  hi: { ...en, ...scanReportNewScreenMessages.hi },
-  ur: { ...en, ...scanReportNewScreenMessages.ur }
+  pt: { ...en, ...scanReportNewScreenMessages.pt, ...scanReportStructuredMessages.pt },
+  it: { ...en, ...scanReportNewScreenMessages.it, ...scanReportStructuredMessages.it },
+  fr: { ...en, ...scanReportNewScreenMessages.fr, ...scanReportStructuredMessages.fr },
+  nl: { ...en, ...scanReportNewScreenMessages.nl, ...scanReportStructuredMessages.nl },
+  es: { ...en, ...scanReportNewScreenMessages.es, ...scanReportStructuredMessages.es },
+  ja: { ...en, ...scanReportNewScreenMessages.ja, ...scanReportStructuredMessages.ja },
+  'zh-Hans': { ...en, ...scanReportNewScreenMessages['zh-Hans'], ...scanReportStructuredMessages['zh-Hans'] },
+  hi: { ...en, ...scanReportNewScreenMessages.hi, ...scanReportStructuredMessages.hi },
+  ur: { ...en, ...scanReportNewScreenMessages.ur, ...scanReportStructuredMessages.ur }
 }
 
 export function scanReportMessages(locale: WebLocale): ScanReportMessages {

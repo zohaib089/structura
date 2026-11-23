@@ -1,5 +1,6 @@
 import type { WebLocale } from '../services/locale'
 import { hotspotViewerMessages } from './hotspot-locale-overrides'
+import { viewerChromeMessages } from './viewer-chrome-locale-overrides'
 
 export interface ViewerMessages {
   title: string
@@ -38,7 +39,7 @@ export interface ViewerMessages {
   versionTitle: string
   versionBody: string
   versionMissing: string
-  budgetMeter: string
+  budgetMeter: (nodes: string, edges: string, edgeCount: number) => string
   budgetCapped: string
   budgetNear: string
   budgetFull: string
@@ -75,6 +76,7 @@ export interface ViewerMessages {
   provUnresolvedDesc: string
   provMixed: string
   provMixedDesc: string
+  provMixedCounts: (extracted: number, inferred: number) => string
   legendTitle: string
   legendCount: string
   focusBar: string
@@ -132,6 +134,8 @@ export interface ViewerMessages {
   zoomIn: string
   zoomOut: string
   zoomFit: string
+  zoomFitShort: string
+  fileListLabel: (count: number) => string
   rescanLabel: string
   rescanTooltip: string
   rescanBusy: string
@@ -326,7 +330,10 @@ const en: ViewerMessages = {
   versionTitle: 'Unsupported graph version {found}',
   versionBody: 'This viewer reads versions {supported}.',
   versionMissing: 'missing',
-  budgetMeter: '{nodes} on the map · {edges} links',
+  budgetMeter(nodes, edges, edgeCount) {
+    const links = edgeCount === 1 ? `${edges} link` : `${edges} links`
+    return `${nodes} on the map · ${links}`
+  },
   budgetCapped: 'Showing {nodeBudget} (limit reached). Collapse a group to see more.',
   budgetNear: 'Near the limit. Collapse something to expand more.',
   budgetFull: 'Limit reached. Collapse a group first.',
@@ -361,6 +368,7 @@ const en: ViewerMessages = {
   provInferredDesc: 'Not proven in source',
   provUnresolved: "Couldn't confirm",
   provUnresolvedDesc: 'Target not found',
+  provMixedCounts: (extracted, inferred) => `${extracted} found in source · ${inferred} guessed from context`,
   provMixed: 'Mixed',
   provMixedDesc: 'Bundle contains more than one provenance',
   legendTitle: 'Legend',
@@ -418,6 +426,8 @@ const en: ViewerMessages = {
   zoomIn: 'Zoom in',
   zoomOut: 'Zoom out',
   zoomFit: 'Fit to view',
+  zoomFitShort: 'Fit',
+  fileListLabel: (count) => `Files in view (${count})`,
   rescanLabel: 'Scan again',
   rescanTooltip: 'Scan the project again so the graph shows your latest changes',
   rescanBusy: 'Updating the graph…',
@@ -600,15 +610,15 @@ const en: ViewerMessages = {
 
 const messages: Record<WebLocale, ViewerMessages> = {
   en,
-  pt: { ...en, ...hotspotViewerMessages.pt },
-  it: { ...en, ...hotspotViewerMessages.it },
-  fr: { ...en, ...hotspotViewerMessages.fr },
-  nl: { ...en, ...hotspotViewerMessages.nl },
-  es: { ...en, ...hotspotViewerMessages.es },
-  ja: { ...en, ...hotspotViewerMessages.ja },
-  'zh-Hans': { ...en, ...hotspotViewerMessages['zh-Hans'] },
-  hi: { ...en, ...hotspotViewerMessages.hi },
-  ur: { ...en, ...hotspotViewerMessages.ur }
+  pt: { ...en, ...hotspotViewerMessages.pt, ...viewerChromeMessages.pt },
+  it: { ...en, ...hotspotViewerMessages.it, ...viewerChromeMessages.it },
+  fr: { ...en, ...hotspotViewerMessages.fr, ...viewerChromeMessages.fr },
+  nl: { ...en, ...hotspotViewerMessages.nl, ...viewerChromeMessages.nl },
+  es: { ...en, ...hotspotViewerMessages.es, ...viewerChromeMessages.es },
+  ja: { ...en, ...hotspotViewerMessages.ja, ...viewerChromeMessages.ja },
+  'zh-Hans': { ...en, ...hotspotViewerMessages['zh-Hans'], ...viewerChromeMessages['zh-Hans'] },
+  hi: { ...en, ...hotspotViewerMessages.hi, ...viewerChromeMessages.hi },
+  ur: { ...en, ...hotspotViewerMessages.ur, ...viewerChromeMessages.ur }
 }
 
 export function viewerMessages(locale: WebLocale): ViewerMessages {
