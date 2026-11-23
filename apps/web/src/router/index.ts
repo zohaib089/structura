@@ -108,6 +108,12 @@ export function createAppRouter(history: RouterHistory = createWebHistory(import
             meta: { dashboardSection: 'members' }
           },
           {
+            path: 'activity',
+            name: 'workspace-activity',
+            component: dashboardView,
+            meta: { dashboardSection: 'activity' }
+          },
+          {
             path: 'projects/:projectId',
             name: 'workspace-project',
             redirect: to => ({

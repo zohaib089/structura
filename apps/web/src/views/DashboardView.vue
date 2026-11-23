@@ -8,6 +8,7 @@ import DashboardScansHub from '../components/dashboard/DashboardScansHub.vue'
 import ProjectsHomePanel from '../components/dashboard/ProjectsHomePanel.vue'
 import OpenProjectPanel from '../components/dashboard/OpenProjectPanel.vue'
 import WorkspaceMembersPanel from '../components/dashboard/WorkspaceMembersPanel.vue'
+import WorkspaceActivityPanel from '../components/dashboard/WorkspaceActivityPanel.vue'
 import ProjectAccessPanel from '../components/dashboard/ProjectAccessPanel.vue'
 import { getCurrentSession } from '../services/auth'
 import { isSupportedWebLocale, readLocalePreference, resolvePreferredWebLocale } from '../services/locale'
@@ -45,6 +46,7 @@ type DashboardSection =
   | 'workspace-scans'
   | 'settings'
   | 'members'
+  | 'activity'
 
 const activeSection = computed<DashboardSection>(() => {
   const section = route.meta.dashboardSection
@@ -72,6 +74,7 @@ const sectionTitle = computed(() => ({
   'workspace-scans': messages.value.scansNav,
   settings: messages.value.settingsNav,
   members: messages.value.membersNav,
+  activity: messages.value.activityNav,
   'project-access': messages.value.projectAccessNav
 }[activeSection.value]))
 const workspaces = ref<Workspace[]>([])
@@ -385,6 +388,14 @@ onMounted(loadDashboard)
             :current-user-id="currentUserId"
             @left="onLeftWorkspace"
             @role-changed="onWorkspaceRoleChanged"
+          />
+
+          <WorkspaceActivityPanel
+            v-else-if="activeSection === 'activity' && selectedWorkspaceId"
+            :locale="locale"
+            :workspace-id="selectedWorkspaceId"
+            :workspace-name="selectedWorkspace?.name ?? ''"
+            :current-role="selectedWorkspace?.role ?? 'member'"
           />
 
         </template>

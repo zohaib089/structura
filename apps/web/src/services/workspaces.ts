@@ -401,3 +401,92 @@ export async function updateProjectAccess(
   )
   return parseProjectAccess(result.access)
 }
+
+export const WORKSPACE_AUDIT_ACTIONS = [
+  'member.invited',
+  'invite.revoked',
+  'invite.accepted',
+  'member.role_changed',
+  'member.removed',
+  'ownership.transferred',
+  'project.access_changed'
+] as const
+
+export type WorkspaceAuditAction = (typeof WORKSPACE_AUDIT_ACTIONS)[number]
+
+export interface WorkspaceAuditEvent {
+  id: string
+  actor_user_id: string | null
+  action: string
+  target_type: string
+  target_id: string
+  details: Record<string, unknown>
+  created_at: string
+}
+
+export interface WorkspaceAuditPage {
+  events: WorkspaceAuditEvent[]
+  next_cursor: string | null
+}
+
+export interface ListWorkspaceAuditOptions {
+  limit?: number
+  cursor?: string
+  action?: WorkspaceAuditAction
+  project?: string
+}
+
+function parseAuditDetails(value: unknown): Record<string, unknown> {
+  if (!isRecord(value)) return {}
+  return value
+}
+
+function parseAuditEvent(value: unknown): WorkspaceAuditEvent {
+  if (
+    !isRecord(value) ||
+    !isNonEmptyString(value.id) ||
+    value.id.trim() !== value.id ||
+    !(value.actor_user_id === null || isNonEmptyString(value.actor_user_id)) ||
+    !isNonEmptyString(value.action) ||
+    !isNonEmptyString(value.target_type) ||
+    !isNonEmptyString(value.target_id) ||
+    !isTimestamp(value.created_at)
+  ) {
+    throw new Error('The workspace activity response was invalid.')
+  }
+  return {
+    id: value.id,
+    actor_user_id: value.actor_user_id,
+    action: value.action,
+    target_type: value.target_type,
+    target_id: value.target_id,
+    details: parseAuditDetails(value.details),
+    created_at: value.created_at
+  }
+}
+
+export async function listWorkspaceAudit(
+  workspaceId: string,
+  options: ListWorkspaceAuditOptions = {}
+): Promise<WorkspaceAuditPage> {
+  const params = new URLSearchParams()
+  if (options.limit !== undefined) params.set('limit', String(options.limit))
+  if (options.cursor) params.set('cursor', options.cursor)
+  if (options.action) params.set('action', options.action)
+  if (options.project) params.set('project', options.project)
+  const query = params.toString()
+  const result = await request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/audit${query ? `?${query}` : ''}`
+  )
+  if (!Array.isArray(result.events)) {
+    throw new Error('The workspace activity response was invalid.')
+  }
+  if (result.next_cursor !== null && result.next_cursor !== undefined && !isNonEmptyString(result.next_cursor)) {
+    throw new Error('The workspace activity response was invalid.')
+  }
+  return {
+    events: parseUniqueRecords(result.events, parseAuditEvent, event => event.id, 'workspace activity'),
+    next_cursor: typeof result.next_cursor === 'string' ? result.next_cursor : null
+  }
+}
+
