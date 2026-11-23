@@ -183,6 +183,7 @@ function showAllFindings() {
         v-if="activeTab === 'summary'"
         :summary="summary"
         :messages="messages"
+        :locale="locale"
         :findings-href="findingsHref"
         :graph-href="graphHref"
         :workspace-id="workspaceId"

@@ -51,8 +51,7 @@ function roleLabel(role: 'owner' | 'admin' | 'member', messages: DashboardMessag
 }
 
 function rolePhrase(role: 'owner' | 'admin' | 'member', messages: DashboardMessages) {
-  const label = roleLabel(role, messages).toLowerCase()
-  return role === 'member' ? `a ${label}` : `an ${label}`
+  return messages.activityRolePhrase(role)
 }
 
 export function auditActorName(

@@ -1,4 +1,6 @@
 import { getCurrentSession } from '../services/auth'
+import type { WebLocale } from '../services/locale'
+import { scanReportMessages } from '../services/scan-report-messages'
 
 /** Matches the hosted ask route and `GRAPH_QA_MAX_QUESTION_LENGTH` in the engine. */
 export const GRAPH_QA_MAX_QUESTION_LENGTH = 500
@@ -81,19 +83,27 @@ function citationShortPath(path: string): string {
   return parts.slice(0, -1).join('/')
 }
 
-export function formatCitationRange(startLine?: number, endLine?: number): string | null {
+export function formatCitationRange(
+  startLine?: number,
+  endLine?: number,
+  locale: WebLocale = 'en'
+): string | null {
+  const messages = scanReportMessages(locale)
   if (!startLine) return null
-  if (!endLine || endLine === startLine) return `line ${startLine}`
-  return `lines ${startLine}–${endLine}`
+  if (!endLine || endLine === startLine) return messages.askLine(startLine)
+  return messages.askLines(startLine, endLine)
 }
 
-export function citationDisplay(citation: GraphQaCitation): {
+export function citationDisplay(
+  citation: GraphQaCitation,
+  locale: WebLocale = 'en'
+): {
   title: string
   path: string
   detail: string
   range: string | null
 } {
-  const range = formatCitationRange(citation.startLine, citation.endLine)
+  const range = formatCitationRange(citation.startLine, citation.endLine, locale)
   if (citation.kind === 'folder') {
     return { title: citation.path, path: citation.path, detail: '', range }
   }
@@ -113,13 +123,18 @@ export function citationDisplay(citation: GraphQaCitation): {
   }
 }
 
-export function citationAriaLabel(citation: GraphQaCitation, openLabel: string): string {
-  const shown = citationDisplay(citation)
+export function citationAriaLabel(
+  citation: GraphQaCitation,
+  openLabel: string,
+  locale: WebLocale = 'en'
+): string {
+  const messages = scanReportMessages(locale)
+  const shown = citationDisplay(citation, locale)
   const parts = [shown.title]
   if (citation.kind === 'folder') {
-    parts.push('folder')
+    parts.push(messages.askCitationFolder)
   } else if (citation.kind === 'symbol' && shown.detail) {
-    parts.push(`in ${shown.detail}`)
+    parts.push(messages.askCitationIn(shown.detail))
   } else if (shown.detail) {
     parts.push(shown.detail)
   }
@@ -137,21 +152,26 @@ async function readJsonResponse(response: Response): Promise<Record<string, unkn
   }
 }
 
-export function askFailureMessage(status: number, apiMessage?: string | null): string {
+export function askFailureMessage(
+  status: number,
+  apiMessage?: string | null,
+  locale: WebLocale = 'en'
+): string {
+  const messages = scanReportMessages(locale)
   const message = apiMessage?.trim() || null
-  if (status === 401) return 'Your session has expired. Please sign in again.'
-  if (status === 409) return 'This scan is still running. Try again when it finishes.'
-  if (status === 404) return 'This scan is not available to ask about.'
-  if (status === 429) return 'Please wait a moment before asking another question.'
+  if (status === 401) return messages.askSessionExpired
+  if (status === 409) return messages.askScanRunning
+  if (status === 404) return messages.askScanUnavailable
+  if (status === 429) return messages.askRateLimited
   if (status === 400) {
     if (message && /500/.test(message)) {
-      return `Please keep your question to ${GRAPH_QA_MAX_QUESTION_LENGTH} characters or fewer.`
+      return messages.askTooLong
     }
-    if (message && /required/i.test(message)) return 'Type a question first.'
+    if (message && /required/i.test(message)) return messages.askTypeFirst
     if (message) return message
   }
   if (message) return message
-  return 'We could not answer that just now. Please try again.'
+  return messages.askGenericError
 }
 
 function askPath(workspaceId: string, scanId: string): string {
@@ -165,15 +185,17 @@ export function hasHostedAskContext(workspaceId?: string | null, scanId?: string
 export async function askScanQuestion(
   workspaceId: string,
   scanId: string,
-  question: string
+  question: string,
+  locale: WebLocale = 'en'
 ): Promise<GraphQaAnswer> {
+  const messages = scanReportMessages(locale)
   const session = getCurrentSession()
-  if (!session) throw new Error('Your session has expired. Please sign in again.')
+  if (!session) throw new Error(messages.askSessionExpired)
 
   const trimmed = question.trim()
-  if (!trimmed) throw new Error('Type a question first.')
+  if (!trimmed) throw new Error(messages.askTypeFirst)
   if (trimmed.length > GRAPH_QA_MAX_QUESTION_LENGTH) {
-    throw new Error(`Please keep your question to ${GRAPH_QA_MAX_QUESTION_LENGTH} characters or fewer.`)
+    throw new Error(messages.askTooLong)
   }
 
   let response: Response
@@ -187,19 +209,19 @@ export async function askScanQuestion(
       body: JSON.stringify({ question: trimmed })
     })
   } catch {
-    throw new Error('We could not reach the server. Check your connection and try again.')
+    throw new Error(messages.askUnreachable)
   }
 
   const result = await readJsonResponse(response)
   const apiMessage = result && typeof result.message === 'string' ? result.message : null
 
   if (!response.ok || !result || result.success !== true) {
-    throw new Error(askFailureMessage(response.status, apiMessage))
+    throw new Error(askFailureMessage(response.status, apiMessage, locale))
   }
 
   const intent = INTENTS.has(result.intent as GraphQaIntent) ? (result.intent as GraphQaIntent) : 'fallback'
   if (typeof result.answer !== 'string' || result.answer.trim().length === 0) {
-    throw new Error('We could not answer that just now. Please try again.')
+    throw new Error(messages.askGenericError)
   }
 
   const citations = Array.isArray(result.citations)

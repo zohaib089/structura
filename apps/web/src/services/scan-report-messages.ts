@@ -1,4 +1,5 @@
 import type { WebLocale } from './locale'
+import { scanReportNewScreenMessages } from './scan-report-locale-overrides'
 import type { AnalyserRunStatus, ReportSection, ReportSeverity } from '../api/scan-report-types'
 
 export type ReportTabId =
@@ -156,6 +157,17 @@ export interface ScanReportMessages {
   askOpen: string
   askCharCount: (used: number, max: number) => string
   askTooLong: string
+  askSessionExpired: string
+  askScanRunning: string
+  askScanUnavailable: string
+  askRateLimited: string
+  askTypeFirst: string
+  askUnreachable: string
+  askGenericError: string
+  askCitationFolder: string
+  askCitationIn: (path: string) => string
+  askLine: (line: number) => string
+  askLines: (startLine: number, endLine: number) => string
   summaryAllClearTitle: string
   summaryAllClearBody: string
   nextStepsTitle: string
@@ -466,6 +478,23 @@ const en: ScanReportMessages = {
     return `${used} of ${max} characters`
   },
   askTooLong: 'Please keep your question to 500 characters or fewer.',
+  askSessionExpired: 'Your session has expired. Please sign in again.',
+  askScanRunning: 'This scan is still running. Try again when it finishes.',
+  askScanUnavailable: 'This scan is not available to ask about.',
+  askRateLimited: 'Please wait a moment before asking another question.',
+  askTypeFirst: 'Type a question first.',
+  askUnreachable: 'We could not reach the server. Check your connection and try again.',
+  askGenericError: 'We could not answer that just now. Please try again.',
+  askCitationFolder: 'folder',
+  askCitationIn(path) {
+    return `in ${path}`
+  },
+  askLine(line) {
+    return `line ${line}`
+  },
+  askLines(startLine, endLine) {
+    return `lines ${startLine}–${endLine}`
+  },
   seeAllFindings(total) {
     return total === 1 ? 'See the finding' : `See all ${total.toLocaleString('en')} findings`
   },
@@ -626,7 +655,19 @@ const en: ScanReportMessages = {
   }
 }
 
+const messages: Record<WebLocale, ScanReportMessages> = {
+  en,
+  pt: { ...en, ...scanReportNewScreenMessages.pt },
+  it: { ...en, ...scanReportNewScreenMessages.it },
+  fr: { ...en, ...scanReportNewScreenMessages.fr },
+  nl: { ...en, ...scanReportNewScreenMessages.nl },
+  es: { ...en, ...scanReportNewScreenMessages.es },
+  ja: { ...en, ...scanReportNewScreenMessages.ja },
+  'zh-Hans': { ...en, ...scanReportNewScreenMessages['zh-Hans'] },
+  hi: { ...en, ...scanReportNewScreenMessages.hi },
+  ur: { ...en, ...scanReportNewScreenMessages.ur }
+}
+
 export function scanReportMessages(locale: WebLocale): ScanReportMessages {
-  void locale
-  return en
+  return messages[locale]
 }

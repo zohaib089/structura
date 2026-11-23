@@ -1,4 +1,5 @@
 import type { WebLocale } from '../services/locale'
+import { hotspotViewerMessages } from './hotspot-locale-overrides'
 
 export interface ViewerMessages {
   title: string
@@ -597,8 +598,21 @@ const en: ViewerMessages = {
 
 }
 
-export function viewerMessages(_locale: WebLocale): ViewerMessages {
-  return en
+const messages: Record<WebLocale, ViewerMessages> = {
+  en,
+  pt: { ...en, ...hotspotViewerMessages.pt },
+  it: { ...en, ...hotspotViewerMessages.it },
+  fr: { ...en, ...hotspotViewerMessages.fr },
+  nl: { ...en, ...hotspotViewerMessages.nl },
+  es: { ...en, ...hotspotViewerMessages.es },
+  ja: { ...en, ...hotspotViewerMessages.ja },
+  'zh-Hans': { ...en, ...hotspotViewerMessages['zh-Hans'] },
+  hi: { ...en, ...hotspotViewerMessages.hi },
+  ur: { ...en, ...hotspotViewerMessages.ur }
+}
+
+export function viewerMessages(locale: WebLocale): ViewerMessages {
+  return messages[locale]
 }
 
 export function formatMessage(template: string, values: Record<string, string | number> = {}): string {

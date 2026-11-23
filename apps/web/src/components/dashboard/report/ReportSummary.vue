@@ -9,6 +9,7 @@ import { computed } from 'vue'
 import { RouterLink, type RouteLocationRaw } from 'vue-router'
 import { CircleCheck } from '@lucide/vue'
 import type { ReportSeverity } from '../../../api/scan-report-types'
+import type { WebLocale } from '../../../services/locale'
 import type { ScanReportMessages } from '../../../services/scan-report-messages'
 import { SEVERITY_DESCENDING } from '../../../services/scan-report-severity'
 import type { ReportSummary } from '../../../services/scan-report-summary'
@@ -24,6 +25,7 @@ import ReportQuality from './ReportQuality.vue'
 const props = defineProps<{
   summary: ReportSummary
   messages: ScanReportMessages
+  locale?: WebLocale
   /** Link to the findings list, optionally narrowed to one severity. */
   findingsHref: (severity?: ReportSeverity) => RouteLocationRaw
   graphHref: (path?: string) => RouteLocationRaw
@@ -97,6 +99,7 @@ const nextSteps = computed(() => {
     </section>
 
     <ReportAsk
+      :locale="locale"
       :workspace-id="workspaceId"
       :scan-id="scanId"
       :graph-href="graphHref"
