@@ -27,9 +27,9 @@ export type {
 } from '../architecture/types.js'
 export { ARCHITECTURE_DRIFT_RULES, ARCHITECTURE_EDGE_KINDS, ARCHITECTURE_POLICIES } from '../architecture/types.js'
 
-export const GRAPH_SCHEMA_VERSION = '1.3.0'
+export const GRAPH_SCHEMA_VERSION = '1.4.0'
 export const GRAPH_SCHEMA_MAJOR = 1
-export const GRAPH_SCHEMA_MINOR = 3
+export const GRAPH_SCHEMA_MINOR = 4
 /** Brand-free schema id: never changes when the product is renamed. */
 export const GRAPH_SCHEMA_ID = 'urn:repo-graph:schema:graph:1'
 
@@ -262,6 +262,36 @@ export interface GraphQuality {
   folders?: FolderQualityScore[]
 }
 
+export interface DuplicateSource {
+  path: string
+  content: string
+  language: string | null
+}
+
+export interface DuplicateOccurrence {
+  path: string
+  startLine: number
+  endLine: number
+}
+
+export interface DuplicateGroup {
+  id: string
+  lineCount: number
+  occurrences: DuplicateOccurrence[]
+  description: string
+}
+
+export interface DuplicatesSummary {
+  groups: number
+  duplicatedLines: number
+  percentage: number
+}
+
+export interface GraphDuplicates {
+  summary: DuplicatesSummary
+  groups: DuplicateGroup[]
+}
+
 export interface SymbolNode {
   id: string
   kind: 'symbol'
@@ -451,5 +481,7 @@ export interface Graph {
   hotspots?: GraphHotspot[]
   /** Project and per-folder quality scores (1.3.0). */
   quality?: GraphQuality
+  /** Duplicate code groups (1.4.0). Omitted when none are found. */
+  duplicates?: GraphDuplicates
   extensions?: Extensions
 }

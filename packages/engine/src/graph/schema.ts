@@ -53,7 +53,7 @@ export function buildGraphJsonSchema(): Schema {
     $schema: 'https://json-schema.org/draft/2020-12/schema',
     $id: GRAPH_SCHEMA_ID,
     title: 'graph.json v1',
-    description: 'Deterministic, closed repository graph. Source-text-free except optional sanitised docSummary. Optional hotspots in 1.2.0; optional quality scores in 1.3.0. See docs/graph-json-v1.md.',
+    description: 'Deterministic, closed repository graph. Source-text-free except optional sanitised docSummary. Optional hotspots in 1.2.0; optional quality scores in 1.3.0; optional duplicates in 1.4.0. See docs/graph-json-v1.md.',
     type: 'object',
     properties: {
       schemaVersion: str({ pattern: '^1\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$' }),
@@ -69,6 +69,7 @@ export function buildGraphJsonSchema(): Schema {
       architecture: ref('architecture'),
       hotspots: { type: 'array', items: ref('hotspotEntry') },
       quality: ref('graphQuality'),
+      duplicates: ref('graphDuplicates'),
       extensions: ref('extensions')
     },
     required: ['schemaVersion', 'summary', 'coverage', 'nodes', 'edges'],
@@ -294,6 +295,38 @@ export function buildGraphJsonSchema(): Schema {
           folders: { type: 'array', items: ref('folderQualityScore') }
         },
         ['project']
+      ),
+      duplicateOccurrence: closed(
+        {
+          path: str({ minLength: 1 }),
+          startLine: { type: 'integer', minimum: 1 },
+          endLine: { type: 'integer', minimum: 1 }
+        },
+        ['path', 'startLine', 'endLine']
+      ),
+      duplicateGroup: closed(
+        {
+          id: str({ minLength: 1, maxLength: 64, pattern: '^[a-f0-9]+$' }),
+          lineCount: { type: 'integer', minimum: 1 },
+          occurrences: { type: 'array', items: ref('duplicateOccurrence'), minItems: 2 },
+          description: str({ minLength: 1, maxLength: 240 })
+        },
+        ['id', 'lineCount', 'occurrences', 'description']
+      ),
+      duplicatesSummary: closed(
+        {
+          groups: count,
+          duplicatedLines: count,
+          percentage: { type: 'integer', minimum: 0, maximum: 100 }
+        },
+        ['groups', 'duplicatedLines', 'percentage']
+      ),
+      graphDuplicates: closed(
+        {
+          summary: ref('duplicatesSummary'),
+          groups: { type: 'array', items: ref('duplicateGroup'), maxItems: 20 }
+        },
+        ['summary', 'groups']
       ),
       architectureModule: closed(
         {

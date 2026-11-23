@@ -1,5 +1,5 @@
 import { compareStrings } from './ids.js'
-import type { Coverage, Graph, GraphArchitecture, GraphEdge, GraphNode, GraphQuality } from './types.js'
+import type { Coverage, Graph, GraphArchitecture, GraphDuplicates, GraphEdge, GraphNode, GraphQuality } from './types.js'
 
 /**
  * The canonical form is what makes graph.json byte-for-byte reproducible:
@@ -154,6 +154,20 @@ function orderedQuality(quality: GraphQuality): Record<string, unknown> {
   return ordered({ project, ...(folders ? { folders } : {}) }, ['project', 'folders'], false)
 }
 
+
+function orderedDuplicates(duplicates: GraphDuplicates): Record<string, unknown> {
+  const groups = duplicates.groups.map(group =>
+    ordered({
+      ...group,
+      occurrences: group.occurrences.map(item =>
+        ordered(item as unknown as Record<string, unknown>, ['path', 'startLine', 'endLine'], false)
+      )
+    } as unknown as Record<string, unknown>, ['id', 'lineCount', 'occurrences', 'description'], false)
+  )
+  const summary = ordered(duplicates.summary as unknown as Record<string, unknown>, ['groups', 'duplicatedLines', 'percentage'], false)
+  return ordered({ summary, groups }, ['summary', 'groups'], false)
+}
+
 /** Returns a sorted, property-ordered copy. Never mutates the input. */
 export function canonicalizeGraph(graph: Graph): Graph {
   const out: Record<string, unknown> = {
@@ -173,6 +187,7 @@ export function canonicalizeGraph(graph: Graph): Graph {
     out.hotspots = graph.hotspots.map(item => ordered(item as unknown as Record<string, unknown>, ['path', 'score', 'why']))
   }
   if (graph.quality !== undefined) out.quality = orderedQuality(graph.quality)
+  if (graph.duplicates !== undefined) out.duplicates = orderedDuplicates(graph.duplicates)
   if (graph.extensions !== undefined) out.extensions = sortedDeep(graph.extensions)
   return out as unknown as Graph
 }
@@ -201,19 +216,23 @@ export function* graphChunks(graph: Graph): Generator<string> {
       }
       yield '  ]'
     }
-    const trailing = ki === 0 || canonical.architecture !== undefined || canonical.hotspots !== undefined || canonical.quality !== undefined || canonical.extensions !== undefined
+    const trailing = ki === 0 || canonical.architecture !== undefined || canonical.hotspots !== undefined || canonical.quality !== undefined || canonical.duplicates !== undefined || canonical.extensions !== undefined
     yield trailing ? ',\n' : '\n'
   }
   if (canonical.architecture !== undefined) {
     yield `  "architecture": ${indent(JSON.stringify(canonical.architecture, null, 2), 2)}`
-    yield canonical.hotspots !== undefined || canonical.quality !== undefined || canonical.extensions !== undefined ? ',\n' : '\n'
+    yield canonical.hotspots !== undefined || canonical.quality !== undefined || canonical.duplicates !== undefined || canonical.extensions !== undefined ? ',\n' : '\n'
   }
   if (canonical.hotspots !== undefined) {
     yield `  "hotspots": ${indent(JSON.stringify(canonical.hotspots, null, 2), 2)}`
-    yield canonical.quality !== undefined || canonical.extensions !== undefined ? ',\n' : '\n'
+    yield canonical.quality !== undefined || canonical.duplicates !== undefined || canonical.extensions !== undefined ? ',\n' : '\n'
   }
   if (canonical.quality !== undefined) {
     yield `  "quality": ${indent(JSON.stringify(canonical.quality, null, 2), 2)}`
+    yield canonical.duplicates !== undefined || canonical.extensions !== undefined ? ',\n' : '\n'
+  }
+  if (canonical.duplicates !== undefined) {
+    yield `  "duplicates": ${indent(JSON.stringify(canonical.duplicates, null, 2), 2)}`
     yield canonical.extensions !== undefined ? ',\n' : '\n'
   }
   if (canonical.extensions !== undefined) yield `  "extensions": ${indent(JSON.stringify(canonical.extensions, null, 2), 2)}\n`

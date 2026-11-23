@@ -55,7 +55,7 @@ test('scan writes graph.json and json mode prints run metadata', async () => {
     assert.match(logged.stderr, /discovered/)
     const graph = readFileSync(join(out, GRAPH_FILE), 'utf8')
     assert.equal(graph.endsWith('\n'), true)
-    assert.equal(graph.includes('"schemaVersion": "1.3.0"'), true)
+    assert.equal(graph.includes('"schemaVersion": "1.4.0"'), true)
     const quiet = capture()
     assert.equal(await run(['scan', root, '--out', out, '--no-cache', '--jobs', '1'], quiet.io), EXIT.ok)
     assert.match(quiet.stdout, new RegExp(`wrote ${join(out, GRAPH_FILE).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`))
@@ -99,7 +99,7 @@ test('scan --out ending in .json writes that path as the graph file', async () =
   try {
     assert.equal(await run(['scan', root, '--out', graphOut, '--no-cache', '--jobs', '1'], cap.io), EXIT.ok)
     assert.match(cap.stdout, new RegExp(`wrote ${graphOut.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`))
-    assert.equal(readFileSync(graphOut, 'utf8').includes('"schemaVersion": "1.3.0"'), true)
+    assert.equal(readFileSync(graphOut, 'utf8').includes('"schemaVersion": "1.4.0"'), true)
     assert.throws(() => readFileSync(join(graphOut, GRAPH_FILE), 'utf8'))
   } finally {
     rmSync(root, { recursive: true, force: true })

@@ -533,3 +533,38 @@ test('omitDocSummaries keeps quality scores', () => {
   assert.equal(graph.quality.project.grade, 'A')
   assert.equal(graph.quality.project.tips[0]?.gain, 8)
 })
+
+test('omitDocSummaries keeps duplicates', () => {
+  const graph = omitDocSummaries({
+    schemaVersion: '1.4.0',
+    nodes: [
+      {
+        id: 'file:src/a.ts',
+        kind: 'file',
+        path: 'src/a.ts',
+        docSummary: 'Helper utilities.',
+        hotspot: { score: 40 }
+      }
+    ],
+    duplicates: {
+      summary: { groups: 1, duplicatedLines: 12, percentage: 8 },
+      groups: [
+        {
+          id: 'abc123def456',
+          lineCount: 6,
+          occurrences: [
+            { path: 'src/a.ts', startLine: 10, endLine: 16 },
+            { path: 'src/b.ts', startLine: 4, endLine: 10 }
+          ],
+          description: '6 identical lines in src/a.ts and src/b.ts'
+        }
+      ]
+    }
+  }) as {
+    nodes: Array<{ docSummary?: string }>
+    duplicates: { summary: { groups: number }; groups: Array<{ id: string }> }
+  }
+  assert.equal(graph.nodes[0]?.docSummary, undefined)
+  assert.equal(graph.duplicates.summary.groups, 1)
+  assert.equal(graph.duplicates.groups[0]?.id, 'abc123def456')
+})

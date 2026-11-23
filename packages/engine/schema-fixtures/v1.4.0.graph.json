@@ -1,0 +1,364 @@
+{
+  "schemaVersion": "1.4.0",
+  "summary": {
+    "nodes": 9,
+    "edges": 11,
+    "files": 2
+  },
+  "coverage": {
+    "files": {
+      "discovered": 2,
+      "parsed": 2,
+      "partial": 0,
+      "failed": 0,
+      "skipped": 0,
+      "ignored": 0
+    },
+    "byLanguage": [
+      {
+        "language": "typescript",
+        "parsed": 2,
+        "partial": 0,
+        "failed": 0,
+        "skipped": 0
+      }
+    ],
+    "skipped": [],
+    "failed": [],
+    "ignored": [],
+    "unresolved": [],
+    "calls": {
+      "resolved": 2,
+      "unresolved": 1
+    },
+    "accounting": {
+      "discovered": 2,
+      "accounted": 2
+    }
+  },
+  "nodes": [
+    {
+      "id": "dir:.",
+      "kind": "directory",
+      "path": ".",
+      "label": "."
+    },
+    {
+      "id": "dir:src",
+      "kind": "directory",
+      "path": "src",
+      "label": "src"
+    },
+    {
+      "id": "file:src/app.ts",
+      "kind": "file",
+      "path": "src/app.ts",
+      "label": "app.ts",
+      "language": "typescript",
+      "lineCount": 20,
+      "parse": {
+        "status": "parsed"
+      },
+      "docSummary": "Application entry.",
+      "hotspot": {
+        "score": 50
+      }
+    },
+    {
+      "id": "file:src/lib.ts",
+      "kind": "file",
+      "path": "src/lib.ts",
+      "label": "lib.ts",
+      "language": "typescript",
+      "lineCount": 8,
+      "parse": {
+        "status": "parsed"
+      },
+      "hotspot": {
+        "score": 65
+      }
+    },
+    {
+      "id": "sym:src/app.ts#Greeter",
+      "kind": "symbol",
+      "file": "file:src/app.ts",
+      "label": "Greeter",
+      "symbolKind": "class",
+      "exported": true,
+      "span": {
+        "start": {
+          "line": 3,
+          "col": 1
+        },
+        "end": {
+          "line": 12,
+          "col": 2
+        }
+      },
+      "docSummary": "Greets a caller by name."
+    },
+    {
+      "id": "sym:src/app.ts#Greeter.hello",
+      "kind": "symbol",
+      "file": "file:src/app.ts",
+      "label": "hello",
+      "symbolKind": "function",
+      "exported": true,
+      "span": {
+        "start": {
+          "line": 4,
+          "col": 3
+        },
+        "end": {
+          "line": 8,
+          "col": 4
+        }
+      },
+      "parent": "sym:src/app.ts#Greeter",
+      "paramCount": 1,
+      "docSummary": "Returns a greeting."
+    },
+    {
+      "id": "sym:src/app.ts#count",
+      "kind": "symbol",
+      "file": "file:src/app.ts",
+      "label": "count",
+      "symbolKind": "variable",
+      "exported": false,
+      "span": {
+        "start": {
+          "line": 1,
+          "col": 1
+        },
+        "end": {
+          "line": 1,
+          "col": 15
+        }
+      },
+      "scope": "module",
+      "mutable": true
+    },
+    {
+      "id": "sym:src/app.ts#format",
+      "kind": "symbol",
+      "file": "file:src/app.ts",
+      "label": "format",
+      "symbolKind": "function",
+      "exported": false,
+      "span": {
+        "start": {
+          "line": 14,
+          "col": 1
+        },
+        "end": {
+          "line": 16,
+          "col": 2
+        }
+      },
+      "paramCount": 1
+    },
+    {
+      "id": "sym:src/lib.ts#helper",
+      "kind": "symbol",
+      "file": "file:src/lib.ts",
+      "label": "helper",
+      "symbolKind": "function",
+      "exported": true,
+      "span": {
+        "start": {
+          "line": 1,
+          "col": 1
+        },
+        "end": {
+          "line": 3,
+          "col": 2
+        }
+      },
+      "paramCount": 0
+    }
+  ],
+  "edges": [
+    {
+      "source": "dir:.",
+      "type": "contains",
+      "target": "dir:src",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:src",
+      "type": "contains",
+      "target": "file:src/app.ts",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:src",
+      "type": "contains",
+      "target": "file:src/lib.ts",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "file:src/app.ts",
+      "type": "contains",
+      "target": "sym:src/app.ts#Greeter",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "file:src/app.ts",
+      "type": "contains",
+      "target": "sym:src/app.ts#count",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "file:src/app.ts",
+      "type": "contains",
+      "target": "sym:src/app.ts#format",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "file:src/app.ts",
+      "type": "imports",
+      "target": "file:src/lib.ts",
+      "provenance": "INFERRED",
+      "confidence": 0.7,
+      "reason": "src-subpath",
+      "span": {
+        "start": {
+          "line": 2,
+          "col": 1
+        },
+        "end": {
+          "line": 2,
+          "col": 30
+        }
+      },
+      "specifier": "./lib"
+    },
+    {
+      "source": "file:src/lib.ts",
+      "type": "contains",
+      "target": "sym:src/lib.ts#helper",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "sym:src/app.ts#Greeter",
+      "type": "contains",
+      "target": "sym:src/app.ts#Greeter.hello",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "sym:src/app.ts#Greeter.hello",
+      "type": "calls",
+      "target": "sym:src/app.ts#format",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 6,
+          "col": 5
+        },
+        "end": {
+          "line": 6,
+          "col": 16
+        }
+      }
+    },
+    {
+      "source": "sym:src/app.ts#Greeter.hello",
+      "type": "calls",
+      "target": "sym:src/lib.ts#helper",
+      "provenance": "INFERRED",
+      "confidence": 0.7,
+      "reason": "src-subpath",
+      "span": {
+        "start": {
+          "line": 7,
+          "col": 5
+        },
+        "end": {
+          "line": 7,
+          "col": 13
+        }
+      }
+    }
+  ],
+  "hotspots": [
+    {
+      "path": "src/lib.ts",
+      "score": 65,
+      "why": "Used by 1 file, impacts 1 file, and has 1 function"
+    },
+    {
+      "path": "src/app.ts",
+      "score": 50,
+      "why": "imports 1 file, impacts 1 file, and has 2 functions"
+    }
+  ],
+  "quality": {
+    "project": {
+      "score": 100,
+      "grade": "A",
+      "breakdown": [
+        {
+          "category": "architecture",
+          "label": "No architecture rule breaks",
+          "penalty": 0
+        },
+        {
+          "category": "cycles",
+          "label": "No import cycles",
+          "penalty": 0
+        },
+        {
+          "category": "hotspots",
+          "label": "No highly connected hotspots",
+          "penalty": 0
+        },
+        {
+          "category": "imports",
+          "label": "Imports resolve cleanly",
+          "penalty": 0
+        },
+        {
+          "category": "size",
+          "label": "No unusually large files or functions",
+          "penalty": 0
+        }
+      ],
+      "tips": []
+    },
+    "folders": [
+      {
+        "path": "src",
+        "score": 100,
+        "grade": "A",
+        "breakdown": [
+          {
+            "category": "architecture",
+            "label": "No architecture rule breaks",
+            "penalty": 0
+          },
+          {
+            "category": "cycles",
+            "label": "No import cycles",
+            "penalty": 0
+          },
+          {
+            "category": "hotspots",
+            "label": "No highly connected hotspots",
+            "penalty": 0
+          },
+          {
+            "category": "imports",
+            "label": "Imports resolve cleanly",
+            "penalty": 0
+          },
+          {
+            "category": "size",
+            "label": "No unusually large files or functions",
+            "penalty": 0
+          }
+        ],
+        "tips": []
+      }
+    ]
+  }
+}
