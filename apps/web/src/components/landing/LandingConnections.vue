@@ -20,7 +20,7 @@ const LINE: Record<string, { dash?: string; width: number; cap?: 'round'; hollow
         <h2 id="landing-edge-h" class="landing-h2">{{ copy.connections.title }}</h2>
         <p class="landing-lead">{{ copy.connections.lead }}</p>
       </div>
-      <div class="conn__rows">
+      <div class="conn__rows landing-card">
         <div v-for="row in copy.connections.rows" :key="row.kind" class="conn__row">
           <svg viewBox="0 0 150 28" aria-hidden="true">
             <circle
@@ -63,16 +63,22 @@ const LINE: Record<string, { dash?: string; width: number; cap?: 'round'; hollow
   gap: clamp(32px, 6vw, 96px);
   align-items: start;
 }
+.conn > div:first-child {
+  position: sticky;
+  inset-block-start: calc(var(--landing-nav-h) + 32px);
+}
 .conn__rows {
-  border-block-start: 1px solid var(--gray-4);
+  overflow: hidden;
 }
 .conn__row {
   display: grid;
-  grid-template-columns: 150px 1fr;
+  grid-template-columns: 150px minmax(0, 1fr);
   gap: var(--space-6);
   align-items: start;
-  padding-block: var(--space-6);
-  border-block-end: 1px solid var(--gray-4);
+  padding: var(--space-6) 28px;
+}
+.conn__row + .conn__row {
+  border-block-start: 1px solid var(--gray-4);
 }
 .conn__row > svg {
   display: block;
@@ -106,8 +112,8 @@ code {
   padding: var(--space-2) var(--space-3);
   overflow-x: auto;
   border: 1px solid var(--gray-4);
-  border-radius: var(--r-sm);
-  background: var(--gray-1);
+  border-radius: 8px;
+  background: var(--gray-0);
   color: var(--gray-10);
   font: 400 12.5px/1.5 var(--landing-font-mono);
   white-space: pre;
@@ -124,9 +130,13 @@ code {
   .conn {
     grid-template-columns: 1fr;
   }
+  .conn > div:first-child {
+    position: static;
+  }
   .conn__row {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-3);
+    padding: 20px;
   }
 }
 </style>

@@ -115,7 +115,7 @@ export const fr: LandingStrings = {
     comments: ['# 1. récupérer {name}', '# 2. le démarrer', '# 3. l\u2019ouvrir']
   },
   closing: { title: 'Prêt à voir votre projet sous forme de carte ?', lead: 'Essayez d\u2019abord un exemple dans votre navigateur, ou hébergez-le vous-même.' },
-  footer: { label: 'Pied de page', docs: 'Documentation', selfHost: 'Auto-héberger' },
+  footer: { label: 'Pied de page', docs: 'Documentation', selfHost: 'Auto-héberger', resources: 'Ressources' },
   severity: { critical: 'Critique', high: 'Élevé', medium: 'Moyen', low: 'Faible', info: 'Aucun problème' },
   linkKind: { extracted: 'Trouvé dans le code', inferred: 'Probable', unresolved: 'Non confirmé', start: 'Point d\u2019entrée' }
 }

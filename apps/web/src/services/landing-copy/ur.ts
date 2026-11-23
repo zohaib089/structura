@@ -115,7 +115,7 @@ export const ur: LandingStrings = {
     comments: ['# 1. {name} حاصل کریں', '# 2. شروع کریں', '# 3. کھولیں']
   },
   closing: { title: 'اپنے پروجیکٹ کو نقشے کی صورت میں دیکھنے کے لیے تیار ہیں؟', lead: 'پہلے اپنے براؤزر میں نمونہ آزمائیں، یا اسے خود ہوسٹ کریں۔' },
-  footer: { label: 'فوٹر', docs: 'دستاویزات', selfHost: 'خود ہوسٹ کریں' },
+  footer: { label: 'فوٹر', docs: 'دستاویزات', selfHost: 'خود ہوسٹ کریں', resources: 'وسائل' },
   severity: { critical: 'سنگین', high: 'زیادہ', medium: 'درمیانہ', low: 'کم', info: 'کوئی مسئلہ نہیں' },
   linkKind: { extracted: 'کوڈ میں ملا', inferred: 'ممکنہ', unresolved: 'تصدیق نہ ہو سکی', start: 'انٹری پوائنٹ' }
 }

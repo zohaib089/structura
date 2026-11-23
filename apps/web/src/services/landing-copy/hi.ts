@@ -115,7 +115,7 @@ export const hi: LandingStrings = {
     comments: ['# 1. {name} प्राप्त करें', '# 2. शुरू करें', '# 3. खोलें']
   },
   closing: { title: 'अपने प्रोजेक्ट को नक्शे के रूप में देखने के लिए तैयार हैं?', lead: 'पहले अपने ब्राउज़र में नमूना आज़माएँ, या इसे खुद होस्ट करें।' },
-  footer: { label: 'फ़ुटर', docs: 'दस्तावेज़', selfHost: 'खुद होस्ट करें' },
+  footer: { label: 'फ़ुटर', docs: 'दस्तावेज़', selfHost: 'खुद होस्ट करें', resources: 'संसाधन' },
   severity: { critical: 'गंभीर', high: 'उच्च', medium: 'मध्यम', low: 'कम', info: 'कोई समस्या नहीं' },
   linkKind: { extracted: 'कोड में मिली', inferred: 'संभावित', unresolved: 'पुष्टि नहीं हो सकी', start: 'एंट्री पॉइंट' }
 }

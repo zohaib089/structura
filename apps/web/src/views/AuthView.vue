@@ -510,21 +510,17 @@ const activeEyebrow = computed(() => activeView.value === 'login'
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  gap: var(--space-3);
-  margin-bottom: var(--space-6);
-  padding: var(--space-2);
-  border-radius: var(--r-md);
-  border: 1px solid var(--gray-4);
-  background: var(--gray-1);
+  gap: var(--space-2);
 }
 
 .mode-group,
 .account-type {
   display: inline-flex;
-  gap: var(--space-1);
-  padding: var(--space-1);
-  border-radius: var(--r-sm);
-  background: var(--gray-2);
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--gray-4);
+  border-radius: 10px;
+  background: var(--gray-0);
 }
 
 button {
@@ -534,11 +530,12 @@ button {
 .mode-group button,
 .account-type button {
   border: none;
-  border-radius: var(--r-xs);
-  padding: var(--space-2) var(--space-3);
+  border-radius: 7px;
+  padding: 6px var(--space-3);
   background: transparent;
   color: var(--gray-8);
-  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
   transition: background var(--dur-1) var(--easing-product), color var(--dur-1) var(--easing-product), box-shadow var(--dur-1) var(--easing-product);
 }
@@ -553,11 +550,21 @@ button {
   box-shadow: var(--focus-ring);
 }
 
+.mode-group button:hover:not(.active),
+.account-type button:hover:not(.active) {
+  color: var(--gray-10);
+}
+
 .mode-group button.active,
 .account-type button.active {
   background: var(--gray-3);
   color: var(--gray-10);
-  box-shadow: inset 0 -2px 0 var(--color-brand-amber-ui);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.3), inset 0 0 0 1px var(--gray-5);
+}
+
+.mode-group button.active {
+  background: color-mix(in srgb, var(--color-brand-amber-ui) 16%, var(--gray-2));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-brand-amber-ui) 45%, transparent);
 }
 
 .auth-form {
@@ -604,19 +611,24 @@ button {
 
 .primary-button {
   width: 100%;
+  height: 46px;
   border: 1px solid transparent;
-  border-radius: var(--r-md);
-  padding: var(--space-3) var(--space-4);
-  background: var(--button-primary-bg);
-  color: var(--button-primary-fg);
-  font-weight: var(--font-weight-extrabold);
+  border-radius: 10px;
+  padding: 0 var(--space-4);
+  background: var(--color-brand-amber-ui);
+  color: var(--color-on-brand-amber, #1a1203);
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
-  box-shadow: none;
+  box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--color-brand-amber-ui) 80%, transparent);
   transition: background var(--dur-1) var(--easing-product), transform var(--dur-1) var(--easing-product);
 }
 
 .primary-button:hover:not(:disabled) {
-  background: var(--button-primary-hover-bg);
+  background: color-mix(in srgb, var(--color-brand-amber-ui) 86%, #ffffff);
+}
+
+.primary-button:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .primary-button:disabled {
@@ -626,9 +638,10 @@ button {
 
 .danger-button {
   width: 100%;
+  height: 46px;
   border: 1px solid var(--sev-critical-border);
-  border-radius: var(--r-md);
-  padding: var(--space-3) var(--space-4);
+  border-radius: 10px;
+  padding: 0 var(--space-4);
   background: var(--sev-critical-bg);
   color: var(--sev-critical-fg);
   font-weight: var(--font-weight-extrabold);
@@ -693,10 +706,20 @@ button {
 }
 
 .alert {
-  padding: var(--space-3) var(--space-3);
-  border-radius: var(--r-md);
+  position: relative;
+  padding: var(--space-3) var(--space-3) var(--space-3) calc(var(--space-3) + 6px);
+  border-radius: 10px;
   font-size: var(--font-size-sm);
   line-height: var(--line-height-relaxed);
+  overflow: hidden;
+}
+
+.alert::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: currentColor;
 }
 
 .alert.success {
@@ -713,7 +736,7 @@ button {
 
 .success-box {
   padding: var(--space-4) var(--space-4);
-  border-radius: var(--r-md);
+  border-radius: 10px;
   border: 1px solid color-mix(in srgb, var(--color-success) var(--alpha-24), transparent);
   background: color-mix(in srgb, var(--color-success) var(--alpha-08), transparent);
 }
@@ -763,15 +786,10 @@ button {
   }
 }
 
-[data-theme='light'] .mode-switcher {
-  background: var(--gray-1);
-  border-color: var(--gray-4);
-}
-
 [data-theme='light'] .mode-group,
 [data-theme='light'] .account-type,
 [data-theme='light'] .sso-button {
-  background: var(--gray-2);
+  background: var(--gray-1);
   border-color: var(--gray-4);
 }
 
@@ -780,10 +798,19 @@ button {
   color: var(--gray-8);
 }
 
-[data-theme='light'] .mode-group button.active,
 [data-theme='light'] .account-type button.active {
   color: var(--gray-10);
-  background: var(--gray-3);
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgb(16 24 40 / 0.08), inset 0 0 0 1px var(--gray-4);
+}
+
+[data-theme='light'] .mode-group button.active {
+  color: var(--gray-10);
+  background: color-mix(in srgb, var(--color-brand-amber-ui) 16%, #ffffff);
+}
+
+[data-theme='light'] .primary-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-brand-amber-ui) 88%, #000000);
 }
 
 @media (prefers-reduced-motion: reduce) {

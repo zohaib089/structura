@@ -105,8 +105,8 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="how__steps">
-      <article class="how__step">
-        <span class="how__n">{{ copy.how.step }} 1</span>
+      <article class="how__step landing-card">
+        <span class="how__n"><i aria-hidden="true" />{{ copy.how.step }} 1</span>
         <h3>{{ copy.how.steps[0]?.title }}</h3>
         <p>{{ copy.how.steps[0]?.body }}</p>
         <div class="how__demo">
@@ -121,8 +121,8 @@ onBeforeUnmount(() => {
         </div>
       </article>
 
-      <article class="how__step">
-        <span class="how__n">{{ copy.how.step }} 2</span>
+      <article class="how__step landing-card">
+        <span class="how__n"><i aria-hidden="true" />{{ copy.how.step }} 2</span>
         <h3>{{ copy.how.steps[1]?.title }}</h3>
         <p>{{ copy.how.steps[1]?.body }}</p>
         <div class="how__demo" data-testid="scan-demo">
@@ -148,8 +148,8 @@ onBeforeUnmount(() => {
         </div>
       </article>
 
-      <article class="how__step">
-        <span class="how__n">{{ copy.how.step }} 3</span>
+      <article class="how__step landing-card">
+        <span class="how__n"><i aria-hidden="true" />{{ copy.how.step }} 3</span>
         <h3>{{ copy.how.steps[2]?.title }}</h3>
         <p>{{ copy.how.steps[2]?.body }}</p>
         <div class="how__demo">
@@ -168,43 +168,53 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .how__head {
-  margin-block-end: clamp(36px, 5vw, 64px);
+  margin-block-end: clamp(32px, 4vw, 48px);
 }
 .how__steps {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  border-block: 1px solid var(--gray-4);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-5);
 }
 .how__step {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 32px 32px 36px 0;
-}
-.how__step + .how__step {
-  padding-inline-start: 32px;
-  border-inline-start: 1px solid var(--gray-4);
+  gap: 12px;
+  padding: 28px 28px 24px;
 }
 .how__n {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   color: var(--color-brand-amber-ui);
   font: 500 12px/16px var(--landing-font-mono);
   letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.how__n i {
+  inline-size: 10px;
+  block-size: 10px;
+  border-radius: 50%;
+  background: var(--color-brand-amber-ui);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-brand-amber-ui) 18%, transparent), 0 0 14px color-mix(in srgb, var(--color-brand-amber-ui) 45%, transparent);
 }
 h3 {
-  margin: 0;
-  font: 600 22px/1.25 var(--font-family-sans);
+  margin: 4px 0 0;
+  font: 600 21px/1.25 var(--font-family-sans);
   letter-spacing: -0.015em;
 }
 .how__step p {
   margin: 0;
   color: var(--gray-8);
   font-size: 15px;
+  line-height: 1.6;
 }
 .how__demo {
-  min-block-size: 176px;
+  min-block-size: 168px;
   margin-block-start: auto;
-  padding-block-start: 14px;
-  border-block-start: 1px dashed var(--gray-4);
+  padding: 16px;
+  border: 1px solid var(--gray-4);
+  border-radius: 12px;
+  background: var(--gray-0);
 }
 .how__chips {
   display: flex;
@@ -274,7 +284,7 @@ h3 {
   display: block;
   block-size: 100%;
   border-radius: 2px;
-  background: var(--gray-10);
+  background: var(--color-brand-amber-ui);
   transition: inline-size 0.4s var(--easing-product);
 }
 .how__actions {
@@ -341,14 +351,13 @@ h3 {
 @media (max-width: 900px) {
   .how__steps {
     grid-template-columns: 1fr;
+    gap: var(--space-4);
   }
-  .how__step,
-  .how__step + .how__step {
-    padding: 28px 0;
-    border-inline-start: 0;
+  .how__step {
+    padding: 22px 20px 20px;
   }
-  .how__step + .how__step {
-    border-block-start: 1px solid var(--gray-4);
+  .how__demo {
+    min-block-size: 0;
   }
 }
 </style>

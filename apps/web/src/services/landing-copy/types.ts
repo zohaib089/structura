@@ -94,7 +94,7 @@ export interface LandingStrings {
     comments: readonly [string, string, string]
   }
   closing: { title: string; lead: string }
-  footer: { label: string; docs: string; selfHost: string }
+  footer: { label: string; docs: string; selfHost: string; resources: string }
   severity: { critical: string; high: string; medium: string; low: string; info: string }
   linkKind: { extracted: string; inferred: string; unresolved: string; start: string }
 }
