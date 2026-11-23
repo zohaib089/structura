@@ -437,6 +437,8 @@ export function registerWorkspaceScanRoutes(app: FastifyInstance, database: Work
         success: true,
         intent: qa.intent,
         answer: qa.answer,
+        ...(qa.code ? { code: qa.code } : {}),
+        ...(qa.params ? { params: qa.params } : {}),
         citations: qa.citations,
         suggestions: qa.suggestions
       }

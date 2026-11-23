@@ -11,6 +11,7 @@
  * Overlapping windows are merged into maximal spans; sub-spans of a larger
  * group are suppressed. Group ids are a short sha256 of the normalised block.
  */
+import { graphEmitsMessageCodes, messageFields, type MessageCodeId, type MessageParams } from './message-codes.js'
 import { createHash } from 'node:crypto'
 import { compareStrings } from './ids.js'
 import type {
@@ -219,7 +220,11 @@ function charCount(norms: string[]): number {
   return total
 }
 
-function describeGroup(lineCount: number, occurrences: DuplicateOccurrence[]): string {
+function describeGroup(lineCount: number, occurrences: DuplicateOccurrence[]): {
+  description: string
+  code: MessageCodeId
+  params: MessageParams
+} {
   const lines = `${lineCount} identical line${lineCount === 1 ? '' : 's'}`
   const paths: string[] = []
   for (const item of occurrences) {
@@ -228,12 +233,24 @@ function describeGroup(lineCount: number, occurrences: DuplicateOccurrence[]): s
   if (paths.length === 1) {
     const n = occurrences.length
     const times = n === 2 ? 'twice' : `${n} times`
-    return `${lines} appear ${times} in ${paths[0]}`
+    return {
+      description: `${lines} appear ${times} in ${paths[0]}`,
+      code: 'duplicate.same-file',
+      params: { lineCount, path: paths[0]!, times: n }
+    }
   }
   if (paths.length === 2 && occurrences.length === 2) {
-    return `${lines} in ${paths[0]} and ${paths[1]}`
+    return {
+      description: `${lines} in ${paths[0]} and ${paths[1]}`,
+      code: 'duplicate.pair',
+      params: { lineCount, path: paths[0]!, otherPath: paths[1]! }
+    }
   }
-  return `${lines} in ${paths.length} files`
+  return {
+    description: `${lines} in ${paths.length} files`,
+    code: 'duplicate.many-files',
+    params: { lineCount, fileCount: paths.length }
+  }
 }
 
 function compareOccurrences(left: DuplicateOccurrence, right: DuplicateOccurrence): number {
@@ -358,7 +375,7 @@ function uniqueCoveredLines(groups: DuplicateGroup[]): number {
   return seen.size
 }
 
-export function detectDuplicateGroups(sources: readonly DuplicateSource[]): DuplicateGroup[] {
+export function detectDuplicateGroups(sources: readonly DuplicateSource[], emitCodes = false): DuplicateGroup[] {
   const files = new Map<string, FileSequence>()
   for (const source of sources) {
     const lines = meaningfulLines(source.content, source.language)
@@ -422,11 +439,13 @@ export function detectDuplicateGroups(sources: readonly DuplicateSource[]): Dupl
     )
     if (occurrences.length < 2) continue
     occurrences.sort(compareOccurrences)
+    const message = describeGroup(length, occurrences)
     groups.push({
       id: blockId(block.norms),
       lineCount: length,
       occurrences,
-      description: describeGroup(length, occurrences)
+      description: message.description,
+      ...(emitCodes ? messageFields(message.code, message.params) : {})
     })
   }
   return suppressSubSpans(groups).sort(compareGroups)
@@ -440,9 +459,10 @@ function totalRawLines(sources: readonly DuplicateSource[]): number {
 
 export function buildDuplicates(
   sources: readonly DuplicateSource[],
-  limit = DUPLICATES_DEFAULT_LIMIT
+  limit = DUPLICATES_DEFAULT_LIMIT,
+  emitCodes = false
 ): GraphDuplicates | undefined {
-  const groups = detectDuplicateGroups(sources)
+  const groups = detectDuplicateGroups(sources, emitCodes)
   if (groups.length === 0) return undefined
   const duplicatedLines = uniqueCoveredLines(groups)
   const total = totalRawLines(sources)
@@ -462,6 +482,7 @@ export function buildDuplicates(
  * mutate the input. Files without source, or that were not parsed, are skipped.
  */
 export function attachDuplicates(graph: Graph, sources: readonly DuplicateSource[], limit = DUPLICATES_DEFAULT_LIMIT): Graph {
+  const emitCodes = graphEmitsMessageCodes(graph.schemaVersion)
   const fileLanguages = new Map<string, string | null>()
   const usable = new Set<string>()
   for (const node of graph.nodes) {
@@ -481,7 +502,7 @@ export function attachDuplicates(graph: Graph, sources: readonly DuplicateSource
   scoped.sort((left, right) => compareStrings(left.path, right.path))
   const { duplicates: _ignored, ...rest } = graph
   void _ignored
-  const duplicates = buildDuplicates(scoped, limit)
+  const duplicates = buildDuplicates(scoped, limit, emitCodes)
   if (!duplicates) return { ...rest }
   return { ...rest, duplicates }
 }

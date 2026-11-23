@@ -24,6 +24,7 @@
  * `hotspots` list is the top 10 (by score, then path) with a plain-English
  * `why`.
  */
+import { graphEmitsMessageCodes, messageFields } from './message-codes.js'
 import { IMPACT_DEFAULT_DEPTH } from './impact.js'
 import { compareStrings } from './ids.js'
 import type { FileNode, Graph, GraphHotspot, GraphNode } from './types.js'
@@ -141,20 +142,50 @@ function plural(count: number, noun: string): string {
 }
 
 export function describeHotspot(signals: FileHotspotSignals): string {
+  return describeHotspotMessage(signals).why
+}
+
+/** Plain-English `why` plus the structured `hotspot.why` message. */
+export function describeHotspotMessage(signals: FileHotspotSignals): {
+  why: string
+  code: 'hotspot.why'
+  params: import('./message-codes.js').MessageParams
+} {
   const parts: string[] = []
-  if (signals.fanIn > 0) parts.push(`Used by ${plural(signals.fanIn, 'file')}`)
-  if (signals.fanOut > 0) parts.push(`imports ${plural(signals.fanOut, 'file')}`)
-  if (signals.impact > 0) parts.push(`impacts ${plural(signals.impact, 'file')}`)
-  if (signals.findings > 0) parts.push(`has ${plural(signals.findings, 'finding')}`)
+  const params: import('./message-codes.js').MessageParams = {}
+  if (signals.fanIn > 0) {
+    parts.push(`Used by ${plural(signals.fanIn, 'file')}`)
+    params.fanIn = signals.fanIn
+  }
+  if (signals.fanOut > 0) {
+    parts.push(`imports ${plural(signals.fanOut, 'file')}`)
+    params.fanOut = signals.fanOut
+  }
+  if (signals.impact > 0) {
+    parts.push(`impacts ${plural(signals.impact, 'file')}`)
+    params.impact = signals.impact
+  }
+  if (signals.findings > 0) {
+    parts.push(`has ${plural(signals.findings, 'finding')}`)
+    params.findings = signals.findings
+  }
   if (signals.sizeKind === 'functions' && signals.size > 0) {
     parts.push(`has ${plural(signals.size, 'function')}`)
+    params.size = signals.size
+    params.sizeKind = 'functions'
   } else if (signals.sizeKind === 'lines' && signals.size > 0) {
     parts.push(`has ${signals.size} lines`)
+    params.size = signals.size
+    params.sizeKind = 'lines'
   }
-  if (parts.length === 0) return 'No hotspot signals'
-  if (parts.length === 1) return parts[0]!
-  if (parts.length === 2) return `${parts[0]} and ${parts[1]}`
-  return `${parts.slice(0, -1).join(', ')}, and ${parts.at(-1)}`
+  const why = parts.length === 0
+    ? 'No hotspot signals'
+    : parts.length === 1
+      ? parts[0]!
+      : parts.length === 2
+        ? `${parts[0]} and ${parts[1]}`
+        : `${parts.slice(0, -1).join(', ')}, and ${parts.at(-1)}`
+  return { why, code: 'hotspot.why', params }
 }
 
 export function collectFileHotspotSignals(graph: Graph): Map<string, FileHotspotSignals> {
@@ -212,11 +243,16 @@ export function attachHotspots(graph: Graph, limit = HOTSPOTS_DEFAULT_LIMIT): Gr
 
   ranked.sort((left, right) => right.score - left.score || compareStrings(left.node.path, right.node.path))
   const cap = Number.isSafeInteger(limit) && limit > 0 ? limit : HOTSPOTS_DEFAULT_LIMIT
-  const hotspots: GraphHotspot[] = ranked.slice(0, cap).map(item => ({
-    path: item.node.path,
-    score: item.score,
-    why: describeHotspot(item.signals)
-  }))
+  const emitCodes = graphEmitsMessageCodes(graph.schemaVersion)
+  const hotspots: GraphHotspot[] = ranked.slice(0, cap).map(item => {
+    const message = describeHotspotMessage(item.signals)
+    return {
+      path: item.node.path,
+      score: item.score,
+      why: message.why,
+      ...(emitCodes ? messageFields(message.code, message.params) : {})
+    }
+  })
 
   const next: Graph = { ...graph, nodes }
   if (hotspots.length > 0) next.hotspots = hotspots

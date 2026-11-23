@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.6.0",
+  "schemaVersion": "1.7.0",
   "summary": {
     "nodes": 12,
     "edges": 15,
@@ -329,22 +329,50 @@
     {
       "path": "main.go",
       "score": 50,
-      "why": "imports 3 files, impacts 3 files, and has 13 lines"
+      "why": "imports 3 files, impacts 3 files, and has 13 lines",
+      "code": "hotspot.why",
+      "params": {
+        "fanOut": 3,
+        "impact": 3,
+        "size": 13,
+        "sizeKind": "lines"
+      }
     },
     {
       "path": "pkg/util/a.go",
       "score": 49,
-      "why": "Used by 1 file, impacts 1 file, and has 12 lines"
+      "why": "Used by 1 file, impacts 1 file, and has 12 lines",
+      "code": "hotspot.why",
+      "params": {
+        "fanIn": 1,
+        "impact": 1,
+        "size": 12,
+        "sizeKind": "lines"
+      }
     },
     {
       "path": "pkg/hook/hook.go",
       "score": 46,
-      "why": "Used by 1 file, impacts 1 file, and has 8 lines"
+      "why": "Used by 1 file, impacts 1 file, and has 8 lines",
+      "code": "hotspot.why",
+      "params": {
+        "fanIn": 1,
+        "impact": 1,
+        "size": 8,
+        "sizeKind": "lines"
+      }
     },
     {
       "path": "pkg/util/b.go",
       "score": 43,
-      "why": "Used by 1 file, impacts 1 file, and has 4 lines"
+      "why": "Used by 1 file, impacts 1 file, and has 4 lines",
+      "code": "hotspot.why",
+      "params": {
+        "fanIn": 1,
+        "impact": 1,
+        "size": 4,
+        "sizeKind": "lines"
+      }
     }
   ],
   "quality": {
@@ -355,32 +383,60 @@
         {
           "category": "architecture",
           "label": "No architecture rule breaks",
+          "code": "quality.architecture",
+          "params": {
+            "high": 0,
+            "medium": 0
+          },
           "penalty": 0
         },
         {
           "category": "cycles",
           "label": "No import cycles",
+          "code": "quality.cycles",
+          "params": {
+            "count": 0
+          },
           "penalty": 0
         },
         {
           "category": "hotspots",
           "label": "No highly connected hotspots",
+          "code": "quality.hotspots",
+          "params": {
+            "count": 0,
+            "maxCount": 0
+          },
           "penalty": 0
         },
         {
           "category": "imports",
           "label": "57% of imports come from third-party packages",
+          "code": "quality.imports",
+          "params": {
+            "externalPercent": 57,
+            "unresolvedPercent": 0
+          },
           "penalty": 6
         },
         {
           "category": "size",
           "label": "No unusually large files or functions",
+          "code": "quality.size",
+          "params": {
+            "largeFiles": 0,
+            "largeFunctions": 0
+          },
           "penalty": 0
         }
       ],
       "tips": [
         {
           "text": "Clean up unresolved and heavy third-party imports to gain about 6 points",
+          "code": "quality.tip.imports",
+          "params": {
+            "gain": 6
+          },
           "gain": 6
         }
       ]
@@ -394,32 +450,60 @@
           {
             "category": "architecture",
             "label": "No architecture rule breaks",
+            "code": "quality.architecture",
+            "params": {
+              "high": 0,
+              "medium": 0
+            },
             "penalty": 0
           },
           {
             "category": "cycles",
             "label": "No import cycles",
+            "code": "quality.cycles",
+            "params": {
+              "count": 0
+            },
             "penalty": 0
           },
           {
             "category": "hotspots",
             "label": "No highly connected hotspots",
+            "code": "quality.hotspots",
+            "params": {
+              "count": 0,
+              "maxCount": 0
+            },
             "penalty": 0
           },
           {
             "category": "imports",
             "label": "100% of imports come from third-party packages",
+            "code": "quality.imports",
+            "params": {
+              "externalPercent": 100,
+              "unresolvedPercent": 0
+            },
             "penalty": 10
           },
           {
             "category": "size",
             "label": "No unusually large files or functions",
+            "code": "quality.size",
+            "params": {
+              "largeFiles": 0,
+              "largeFunctions": 0
+            },
             "penalty": 0
           }
         ],
         "tips": [
           {
             "text": "Clean up unresolved and heavy third-party imports to gain about 10 points",
+            "code": "quality.tip.imports",
+            "params": {
+              "gain": 10
+            },
             "gain": 10
           }
         ]
@@ -432,32 +516,60 @@
           {
             "category": "architecture",
             "label": "No architecture rule breaks",
+            "code": "quality.architecture",
+            "params": {
+              "high": 0,
+              "medium": 0
+            },
             "penalty": 0
           },
           {
             "category": "cycles",
             "label": "No import cycles",
+            "code": "quality.cycles",
+            "params": {
+              "count": 0
+            },
             "penalty": 0
           },
           {
             "category": "hotspots",
             "label": "No highly connected hotspots",
+            "code": "quality.hotspots",
+            "params": {
+              "count": 0,
+              "maxCount": 0
+            },
             "penalty": 0
           },
           {
             "category": "imports",
             "label": "100% of imports come from third-party packages",
+            "code": "quality.imports",
+            "params": {
+              "externalPercent": 100,
+              "unresolvedPercent": 0
+            },
             "penalty": 10
           },
           {
             "category": "size",
             "label": "No unusually large files or functions",
+            "code": "quality.size",
+            "params": {
+              "largeFiles": 0,
+              "largeFunctions": 0
+            },
             "penalty": 0
           }
         ],
         "tips": [
           {
             "text": "Clean up unresolved and heavy third-party imports to gain about 10 points",
+            "code": "quality.tip.imports",
+            "params": {
+              "gain": 10
+            },
             "gain": 10
           }
         ]
@@ -470,32 +582,60 @@
           {
             "category": "architecture",
             "label": "No architecture rule breaks",
+            "code": "quality.architecture",
+            "params": {
+              "high": 0,
+              "medium": 0
+            },
             "penalty": 0
           },
           {
             "category": "cycles",
             "label": "No import cycles",
+            "code": "quality.cycles",
+            "params": {
+              "count": 0
+            },
             "penalty": 0
           },
           {
             "category": "hotspots",
             "label": "No highly connected hotspots",
+            "code": "quality.hotspots",
+            "params": {
+              "count": 0,
+              "maxCount": 0
+            },
             "penalty": 0
           },
           {
             "category": "imports",
             "label": "100% of imports come from third-party packages",
+            "code": "quality.imports",
+            "params": {
+              "externalPercent": 100,
+              "unresolvedPercent": 0
+            },
             "penalty": 10
           },
           {
             "category": "size",
             "label": "No unusually large files or functions",
+            "code": "quality.size",
+            "params": {
+              "largeFiles": 0,
+              "largeFunctions": 0
+            },
             "penalty": 0
           }
         ],
         "tips": [
           {
             "text": "Clean up unresolved and heavy third-party imports to gain about 10 points",
+            "code": "quality.tip.imports",
+            "params": {
+              "gain": 10
+            },
             "gain": 10
           }
         ]

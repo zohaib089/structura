@@ -2,6 +2,7 @@ import { collectQualityInputs } from './quality.js'
 import { walkFileImpact, type ImpactPath } from './impact.js'
 import { compareStrings } from './ids.js'
 import { indexNodes } from './resolve-ref.js'
+import { messageFields, type MessageCodeId, type MessageParams } from './message-codes.js'
 import type {
   ArchitectureFinding,
   DirectoryNode,
@@ -82,6 +83,10 @@ export interface GraphQaCitation {
 export interface GraphQaResponse {
   intent: GraphQaIntent
   answer: string
+  /** Structured code for `answer` (1.7.0). */
+  code?: string
+  /** Parameters for `code`. Omitted when empty. */
+  params?: MessageParams
   citations: GraphQaCitation[]
   suggestions: string[]
 }
@@ -120,8 +125,9 @@ const IMPORT_TYPES = new Set(['imports', 'reexports'])
 
 /**
  * Answer a natural-language question about a scan graph. Deterministic and offline:
- * no model, no network, and no schema bump. Optional graph sections may be absent
+ * no model and no network. Optional graph sections may be absent
  * on schema 1.4.0 and earlier; those questions get a clear fallback.
+ * Answers include a structured `code` and `params` next to the English text.
  */
 export function answerGraphQuestion(graph: Graph, question: string): GraphQaResponse {
   const original = typeof question === 'string' ? question : String(question ?? '')
@@ -131,7 +137,8 @@ export function answerGraphQuestion(graph: Graph, question: string): GraphQaResp
   const resolved = targetText ? resolveQaTarget(graph, targetText) : { status: 'none' as const }
 
   if (resolved.status === 'missing' || resolved.status === 'ambiguous') {
-    return finish(graph, intent, describeResolve(resolved), citationsForResolve(resolved), focusPath(resolved))
+    const resolvedMessage = describeResolve(resolved)
+    return finish(graph, intent, resolvedMessage.answer, citationsForResolve(resolved), focusPath(resolved), resolvedMessage.code, resolvedMessage.params)
   }
 
   switch (intent) {
@@ -166,11 +173,14 @@ function finish(
   intent: GraphQaIntent,
   answer: string,
   citations: GraphQaCitation[],
-  focus?: string
+  focus: string | undefined,
+  code: MessageCodeId,
+  params?: MessageParams
 ): GraphQaResponse {
   return {
     intent,
     answer,
+    ...messageFields(code, params),
     citations: capCitations(citations),
     suggestions: buildSuggestions(graph, intent, focus)
   }
@@ -422,13 +432,26 @@ function targetLabel(target: QaTarget): string {
   return target.path
 }
 
-function describeResolve(resolved: Extract<ResolveResult, { status: 'missing' } | { status: 'ambiguous' }>): string {
+function describeResolve(resolved: Extract<ResolveResult, { status: 'missing' } | { status: 'ambiguous' }>): {
+  answer: string
+  code: MessageCodeId
+  params?: MessageParams
+} {
   if (resolved.status === 'missing') {
-    return `I could not find “${resolved.ref}” in this scan. Try a full repo-relative path, a file name, or a symbol name, or ask for an overview of the project.`
+    return {
+      answer: `I could not find “${resolved.ref}” in this scan. Try a full repo-relative path, a file name, or a symbol name, or ask for an overview of the project.`,
+      code: 'qa.resolve.missing',
+      params: { ref: resolved.ref }
+    }
   }
   const listed = resolved.candidates.slice(0, MAX_LISTED).map(candidate => targetLabel(candidate))
-  const extra = resolved.candidates.length > MAX_LISTED ? ` and ${resolved.candidates.length - MAX_LISTED} more` : ''
-  return `“${resolved.ref}” matches more than one place: ${andList(listed)}${extra}. Please use a full path or a more specific name.`
+  const extraCount = Math.max(0, resolved.candidates.length - MAX_LISTED)
+  const extra = extraCount > 0 ? ` and ${extraCount} more` : ''
+  return {
+    answer: `“${resolved.ref}” matches more than one place: ${andList(listed)}${extra}. Please use a full path or a more specific name.`,
+    code: 'qa.resolve.ambiguous',
+    params: { ref: resolved.ref, listed, extraCount }
+  }
 }
 
 function citationsForResolve(resolved: ResolveResult): GraphQaCitation[] {
@@ -464,13 +487,22 @@ function answerImpact(graph: Graph, resolved: ResolveResult): GraphQaResponse {
       'impact',
       'Tell me which file, folder, or symbol you want to change and I can list what depends on it. For example: “What breaks if I change src/app.ts?”',
       [],
-      firstFilePath(graph)
+      firstFilePath(graph),
+      'qa.impact.need-target'
     )
   }
   const target = resolved.target
   const files = filesForImpact(graph, target)
   if (files.length === 0) {
-    return finish(graph, 'impact', `I could not find any files to walk from ${targetLabel(target)}.`, [citationForTarget(target)], target.path)
+    return finish(
+      graph,
+      'impact',
+      `I could not find any files to walk from ${targetLabel(target)}.`,
+      [citationForTarget(target)],
+      target.path,
+      'qa.impact.no-files',
+      { target: targetLabel(target) }
+    )
   }
 
   const dependents = new Map<string, { path: string; depth: number; edge?: GraphEdge }>()
@@ -496,7 +528,15 @@ function answerImpact(graph: Graph, resolved: ResolveResult): GraphQaResponse {
     const scope = target.kind === 'folder'
       ? `${target.path} contains ${plural(files.length, 'file')} and nothing outside it imports those files`
       : `Nothing in this scan imports ${targetLabel(target)}`
-    return finish(graph, 'impact', `${scope}, so a change is unlikely to break other files here.`, citations, target.path)
+    return finish(
+      graph,
+      'impact',
+      `${scope}, so a change is unlikely to break other files here.`,
+      citations,
+      target.path,
+      'qa.impact.none',
+      { target: targetLabel(target), kind: target.kind, ...(target.kind === 'folder' ? { fileCount: files.length } : {}) }
+    )
   }
 
   const listed = rows.slice(0, MAX_LISTED).map(row => `${row.path} (depth ${row.depth})`)
@@ -504,7 +544,22 @@ function answerImpact(graph: Graph, resolved: ResolveResult): GraphQaResponse {
   const lead = target.kind === 'folder'
     ? `If you change ${target.path} (${plural(files.length, 'file')}), ${plural(rows.length, 'file')} outside or downstream would be affected: `
     : `If you change ${targetLabel(target)}, ${plural(rows.length, 'file')} depend on it: `
-  return finish(graph, 'impact', `${lead}${andList(listed)}.${extra}`, citations, target.path)
+  return finish(
+    graph,
+    'impact',
+    `${lead}${andList(listed)}.${extra}`,
+    citations,
+    target.path,
+    'qa.impact.dependents',
+    {
+      target: targetLabel(target),
+      kind: target.kind,
+      ...(target.kind === 'folder' ? { fileCount: files.length } : {}),
+      dependentCount: rows.length,
+      listed,
+      extraCount: Math.max(0, rows.length - MAX_LISTED)
+    }
+  )
 }
 
 function filesForImpact(graph: Graph, target: QaTarget): FileNode[] {
@@ -553,23 +608,36 @@ function answerExplain(graph: Graph, resolved: ResolveResult): GraphQaResponse {
       'explain',
       'Ask about a specific file, folder, or symbol — for example, “What does src/app.ts do?” — and I can summarise what it is, what it imports, and what imports it.',
       [],
-      firstFilePath(graph)
+      firstFilePath(graph),
+      'qa.explain.need-target'
     )
   }
   const target = resolved.target
-  if (target.kind === 'folder') return finish(graph, 'explain', explainFolder(graph, target), [citationForTarget(target)], target.path)
-  if (target.kind === 'symbol') return finish(graph, 'explain', explainSymbol(graph, target), [citationForTarget(target)], target.path)
-  return finish(graph, 'explain', explainFile(graph, target), explainFileCitations(graph, target), target.path)
+  if (target.kind === 'folder') {
+    const explained = explainFolder(graph, target)
+    return finish(graph, 'explain', explained.answer, [citationForTarget(target)], target.path, explained.code, explained.params)
+  }
+  if (target.kind === 'symbol') {
+    const explained = explainSymbol(graph, target)
+    return finish(graph, 'explain', explained.answer, [citationForTarget(target)], target.path, explained.code, explained.params)
+  }
+  const explained = explainFile(graph, target)
+  return finish(graph, 'explain', explained.answer, explainFileCitations(graph, target), target.path, explained.code, explained.params)
 }
 
-function explainFile(graph: Graph, target: QaFileTarget): string {
+function explainFile(graph: Graph, target: QaFileTarget): { answer: string; code: MessageCodeId; params: MessageParams } {
   const file = target.node
   const parts: string[] = []
+  const params: MessageParams = { path: file.path, language: languageLabel(file.language) }
   const language = languageLabel(file.language)
   const lines = file.lineCount !== null ? ` (${file.lineCount} lines)` : ''
   parts.push(`${file.path} is a ${language} file${lines}.`)
+  if (file.lineCount !== null) params.lineCount = file.lineCount
   if (file.docSummary) parts.push(file.docSummary.replace(/\s+/g, ' ').trim())
-  if (file.hotspot && file.hotspot.score > 0) parts.push(`Its hotspot score is ${file.hotspot.score}.`)
+  if (file.hotspot && file.hotspot.score > 0) {
+    parts.push(`Its hotspot score is ${file.hotspot.score}.`)
+    params.hotspotScore = file.hotspot.score
+  }
 
   const symbols = graph.nodes
     .filter((node): node is SymbolNode => node.kind === 'symbol' && node.file === file.id)
@@ -581,21 +649,36 @@ function explainFile(graph: Graph, target: QaFileTarget): string {
     })
     const extra = symbols.length > MAX_LISTED ? ` and ${symbols.length - MAX_LISTED} more` : ''
     parts.push(`It declares ${andList(listed)}${extra}.`)
+    params.symbols = listed
+    params.extraSymbols = Math.max(0, symbols.length - MAX_LISTED)
   }
 
   const { imports, importers } = fileImports(graph, file.id)
-  if (imports.length > 0) parts.push(`It imports ${andList(imports.slice(0, MAX_LISTED))}${imports.length > MAX_LISTED ? ` and ${imports.length - MAX_LISTED} more` : ''}.`)
-  else parts.push('It does not import other files in this scan.')
-  if (importers.length > 0) parts.push(`It is imported by ${andList(importers.slice(0, MAX_LISTED))}${importers.length > MAX_LISTED ? ` and ${importers.length - MAX_LISTED} more` : ''}.`)
-  else parts.push('No other file in this scan imports it.')
+  if (imports.length > 0) {
+    const listedImports = imports.slice(0, MAX_LISTED)
+    parts.push(`It imports ${andList(listedImports)}${imports.length > MAX_LISTED ? ` and ${imports.length - MAX_LISTED} more` : ''}.`)
+    params.imports = listedImports
+    params.extraImports = Math.max(0, imports.length - MAX_LISTED)
+  } else parts.push('It does not import other files in this scan.')
+  if (importers.length > 0) {
+    const listedImporters = importers.slice(0, MAX_LISTED)
+    parts.push(`It is imported by ${andList(listedImporters)}${importers.length > MAX_LISTED ? ` and ${importers.length - MAX_LISTED} more` : ''}.`)
+    params.importers = listedImporters
+    params.extraImporters = Math.max(0, importers.length - MAX_LISTED)
+  } else parts.push('No other file in this scan imports it.')
 
   const findings = (graph.architecture?.findings ?? []).filter(finding => finding.file === file.path)
   if (findings.length > 0) {
-    parts.push(`Architecture findings: ${andList(findings.slice(0, MAX_LISTED).map(formatFinding))}.`)
+    const listedFindings = findings.slice(0, MAX_LISTED).map(formatFinding)
+    parts.push(`Architecture findings: ${andList(listedFindings)}.`)
+    params.findings = listedFindings
   }
   const entry = entryReasons(file)
-  if (entry.length > 0) parts.push(`It looks like an entry point (${andList(entry)}).`)
-  return parts.join(' ')
+  if (entry.length > 0) {
+    parts.push(`It looks like an entry point (${andList(entry)}).`)
+    params.entry = entry
+  }
+  return { answer: parts.join(' '), code: 'qa.explain.file', params }
 }
 
 function explainFileCitations(graph: Graph, target: QaFileTarget): GraphQaCitation[] {
@@ -615,26 +698,46 @@ function explainFileCitations(graph: Graph, target: QaFileTarget): GraphQaCitati
   return citations
 }
 
-function explainFolder(graph: Graph, target: QaFolderTarget): string {
+function explainFolder(graph: Graph, target: QaFolderTarget): { answer: string; code: MessageCodeId; params: MessageParams } {
   const files = graph.nodes.filter((node): node is FileNode => node.kind === 'file' && inFolder(node.path, target.path))
-  if (files.length === 0) return `The folder ${target.path} has no scanned files.`
+  if (files.length === 0) {
+    return { answer: `The folder ${target.path} has no scanned files.`, code: 'qa.explain.folder-empty', params: { path: target.path } }
+  }
   const languages = countLanguages(files)
+  const params: MessageParams = { path: target.path, fileCount: files.length }
+  if (languages) params.languages = languages
   const parts = [
     `${target.path} contains ${plural(files.length, 'file')}${languages ? `: ${languages}` : ''}.`
   ]
   const folderQuality = graph.quality?.folders?.find(folder => folder.path === target.path)
   if (folderQuality) {
     parts.push(`Its quality score is ${folderQuality.score} (grade ${folderQuality.grade}).`)
-    if (folderQuality.tips[0]) parts.push(`To raise it: ${folderQuality.tips[0].text} (about ${folderQuality.tips[0].gain} points).`)
+    params.score = folderQuality.score
+    params.grade = folderQuality.grade
+    if (folderQuality.tips[0]) {
+      parts.push(`To raise it: ${folderQuality.tips[0].text} (about ${folderQuality.tips[0].gain} points).`)
+      params.tip = folderQuality.tips[0].text
+      params.tipGain = folderQuality.tips[0].gain
+    }
   }
   const listed = files.map(file => file.path).sort(compareStrings).slice(0, MAX_LISTED)
   const extra = files.length > MAX_LISTED ? ` and ${files.length - MAX_LISTED} more` : ''
   parts.push(`Files include ${andList(listed)}${extra}.`)
-  return parts.join(' ')
+  params.files = listed
+  params.extraFiles = Math.max(0, files.length - MAX_LISTED)
+  return { answer: parts.join(' '), code: 'qa.explain.folder', params }
 }
 
-function explainSymbol(graph: Graph, target: QaSymbolTarget): string {
+function explainSymbol(graph: Graph, target: QaSymbolTarget): { answer: string; code: MessageCodeId; params: MessageParams } {
   const symbol = target.node
+  const params: MessageParams = {
+    name: symbol.label,
+    kind: symbol.symbolKind,
+    path: target.path,
+    startLine: symbol.span.start.line,
+    endLine: symbol.span.end.line,
+    exported: symbol.exported
+  }
   const parts = [
     `${symbol.label} is ${article(symbol.symbolKind)} ${symbol.symbolKind} in ${target.path} (lines ${symbol.span.start.line}–${symbol.span.end.line}).`
   ]
@@ -644,7 +747,7 @@ function explainSymbol(graph: Graph, target: QaSymbolTarget): string {
   if (file?.kind === 'file' && file.docSummary) {
     parts.push(`The surrounding file: ${file.docSummary.replace(/\s+/g, ' ').trim()}`)
   }
-  return parts.join(' ')
+  return { answer: parts.join(' '), code: 'qa.explain.symbol', params }
 }
 
 function fileImports(graph: Graph, fileId: string): { imports: string[]; importers: string[] } {
@@ -722,14 +825,29 @@ function answerHotspots(graph: Graph): GraphQaResponse {
       graph,
       'hotspots',
       'This scan does not include hotspot scores. They appear in graph.json 1.2.0 and later when at least one file scores above 0. I can still explain a file or walk its impact if you name it.',
-      []
+      [],
+      undefined,
+      'qa.hotspots.none'
     )
   }
   const listed = hotspots.slice(0, MAX_LISTED)
   const lines = listed.map((item, index) => `${index + 1}. ${item.path} (score ${item.score}) — ${item.why}`)
   const extra = hotspots.length > MAX_LISTED ? ` ${hotspots.length - MAX_LISTED} more files are also listed on the graph.` : ''
   const citations = listed.map(item => ({ kind: 'file' as const, path: item.path }))
-  return finish(graph, 'hotspots', `The riskiest files are:\n${lines.join('\n')}${extra}`, citations, listed[0]?.path)
+  return finish(
+    graph,
+    'hotspots',
+    `The riskiest files are:\n${lines.join('\n')}${extra}`,
+    citations,
+    listed[0]?.path,
+    'qa.hotspots.list',
+    {
+      count: hotspots.length,
+      paths: listed.map(item => item.path),
+      scores: listed.map(item => String(item.score)),
+      extraCount: Math.max(0, hotspots.length - MAX_LISTED)
+    }
+  )
 }
 
 function answerQuality(graph: Graph, resolved: ResolveResult): GraphQaResponse {
@@ -739,7 +857,9 @@ function answerQuality(graph: Graph, resolved: ResolveResult): GraphQaResponse {
       graph,
       'quality',
       'This scan does not include quality scores. They appear in graph.json 1.3.0 and later. I can still look for circular imports or architecture rule breaks, or talk through a specific file.',
-      []
+      [],
+      undefined,
+      'qa.quality.none'
     )
   }
 
@@ -747,7 +867,8 @@ function answerQuality(graph: Graph, resolved: ResolveResult): GraphQaResponse {
     const folderPath = resolved.target.kind === 'folder' ? resolved.target.path : parentFolder(resolved.target.path)
     const folder = folderPath ? quality.folders?.find(item => item.path === folderPath) : undefined
     if (folder) {
-      return finish(graph, 'quality', describeQualityScore(`${folder.path} scores`, folder, quality.folders), [ { kind: 'folder', path: folder.path } ], folder.path)
+      const folderMessage = describeQualityScore(`${folder.path} scores`, folder, quality.folders)
+      return finish(graph, 'quality', folderMessage.answer, [ { kind: 'folder', path: folder.path } ], folder.path, folderMessage.code, folderMessage.params)
     }
     if (resolved.target.kind === 'folder') {
       return finish(
@@ -755,38 +876,52 @@ function answerQuality(graph: Graph, resolved: ResolveResult): GraphQaResponse {
         'quality',
         `There is no separate quality score for ${resolved.target.path}. The project scores ${quality.project.score} (grade ${quality.project.grade}).`,
         [{ kind: 'folder', path: resolved.target.path }],
-        resolved.target.path
+        resolved.target.path,
+        'qa.quality.folder-missing',
+        { path: resolved.target.path, projectScore: quality.project.score, projectGrade: quality.project.grade }
       )
     }
   }
 
+  const projectMessage = describeQualityScore('The project scores', quality.project, quality.folders)
   return finish(
     graph,
     'quality',
-    describeQualityScore('The project scores', quality.project, quality.folders),
+    projectMessage.answer,
     quality.folders?.slice(0, 5).map(folder => ({ kind: 'folder' as const, path: folder.path })) ?? [],
-    quality.folders?.[0]?.path
+    quality.folders?.[0]?.path,
+    projectMessage.code,
+    projectMessage.params
   )
 }
 
-function describeQualityScore(lead: string, score: QualityScore, folders?: { path: string; score: number; grade: string }[]): string {
+function describeQualityScore(lead: string, score: QualityScore, folders?: { path: string; score: number; grade: string }[]): {
+  answer: string
+  code: MessageCodeId
+  params: MessageParams
+} {
   const parts = [`${lead} ${score.score} out of 100 (grade ${score.grade}).`]
+  const params: MessageParams = { lead, score: score.score, grade: score.grade }
   const penalties = score.breakdown.filter(item => item.penalty > 0)
   if (penalties.length > 0) {
-    parts.push(`What pulled it down: ${andList(penalties.map(item => `${item.label} (−${item.penalty})`))}.`)
+    const penaltyLabels = penalties.map(item => `${item.label} (−${item.penalty})`)
+    parts.push(`What pulled it down: ${andList(penaltyLabels)}.`)
+    params.penalties = penaltyLabels
   } else {
     parts.push('No category currently takes points off.')
   }
   if (score.tips.length > 0) {
     const tips = score.tips.slice(0, 3).map(tip => `${tip.text} (about ${tip.gain} points)`)
     parts.push(`To raise the score: ${andList(tips)}.`)
+    params.tips = tips
   }
   if (folders && folders.length > 0) {
     const worst = [...folders].sort((left, right) => right.score === left.score ? compareStrings(left.path, right.path) : left.score - right.score)
     const listed = worst.slice(0, 5).map(folder => `${folder.path} (${folder.score}, ${folder.grade})`)
     parts.push(`Worst folders: ${andList(listed)}.`)
+    params.worstFolders = listed
   }
-  return parts.join(' ')
+  return { answer: parts.join(' '), code: 'qa.quality.score', params }
 }
 
 function answerDuplicates(graph: Graph): GraphQaResponse {
@@ -796,7 +931,9 @@ function answerDuplicates(graph: Graph): GraphQaResponse {
       graph,
       'duplicates',
       'This scan does not list any duplicated code. Duplicate groups appear in graph.json 1.4.0 and later when a repeated block meets the size threshold.',
-      []
+      [],
+      undefined,
+      'qa.duplicates.none'
     )
   }
   const summary = duplicates.summary
@@ -816,7 +953,21 @@ function answerDuplicates(graph: Graph): GraphQaResponse {
     }
   }
   const head = `There ${summary.groups === 1 ? 'is' : 'are'} ${plural(summary.groups, 'duplicate group')} covering ${summary.duplicatedLines} lines (${summary.percentage}% of the scanned files).`
-  return finish(graph, 'duplicates', `${head}\n${lines.join('\n')}${extra}`, citations, listed[0]?.occurrences[0]?.path)
+  return finish(
+    graph,
+    'duplicates',
+    `${head}\n${lines.join('\n')}${extra}`,
+    citations,
+    listed[0]?.occurrences[0]?.path,
+    'qa.duplicates.list',
+    {
+      groups: summary.groups,
+      duplicatedLines: summary.duplicatedLines,
+      percentage: summary.percentage,
+      descriptions: listed.map(group => group.description),
+      extraCount: Math.max(0, groups.length - MAX_LISTED)
+    }
+  )
 }
 
 function answerArchitecture(graph: Graph): GraphQaResponse {
@@ -851,7 +1002,11 @@ function answerArchitecture(graph: Graph): GraphQaResponse {
     }
   }
 
-  return finish(graph, 'architecture', parts.join(' '), citations, citations[0]?.path)
+  return finish(graph, 'architecture', parts.join(' '), citations, citations[0]?.path, 'qa.architecture', {
+    cycleCount: cycles.length,
+    hasConfig: Boolean(graph.architecture),
+    findingCount: findings.length
+  })
 }
 
 function formatFinding(finding: ArchitectureFinding): string {
@@ -886,7 +1041,12 @@ function answerOverview(graph: Graph): GraphQaResponse {
   if (citations.length === 0) {
     for (const file of files.slice(0, 4)) citations.push({ kind: 'file', path: file.path })
   }
-  return finish(graph, 'overview', parts.join(' '), citations, entries[0] ?? folders[0] ?? files[0]?.path)
+  return finish(graph, 'overview', parts.join(' '), citations, entries[0] ?? folders[0] ?? files[0]?.path, 'qa.overview', {
+    fileCount,
+    ...(languages ? { languages } : {}),
+    ...(folders.length > 0 ? { folders: folders.slice(0, MAX_LISTED), extraFolders: Math.max(0, folders.length - MAX_LISTED) } : {}),
+    ...(entries.length > 0 ? { entries: entries.slice(0, MAX_LISTED), extraEntries: Math.max(0, entries.length - MAX_LISTED) } : {})
+  })
 }
 
 function languagesFromCoverage(graph: Graph, files: readonly FileNode[]): string | undefined {
@@ -919,7 +1079,15 @@ function answerFallback(graph: Graph, normalized: string): GraphQaResponse {
   const lead = !normalized
     ? 'Ask a question about this scan and I will answer from the graph only, with no AI.'
     : 'I am not sure how to read that question. I can answer from this scan without AI.'
-  return finish(graph, 'fallback', `${lead}${examples}`, [])
+  return finish(
+    graph,
+    'fallback',
+    `${lead}${examples}`,
+    [],
+    undefined,
+    normalized ? 'qa.fallback.unknown' : 'qa.fallback.empty',
+    suggestions.length > 0 ? { examples: suggestions } : undefined
+  )
 }
 
 function buildSuggestions(graph: Graph, intent: GraphQaIntent, focus?: string): string[] {

@@ -629,6 +629,7 @@ test('ask route answers a question from a stored graph', async () => {
     assert.equal(body.success, true)
     assert.equal(body.intent, 'explain')
     assert.match(body.answer, /Application entry/)
+    assert.equal(body.code, 'qa.explain.file')
     assert.ok(Array.isArray(body.citations))
     assert.ok(body.citations.some((item: { path: string }) => item.path === 'src/app.ts'))
     assert.ok(Array.isArray(body.suggestions))
