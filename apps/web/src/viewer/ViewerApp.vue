@@ -198,6 +198,14 @@ const viewerWidth = ref(0)
 /** Below this pane width an editor host (never the dashboard or a phone browser) gets the compact toolbar. */
 const COMPACT_HOST_WIDTH = 420
 let viewerResize: ResizeObserver | null = null
+let inspectorResize: ResizeObserver | null = null
+function attachInspectorObserver() {
+  inspectorResize?.disconnect()
+  inspectorResize = null
+  if (typeof ResizeObserver === 'undefined' || !inspectorEl.value) return
+  inspectorResize = new ResizeObserver(() => measurePanelInset())
+  inspectorResize.observe(inspectorEl.value)
+}
 onMounted(() => {
   if (typeof ResizeObserver === 'undefined' || !viewerEl.value) return
   viewerResize = new ResizeObserver((entries) => {
@@ -206,8 +214,15 @@ onMounted(() => {
     if (!panelChosen && props.autoCollapseBelow && viewerWidth.value > 640) panelCollapsed.value = viewerWidth.value < props.autoCollapseBelow
   })
   viewerResize.observe(viewerEl.value)
+  void nextTick(() => {
+    attachInspectorObserver()
+    measurePanelInset()
+  })
 })
-onBeforeUnmount(() => viewerResize?.disconnect())
+onBeforeUnmount(() => {
+  viewerResize?.disconnect()
+  inspectorResize?.disconnect()
+})
 /** Narrow hosts (VS Code webview below autoCollapseBelow): slimmer open panel, status line clipped cleanly. */
 const isNarrowHost = computed(() => Boolean(props.autoCollapseBelow) && viewerWidth.value > 640 && viewerWidth.value < (props.autoCollapseBelow ?? 0))
 const barDensity = computed<'full' | 'tight' | 'narrow' | 'xnarrow'>(() => {
@@ -225,19 +240,20 @@ function measurePanelInset() {
   const panel = inspectorEl.value
   const canvas = viewerEl.value?.querySelector<HTMLElement>('[data-testid="graph-canvas"]')
   const phone = typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 640px)').matches
-  if (!inspectorOpen.value || !panel || !canvas || !viewerEl.value) {
+  if (!inspectorOpen.value || !panel || !viewerEl.value) {
     panelInset.value = 0
     panelBottomInset.value = 0
     return
   }
   if (phone) {
     panelInset.value = 0
-    // The sheet (peek or expanded) covers the canvas bottom: the graph fits into the area above it,
-    // and the zoom pad sits just above its top edge.
-    // Use the resting height (not the sliding rect) so the fit is right before the slide finishes.
-    const bottom = Math.min(viewerEl.value.getBoundingClientRect().bottom, window.innerHeight)
-    const covered = canvas.getBoundingClientRect().bottom - (bottom - panel.offsetHeight)
-    panelBottomInset.value = covered > 0 ? Math.round(covered) : 0
+    // Stage padding uses the sheet's resting height (peek or expanded), so nodes stay in the area above it.
+    panelBottomInset.value = Math.round(panel.offsetHeight) || 0
+    return
+  }
+  if (!canvas) {
+    panelInset.value = 0
+    panelBottomInset.value = 0
     return
   }
   panelBottomInset.value = 0
@@ -247,7 +263,12 @@ function measurePanelInset() {
   const covered = canvas.getBoundingClientRect().right - (right - panel.offsetWidth)
   panelInset.value = covered > 0 ? Math.round(covered + 12) : 0
 }
-watch(inspectorOpen, () => { void nextTick(measurePanelInset) }, { flush: 'post' })
+watch(inspectorOpen, () => {
+  void nextTick(() => {
+    attachInspectorObserver()
+    measurePanelInset()
+  })
+}, { flush: 'post' })
 const tab = ref<'details' | 'coverage' | 'drift'>('details')
 const ready = ref(false)
 const selection = ref<{ kind: 'node' | 'edge'; id: string } | null>(null)
@@ -1288,6 +1309,13 @@ const snippet = 'layers: []\nrules: []\n'
         <p class="impact-banner-line">
           <Waypoints :size="16" aria-hidden="true" />
           <span>{{ impactLine || messages.impactAskTooltip }}</span>
+          <button
+            v-if="impact && impact.dependents.length"
+            type="button"
+            class="impact-see"
+            data-testid="impact-see"
+            @click="openImpactList"
+          >{{ messages.impactSeeFiles }}</button>
         </p>
         <ul v-if="impact && impact.dependents.length" class="impact-chips" :aria-label="messages.impactListLabel">
           <li v-for="row in impactPreview" :key="row.fileId">
@@ -1305,9 +1333,8 @@ const snippet = 'layers: []\nrules: []\n'
           </li>
         </ul>
         <p v-if="impact?.truncated" class="impact-truncated">{{ format(messages.impactTruncated, { n: impact.dependents.length }) }}</p>
-        <div class="impact-banner-actions">
-          <button v-if="impact && impact.dependents.length" type="button" class="impact-see" @click="openImpactList">{{ messages.impactSeeFiles }}</button>
-          <Tip v-else-if="canAskImpact && !impact" :text="messages.impactAskTooltip" side="below">
+        <div v-if="canAskImpact && !impact" class="impact-banner-actions">
+          <Tip :text="messages.impactAskTooltip" side="below">
             <button type="button" class="impact-ask" data-testid="impact-ask" @click="emit('showImpact')">{{ messages.impactAskLabel }}</button>
           </Tip>
         </div>
@@ -1349,7 +1376,7 @@ const snippet = 'layers: []\nrules: []\n'
         :reserve-zoom-pad="embedded"
         :hide-overlapping-ring1="embedded"
         :panel-inset="panelInset"
-        :panel-bottom-inset="panelBottomInset"
+        :panel-bottom-inset="0"
         :impact-ids="impactIds"
         :inside-open-caption="embedded && overviewLayout === 'folders' ? messages.insideOpenCaption : undefined"
         :inside-close-caption="embedded && overviewLayout === 'folders' ? messages.insideCloseCaption : undefined"
@@ -1807,7 +1834,8 @@ const snippet = 'layers: []\nrules: []\n'
   position: absolute;
   z-index: var(--z-graph-controls, 6);
   inset-inline-start: var(--space-3, 12px);
-  inset-block-end: calc(var(--space-3, 12px) + var(--viewer-statusbar-height, 0px));
+  /* Sit above the Tips chip (same corner, higher z-index) so See the files stays clickable on first open. */
+  inset-block-end: calc(var(--space-3, 12px) + var(--viewer-statusbar-height, 0px) + 2.75rem + var(--space-2, 8px));
   max-inline-size: min(22rem, calc(100% - var(--graph-controls-inset-end, 0px) - var(--space-6, 24px)));
   padding: var(--space-2, 8px) var(--space-3, 12px);
   border: 1px solid color-mix(in srgb, var(--color-brand-amber-ui, #d4a017) 55%, var(--color-border, #3a4a5c));
@@ -1820,11 +1848,17 @@ const snippet = 'layers: []\nrules: []\n'
 .impact-banner-line,
 .impact-panel-title {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--space-2, 8px);
   margin: 0;
   font-size: var(--font-size-sm, 0.875rem);
   line-height: 1.35;
+  font-weight: 600;
+}
+.impact-banner-line .impact-see {
+  margin-inline-start: auto;
+  flex: 0 0 auto;
   font-weight: 600;
 }
 .impact-banner-line svg,
@@ -2035,6 +2069,10 @@ button:disabled { opacity: var(--alpha-40); }
   /* Phone: the panel is a bottom sheet over a full-height graph. Collapsed = peek (handle, tab icons,
    * file name); expanded = half the pane. The toolbar and chip stay above it, uncovered. */
   .viewer.viewer-radial.is-inspector-open { --graph-controls-inset-end: 0px; }
+  /* Keep the graph in the area above the sheet so the expanded sheet cannot cover the lower nodes. */
+  .viewer.viewer-radial.is-inspector-open .stage {
+    padding-block-end: var(--viewer-sheet-cover, 0px);
+  }
   .viewer.viewer-radial.is-focusing { --viewer-toolbar-extra: 2.75rem; }
   .viewer.viewer-radial .inspector,
   .viewer.viewer-radial:not(.viewer-embedded) .inspector,
@@ -2088,7 +2126,8 @@ button:disabled { opacity: var(--alpha-40); }
   .viewer.viewer-radial.is-inspector-open:not(.is-panel-collapsed) .coach { visibility: hidden; }
   .viewer.viewer-radial.is-inspector-open :deep(.vue-flow__panel.zoom) {
     margin-inline-end: var(--space-3);
-    margin-block-end: calc(var(--viewer-sheet-cover, 0px) + var(--space-2));
+    /* The stage is already padded above the sheet, so only a small gap is needed. */
+    margin-block-end: var(--space-2);
   }
 }
 </style>

@@ -27,6 +27,9 @@ describe('pillCharBudget', () => {
     expect(pillCharBudget(148)).toBeLessThan(pillCharBudget(184))
     expect(pillCharBudget(148, { mark: true })).toBeLessThan(pillCharBudget(148))
     expect(pillCharBudget(148)).toBe(16)
+    // "12 files" needs a wider count reserve than a bare number, so names stay inside the pill.
+    expect(pillCharBudget(164, { count: true })).toBeLessThan(pillCharBudget(164))
+    expect(pillCharBudget(164, { mark: true, count: true })).toBeGreaterThanOrEqual(6)
     expect(pillCharBudget(184, { mark: true, bold: true })).toBe(16)
   })
 })

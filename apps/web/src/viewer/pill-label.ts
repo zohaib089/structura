@@ -19,6 +19,6 @@ export function middleEllipsis(name: string, max: number): string {
 
 /** Character budgets for the 12.5px monospace pill text (≈7.6px per glyph, ≈8.2px bold, after padding / marks). */
 export function pillCharBudget(pillWidth: number, opts: { mark?: boolean; count?: boolean; bold?: boolean } = {}): number {
-  const text = pillWidth - 24 - (opts.mark ? 24 : 0) - (opts.count ? 24 : 0)
+  const text = pillWidth - 24 - (opts.mark ? 24 : 0) - (opts.count ? 56 : 0)
   return Math.max(4, Math.floor(text / (opts.bold ? 8.2 : 7.6)))
 }

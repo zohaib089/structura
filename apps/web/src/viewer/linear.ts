@@ -28,8 +28,8 @@ export const LINEAR_PILL_WIDTH = 184
 export const LINEAR_PILL_HEIGHT = 32
 export const LINEAR_COLUMN_GAP = 200
 /** Phone (≤640 CSS px): tighter columns so depth-3 Linear can fit. */
-export const LINEAR_COLUMN_GAP_PHONE = 168
-export const LINEAR_PILL_WIDTH_PHONE = 148
+export const LINEAR_COLUMN_GAP_PHONE = 184
+export const LINEAR_PILL_WIDTH_PHONE = 164
 export const LINEAR_ROW = 44
 const GROUP_PREFIX = 'lgroup:'
 const MORE_PREFIX = 'lmore:'
