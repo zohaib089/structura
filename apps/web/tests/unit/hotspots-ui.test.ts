@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -200,6 +202,19 @@ describe('Show hotspots toggle and legend', () => {
     expect(w.get('[data-testid="hotspot-legend"]').text()).toContain('Medium')
     expect(w.get('[data-testid="hotspot-legend"]').text()).toContain('High')
     expect(w.findAll('.swatch').map((swatch) => swatch.attributes('data-band'))).toEqual(['low', 'medium', 'high'])
+  })
+
+  it('docks a compact phone legend under the toolbar and keeps the 1440 toolbar on one row', () => {
+    const read = (rel: string) => readFileSync(resolve(rel), 'utf8')
+    expect(read('src/viewer/components/HotspotLegend.vue')).toMatch(
+      /@media \(max-width: 640px\)[\s\S]*display: flex/
+    )
+    const app = read('src/viewer/ViewerApp.vue')
+    expect(app).toContain("if (space >= 1120) return 'full'")
+    expect(app).toMatch(/@media \(max-width: 640px\)[\s\S]*translateX\(-50%\)/)
+    expect(read('src/viewer/components/GraphFloatingBar.vue')).toMatch(
+      /\.floating-bar\.density-full[\s\S]*flex-wrap: nowrap/
+    )
   })
 })
 

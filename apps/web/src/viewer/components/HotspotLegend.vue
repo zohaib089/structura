@@ -63,4 +63,28 @@ li {
 .swatch[data-band='low'] { --hotspot-swatch: var(--sev-low-fg); }
 .swatch[data-band='medium'] { --hotspot-swatch: var(--sev-medium-fg); }
 .swatch[data-band='high'] { --hotspot-swatch: var(--sev-high-fg); }
+@media (max-width: 640px) {
+  .hotspot-legend {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-inline-size: 0;
+    padding: var(--space-1) var(--space-3);
+  }
+  .title {
+    margin: 0;
+    white-space: nowrap;
+  }
+  ul {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: var(--space-2);
+  }
+  li {
+    font-size: var(--text-12);
+    line-height: var(--text-12-lh);
+    gap: var(--space-1);
+    white-space: nowrap;
+  }
+}
 </style>

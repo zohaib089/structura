@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import WorkspaceActivityPanel from '../../src/components/dashboard/WorkspaceActivityPanel.vue'
@@ -121,6 +123,9 @@ describe('WorkspaceActivityPanel', () => {
     expect(wrapper.get('time').attributes('title')).toBeTruthy()
     expect(wrapper.get('time').attributes('aria-label')).toBeTruthy()
     expect(wrapper.get('[data-testid="activity-load-more"]').text()).toBe('Load more')
+    expect(readFileSync(resolve('src/components/dashboard/WorkspaceActivityPanel.vue'), 'utf8')).toMatch(
+      /@media \(max-width: 720px\)[\s\S]*\.activity-row \{[\s\S]*padding: var\(--space-2\) var\(--space-3\)/
+    )
     expect(listWorkspaceAudit).toHaveBeenCalledWith('workspace-1', {
       limit: 50,
       cursor: undefined,
