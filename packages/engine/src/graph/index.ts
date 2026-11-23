@@ -46,4 +46,12 @@ export {
   QUALITY_CAPS,
   type QualityInputs
 } from './quality.js'
-export { CANARY_GRAPH_PATH, CANARY_V110_GRAPH_PATH, CANARY_V120_GRAPH_PATH, CANARY_V130_GRAPH_PATH, SCHEMA_HASH_PATH, SCHEMA_JSON_PATH, hashSchemaDocument, readCheckedInSchema, readCheckedInSchemaHash, schemaDocumentText } from './hash.js'
+export {
+  attachDuplicates,
+  buildDuplicates,
+  detectDuplicateGroups,
+  DUPLICATES_DEFAULT_LIMIT,
+  MIN_MEANINGFUL_LINES,
+  MIN_BLOCK_CHARS
+} from './duplicates.js'
+export { CANARY_GRAPH_PATH, CANARY_V110_GRAPH_PATH, CANARY_V120_GRAPH_PATH, CANARY_V130_GRAPH_PATH, CANARY_V140_GRAPH_PATH, SCHEMA_HASH_PATH, SCHEMA_JSON_PATH, hashSchemaDocument, readCheckedInSchema, readCheckedInSchemaHash, schemaDocumentText } from './hash.js'

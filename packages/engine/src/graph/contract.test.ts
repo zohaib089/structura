@@ -5,9 +5,10 @@ import { fileURLToPath } from 'node:url'
 import { GraphBuilder } from './builder.js'
 import { serializeGraph } from './canonical.js'
 import { GraphReadError, GraphVersionUnsupported } from './errors.js'
-import { CANARY_GRAPH_PATH, CANARY_V110_GRAPH_PATH, CANARY_V120_GRAPH_PATH, CANARY_V130_GRAPH_PATH, hashSchemaDocument, readCheckedInSchema, readCheckedInSchemaHash, schemaDocumentText } from './hash.js'
+import { CANARY_GRAPH_PATH, CANARY_V110_GRAPH_PATH, CANARY_V120_GRAPH_PATH, CANARY_V130_GRAPH_PATH, CANARY_V140_GRAPH_PATH, hashSchemaDocument, readCheckedInSchema, readCheckedInSchemaHash, schemaDocumentText } from './hash.js'
 import { attachHotspots } from './hotspots.js'
 import { attachQuality } from './quality.js'
+import { attachDuplicates } from './duplicates.js'
 import { readGraph } from './read.js'
 import { validateStrict } from './validate-strict.js'
 import {
@@ -128,7 +129,7 @@ test('a greater major is refused and a newer minor is accepted with unknown data
   assert.throws(() => readGraph(future), (error: unknown) => error instanceof GraphVersionUnsupported && error.foundVersion === '2.0.0')
 
   const parsed = JSON.parse(serializeGraph(canary())) as Graph & { summary: { extra?: boolean } }
-  parsed.schemaVersion = '1.4.0'
+  parsed.schemaVersion = '1.5.0'
   parsed.summary.extra = true
   parsed.nodes.push({ id: 'custom:1', kind: 'widget' } as unknown as Graph['nodes'][number])
   parsed.summary.nodes += 1
@@ -305,7 +306,11 @@ function canaryV12(): Graph {
 }
 
 function canaryV13(): Graph {
-  return attachQuality({ ...canaryV12(), schemaVersion: GRAPH_SCHEMA_VERSION })
+  return attachQuality({ ...canaryV12(), schemaVersion: '1.3.0' })
+}
+
+function canaryV14(): Graph {
+  return attachDuplicates({ ...canaryV13(), schemaVersion: GRAPH_SCHEMA_VERSION }, [])
 }
 
 test('v1.1.0 fixture is stable, ordered, and accepted by a 1.1.0 reader', () => {
@@ -338,11 +343,12 @@ test('v1.1.0 fixture is stable, ordered, and accepted by a 1.1.0 reader', () => 
   assert.equal(inferredCall && 'reason' in inferredCall ? inferredCall.reason : undefined, 'src-subpath')
 })
 
-test('readGraph accepts the 1.0.0 canary and the 1.1.0, 1.2.0, and 1.3.0 fixtures', () => {
+test('readGraph accepts the 1.0.0 canary and the 1.1.0, 1.2.0, 1.3.0, and 1.4.0 fixtures', () => {
   const v10 = readGraph(readFileSync(CANARY_GRAPH_PATH, 'utf8'))
   const v11 = readGraph(readFileSync(CANARY_V110_GRAPH_PATH, 'utf8'))
   const v12 = readGraph(readFileSync(CANARY_V120_GRAPH_PATH, 'utf8'))
   const v13 = readGraph(readFileSync(CANARY_V130_GRAPH_PATH, 'utf8'))
+  const v14 = readGraph(readFileSync(CANARY_V140_GRAPH_PATH, 'utf8'))
   assert.equal(v10.version, '1.0.0')
   assert.equal(v10.newerMinor, false)
   assert.equal(v11.version, '1.1.0')
@@ -351,6 +357,8 @@ test('readGraph accepts the 1.0.0 canary and the 1.1.0, 1.2.0, and 1.3.0 fixture
   assert.equal(v12.newerMinor, false)
   assert.equal(v13.version, '1.3.0')
   assert.equal(v13.newerMinor, false)
+  assert.equal(v14.version, '1.4.0')
+  assert.equal(v14.newerMinor, false)
 })
 
 test('v1.2.0 fixture is stable, ordered, and accepted by a 1.2.0 reader', () => {
@@ -385,6 +393,22 @@ test('v1.3.0 fixture is stable, ordered, and accepted by a 1.3.0 reader', () => 
   assert.equal(typeof loaded.graph.quality?.project.score, 'number')
   assert.equal(typeof loaded.graph.quality?.project.grade, 'string')
   assert.ok((loaded.graph.quality?.project.breakdown.length ?? 0) === 5)
+})
+
+test('v1.4.0 fixture is stable, ordered, and accepted by a 1.4.0 reader', () => {
+  const frozen = readFileSync(CANARY_V140_GRAPH_PATH, 'utf8')
+  const first = serializeGraph(canaryV14())
+  assert.equal(first, frozen)
+  assert.equal(serializeGraph(JSON.parse(first) as Graph), first)
+  const loaded = readGraph(frozen)
+  assert.equal(loaded.version, '1.4.0')
+  assert.equal(loaded.newerMinor, false)
+  assert.equal(serializeGraph(loaded.graph), frozen)
+  const strict = validateStrict(JSON.parse(frozen))
+  assert.equal(strict.ok, true, strict.issues.map(issue => `${issue.path} ${issue.message}`).join('; '))
+  assert.equal(typeof loaded.graph.quality?.project.score, 'number')
+  // The canary sources are too small to form a duplicate group; the field stays omitted.
+  assert.equal(loaded.graph.duplicates, undefined)
 })
 
 test('v1.1.0 closed objects reject extra keys and reserved or overlong values', () => {

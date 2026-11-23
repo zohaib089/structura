@@ -25,6 +25,7 @@ import { GraphVersionUnsupported } from '../graph/errors.js'
 import { serializeGraph } from '../graph/canonical.js'
 import { attachHotspots } from '../graph/hotspots.js'
 import { attachQuality } from '../graph/quality.js'
+import { attachDuplicates } from '../graph/duplicates.js'
 import { readCheckedInSchemaHash } from '../graph/hash.js'
 import { readGraph } from '../graph/read.js'
 import { validateStrict } from '../graph/validate-strict.js'
@@ -517,6 +518,7 @@ interface AnalyseOutcome {
   parsed?: AdapterParseResult
   redactions: number
   fileSummary: string | null
+  content?: string
 }
 
 async function analyseFile(
@@ -602,6 +604,7 @@ async function analyseFile(
     redactions: result.redactions,
     parsed: result,
     fileSummary,
+    content: decoded.text,
     record: {
       path: file.path,
       language: file.language,
@@ -701,6 +704,7 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
     incremental = await IncrementalScanCache.load(manifestPath, incrementalHeader) ?? new IncrementalScanCache(incrementalHeader)
   }
   const texts = new Map<string, string>()
+  const sources: Array<{ path: string; content: string; language: string | null }> = []
   const records: FileRecord[] = []
   const parsed = new Map<string, AdapterParseResult>()
   const fileSummaries: Record<string, string | null> = {}
@@ -725,6 +729,9 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
       records.push(outcome.record)
       fileSummaries[file.path] = outcome.fileSummary
       if (outcome.parsed) parsed.set(file.path, outcome.parsed)
+      if (outcome.content !== undefined && (outcome.record.status === 'parsed' || outcome.record.status === 'partial')) {
+        sources.push({ path: file.path, content: outcome.content, language: outcome.record.language })
+      }
     }
   } finally {
     await pool.shutdown()
@@ -992,7 +999,7 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
     }
     graph = { ...graph, architecture }
   }
-  graph = attachQuality(attachHotspots(graph))
+  graph = attachDuplicates(attachQuality(attachHotspots(graph)), sources)
   const checked = validateStrict(graph)
   if (!checked.ok) {
     const first = checked.issues.slice(0, 8).map(issue => `${issue.path} ${issue.message}`).join('; ')

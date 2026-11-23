@@ -22,6 +22,7 @@ export const CANARY_GRAPH_PATH = resolve(packageRoot, 'schema-fixtures/v1.0.0.gr
 export const CANARY_V110_GRAPH_PATH = resolve(packageRoot, 'schema-fixtures/v1.1.0.graph.json')
 export const CANARY_V120_GRAPH_PATH = resolve(packageRoot, 'schema-fixtures/v1.2.0.graph.json')
 export const CANARY_V130_GRAPH_PATH = resolve(packageRoot, 'schema-fixtures/v1.3.0.graph.json')
+export const CANARY_V140_GRAPH_PATH = resolve(packageRoot, 'schema-fixtures/v1.4.0.graph.json')
 
 export function readCheckedInSchema(): string {
   return readFileSync(SCHEMA_JSON_PATH, 'utf8')

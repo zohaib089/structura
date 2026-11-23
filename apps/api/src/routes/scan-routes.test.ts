@@ -433,3 +433,51 @@ test('graph route returns stored quality scores when ready', async () => {
     await api.app.close()
   }
 })
+
+test('graph route returns stored duplicates when ready', async () => {
+  const api = createScanApi()
+  try {
+    const created = await api.app.inject({
+      method: 'POST',
+      url: '/api/workspaces/workspace-1/scans',
+      headers: { authorization: 'Bearer valid-session' },
+      payload: { source: 'git', url: 'https://github.com/org/repo' }
+    })
+    const scanId = created.json().scan.id as string
+    const scan = api.scans.get(scanId)!
+    scan.status = 'succeeded'
+    scan.graph_json = {
+      schemaVersion: '1.4.0',
+      nodes: [],
+      edges: [],
+      duplicates: {
+        summary: { groups: 1, duplicatedLines: 12, percentage: 8 },
+        groups: [
+          {
+            id: 'abc123def456',
+            lineCount: 6,
+            occurrences: [
+              { path: 'src/a.ts', startLine: 10, endLine: 16 },
+              { path: 'src/b.ts', startLine: 4, endLine: 10 }
+            ],
+            description: '6 identical lines in src/a.ts and src/b.ts'
+          }
+        ]
+      }
+    }
+
+    const response = await api.app.inject({
+      method: 'GET',
+      url: `/api/workspaces/workspace-1/scans/${scanId}/graph`,
+      headers: { authorization: 'Bearer valid-session' }
+    })
+    assert.equal(response.statusCode, 200)
+    assert.equal(response.json().success, true)
+    assert.equal(response.json().graph.schemaVersion, '1.4.0')
+    assert.equal(response.json().graph.duplicates.summary.groups, 1)
+    assert.equal(response.json().graph.duplicates.groups[0].id, 'abc123def456')
+    assert.equal(response.json().graph.duplicates.groups[0].occurrences.length, 2)
+  } finally {
+    await api.app.close()
+  }
+})
