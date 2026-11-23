@@ -54,4 +54,14 @@ export {
   MIN_MEANINGFUL_LINES,
   MIN_BLOCK_CHARS
 } from './duplicates.js'
+export {
+  GRAPH_QA_INTENTS,
+  GRAPH_QA_MAX_QUESTION_LENGTH,
+  answerGraphQuestion,
+  isGraphLike,
+  type GraphQaCitation,
+  type GraphQaCitationKind,
+  type GraphQaIntent,
+  type GraphQaResponse
+} from './qa.js'
 export { CANARY_GRAPH_PATH, CANARY_V110_GRAPH_PATH, CANARY_V120_GRAPH_PATH, CANARY_V130_GRAPH_PATH, CANARY_V140_GRAPH_PATH, SCHEMA_HASH_PATH, SCHEMA_JSON_PATH, hashSchemaDocument, readCheckedInSchema, readCheckedInSchemaHash, schemaDocumentText } from './hash.js'

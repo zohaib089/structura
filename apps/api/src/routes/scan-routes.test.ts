@@ -481,3 +481,201 @@ test('graph route returns stored duplicates when ready', async () => {
     await api.app.close()
   }
 })
+
+function sampleAskGraph() {
+  return {
+    schemaVersion: '1.4.0',
+    summary: { nodes: 2, edges: 1, files: 2 },
+    coverage: {
+      files: { discovered: 2, parsed: 2, partial: 0, failed: 0, skipped: 0, ignored: 0 },
+      byLanguage: [{ language: 'typescript', parsed: 2, partial: 0, failed: 0, skipped: 0 }],
+      skipped: [],
+      failed: [],
+      ignored: [],
+      unresolved: [],
+      accounting: { discovered: 2, accounted: 2 }
+    },
+    nodes: [
+      {
+        id: 'file:src/app.ts',
+        kind: 'file',
+        path: 'src/app.ts',
+        label: 'app.ts',
+        language: 'typescript',
+        lineCount: 20,
+        parse: { status: 'parsed' },
+        docSummary: 'Application entry.'
+      },
+      {
+        id: 'file:src/util.ts',
+        kind: 'file',
+        path: 'src/util.ts',
+        label: 'util.ts',
+        language: 'typescript',
+        lineCount: 8,
+        parse: { status: 'parsed' }
+      }
+    ],
+    edges: [
+      {
+        source: 'file:src/app.ts',
+        type: 'imports',
+        target: 'file:src/util.ts',
+        provenance: 'EXTRACTED',
+        span: { start: { line: 1, col: 1 }, end: { line: 1, col: 8 } },
+        specifier: './util'
+      }
+    ]
+  }
+}
+
+test('ask route answers a question from a stored graph', async () => {
+  const api = createScanApi()
+  try {
+    const created = await api.app.inject({
+      method: 'POST',
+      url: '/api/workspaces/workspace-1/scans',
+      headers: { authorization: 'Bearer valid-session' },
+      payload: { source: 'git', url: 'https://github.com/org/repo' }
+    })
+    const scanId = created.json().scan.id as string
+    const scan = api.scans.get(scanId)
+    assert.ok(scan)
+    scan.status = 'succeeded'
+    scan.graph_json = sampleAskGraph()
+
+    const response = await api.app.inject({
+      method: 'POST',
+      url: `/api/workspaces/workspace-1/scans/${scanId}/ask`,
+      headers: { authorization: 'Bearer valid-session' },
+      payload: { question: '  What does src/app.ts do?  ' }
+    })
+    assert.equal(response.statusCode, 200)
+    const body = response.json()
+    assert.equal(body.success, true)
+    assert.equal(body.intent, 'explain')
+    assert.match(body.answer, /Application entry/)
+    assert.ok(Array.isArray(body.citations))
+    assert.ok(body.citations.some((item: { path: string }) => item.path === 'src/app.ts'))
+    assert.ok(Array.isArray(body.suggestions))
+  } finally {
+    await api.app.close()
+  }
+})
+
+test('ask route rejects an empty or missing question', async () => {
+  const api = createScanApi()
+  try {
+    const created = await api.app.inject({
+      method: 'POST',
+      url: '/api/workspaces/workspace-1/scans',
+      headers: { authorization: 'Bearer valid-session' },
+      payload: { source: 'git', url: 'https://github.com/org/repo' }
+    })
+    const scanId = created.json().scan.id as string
+    const headers = { authorization: 'Bearer valid-session' }
+    const url = `/api/workspaces/workspace-1/scans/${scanId}/ask`
+
+    const empty = await api.app.inject({ method: 'POST', url, headers, payload: { question: '   ' } })
+    assert.equal(empty.statusCode, 400)
+    assert.match(empty.json().message, /required/)
+
+    const missing = await api.app.inject({ method: 'POST', url, headers, payload: {} })
+    assert.equal(missing.statusCode, 400)
+  } finally {
+    await api.app.close()
+  }
+})
+
+test('ask route rejects a question longer than 500 characters', async () => {
+  const api = createScanApi()
+  try {
+    const created = await api.app.inject({
+      method: 'POST',
+      url: '/api/workspaces/workspace-1/scans',
+      headers: { authorization: 'Bearer valid-session' },
+      payload: { source: 'git', url: 'https://github.com/org/repo' }
+    })
+    const scanId = created.json().scan.id as string
+    const response = await api.app.inject({
+      method: 'POST',
+      url: `/api/workspaces/workspace-1/scans/${scanId}/ask`,
+      headers: { authorization: 'Bearer valid-session' },
+      payload: { question: 'x'.repeat(501) }
+    })
+    assert.equal(response.statusCode, 400)
+    assert.match(response.json().message, /500/)
+  } finally {
+    await api.app.close()
+  }
+})
+
+test('ask route requires an active session', async () => {
+  const api = createScanApi()
+  try {
+    const response = await api.app.inject({
+      method: 'POST',
+      url: '/api/workspaces/workspace-1/scans/scan-1/ask',
+      payload: { question: 'What languages does this use?' }
+    })
+    assert.equal(response.statusCode, 401)
+  } finally {
+    await api.app.close()
+  }
+})
+
+test('ask route returns 404 for an unknown workspace, scan, or missing graph', async () => {
+  const api = createScanApi()
+  try {
+    const headers = { authorization: 'Bearer valid-session' }
+    const unknownWorkspace = await api.app.inject({
+      method: 'POST',
+      url: '/api/workspaces/no-such-workspace/scans/scan-1/ask',
+      headers,
+      payload: { question: 'What languages does this use?' }
+    })
+    assert.equal(unknownWorkspace.statusCode, 404)
+    assert.equal(unknownWorkspace.json().message, 'Workspace not found.')
+
+    const created = await api.app.inject({
+      method: 'POST',
+      url: '/api/workspaces/workspace-1/scans',
+      headers,
+      payload: { source: 'git', url: 'https://github.com/org/repo' }
+    })
+    const scanId = created.json().scan.id as string
+
+    const unknownScan = await api.app.inject({
+      method: 'POST',
+      url: '/api/workspaces/workspace-1/scans/00000000-0000-0000-0000-000000000000/ask',
+      headers,
+      payload: { question: 'What languages does this use?' }
+    })
+    assert.equal(unknownScan.statusCode, 404)
+    assert.equal(unknownScan.json().message, 'Scan not found.')
+
+    const noGraph = await api.app.inject({
+      method: 'POST',
+      url: `/api/workspaces/workspace-1/scans/${scanId}/ask`,
+      headers,
+      payload: { question: 'What languages does this use?' }
+    })
+    // queued scans match the graph route and return 409; a finished scan without a graph is 404
+    assert.ok([404, 409].includes(noGraph.statusCode))
+
+    const scan = api.scans.get(scanId)
+    assert.ok(scan)
+    scan.status = 'failed'
+    scan.graph_json = null
+    const failed = await api.app.inject({
+      method: 'POST',
+      url: `/api/workspaces/workspace-1/scans/${scanId}/ask`,
+      headers,
+      payload: { question: 'What languages does this use?' }
+    })
+    assert.equal(failed.statusCode, 404)
+    assert.equal(failed.json().message, 'Graph is not available for this scan.')
+  } finally {
+    await api.app.close()
+  }
+})
