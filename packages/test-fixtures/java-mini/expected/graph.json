@@ -1,0 +1,993 @@
+{
+  "schemaVersion": "1.6.0",
+  "summary": {
+    "nodes": 21,
+    "edges": 25,
+    "files": 4
+  },
+  "coverage": {
+    "files": {
+      "discovered": 4,
+      "parsed": 4,
+      "partial": 0,
+      "failed": 0,
+      "skipped": 0,
+      "ignored": 0
+    },
+    "byLanguage": [
+      {
+        "language": "java",
+        "parsed": 4,
+        "partial": 0,
+        "failed": 0,
+        "skipped": 0
+      }
+    ],
+    "skipped": [],
+    "failed": [],
+    "ignored": [],
+    "unresolved": [],
+    "accounting": {
+      "discovered": 4,
+      "accounted": 4
+    }
+  },
+  "nodes": [
+    {
+      "id": "dir:.",
+      "kind": "directory",
+      "path": ".",
+      "label": "."
+    },
+    {
+      "id": "dir:src",
+      "kind": "directory",
+      "path": "src",
+      "label": "src"
+    },
+    {
+      "id": "dir:src/main",
+      "kind": "directory",
+      "path": "src/main",
+      "label": "main"
+    },
+    {
+      "id": "dir:src/main/java",
+      "kind": "directory",
+      "path": "src/main/java",
+      "label": "java"
+    },
+    {
+      "id": "dir:src/main/java/com",
+      "kind": "directory",
+      "path": "src/main/java/com",
+      "label": "com"
+    },
+    {
+      "id": "dir:src/main/java/com/example",
+      "kind": "directory",
+      "path": "src/main/java/com/example",
+      "label": "example"
+    },
+    {
+      "id": "dir:src/main/java/com/example/mini",
+      "kind": "directory",
+      "path": "src/main/java/com/example/mini",
+      "label": "mini"
+    },
+    {
+      "id": "dir:src/main/java/com/example/mini/util",
+      "kind": "directory",
+      "path": "src/main/java/com/example/mini/util",
+      "label": "util"
+    },
+    {
+      "id": "dir:src/test",
+      "kind": "directory",
+      "path": "src/test",
+      "label": "test"
+    },
+    {
+      "id": "dir:src/test/java",
+      "kind": "directory",
+      "path": "src/test/java",
+      "label": "java"
+    },
+    {
+      "id": "dir:src/test/java/com",
+      "kind": "directory",
+      "path": "src/test/java/com",
+      "label": "com"
+    },
+    {
+      "id": "dir:src/test/java/com/example",
+      "kind": "directory",
+      "path": "src/test/java/com/example",
+      "label": "example"
+    },
+    {
+      "id": "dir:src/test/java/com/example/mini",
+      "kind": "directory",
+      "path": "src/test/java/com/example/mini",
+      "label": "mini"
+    },
+    {
+      "id": "ext:maven:com.google.common.collect.ImmutableList",
+      "kind": "external",
+      "ecosystem": "maven",
+      "label": "com.google.common.collect.ImmutableList"
+    },
+    {
+      "id": "ext:maven:java.util.ArrayList",
+      "kind": "external",
+      "ecosystem": "maven",
+      "label": "java.util.ArrayList"
+    },
+    {
+      "id": "ext:maven:java.util.List",
+      "kind": "external",
+      "ecosystem": "maven",
+      "label": "java.util.List"
+    },
+    {
+      "id": "ext:maven:org.junit.jupiter.api.Test",
+      "kind": "external",
+      "ecosystem": "maven",
+      "label": "org.junit.jupiter.api.Test"
+    },
+    {
+      "id": "file:src/main/java/com/example/mini/App.java",
+      "kind": "file",
+      "path": "src/main/java/com/example/mini/App.java",
+      "label": "App.java",
+      "language": "java",
+      "lineCount": 14,
+      "parse": {
+        "status": "parsed"
+      },
+      "hotspot": {
+        "score": 80
+      }
+    },
+    {
+      "id": "file:src/main/java/com/example/mini/util/Helper.java",
+      "kind": "file",
+      "path": "src/main/java/com/example/mini/util/Helper.java",
+      "label": "Helper.java",
+      "language": "java",
+      "lineCount": 8,
+      "parse": {
+        "status": "parsed"
+      },
+      "hotspot": {
+        "score": 56
+      }
+    },
+    {
+      "id": "file:src/main/java/com/example/mini/util/More.java",
+      "kind": "file",
+      "path": "src/main/java/com/example/mini/util/More.java",
+      "label": "More.java",
+      "language": "java",
+      "lineCount": 4,
+      "parse": {
+        "status": "parsed"
+      },
+      "hotspot": {
+        "score": 53
+      }
+    },
+    {
+      "id": "file:src/test/java/com/example/mini/AppTest.java",
+      "kind": "file",
+      "path": "src/test/java/com/example/mini/AppTest.java",
+      "label": "AppTest.java",
+      "language": "java",
+      "lineCount": 10,
+      "parse": {
+        "status": "parsed"
+      },
+      "hotspot": {
+        "score": 42
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source": "dir:.",
+      "type": "contains",
+      "target": "dir:src",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:src",
+      "type": "contains",
+      "target": "dir:src/main",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:src",
+      "type": "contains",
+      "target": "dir:src/test",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:src/main",
+      "type": "contains",
+      "target": "dir:src/main/java",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:src/main/java",
+      "type": "contains",
+      "target": "dir:src/main/java/com",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:src/main/java/com",
+      "type": "contains",
+      "target": "dir:src/main/java/com/example",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:src/main/java/com/example",
+      "type": "contains",
+      "target": "dir:src/main/java/com/example/mini",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:src/main/java/com/example/mini",
+      "type": "contains",
+      "target": "dir:src/main/java/com/example/mini/util",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:src/main/java/com/example/mini",
+      "type": "contains",
+      "target": "file:src/main/java/com/example/mini/App.java",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:src/main/java/com/example/mini/util",
+      "type": "contains",
+      "target": "file:src/main/java/com/example/mini/util/Helper.java",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:src/main/java/com/example/mini/util",
+      "type": "contains",
+      "target": "file:src/main/java/com/example/mini/util/More.java",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:src/test",
+      "type": "contains",
+      "target": "dir:src/test/java",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:src/test/java",
+      "type": "contains",
+      "target": "dir:src/test/java/com",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:src/test/java/com",
+      "type": "contains",
+      "target": "dir:src/test/java/com/example",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:src/test/java/com/example",
+      "type": "contains",
+      "target": "dir:src/test/java/com/example/mini",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:src/test/java/com/example/mini",
+      "type": "contains",
+      "target": "file:src/test/java/com/example/mini/AppTest.java",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "file:src/main/java/com/example/mini/App.java",
+      "type": "imports",
+      "target": "ext:maven:com.google.common.collect.ImmutableList",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 7,
+          "col": 8
+        },
+        "end": {
+          "line": 7,
+          "col": 47
+        }
+      },
+      "specifier": "com.google.common.collect.ImmutableList"
+    },
+    {
+      "source": "file:src/main/java/com/example/mini/App.java",
+      "type": "imports",
+      "target": "ext:maven:java.util.List",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 3,
+          "col": 8
+        },
+        "end": {
+          "line": 3,
+          "col": 22
+        }
+      },
+      "specifier": "java.util.List"
+    },
+    {
+      "source": "file:src/main/java/com/example/mini/App.java",
+      "type": "imports",
+      "target": "file:src/main/java/com/example/mini/util/Helper.java",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 4,
+          "col": 8
+        },
+        "end": {
+          "line": 4,
+          "col": 36
+        }
+      },
+      "specifier": "com.example.mini.util.Helper"
+    },
+    {
+      "source": "file:src/main/java/com/example/mini/App.java",
+      "type": "imports",
+      "target": "file:src/main/java/com/example/mini/util/Helper.java",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 5,
+          "col": 8
+        },
+        "end": {
+          "line": 5,
+          "col": 31
+        }
+      },
+      "specifier": "com.example.mini.util.*"
+    },
+    {
+      "source": "file:src/main/java/com/example/mini/App.java",
+      "type": "imports",
+      "target": "file:src/main/java/com/example/mini/util/Helper.java",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 6,
+          "col": 8
+        },
+        "end": {
+          "line": 6,
+          "col": 49
+        }
+      },
+      "specifier": "com.example.mini.util.Helper.hello"
+    },
+    {
+      "source": "file:src/main/java/com/example/mini/App.java",
+      "type": "imports",
+      "target": "file:src/main/java/com/example/mini/util/More.java",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 5,
+          "col": 8
+        },
+        "end": {
+          "line": 5,
+          "col": 31
+        }
+      },
+      "specifier": "com.example.mini.util.*"
+    },
+    {
+      "source": "file:src/main/java/com/example/mini/util/Helper.java",
+      "type": "imports",
+      "target": "ext:maven:java.util.ArrayList",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 3,
+          "col": 8
+        },
+        "end": {
+          "line": 3,
+          "col": 27
+        }
+      },
+      "specifier": "java.util.ArrayList"
+    },
+    {
+      "source": "file:src/test/java/com/example/mini/AppTest.java",
+      "type": "imports",
+      "target": "ext:maven:org.junit.jupiter.api.Test",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 4,
+          "col": 8
+        },
+        "end": {
+          "line": 4,
+          "col": 34
+        }
+      },
+      "specifier": "org.junit.jupiter.api.Test"
+    },
+    {
+      "source": "file:src/test/java/com/example/mini/AppTest.java",
+      "type": "imports",
+      "target": "file:src/main/java/com/example/mini/App.java",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 3,
+          "col": 8
+        },
+        "end": {
+          "line": 3,
+          "col": 28
+        }
+      },
+      "specifier": "com.example.mini.App"
+    }
+  ],
+  "hotspots": [
+    {
+      "path": "src/main/java/com/example/mini/App.java",
+      "score": 80,
+      "why": "Used by 1 file, imports 2 files, impacts 3 files, and has 14 lines"
+    },
+    {
+      "path": "src/main/java/com/example/mini/util/Helper.java",
+      "score": 56,
+      "why": "Used by 1 file, impacts 2 files, and has 8 lines"
+    },
+    {
+      "path": "src/main/java/com/example/mini/util/More.java",
+      "score": 53,
+      "why": "Used by 1 file, impacts 2 files, and has 4 lines"
+    },
+    {
+      "path": "src/test/java/com/example/mini/AppTest.java",
+      "score": 42,
+      "why": "imports 1 file, impacts 3 files, and has 10 lines"
+    }
+  ],
+  "quality": {
+    "project": {
+      "score": 93,
+      "grade": "A",
+      "breakdown": [
+        {
+          "category": "architecture",
+          "label": "No architecture rule breaks",
+          "penalty": 0
+        },
+        {
+          "category": "cycles",
+          "label": "No import cycles",
+          "penalty": 0
+        },
+        {
+          "category": "hotspots",
+          "label": "1 file is a heavy hotspot",
+          "penalty": 3
+        },
+        {
+          "category": "imports",
+          "label": "Imports resolve cleanly",
+          "penalty": 4
+        },
+        {
+          "category": "size",
+          "label": "No unusually large files or functions",
+          "penalty": 0
+        }
+      ],
+      "tips": [
+        {
+          "text": "Clean up unresolved and heavy third-party imports to gain about 4 points",
+          "gain": 4
+        },
+        {
+          "text": "Spread work out of src/main/java/com/example/mini/App.java (hotspot score 80) to gain about 3 points",
+          "gain": 3
+        }
+      ]
+    },
+    "folders": [
+      {
+        "path": "src/main/java/com/example/mini/util",
+        "score": 90,
+        "grade": "A",
+        "breakdown": [
+          {
+            "category": "architecture",
+            "label": "No architecture rule breaks",
+            "penalty": 0
+          },
+          {
+            "category": "cycles",
+            "label": "No import cycles",
+            "penalty": 0
+          },
+          {
+            "category": "hotspots",
+            "label": "No highly connected hotspots",
+            "penalty": 0
+          },
+          {
+            "category": "imports",
+            "label": "100% of imports come from third-party packages",
+            "penalty": 10
+          },
+          {
+            "category": "size",
+            "label": "No unusually large files or functions",
+            "penalty": 0
+          }
+        ],
+        "tips": [
+          {
+            "text": "Clean up unresolved and heavy third-party imports to gain about 10 points",
+            "gain": 10
+          }
+        ]
+      },
+      {
+        "path": "src",
+        "score": 93,
+        "grade": "A",
+        "breakdown": [
+          {
+            "category": "architecture",
+            "label": "No architecture rule breaks",
+            "penalty": 0
+          },
+          {
+            "category": "cycles",
+            "label": "No import cycles",
+            "penalty": 0
+          },
+          {
+            "category": "hotspots",
+            "label": "1 file is a heavy hotspot",
+            "penalty": 3
+          },
+          {
+            "category": "imports",
+            "label": "Imports resolve cleanly",
+            "penalty": 4
+          },
+          {
+            "category": "size",
+            "label": "No unusually large files or functions",
+            "penalty": 0
+          }
+        ],
+        "tips": [
+          {
+            "text": "Clean up unresolved and heavy third-party imports to gain about 4 points",
+            "gain": 4
+          },
+          {
+            "text": "Spread work out of src/main/java/com/example/mini/App.java (hotspot score 80) to gain about 3 points",
+            "gain": 3
+          }
+        ]
+      },
+      {
+        "path": "src/main",
+        "score": 93,
+        "grade": "A",
+        "breakdown": [
+          {
+            "category": "architecture",
+            "label": "No architecture rule breaks",
+            "penalty": 0
+          },
+          {
+            "category": "cycles",
+            "label": "No import cycles",
+            "penalty": 0
+          },
+          {
+            "category": "hotspots",
+            "label": "1 file is a heavy hotspot",
+            "penalty": 3
+          },
+          {
+            "category": "imports",
+            "label": "Imports resolve cleanly",
+            "penalty": 4
+          },
+          {
+            "category": "size",
+            "label": "No unusually large files or functions",
+            "penalty": 0
+          }
+        ],
+        "tips": [
+          {
+            "text": "Clean up unresolved and heavy third-party imports to gain about 4 points",
+            "gain": 4
+          },
+          {
+            "text": "Spread work out of src/main/java/com/example/mini/App.java (hotspot score 80) to gain about 3 points",
+            "gain": 3
+          }
+        ]
+      },
+      {
+        "path": "src/main/java",
+        "score": 93,
+        "grade": "A",
+        "breakdown": [
+          {
+            "category": "architecture",
+            "label": "No architecture rule breaks",
+            "penalty": 0
+          },
+          {
+            "category": "cycles",
+            "label": "No import cycles",
+            "penalty": 0
+          },
+          {
+            "category": "hotspots",
+            "label": "1 file is a heavy hotspot",
+            "penalty": 3
+          },
+          {
+            "category": "imports",
+            "label": "Imports resolve cleanly",
+            "penalty": 4
+          },
+          {
+            "category": "size",
+            "label": "No unusually large files or functions",
+            "penalty": 0
+          }
+        ],
+        "tips": [
+          {
+            "text": "Clean up unresolved and heavy third-party imports to gain about 4 points",
+            "gain": 4
+          },
+          {
+            "text": "Spread work out of src/main/java/com/example/mini/App.java (hotspot score 80) to gain about 3 points",
+            "gain": 3
+          }
+        ]
+      },
+      {
+        "path": "src/main/java/com",
+        "score": 93,
+        "grade": "A",
+        "breakdown": [
+          {
+            "category": "architecture",
+            "label": "No architecture rule breaks",
+            "penalty": 0
+          },
+          {
+            "category": "cycles",
+            "label": "No import cycles",
+            "penalty": 0
+          },
+          {
+            "category": "hotspots",
+            "label": "1 file is a heavy hotspot",
+            "penalty": 3
+          },
+          {
+            "category": "imports",
+            "label": "Imports resolve cleanly",
+            "penalty": 4
+          },
+          {
+            "category": "size",
+            "label": "No unusually large files or functions",
+            "penalty": 0
+          }
+        ],
+        "tips": [
+          {
+            "text": "Clean up unresolved and heavy third-party imports to gain about 4 points",
+            "gain": 4
+          },
+          {
+            "text": "Spread work out of src/main/java/com/example/mini/App.java (hotspot score 80) to gain about 3 points",
+            "gain": 3
+          }
+        ]
+      },
+      {
+        "path": "src/main/java/com/example",
+        "score": 93,
+        "grade": "A",
+        "breakdown": [
+          {
+            "category": "architecture",
+            "label": "No architecture rule breaks",
+            "penalty": 0
+          },
+          {
+            "category": "cycles",
+            "label": "No import cycles",
+            "penalty": 0
+          },
+          {
+            "category": "hotspots",
+            "label": "1 file is a heavy hotspot",
+            "penalty": 3
+          },
+          {
+            "category": "imports",
+            "label": "Imports resolve cleanly",
+            "penalty": 4
+          },
+          {
+            "category": "size",
+            "label": "No unusually large files or functions",
+            "penalty": 0
+          }
+        ],
+        "tips": [
+          {
+            "text": "Clean up unresolved and heavy third-party imports to gain about 4 points",
+            "gain": 4
+          },
+          {
+            "text": "Spread work out of src/main/java/com/example/mini/App.java (hotspot score 80) to gain about 3 points",
+            "gain": 3
+          }
+        ]
+      },
+      {
+        "path": "src/main/java/com/example/mini",
+        "score": 93,
+        "grade": "A",
+        "breakdown": [
+          {
+            "category": "architecture",
+            "label": "No architecture rule breaks",
+            "penalty": 0
+          },
+          {
+            "category": "cycles",
+            "label": "No import cycles",
+            "penalty": 0
+          },
+          {
+            "category": "hotspots",
+            "label": "1 file is a heavy hotspot",
+            "penalty": 3
+          },
+          {
+            "category": "imports",
+            "label": "Imports resolve cleanly",
+            "penalty": 4
+          },
+          {
+            "category": "size",
+            "label": "No unusually large files or functions",
+            "penalty": 0
+          }
+        ],
+        "tips": [
+          {
+            "text": "Clean up unresolved and heavy third-party imports to gain about 4 points",
+            "gain": 4
+          },
+          {
+            "text": "Spread work out of src/main/java/com/example/mini/App.java (hotspot score 80) to gain about 3 points",
+            "gain": 3
+          }
+        ]
+      },
+      {
+        "path": "src/test",
+        "score": 95,
+        "grade": "A",
+        "breakdown": [
+          {
+            "category": "architecture",
+            "label": "No architecture rule breaks",
+            "penalty": 0
+          },
+          {
+            "category": "cycles",
+            "label": "No import cycles",
+            "penalty": 0
+          },
+          {
+            "category": "hotspots",
+            "label": "No highly connected hotspots",
+            "penalty": 0
+          },
+          {
+            "category": "imports",
+            "label": "50% of imports come from third-party packages",
+            "penalty": 5
+          },
+          {
+            "category": "size",
+            "label": "No unusually large files or functions",
+            "penalty": 0
+          }
+        ],
+        "tips": [
+          {
+            "text": "Clean up unresolved and heavy third-party imports to gain about 5 points",
+            "gain": 5
+          }
+        ]
+      },
+      {
+        "path": "src/test/java",
+        "score": 95,
+        "grade": "A",
+        "breakdown": [
+          {
+            "category": "architecture",
+            "label": "No architecture rule breaks",
+            "penalty": 0
+          },
+          {
+            "category": "cycles",
+            "label": "No import cycles",
+            "penalty": 0
+          },
+          {
+            "category": "hotspots",
+            "label": "No highly connected hotspots",
+            "penalty": 0
+          },
+          {
+            "category": "imports",
+            "label": "50% of imports come from third-party packages",
+            "penalty": 5
+          },
+          {
+            "category": "size",
+            "label": "No unusually large files or functions",
+            "penalty": 0
+          }
+        ],
+        "tips": [
+          {
+            "text": "Clean up unresolved and heavy third-party imports to gain about 5 points",
+            "gain": 5
+          }
+        ]
+      },
+      {
+        "path": "src/test/java/com",
+        "score": 95,
+        "grade": "A",
+        "breakdown": [
+          {
+            "category": "architecture",
+            "label": "No architecture rule breaks",
+            "penalty": 0
+          },
+          {
+            "category": "cycles",
+            "label": "No import cycles",
+            "penalty": 0
+          },
+          {
+            "category": "hotspots",
+            "label": "No highly connected hotspots",
+            "penalty": 0
+          },
+          {
+            "category": "imports",
+            "label": "50% of imports come from third-party packages",
+            "penalty": 5
+          },
+          {
+            "category": "size",
+            "label": "No unusually large files or functions",
+            "penalty": 0
+          }
+        ],
+        "tips": [
+          {
+            "text": "Clean up unresolved and heavy third-party imports to gain about 5 points",
+            "gain": 5
+          }
+        ]
+      },
+      {
+        "path": "src/test/java/com/example",
+        "score": 95,
+        "grade": "A",
+        "breakdown": [
+          {
+            "category": "architecture",
+            "label": "No architecture rule breaks",
+            "penalty": 0
+          },
+          {
+            "category": "cycles",
+            "label": "No import cycles",
+            "penalty": 0
+          },
+          {
+            "category": "hotspots",
+            "label": "No highly connected hotspots",
+            "penalty": 0
+          },
+          {
+            "category": "imports",
+            "label": "50% of imports come from third-party packages",
+            "penalty": 5
+          },
+          {
+            "category": "size",
+            "label": "No unusually large files or functions",
+            "penalty": 0
+          }
+        ],
+        "tips": [
+          {
+            "text": "Clean up unresolved and heavy third-party imports to gain about 5 points",
+            "gain": 5
+          }
+        ]
+      },
+      {
+        "path": "src/test/java/com/example/mini",
+        "score": 95,
+        "grade": "A",
+        "breakdown": [
+          {
+            "category": "architecture",
+            "label": "No architecture rule breaks",
+            "penalty": 0
+          },
+          {
+            "category": "cycles",
+            "label": "No import cycles",
+            "penalty": 0
+          },
+          {
+            "category": "hotspots",
+            "label": "No highly connected hotspots",
+            "penalty": 0
+          },
+          {
+            "category": "imports",
+            "label": "50% of imports come from third-party packages",
+            "penalty": 5
+          },
+          {
+            "category": "size",
+            "label": "No unusually large files or functions",
+            "penalty": 0
+          }
+        ],
+        "tips": [
+          {
+            "text": "Clean up unresolved and heavy third-party imports to gain about 5 points",
+            "gain": 5
+          }
+        ]
+      }
+    ]
+  }
+}

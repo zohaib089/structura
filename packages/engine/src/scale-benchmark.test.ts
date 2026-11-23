@@ -60,7 +60,7 @@ test('runScaleBenchmark scans 25 files, answers questions, and cleans up', { tim
   assert.ok(report.scanMs > 0)
   assert.ok(report.peakRssBytes > 0)
   assert.ok(report.graphJsonBytes > 0)
-  assert.equal(report.graph.schemaVersion, '1.5.0')
+  assert.equal(report.graph.schemaVersion, '1.6.0')
   assert.equal(report.graph.files, 25)
   assert.ok(report.graph.nodes > 25)
   assert.ok(report.coverage?.parsed ?? 0 >= 20)
