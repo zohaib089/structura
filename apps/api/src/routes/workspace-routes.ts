@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import type { FastifyInstance } from 'fastify'
 
 import type { WorkspaceDatabase } from '../db/types.js'
+import { hasProjectAccess, isTruthyFlag } from '../services/project-access.js'
 import {
   decodeAuditCursor,
   isAuditAction,
@@ -96,16 +97,6 @@ function canManageWorkspaceMember(
 function memberRoleOf(rows: Array<Record<string, unknown>>, userId: string): WorkspaceRole | null {
   const role = rows.find(row => row.user_id === userId)?.role
   return isWorkspaceRole(role) ? role : null
-}
-
-function isTruthyFlag(value: unknown): boolean {
-  return value === true || value === 't' || value === 'true'
-}
-
-function hasProjectAccess(role: unknown, accessRestricted: unknown, isListed: unknown): boolean {
-  if (role === 'owner' || role === 'admin') return true
-  if (!isTruthyFlag(accessRestricted)) return true
-  return isTruthyFlag(isListed)
 }
 
 function readMemberIds(value: unknown): string[] | null {

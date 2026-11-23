@@ -76,7 +76,8 @@ test('applies the versioned auth, workspace, invitation, and analysis metadata m
     '008_workspace_scan_step_cancel',
     '009_workspace_scan_file_meta',
     '010_project_access',
-    '011_audit_events'
+    '011_audit_events',
+    '012_workspace_scan_project_id'
   ])
   assert.deepEqual(secondRun, [])
   assert.match(database.statements.join('\n'), /CREATE TABLE IF NOT EXISTS workspace_members/)
@@ -92,6 +93,10 @@ test('applies the versioned auth, workspace, invitation, and analysis metadata m
   assert.match(database.statements.join('\n'), /UNIQUE \(workspace_id, email\)/)
   assert.match(database.statements.join('\n'), /retention_expires_at <= created_at \+ INTERVAL '90 days'/)
   assert.match(database.statements.join('\n'), /UNIQUE \(project_id, idempotency_key\)/)
+  assert.match(
+    database.statements.join('\n'),
+    /ADD COLUMN IF NOT EXISTS project_id TEXT REFERENCES projects\(id\) ON DELETE SET NULL/
+  )
 })
 
 test('rolls back and reports migration errors', async () => {

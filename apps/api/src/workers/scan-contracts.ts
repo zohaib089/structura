@@ -20,6 +20,7 @@ export interface WorkspaceScanRecord {
   updated_at: string | Date
   started_at: string | Date | null
   finished_at: string | Date | null
+  project_id?: string | null
 }
 
 export function serializeScan(record: WorkspaceScanRecord) {
@@ -36,7 +37,8 @@ export function serializeScan(record: WorkspaceScanRecord) {
     createdAt: toIso(record.created_at),
     updatedAt: toIso(record.updated_at),
     startedAt: record.started_at ? toIso(record.started_at) : null,
-    finishedAt: record.finished_at ? toIso(record.finished_at) : null
+    finishedAt: record.finished_at ? toIso(record.finished_at) : null,
+    projectId: record.project_id ?? null
   }
 }
 
