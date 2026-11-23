@@ -75,10 +75,13 @@ test('applies the versioned auth, workspace, invitation, and analysis metadata m
     '007_workspace_scan_upload_running',
     '008_workspace_scan_step_cancel',
     '009_workspace_scan_file_meta',
-    '010_project_access'
+    '010_project_access',
+    '011_audit_events'
   ])
   assert.deepEqual(secondRun, [])
   assert.match(database.statements.join('\n'), /CREATE TABLE IF NOT EXISTS workspace_members/)
+  assert.match(database.statements.join('\n'), /CREATE TABLE IF NOT EXISTS audit_events/)
+  assert.match(database.statements.join('\n'), /project\.access_changed/)
   assert.match(database.statements.join('\n'), /CREATE TABLE IF NOT EXISTS projects/)
   assert.match(database.statements.join('\n'), /CREATE TABLE IF NOT EXISTS project_members/)
   assert.match(database.statements.join('\n'), /access_restricted BOOLEAN NOT NULL DEFAULT false/)

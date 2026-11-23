@@ -262,6 +262,36 @@ const migrations: Migration[] = [
       CREATE INDEX IF NOT EXISTS project_members_user_id_idx
         ON project_members (user_id, project_id);
     `
+  },
+  {
+    version: '011_audit_events',
+    sql: `
+      CREATE TABLE IF NOT EXISTS audit_events (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        actor_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        action TEXT NOT NULL CHECK (action IN (
+          'member.invited',
+          'invite.revoked',
+          'invite.accepted',
+          'member.role_changed',
+          'member.removed',
+          'ownership.transferred',
+          'project.access_changed'
+        )),
+        target_type TEXT NOT NULL CHECK (target_type IN ('invitation', 'member', 'project')),
+        target_id TEXT NOT NULL,
+        details JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS audit_events_workspace_created_idx
+        ON audit_events (workspace_id, created_at DESC, id DESC);
+      CREATE INDEX IF NOT EXISTS audit_events_workspace_action_idx
+        ON audit_events (workspace_id, action, created_at DESC, id DESC);
+      CREATE INDEX IF NOT EXISTS audit_events_workspace_project_idx
+        ON audit_events (workspace_id, target_id, created_at DESC, id DESC)
+        WHERE target_type = 'project';
+    `
   }
 ]
 

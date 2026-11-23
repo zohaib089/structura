@@ -2,6 +2,13 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import type { FastifyInstance } from 'fastify'
 
 import type { WorkspaceDatabase } from '../db/types.js'
+import {
+  decodeAuditCursor,
+  isAuditAction,
+  listAuditEvents,
+  recordAuditEvent,
+  type AuditAction
+} from '../services/workspace-audit.js'
 
 export type {
   WorkspaceQueryResult,
@@ -450,6 +457,12 @@ export function registerWorkspaceRoutes(app: FastifyInstance, database: Workspac
           }
         }
 
+        const previousMembers = await query(
+          'SELECT user_id FROM project_members WHERE project_id = $1 ORDER BY user_id',
+          [request.params.projectId]
+        )
+        const previousRestricted = isTruthyFlag(project.access_restricted)
+
         await query(
           `UPDATE projects
            SET access_restricted = $3, updated_at = NOW()
@@ -478,6 +491,19 @@ export function registerWorkspaceRoutes(app: FastifyInstance, database: Workspac
            ORDER BY wm.user_id`,
           [request.params.workspaceId, request.params.projectId]
         )
+        await recordAuditEvent(query, {
+          workspaceId: request.params.workspaceId,
+          actorUserId: userId,
+          action: 'project.access_changed',
+          targetType: 'project',
+          targetId: request.params.projectId,
+          details: {
+            restricted,
+            previous_restricted: previousRestricted,
+            member_ids: memberIds,
+            previous_member_ids: previousMembers.rows.map(row => String(row.user_id))
+          }
+        })
         return {
           status: 200 as const,
           access: {
@@ -557,6 +583,16 @@ export function registerWorkspaceRoutes(app: FastifyInstance, database: Workspac
         if (!member) {
           return { status: 404 as const, message: 'Member not found.' }
         }
+        if (targetRole !== role) {
+          await recordAuditEvent(query, {
+            workspaceId: request.params.workspaceId,
+            actorUserId: userId,
+            action: 'member.role_changed',
+            targetType: 'member',
+            targetId: request.params.memberId,
+            details: { from: targetRole, to: role }
+          })
+        }
         return {
           status: 200 as const,
           member: { id: member.user_id, role: member.role, created_at: member.created_at }
@@ -625,6 +661,17 @@ export function registerWorkspaceRoutes(app: FastifyInstance, database: Workspac
           return { status: 404 as const, message: 'Member not found.' }
         }
         await deleteProjectMemberships(query, request.params.workspaceId, request.params.memberId)
+        await recordAuditEvent(query, {
+          workspaceId: request.params.workspaceId,
+          actorUserId: userId,
+          action: 'member.removed',
+          targetType: 'member',
+          targetId: request.params.memberId,
+          details: {
+            role: targetRole,
+            self: request.params.memberId === userId
+          }
+        })
         return { status: 200 as const }
       })
 
@@ -726,6 +773,20 @@ export function registerWorkspaceRoutes(app: FastifyInstance, database: Workspac
           await deleteProjectMemberships(query, request.params.workspaceId, userId)
         }
 
+        await recordAuditEvent(query, {
+          workspaceId: request.params.workspaceId,
+          actorUserId: userId,
+          action: 'ownership.transferred',
+          targetType: 'member',
+          targetId: memberId,
+          details: {
+            from_user_id: userId,
+            to_user_id: memberId,
+            previous_role: targetRole,
+            stay_as_admin: stayAsAdmin,
+            left: !stayAsAdmin
+          }
+        })
         return {
           status: 200 as const,
           member: { id: member.user_id, role: member.role, created_at: member.created_at },
@@ -737,6 +798,79 @@ export function registerWorkspaceRoutes(app: FastifyInstance, database: Workspac
         return reply.code(result.status).send({ success: false, message: result.message })
       }
       return { success: true, member: result.member, left: result.left }
+    }
+  )
+
+  app.get<{
+    Params: { workspaceId: string }
+    Querystring: { limit?: string; cursor?: string; action?: string; project?: string }
+  }>(
+    '/api/workspaces/:workspaceId/audit',
+    async (request, reply) => {
+      const userId = await authenticatedUserId(request.headers.authorization, database)
+      if (!userId) return unauthenticated(reply)
+
+      const membership = await database.query(
+        'SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2',
+        [request.params.workspaceId, userId]
+      )
+      const role = membership.rows[0]?.role
+      if (typeof role !== 'string') {
+        return reply.code(404).send({ success: false, message: 'Workspace not found.' })
+      }
+      if (role !== 'owner' && role !== 'admin') {
+        return reply.code(403).send({ success: false, message: 'Workspace admin access is required.' })
+      }
+
+      const rawLimit = request.query.limit
+      let limit = 50
+      if (rawLimit !== undefined && rawLimit !== '') {
+        if (!/^[0-9]+$/.test(rawLimit)) {
+          return reply.code(400).send({
+            success: false,
+            message: 'limit must be an integer between 1 and 100.'
+          })
+        }
+        limit = Number(rawLimit)
+        if (limit < 1 || limit > 100) {
+          return reply.code(400).send({
+            success: false,
+            message: 'limit must be an integer between 1 and 100.'
+          })
+        }
+      }
+
+      const rawAction = typeof request.query.action === 'string' ? request.query.action.trim() : ''
+      let action: AuditAction | undefined
+      if (rawAction) {
+        if (!isAuditAction(rawAction)) {
+          return reply.code(400).send({
+            success: false,
+            message: 'action must be a known audit action.'
+          })
+        }
+        action = rawAction
+      }
+
+      const rawCursor = typeof request.query.cursor === 'string' ? request.query.cursor.trim() : ''
+      const cursor = rawCursor ? decodeAuditCursor(rawCursor) : undefined
+      if (rawCursor && !cursor) {
+        return reply.code(400).send({
+          success: false,
+          message: 'cursor is invalid.'
+        })
+      }
+
+      const projectId = typeof request.query.project === 'string' ? request.query.project.trim() : ''
+
+      const page = await listAuditEvents(database.query, {
+        workspaceId: request.params.workspaceId,
+        action,
+        projectId: projectId || undefined,
+        cursor: cursor ?? undefined,
+        limit
+      })
+      return { success: true, events: page.events, next_cursor: page.nextCursor }
     }
   )
 
@@ -856,24 +990,36 @@ export function registerWorkspaceInvitationRoutes(
 
       const token = randomBytes(32).toString('base64url')
       const id = randomUUID()
-      const invitation = await database.query(
-        `INSERT INTO workspace_invitations (id, workspace_id, email, token_hash, created_by, expires_at)
-         VALUES ($1, $2, $3, $4, $5, NOW() + INTERVAL '7 days')
-         ON CONFLICT (workspace_id, email) DO UPDATE
-         SET id = EXCLUDED.id,
-             token_hash = EXCLUDED.token_hash,
-             created_by = EXCLUDED.created_by,
-             created_at = NOW(),
-             expires_at = EXCLUDED.expires_at,
-             accepted_at = NULL,
-             revoked_at = NULL
-         WHERE workspace_invitations.accepted_at IS NOT NULL
-            OR workspace_invitations.revoked_at IS NOT NULL
-            OR workspace_invitations.expires_at <= NOW()
-         RETURNING id, email, role, created_at, expires_at`,
-        [id, request.params.workspaceId, email, digest(token), userId]
-      )
-      const invitationRecord = invitation.rows[0]
+      const invitationRecord = await database.transaction(async query => {
+        const invitation = await query(
+          `INSERT INTO workspace_invitations (id, workspace_id, email, token_hash, created_by, expires_at)
+           VALUES ($1, $2, $3, $4, $5, NOW() + INTERVAL '7 days')
+           ON CONFLICT (workspace_id, email) DO UPDATE
+           SET id = EXCLUDED.id,
+               token_hash = EXCLUDED.token_hash,
+               created_by = EXCLUDED.created_by,
+               created_at = NOW(),
+               expires_at = EXCLUDED.expires_at,
+               accepted_at = NULL,
+               revoked_at = NULL
+           WHERE workspace_invitations.accepted_at IS NOT NULL
+              OR workspace_invitations.revoked_at IS NOT NULL
+              OR workspace_invitations.expires_at <= NOW()
+           RETURNING id, email, role, created_at, expires_at`,
+          [id, request.params.workspaceId, email, digest(token), userId]
+        )
+        const record = invitation.rows[0]
+        if (!record) return null
+        await recordAuditEvent(query, {
+          workspaceId: request.params.workspaceId,
+          actorUserId: userId,
+          action: 'member.invited',
+          targetType: 'invitation',
+          targetId: String(record.id),
+          details: { email: record.email, role: record.role }
+        })
+        return record
+      })
       if (!invitationRecord) {
         return reply.code(409).send({
           success: false,
@@ -892,10 +1038,20 @@ export function registerWorkspaceInvitationRoutes(
         )
       } catch (error) {
         dependencies.onDeliveryFailure(error)
-        await database.query(
-          'UPDATE workspace_invitations SET revoked_at = NOW() WHERE id = $1 AND token_hash = $2',
-          [id, digest(token)]
-        )
+        await database.transaction(async query => {
+          await query(
+            'UPDATE workspace_invitations SET revoked_at = NOW() WHERE id = $1 AND token_hash = $2',
+            [id, digest(token)]
+          )
+          await recordAuditEvent(query, {
+            workspaceId: request.params.workspaceId,
+            actorUserId: userId,
+            action: 'invite.revoked',
+            targetType: 'invitation',
+            targetId: id,
+            details: { email, delivery_failed: true }
+          })
+        })
         return reply.code(503).send({
           success: false,
           message: 'Invitation email could not be delivered. Please try again.'
@@ -926,13 +1082,26 @@ export function registerWorkspaceInvitationRoutes(
         return reply.code(403).send({ success: false, message: 'Workspace admin access is required.' })
       }
 
-      const result = await database.query(
-        `UPDATE workspace_invitations SET revoked_at = NOW()
-         WHERE id = $1 AND workspace_id = $2 AND accepted_at IS NULL AND revoked_at IS NULL
-         RETURNING id`,
-        [request.params.invitationId, request.params.workspaceId]
-      )
-      if (result.rows.length === 0) {
+      const result = await database.transaction(async query => {
+        const updated = await query(
+          `UPDATE workspace_invitations SET revoked_at = NOW()
+           WHERE id = $1 AND workspace_id = $2 AND accepted_at IS NULL AND revoked_at IS NULL
+           RETURNING id, email`,
+          [request.params.invitationId, request.params.workspaceId]
+        )
+        const invitation = updated.rows[0]
+        if (!invitation) return null
+        await recordAuditEvent(query, {
+          workspaceId: request.params.workspaceId,
+          actorUserId: userId,
+          action: 'invite.revoked',
+          targetType: 'invitation',
+          targetId: String(invitation.id),
+          details: { email: invitation.email }
+        })
+        return invitation
+      })
+      if (!result) {
         return reply.code(404).send({ success: false, message: 'Active invitation not found.' })
       }
       return { success: true }
@@ -986,6 +1155,14 @@ export function registerWorkspaceInvitationRoutes(
          ON CONFLICT (workspace_id, user_id) DO NOTHING`,
         [invitation.workspace_id, userId]
       )
+      await recordAuditEvent(query, {
+        workspaceId: invitation.workspace_id,
+        actorUserId: userId,
+        action: 'invite.accepted',
+        targetType: 'invitation',
+        targetId: invitation.id,
+        details: { email: invitation.email, member_id: userId }
+      })
       return { workspaceId: invitation.workspace_id }
     })
     if (!accepted) {
