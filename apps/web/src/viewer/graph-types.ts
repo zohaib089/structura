@@ -52,11 +52,19 @@ export interface FileHotspot {
   score: number
 }
 
+/** JSON-serialisable parameters for a structured message `code` (graph.json 1.7.0). */
+export type MessageParamValue = string | number | boolean | readonly string[]
+export type MessageParams = { [key: string]: MessageParamValue }
+
 /** graph.json 1.2 top-N hotspot entry (plain-English `why`, repo-relative `path`). */
 export interface GraphHotspot {
   path: string
   score: number
   why: string
+  /** Structured code for `why` (1.7.0). */
+  code?: string
+  /** Parameters for `code`. Omitted when empty (1.7.0). */
+  params?: MessageParams
 }
 
 /** graph.json 1.3 letter grades for a 0–100 quality score. */
@@ -70,11 +78,19 @@ export interface QualityBreakdownItem {
   category: QualityCategory
   /** Plain-English summary of this category. */
   label: string
+  /** Structured code for `label` (1.7.0). */
+  code?: string
+  /** Parameters for `code`. Omitted when empty (1.7.0). */
+  params?: MessageParams
   penalty: number
 }
 
 export interface QualityTip {
   text: string
+  /** Structured code for `text` (1.7.0). */
+  code?: string
+  /** Parameters for `code`. Omitted when empty (1.7.0). */
+  params?: MessageParams
   /** Estimated score gain from this fix, computed from the published formula. */
   gain: number
 }
@@ -111,6 +127,10 @@ export interface DuplicateGroup {
   occurrences: DuplicateOccurrence[]
   /** Plain-English description of what is repeated and where. */
   description: string
+  /** Structured code for `description` (1.7.0). */
+  code?: string
+  /** Parameters for `code`. Omitted when empty (1.7.0). */
+  params?: MessageParams
 }
 
 export interface DuplicatesSummary {

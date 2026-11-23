@@ -446,4 +446,80 @@ describe('readGraph', () => {
     expect(messages.provenanceTooltip('INFERRED')).toBe('Inferred: our best guess from patterns, not read directly')
     expect(messages.provenanceTooltip('EXTRACTED')).toBe('Read directly from your code')
   })
+
+  it('accepts graph.json 1.7.0 message code and params, and still reads 1.4.0 graphs without them', () => {
+    const older = readGraph(readFileSync(resolve('../../packages/engine/schema-fixtures/v1.4.0.graph.json'), 'utf8'))
+    expect(older.ok).toBe(true)
+    if (older.ok) {
+      expect(older.graph.hotspots?.[0]).not.toHaveProperty('code')
+    }
+
+    const raw = JSON.parse(readFileSync(resolve('../../packages/engine/schema-fixtures/v1.4.0.graph.json'), 'utf8')) as {
+      schemaVersion: string
+      hotspots: Array<Record<string, unknown>>
+      quality: { project: { breakdown: Array<Record<string, unknown>>; tips: Array<Record<string, unknown>> } }
+      duplicates?: Record<string, unknown>
+    }
+    raw.schemaVersion = '1.7.0'
+    raw.hotspots[0] = {
+      ...raw.hotspots[0],
+      code: 'hotspot.why',
+      params: { fanIn: 1, impact: 1, size: 1, sizeKind: 'functions' }
+    }
+    raw.quality.project.breakdown[0] = {
+      ...raw.quality.project.breakdown[0],
+      code: 'quality.architecture',
+      params: { high: 0, medium: 0 }
+    }
+    raw.quality.project.tips = [
+      { text: 'Break the remaining import cycles to gain about 8 points', gain: 8, code: 'quality.tip.cycles', params: { gain: 8 } }
+    ]
+    raw.duplicates = {
+      summary: { groups: 1, duplicatedLines: 6, percentage: 4 },
+      groups: [
+        {
+          id: 'a1b2c3d4e5f6',
+          lineCount: 6,
+          occurrences: [
+            { path: 'src/a.ts', startLine: 10, endLine: 16 },
+            { path: 'src/b.ts', startLine: 4, endLine: 10 }
+          ],
+          description: '6 identical lines in src/a.ts and src/b.ts',
+          code: 'duplicate.pair',
+          params: { lineCount: 6, path: 'src/a.ts', otherPath: 'src/b.ts' }
+        }
+      ]
+    }
+    const result = readGraph(JSON.stringify(raw))
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.graph.schemaVersion).toBe('1.7.0')
+    expect(result.graph.hotspots?.[0]).toMatchObject({
+      code: 'hotspot.why',
+      params: { fanIn: 1, impact: 1, size: 1, sizeKind: 'functions' }
+    })
+    expect(result.graph.quality?.project.breakdown[0]).toMatchObject({
+      code: 'quality.architecture',
+      params: { high: 0, medium: 0 }
+    })
+    expect(result.graph.quality?.project.tips[0]).toMatchObject({ code: 'quality.tip.cycles', params: { gain: 8 } })
+    expect(result.graph.duplicates?.groups[0]).toMatchObject({
+      code: 'duplicate.pair',
+      params: { lineCount: 6, path: 'src/a.ts', otherPath: 'src/b.ts' }
+    })
+  })
+
+  it('refuses a 1.7.0 message code or params with the wrong shape', () => {
+    const raw = JSON.parse(readFileSync(resolve('../../packages/engine/schema-fixtures/v1.4.0.graph.json'), 'utf8')) as {
+      schemaVersion: string
+      hotspots: Array<Record<string, unknown>>
+    }
+    raw.schemaVersion = '1.7.0'
+    raw.hotspots[0] = { ...raw.hotspots[0], code: 'Not-a-code' }
+    expect(readGraph(JSON.stringify(raw)).ok).toBe(false)
+    raw.hotspots[0] = { ...raw.hotspots[0], code: 'hotspot.why', params: { '1fanIn': 1 } }
+    expect(readGraph(JSON.stringify(raw)).ok).toBe(false)
+    raw.hotspots[0] = { ...raw.hotspots[0], code: 'hotspot.why', params: {} }
+    expect(readGraph(JSON.stringify(raw)).ok).toBe(false)
+  })
 })

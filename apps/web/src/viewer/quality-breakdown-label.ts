@@ -4,6 +4,7 @@
  * they carry counts. Falls back to the engine's English `label`.
  */
 import type { QualityBreakdownItem, QualityCategory, QualityScore } from './graph-types'
+import { formatQualityBreakdownItem } from './graph-message-codes'
 import { andJoin, qualityCategoryTitle } from './quality-score'
 
 export interface QualityBreakdownMessages {
@@ -124,7 +125,28 @@ export function parseQualityBreakdownLabel(item: QualityBreakdownItem): {
   return null
 }
 
+function isCleanBreakdown(item: QualityBreakdownItem): boolean {
+  if (CLEAN_QUALITY_LABELS.has(item.label)) return true
+  if (!item.code || !item.params) return false
+  const n = (key: string) => {
+    const value = item.params?.[key]
+    return typeof value === 'number' ? value : undefined
+  }
+  if (item.code === 'quality.architecture') return (n('high') ?? -1) === 0 && (n('medium') ?? -1) === 0
+  if (item.code === 'quality.cycles') return n('count') === 0
+  if (item.code === 'quality.hotspots') return n('count') === 0
+  if (item.code === 'quality.imports') {
+    const unresolved = n('unresolvedPercent')
+    const external = n('externalPercent')
+    return unresolved !== undefined && external !== undefined && unresolved <= 0 && external < 50
+  }
+  if (item.code === 'quality.size') return (n('largeFiles') ?? -1) === 0 && (n('largeFunctions') ?? -1) === 0
+  return false
+}
+
 export function qualityBreakdownLabel(item: QualityBreakdownItem, messages: QualityBreakdownMessages): string {
+  const fromCode = formatQualityBreakdownItem(item, messages)
+  if (fromCode) return fromCode
   const parsed = parseQualityBreakdownLabel(item)
   if (!parsed) return item.label
   switch (parsed.kind) {
@@ -179,7 +201,7 @@ export function localizedFolderQualitySummary(
   const parts: string[] = []
   for (const item of score.breakdown) {
     if (item.penalty <= 0) continue
-    if (CLEAN_QUALITY_LABELS.has(item.label)) {
+    if (isCleanBreakdown(item)) {
       parts.push(messages.qualitySmallPenalty(messages.qualityCategoryTitle(item.category)))
       continue
     }

@@ -15,8 +15,8 @@ import {
 import {
   qualityBreakdownLabel,
   localizedFolderQualitySummary,
-  type QualityBreakdownMessages
 } from '../../../viewer/quality-breakdown-label'
+import type { GraphMessageCodeMessages } from '../../../viewer/graph-message-codes'
 
 const props = defineProps<{
   quality?: GraphQuality | null
@@ -36,7 +36,7 @@ const props = defineProps<{
   openLabel: string
   folderEmptySummary: string
   graphHref: (path?: string) => RouteLocationRaw
-  breakdownMessages: QualityBreakdownMessages
+  breakdownMessages: GraphMessageCodeMessages
 }>()
 
 const visible = computed(() => hasGraphQuality(props.quality))
@@ -45,7 +45,12 @@ const project = computed(() => props.quality?.project)
 
 const categories = computed(() => (project.value ? orderedBreakdown(project.value) : []))
 
-const tips = computed(() => cappedQualityTips(project.value?.tips ?? []))
+const tips = computed(() =>
+  cappedQualityTips(project.value?.tips ?? []).map((tip) => ({
+    ...tip,
+    action: tipActionText(tip, props.breakdownMessages)
+  }))
+)
 
 const folderTotal = computed(() => props.quality?.folders?.length ?? 0)
 const folders = computed(() =>
@@ -98,7 +103,7 @@ const folders = computed(() =>
       <ol class="tips">
         <li v-for="(tip, index) in tips" :key="`${tip.gain}-${tip.text}-${index}`" class="tip">
           <span class="tip__gain">{{ tipGain(tip.gain) }}</span>
-          <span class="tip__text">{{ tipActionText(tip) }}</span>
+          <span class="tip__text">{{ tip.action }}</span>
         </li>
       </ol>
     </section>

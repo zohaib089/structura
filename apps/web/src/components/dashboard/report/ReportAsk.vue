@@ -11,6 +11,11 @@ import {
 } from '../../../api/scan-ask'
 import type { WebLocale } from '../../../services/locale'
 import { scanReportMessages } from '../../../services/scan-report-messages'
+import {
+  formatMessageCode,
+  localizeAskSuggestion,
+  type MessageCodeContext
+} from '../../../viewer/graph-message-codes'
 import Button from '../../ui/Button.vue'
 import Input from '../../ui/Input.vue'
 
@@ -31,6 +36,7 @@ const props = defineProps<{
   charCount: (used: number, max: number) => string
   tooLong: string
   locale?: WebLocale
+  messageContext?: MessageCodeContext
 }>()
 
 const visible = computed(() => hasHostedAskContext(props.workspaceId, props.scanId))
@@ -45,6 +51,26 @@ let requestId = 0
 const questionLength = computed(() => question.value.length)
 const nearLimit = computed(() => questionLength.value >= Math.floor(GRAPH_QA_MAX_QUESTION_LENGTH * 0.8))
 const canSubmit = computed(() => question.value.trim().length > 0 && !loading.value)
+
+function catalog() {
+  return scanReportMessages(props.locale ?? 'en')
+}
+
+const displayedAnswer = computed(() => {
+  const current = answer.value
+  if (!current) return ''
+  return (
+    formatMessageCode(current.code, current.params, catalog(), props.messageContext) ?? current.answer
+  )
+})
+
+const followUps = computed(() =>
+  (answer.value?.suggestions ?? []).map((text) => ({
+    text,
+    label: localizeAskSuggestion(text, catalog())
+  }))
+)
+
 
 const citations = computed(() =>
   (answer.value?.citations ?? []).map((citation, index) => {
@@ -89,7 +115,7 @@ async function submit(text?: string) {
     const result = await askScanQuestion(workspaceId, scanId, next, props.locale ?? 'en')
     if (id !== requestId) return
     answer.value = result
-    liveStatus.value = result.answer
+    liveStatus.value = formatMessageCode(result.code, result.params, catalog(), props.messageContext) ?? result.answer
   } catch (cause) {
     if (id !== requestId) return
     const message = cause instanceof Error && cause.message
@@ -172,7 +198,7 @@ function onStarter(text: string) {
       <p v-if="loading" class="thinking" data-testid="ask-thinking">{{ thinkingLabel }}</p>
       <p v-else-if="error" class="error" data-testid="ask-error" role="alert">{{ error }}</p>
       <div v-else-if="answer" class="result" data-testid="ask-answer">
-        <p class="answer">{{ answer.answer }}</p>
+        <p class="answer">{{ displayedAnswer }}</p>
         <div v-if="citations.length" class="citations">
           <h4 class="subhead">{{ citationsTitle }}</h4>
           <ul class="cites" data-testid="ask-citations">
@@ -197,15 +223,15 @@ function onStarter(text: string) {
         <div v-if="answer.suggestions.length" class="followups">
           <h4 class="subhead">{{ followUpsTitle }}</h4>
           <ul class="chips" data-testid="ask-followups">
-            <li v-for="suggestion in answer.suggestions" :key="suggestion">
+            <li v-for="suggestion in followUps" :key="suggestion.text">
               <button
                 type="button"
                 class="chip"
                 :disabled="loading"
-                :aria-label="suggestion"
-                @click="onStarter(suggestion)"
+                :aria-label="suggestion.label"
+                @click="onStarter(suggestion.text)"
               >
-                {{ suggestion }}
+                {{ suggestion.label }}
               </button>
             </li>
           </ul>
