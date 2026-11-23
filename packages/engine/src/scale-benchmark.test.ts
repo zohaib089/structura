@@ -8,7 +8,7 @@ import {
   generateSyntheticRepo,
   planSyntheticRepo,
   runScaleBenchmark
-} from '../../../scripts/scale-benchmark.mjs'
+} from '../scripts/scale-benchmark.mjs'
 
 test('planSyntheticRepo is deterministic and hits the requested file count', () => {
   const first = planSyntheticRepo(25)

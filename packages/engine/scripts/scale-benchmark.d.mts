@@ -90,3 +90,5 @@ export function formatBytes(bytes: number): string
 export function formatMs(ms: number): string
 export function runScaleBenchmark(options: RunScaleBenchmarkOptions): Promise<ScaleBenchmarkReport>
 export function formatBenchmarkReport(report: ScaleBenchmarkReport): string
+
+export function runScaleBenchmarkCli(argv?: string[]): Promise<void>
