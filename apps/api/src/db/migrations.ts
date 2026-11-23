@@ -292,6 +292,15 @@ const migrations: Migration[] = [
         ON audit_events (workspace_id, target_id, created_at DESC, id DESC)
         WHERE target_type = 'project';
     `
+  },
+  {
+    version: '012_workspace_scan_project_id',
+    sql: `
+      ALTER TABLE workspace_scans
+        ADD COLUMN IF NOT EXISTS project_id TEXT REFERENCES projects(id) ON DELETE SET NULL;
+      CREATE INDEX IF NOT EXISTS workspace_scans_project_id_idx
+        ON workspace_scans (project_id);
+    `
   }
 ]
 

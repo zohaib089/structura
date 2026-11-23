@@ -1,30 +1,55 @@
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import test from 'node:test'
 import Fastify from 'fastify'
 import { registerWorkspaceScanRoutes } from './scan-routes.js'
+import { canAccessProjectScan } from '../services/project-access.js'
 import type { WorkspaceDatabase, WorkspaceQuery } from '../db/types.js'
 
-function createScanApi() {
+function tokenHash(token: string) {
+  return createHash('sha256').update(token).digest('hex')
+}
+
+function createScanApi(options: {
+  sessions?: Record<string, string>
+  memberships?: Array<[string, string]>
+} = {}) {
   const scans = new Map<string, Record<string, unknown>>()
   const fileMeta = new Map<string, string | null>()
-  const memberships = new Map<string, string>([['workspace-1:user-1', 'member']])
+  const memberships = new Map<string, string>(options.memberships ?? [['workspace-1:user-1', 'member']])
+  const sessions = new Map<string, string>([[tokenHash('valid-session'), 'user-1']])
+  for (const [token, userId] of Object.entries(options.sessions ?? {})) {
+    sessions.set(tokenHash(token), userId)
+  }
+  const projects = new Map<string, { id: string; workspace_id: string; access_restricted: boolean }>()
+  const projectMembers = new Set<string>()
 
   const query: WorkspaceQuery = async (text, params = []) => {
     if (text.startsWith('SELECT user_id FROM auth_sessions')) {
-      return { rows: [{ user_id: 'user-1' }] }
+      const userId = sessions.get(String(params[0]))
+      return { rows: userId ? [{ user_id: userId }] : [] }
     }
-    if (text.startsWith('SELECT 1 FROM workspace_members')) {
+    if (text.startsWith('SELECT role FROM workspace_members') || text.startsWith('SELECT 1 FROM workspace_members')) {
       const key = `${String(params[0])}:${String(params[1])}`
-      return { rows: memberships.has(key) ? [{ '?column?': 1 }] : [] }
+      const role = memberships.get(key)
+      return { rows: role ? [{ role }] : [] }
+    }
+    if (text.includes('FROM projects p') && text.includes('WHERE p.id = $1 AND p.workspace_id = $2')) {
+      const project = projects.get(String(params[0]))
+      if (!project || project.workspace_id !== String(params[1])) return { rows: [] }
+      const isListed = projectMembers.has(`${project.id}:${String(params[2])}`)
+      return { rows: [{ id: project.id, access_restricted: project.access_restricted, is_listed: isListed }] }
     }
     if (text.startsWith('INSERT INTO workspace_scans')) {
+      const isGit = text.includes("'git'")
       const scan = {
         id: params[0],
         workspace_id: params[1],
         requested_by: params[2],
-        source: text.includes("'git'") ? 'git' : 'upload',
-        source_url: text.includes("'git'") ? params[3] : null,
-        source_branch: text.includes("'git'") ? params[4] : null,
+        source: isGit ? 'git' : 'upload',
+        source_url: isGit ? params[3] : null,
+        source_branch: isGit ? params[4] : null,
+        project_id: (isGit ? params[5] : params[4]) ?? null,
         status: 'queued',
         step: null,
         error_message: null,
@@ -36,18 +61,35 @@ function createScanApi() {
       scans.set(String(params[0]), scan)
       return { rows: [scan] }
     }
+    if (text.includes('FROM workspace_scans s') && text.includes('LEFT JOIN projects p') && text.includes('AND s.id = $2')) {
+      const scan = scans.get(String(params[1]))
+      if (!scan || scan.workspace_id !== String(params[0])) return { rows: [] }
+      const project = typeof scan.project_id === 'string' ? projects.get(scan.project_id) : undefined
+      const isListed = typeof scan.project_id === 'string' && projectMembers.has(`${scan.project_id}:${String(params[2])}`)
+      return {
+        rows: [{
+          ...scan,
+          project_access_restricted: project?.access_restricted ?? null,
+          project_is_listed: isListed
+        }]
+      }
+    }
+    if (text.includes('FROM workspace_scans s') && text.includes('LEFT JOIN projects p')) {
+      const workspaceId = String(params[0])
+      const userId = String(params[1])
+      const role = memberships.get(`${workspaceId}:${userId}`)
+      const rows = [...scans.values()].filter(scan => {
+        if (scan.workspace_id !== workspaceId) return false
+        const project = typeof scan.project_id === 'string' ? projects.get(scan.project_id) : undefined
+        const isListed = typeof scan.project_id === 'string' && projectMembers.has(`${scan.project_id}:${userId}`)
+        return canAccessProjectScan(role, scan.project_id, project?.access_restricted, isListed)
+      })
+      return { rows }
+    }
     if (text.startsWith('SELECT id, workspace_id, requested_by, source, source_url')) {
       const workspaceId = String(params[0])
       const rows = [...scans.values()].filter(scan => scan.workspace_id === workspaceId)
       return { rows }
-    }
-    if (text.includes('WHERE workspace_id = $1 AND id = $2') && text.includes('graph_json')) {
-      const scan = scans.get(String(params[1]))
-      return { rows: scan ? [{ status: scan.status, graph_json: scan.graph_json ?? null }] : [] }
-    }
-    if (text.includes('WHERE workspace_id = $1 AND id = $2') && text.includes('report_json')) {
-      const scan = scans.get(String(params[1]))
-      return { rows: scan ? [{ status: scan.status, report_json: scan.report_json ?? null }] : [] }
     }
     if (text.includes('FROM workspace_scan_file_meta')) {
       const scanId = String(params[0])
@@ -57,6 +99,14 @@ function createScanApi() {
           .filter(path => fileMeta.has(`${scanId}:${path}`))
           .map(path => ({ path, summary: fileMeta.get(`${scanId}:${path}`) ?? null }))
       }
+    }
+    if (text.includes('WHERE workspace_id = $1 AND id = $2') && text.includes('graph_json')) {
+      const scan = scans.get(String(params[1]))
+      return { rows: scan ? [{ status: scan.status, graph_json: scan.graph_json ?? null }] : [] }
+    }
+    if (text.includes('WHERE workspace_id = $1 AND id = $2') && text.includes('report_json')) {
+      const scan = scans.get(String(params[1]))
+      return { rows: scan ? [{ status: scan.status, report_json: scan.report_json ?? null }] : [] }
     }
     if (text.includes('WHERE workspace_id = $1 AND id = $2') && text.startsWith('SELECT status')) {
       const scan = scans.get(String(params[1]))
@@ -86,8 +136,32 @@ function createScanApi() {
 
   const app = Fastify()
   registerWorkspaceScanRoutes(app, database)
-  return { app, scans, fileMeta }
+  return { app, scans, fileMeta, projects, projectMembers }
 }
+
+function createProjectScopedScanApi() {
+  const api = createScanApi({
+    sessions: {
+      'owner-session': 'user-owner',
+      'admin-session': 'user-admin',
+      'granted-session': 'user-granted',
+      'denied-session': 'user-denied'
+    },
+    memberships: [
+      ['workspace-1:user-1', 'member'],
+      ['workspace-1:user-owner', 'owner'],
+      ['workspace-1:user-admin', 'admin'],
+      ['workspace-1:user-granted', 'member'],
+      ['workspace-1:user-denied', 'member']
+    ]
+  })
+  api.projects.set('restricted-1', { id: 'restricted-1', workspace_id: 'workspace-1', access_restricted: true })
+  api.projects.set('open-1', { id: 'open-1', workspace_id: 'workspace-1', access_restricted: false })
+  api.projects.set('other-workspace-project', { id: 'other-workspace-project', workspace_id: 'workspace-2', access_restricted: false })
+  api.projectMembers.add('restricted-1:user-granted')
+  return api
+}
+
 
 test('scan routes require auth and workspace membership', async () => {
   const api = createScanApi()
@@ -675,6 +749,246 @@ test('ask route returns 404 for an unknown workspace, scan, or missing graph', a
     })
     assert.equal(failed.statusCode, 404)
     assert.equal(failed.json().message, 'Graph is not available for this scan.')
+  } finally {
+    await api.app.close()
+  }
+})
+
+test('a member without project access cannot list, read, or ask about a restricted scan', async () => {
+  const api = createProjectScopedScanApi()
+  try {
+    const created = await api.app.inject({
+      method: 'POST',
+      url: '/api/workspaces/workspace-1/scans',
+      headers: { authorization: 'Bearer owner-session' },
+      payload: { source: 'git', url: 'https://github.com/org/repo', project_id: 'restricted-1' }
+    })
+    assert.equal(created.statusCode, 202)
+    const scanId = created.json().scan.id as string
+    assert.equal(created.json().scan.projectId, 'restricted-1')
+    const scan = api.scans.get(scanId)
+    assert.ok(scan)
+    scan.status = 'succeeded'
+    scan.graph_json = sampleAskGraph()
+
+    const headers = { authorization: 'Bearer denied-session' }
+    const listed = await api.app.inject({
+      method: 'GET',
+      url: '/api/workspaces/workspace-1/scans',
+      headers
+    })
+    assert.equal(listed.statusCode, 200)
+    assert.deepEqual(listed.json().scans, [])
+
+    const read = await api.app.inject({
+      method: 'GET',
+      url: `/api/workspaces/workspace-1/scans/${scanId}`,
+      headers
+    })
+    assert.equal(read.statusCode, 404)
+    assert.equal(read.json().message, 'Scan not found.')
+
+    const graph = await api.app.inject({
+      method: 'GET',
+      url: `/api/workspaces/workspace-1/scans/${scanId}/graph`,
+      headers
+    })
+    assert.equal(graph.statusCode, 404)
+    assert.equal(graph.json().message, 'Scan not found.')
+
+    const asked = await api.app.inject({
+      method: 'POST',
+      url: `/api/workspaces/workspace-1/scans/${scanId}/ask`,
+      headers,
+      payload: { question: 'What languages does this use?' }
+    })
+    assert.equal(asked.statusCode, 404)
+    assert.equal(asked.json().message, 'Scan not found.')
+  } finally {
+    await api.app.close()
+  }
+})
+
+test('a granted member can list, read, and ask about a restricted scan', async () => {
+  const api = createProjectScopedScanApi()
+  try {
+    const created = await api.app.inject({
+      method: 'POST',
+      url: '/api/workspaces/workspace-1/scans',
+      headers: { authorization: 'Bearer owner-session' },
+      payload: { source: 'git', url: 'https://github.com/org/repo', project_id: 'restricted-1' }
+    })
+    const scanId = created.json().scan.id as string
+    const scan = api.scans.get(scanId)
+    assert.ok(scan)
+    scan.status = 'succeeded'
+    scan.graph_json = sampleAskGraph()
+
+    const headers = { authorization: 'Bearer granted-session' }
+    const listed = await api.app.inject({
+      method: 'GET',
+      url: '/api/workspaces/workspace-1/scans',
+      headers
+    })
+    assert.equal(listed.statusCode, 200)
+    assert.equal(listed.json().scans.length, 1)
+    assert.equal(listed.json().scans[0].id, scanId)
+    assert.equal(listed.json().scans[0].projectId, 'restricted-1')
+
+    const read = await api.app.inject({
+      method: 'GET',
+      url: `/api/workspaces/workspace-1/scans/${scanId}`,
+      headers
+    })
+    assert.equal(read.statusCode, 200)
+    assert.equal(read.json().scan.id, scanId)
+
+    const asked = await api.app.inject({
+      method: 'POST',
+      url: `/api/workspaces/workspace-1/scans/${scanId}/ask`,
+      headers,
+      payload: { question: 'What does src/app.ts do?' }
+    })
+    assert.equal(asked.statusCode, 200)
+    assert.equal(asked.json().success, true)
+    assert.equal(asked.json().intent, 'explain')
+  } finally {
+    await api.app.close()
+  }
+})
+
+test('owners and admins can access a restricted project scan', async () => {
+  const api = createProjectScopedScanApi()
+  try {
+    const created = await api.app.inject({
+      method: 'POST',
+      url: '/api/workspaces/workspace-1/scans',
+      headers: { authorization: 'Bearer granted-session' },
+      payload: { source: 'git', url: 'https://github.com/org/repo', project_id: 'restricted-1' }
+    })
+    assert.equal(created.statusCode, 202)
+    const scanId = created.json().scan.id as string
+
+    for (const token of ['owner-session', 'admin-session']) {
+      const listed = await api.app.inject({
+        method: 'GET',
+        url: '/api/workspaces/workspace-1/scans',
+        headers: { authorization: `Bearer ${token}` }
+      })
+      assert.equal(listed.statusCode, 200)
+      assert.equal(listed.json().scans[0].id, scanId)
+
+      const read = await api.app.inject({
+        method: 'GET',
+        url: `/api/workspaces/workspace-1/scans/${scanId}`,
+        headers: { authorization: `Bearer ${token}` }
+      })
+      assert.equal(read.statusCode, 200)
+      assert.equal(read.json().scan.projectId, 'restricted-1')
+    }
+  } finally {
+    await api.app.close()
+  }
+})
+
+test('unrestricted project scans are visible to every workspace member', async () => {
+  const api = createProjectScopedScanApi()
+  try {
+    const created = await api.app.inject({
+      method: 'POST',
+      url: '/api/workspaces/workspace-1/scans',
+      headers: { authorization: 'Bearer owner-session' },
+      payload: { source: 'git', url: 'https://github.com/org/repo', project_id: 'open-1' }
+    })
+    assert.equal(created.statusCode, 202)
+    const scanId = created.json().scan.id as string
+    assert.equal(created.json().scan.projectId, 'open-1')
+
+    const listed = await api.app.inject({
+      method: 'GET',
+      url: '/api/workspaces/workspace-1/scans',
+      headers: { authorization: 'Bearer denied-session' }
+    })
+    assert.equal(listed.statusCode, 200)
+    assert.equal(listed.json().scans.length, 1)
+    assert.equal(listed.json().scans[0].id, scanId)
+
+    const read = await api.app.inject({
+      method: 'GET',
+      url: `/api/workspaces/workspace-1/scans/${scanId}`,
+      headers: { authorization: 'Bearer denied-session' }
+    })
+    assert.equal(read.statusCode, 200)
+  } finally {
+    await api.app.close()
+  }
+})
+
+test('creating a scan with an inaccessible project is denied', async () => {
+  const api = createProjectScopedScanApi()
+  try {
+    const deniedRestricted = await api.app.inject({
+      method: 'POST',
+      url: '/api/workspaces/workspace-1/scans',
+      headers: { authorization: 'Bearer denied-session' },
+      payload: { source: 'git', url: 'https://github.com/org/repo', project_id: 'restricted-1' }
+    })
+    assert.equal(deniedRestricted.statusCode, 404)
+    assert.equal(deniedRestricted.json().message, 'Project not found.')
+
+    const unknown = await api.app.inject({
+      method: 'POST',
+      url: '/api/workspaces/workspace-1/scans',
+      headers: { authorization: 'Bearer denied-session' },
+      payload: { source: 'git', url: 'https://github.com/org/repo', project_id: 'missing-project' }
+    })
+    assert.equal(unknown.statusCode, 404)
+    assert.equal(unknown.json().message, 'Project not found.')
+
+    const otherWorkspace = await api.app.inject({
+      method: 'POST',
+      url: '/api/workspaces/workspace-1/scans',
+      headers: { authorization: 'Bearer denied-session' },
+      payload: { source: 'git', url: 'https://github.com/org/repo', project_id: 'other-workspace-project' }
+    })
+    assert.equal(otherWorkspace.statusCode, 404)
+    assert.equal(otherWorkspace.json().message, 'Project not found.')
+
+    const invalid = await api.app.inject({
+      method: 'POST',
+      url: '/api/workspaces/workspace-1/scans',
+      headers: { authorization: 'Bearer denied-session' },
+      payload: { source: 'git', url: 'https://github.com/org/repo', project_id: 12 }
+    })
+    assert.equal(invalid.statusCode, 400)
+    assert.match(invalid.json().message, /project_id/)
+
+    assert.equal(api.scans.size, 0)
+  } finally {
+    await api.app.close()
+  }
+})
+
+test('scans with no project stay visible to every workspace member', async () => {
+  const api = createProjectScopedScanApi()
+  try {
+    const created = await api.app.inject({
+      method: 'POST',
+      url: '/api/workspaces/workspace-1/scans',
+      headers: { authorization: 'Bearer denied-session' },
+      payload: { source: 'git', url: 'https://github.com/org/repo' }
+    })
+    assert.equal(created.statusCode, 202)
+    assert.equal(created.json().scan.projectId, null)
+    const scanId = created.json().scan.id as string
+
+    const listed = await api.app.inject({
+      method: 'GET',
+      url: '/api/workspaces/workspace-1/scans',
+      headers: { authorization: 'Bearer granted-session' }
+    })
+    assert.equal(listed.statusCode, 200)
+    assert.equal(listed.json().scans[0].id, scanId)
   } finally {
     await api.app.close()
   }
