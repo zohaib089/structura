@@ -10,6 +10,7 @@ import { dashboardMessages } from '../../services/dashboard-messages'
 import { navigationMessages } from '../../services/navigation-messages'
 import { isSupportedWebLocale, readLocalePreference, resolvePreferredWebLocale } from '../../services/locale'
 import {
+  getProject,
   listWorkspaces,
   type Workspace
 } from '../../services/workspaces'
@@ -69,6 +70,25 @@ const scanTab = computed(() => (typeof route.params.tab === 'string' ? route.par
 const selectedWorkspace = computed(
   () => workspaces.value.find(workspace => workspace.id === workspaceParam.value) ?? null
 )
+
+const projectName = ref('')
+let projectNameRequest = 0
+
+async function loadProjectName() {
+  const request = ++projectNameRequest
+  const workspaceId = workspaceParam.value
+  const id = projectId.value
+  if (!workspaceId || workspaceId === 'pending' || !id) {
+    if (request === projectNameRequest) projectName.value = ''
+    return
+  }
+  try {
+    const project = await getProject(workspaceId, id)
+    if (request === projectNameRequest) projectName.value = project.name
+  } catch {
+    if (request === projectNameRequest) projectName.value = ''
+  }
+}
 
 provide('dashboardWorkspaceId', workspaceParam)
 provide('dashboardProjectId', projectId)
@@ -154,7 +174,7 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => {
   if (projectId.value) {
     const project = projectId.value
     items.push({
-      label: messages.value.projectBreadcrumb,
+      label: projectName.value || messages.value.projectBreadcrumb,
       to: projectGraphPath(locale.value, workspaceParam.value, project)
     })
   }
@@ -216,6 +236,10 @@ async function handleLogout() {
 watch(workspaceParam, workspaceId => {
   if (workspaceId && workspaceId !== 'pending') rememberLastWorkspaceId(workspaceId)
 })
+
+watch([workspaceParam, projectId], () => {
+  void loadProjectName()
+}, { immediate: true })
 
 onMounted(loadWorkspaces)
 </script>
