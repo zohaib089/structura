@@ -5,6 +5,7 @@ import type { ViewerReportFinding, ViewerReportSeverity } from '../report-types'
 import SeverityChip from '../../components/ui/SeverityChip.vue'
 import type { DirectoryChildRow, NodeDetailSections, RelatedNodeRow, SymbolKindGroup, SymbolRow } from '../node-detail-data'
 import type { CallRef, FunctionInsight, StateInsight } from '../file-insights'
+import { formatMessage } from '../messages'
 
 export type FileSummaryState = 'none' | 'loading' | 'ready' | 'error'
 
@@ -86,6 +87,9 @@ const props = defineProps<{
   stateKindLabels?: Record<'binding' | 'ref' | 'reactive' | 'computed' | 'prop' | 'store' | 'provide' | 'inject', string>
   openCallTooltip?: string
   methodOf?: string
+  riskToChangeLabel?: string
+  riskToChangeValue?: string
+  hotspotBandLabels?: { low: string; medium: string; high: string }
   summaryState: FileSummaryState
   severityLabel: (severity: ViewerReportSeverity) => string
   detail: {
@@ -194,6 +198,18 @@ function onNavigate(row: RelatedNodeRow | DirectoryChildRow) {
 function onExpandChild(row: DirectoryChildRow) {
   emit('expandChild', row.id)
 }
+
+const riskLine = computed(() => {
+  const hotspot = props.sections?.hotspot
+  if (!hotspot) return null
+  const bandWord = props.hotspotBandLabels?.[hotspot.band] ?? hotspot.band
+  const template = props.riskToChangeValue || '{score} ({band})'
+  return {
+    label: props.riskToChangeLabel || 'Risk to change',
+    band: hotspot.band,
+    text: formatMessage(template, { score: hotspot.score, band: bandWord })
+  }
+})
 </script>
 
 <template>
@@ -236,6 +252,10 @@ function onExpandChild(row: DirectoryChildRow) {
           </dd>
         </div>
       </dl>
+      <p v-if="riskLine" class="risk-line" data-testid="risk-to-change">
+        <span class="risk-label">{{ riskLine.label }}</span>
+        <span class="risk-value" :data-band="riskLine.band">{{ riskLine.text }}</span>
+      </p>
       <dl v-if="sections" class="meta-grid">
         <div v-if="sections.stats.provenance">
           <dt>{{ provenanceLabel }}</dt><dd>{{ sections.stats.provenance }}</dd>
@@ -608,6 +628,26 @@ function onExpandChild(row: DirectoryChildRow) {
 }
 .actions button span { overflow: hidden; text-overflow: ellipsis; }
 .actions button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.risk-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-13);
+  line-height: var(--text-13-lh);
+}
+.risk-label {
+  color: var(--color-text-secondary);
+}
+.risk-value {
+  font-weight: var(--font-weight-medium, 500);
+  font-variant-numeric: tabular-nums;
+  color: var(--hotspot-fg, var(--color-text-primary));
+}
+.risk-value[data-band='low'] { --hotspot-fg: var(--sev-low-fg); }
+.risk-value[data-band='medium'] { --hotspot-fg: var(--sev-medium-fg); }
+.risk-value[data-band='high'] { --hotspot-fg: var(--sev-high-fg); }
 .summary {
   margin: 0;
   font-size: var(--text-13);

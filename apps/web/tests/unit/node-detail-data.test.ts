@@ -47,6 +47,7 @@ describe('node detail data helpers', () => {
     expect(sections.summary).toBe('Exports: start')
     expect(sections.imports.some(row => row.label === 'brand.ts')).toBe(true)
     expect(sections.stats.depsOut).toBeGreaterThan(0)
+    expect(sections.hotspot).toBeNull()
   })
 
   it('filters findings by normalized path', () => {

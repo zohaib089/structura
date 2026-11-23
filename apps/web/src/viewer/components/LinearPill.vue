@@ -4,6 +4,7 @@ import { computed, ref, useId } from 'vue'
 import { middleEllipsis, pillCharBudget } from '../pill-label'
 import { LINEAR_PILL_WIDTH, LINEAR_PILL_WIDTH_PHONE } from '../linear'
 import BrandMark from '../../components/brand/BrandMark.vue'
+import { hotspotBand } from '../hotspot-band'
 
 const props = defineProps<{
   id: string
@@ -21,11 +22,17 @@ const props = defineProps<{
   tabIndex: number
   moreLabel: string
   groupLabel: string
+  showHotspots?: boolean
+  hotspotScore?: number | null
 }>()
 
 const emit = defineEmits<{ select: []; toggle: [] }>()
 
 const control = computed(() => props.cluster || props.more)
+const fileHotspotBand = computed(() => {
+  if (!props.showHotspots || props.hotspotScore == null) return null
+  return hotspotBand(props.hotspotScore)
+})
 /** Full name for hover / focus and screen readers; the pill itself ellipsizes. */
 const full = computed(() => {
   if (props.more) return props.moreLabel
@@ -60,6 +67,7 @@ function activate() {
       'is-more': more
     }"
     :data-node-id="id"
+    :data-hotspot-band="fileHotspotBand ?? undefined"
     :data-testid="more ? 'linear-more' : cluster ? 'linear-group' : nucleus ? 'linear-nucleus' : 'linear-pill'"
     :data-expanded="cluster ? String(expanded) : undefined"
     :tabindex="tabIndex"
@@ -123,6 +131,9 @@ function activate() {
 .is-nucleus .mark { color: #10172a; }
 .is-selected:not(.is-nucleus) { border-color: #f1b24a; box-shadow: 0 0 0 2px rgba(241, 178, 74, 0.45); }
 .is-dimmed { opacity: 0.45; }
+.linear-pill[data-hotspot-band='low'] { box-shadow: inset 0 0 0 2px var(--sev-low-fg); }
+.linear-pill[data-hotspot-band='medium'] { box-shadow: inset 0 0 0 2px var(--sev-medium-fg); }
+.linear-pill[data-hotspot-band='high'] { box-shadow: inset 0 0 0 2px var(--sev-high-fg); }
 .full {
   position: absolute;
   inset-block-end: calc(100% + 6px);

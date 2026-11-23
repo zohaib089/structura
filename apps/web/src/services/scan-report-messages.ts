@@ -110,6 +110,11 @@ export interface ScanReportMessages {
   topFindingsTitle: string
   topFindingsHint: string
   seeAllFindings: (total: number) => string
+  riskiestFilesTitle: string
+  riskiestFilesHint: string
+  riskiestFilesOpen: string
+  hotspotBandLabel: (band: 'low' | 'medium' | 'high') => string
+  riskiestFilesScore: (score: number, band: string) => string
   summaryAllClearTitle: string
   summaryAllClearBody: string
   nextStepsTitle: string
@@ -318,6 +323,15 @@ const en: ScanReportMessages = {
   },
   topFindingsTitle: 'Top findings',
   topFindingsHint: 'The most serious problems first.',
+  riskiestFilesTitle: 'Riskiest files',
+  riskiestFilesHint: 'These files are the most likely to cause trouble if you change them. Open one to see it on the graph.',
+  riskiestFilesOpen: 'Show in graph',
+  hotspotBandLabel(band) {
+    return ({ low: 'Low', medium: 'Medium', high: 'High' } as const)[band]
+  },
+  riskiestFilesScore(score, band) {
+    return `${score} · ${band}`
+  },
   seeAllFindings(total) {
     return total === 1 ? 'See the finding' : `See all ${total.toLocaleString('en')} findings`
   },

@@ -37,6 +37,7 @@ export interface GraphPayload {
   nodes: unknown[]
   edges: unknown[]
   architecture?: unknown
+  hotspots?: unknown
 }
 
 export type ViewerState =

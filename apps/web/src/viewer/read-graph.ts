@@ -20,6 +20,7 @@ import type {
   GraphArchitecture,
   GraphDocument,
   GraphEdge,
+  GraphHotspot,
   GraphNode,
   ImportKind,
   ReadResult,
@@ -180,7 +181,18 @@ function readDocument(value: unknown, schemaVersion: string, paths: string[]): G
     : undefined
   if (Object.hasOwn(value, 'architecture') && !architecture) return null
 
-  return { schemaVersion, summary, coverage, nodes, edges, ...(architecture ? { architecture } : {}) }
+  const hotspots = Object.hasOwn(value, 'hotspots') ? readHotspots(value.hotspots, paths) : undefined
+  if (Object.hasOwn(value, 'hotspots') && !hotspots) return null
+
+  return {
+    schemaVersion,
+    summary,
+    coverage,
+    nodes,
+    edges,
+    ...(architecture ? { architecture } : {}),
+    ...(hotspots && hotspots.length > 0 ? { hotspots } : {})
+  }
 }
 
 function readSummary(value: unknown, paths: string[]): GraphDocument['summary'] | null {
@@ -299,7 +311,56 @@ function readFile(value: Record<string, unknown>, id: string, base: string, path
     }
     node.module = moduleName
   }
+  if (Object.hasOwn(value, 'hotspot')) {
+    const hotspot = readFileHotspot(value.hotspot, `${base}/hotspot`, paths)
+    if (!hotspot) return null
+    node.hotspot = hotspot
+  }
   return node
+}
+
+function readFileHotspot(value: unknown, base: string, paths: string[]): FileNode['hotspot'] | null {
+  if (!isRecord(value)) {
+    push(paths, base)
+    return null
+  }
+  const score = readHotspotScore(value.score, `${base}/score`, paths)
+  if (score === null) return null
+  return { score }
+}
+
+function readHotspots(value: unknown, paths: string[]): GraphHotspot[] | null {
+  if (!Array.isArray(value)) {
+    push(paths, '/hotspots')
+    return null
+  }
+  const rows: GraphHotspot[] = []
+  let failed = false
+  value.forEach((entry, index) => {
+    const base = `/hotspots/${index}`
+    if (!isRecord(entry)) {
+      push(paths, base)
+      failed = true
+      return
+    }
+    const path = readBoundedString(entry.path, `${base}/path`, paths)
+    const why = readBoundedString(entry.why, `${base}/why`, paths)
+    const score = readHotspotScore(entry.score, `${base}/score`, paths)
+    if (!path || !why || score === null) {
+      failed = true
+      return
+    }
+    rows.push({ path, score, why })
+  })
+  return failed ? null : rows
+}
+
+function readHotspotScore(value: unknown, path: string, paths: string[]): number | null {
+  if (typeof value !== 'number' || !Number.isInteger(value) || Object.is(value, -0) || value < 0 || value > 100) {
+    push(paths, path)
+    return null
+  }
+  return value
 }
 
 function readEntryCandidate(value: unknown, base: string, paths: string[]): EntryCandidate | null {

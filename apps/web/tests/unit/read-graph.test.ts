@@ -257,6 +257,40 @@ describe('readGraph', () => {
     expect(bad.ok).toBe(false)
   })
 
+  it('reads a 1.2.0 graph with per-file hotspot scores and the top-N list', () => {
+    const result = readGraph(readFileSync(resolve('../../packages/engine/schema-fixtures/v1.2.0.graph.json'), 'utf8'))
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.graph.schemaVersion).toBe('1.2.0')
+    expect(result.graph.hotspots?.length).toBeGreaterThan(0)
+    expect(result.graph.hotspots?.[0]).toEqual(expect.objectContaining({
+      path: expect.any(String),
+      score: expect.any(Number),
+      why: expect.any(String)
+    }))
+    const scored = result.graph.nodes.find((node) => node.kind === 'file' && 'hotspot' in node && node.hotspot)
+    expect(scored).toMatchObject({ kind: 'file', hotspot: { score: expect.any(Number) } })
+  })
+
+  it('reads a 1.1.0 graph and leaves hotspot fields off', () => {
+    const result = readGraph(readFileSync(resolve('../../packages/engine/schema-fixtures/v1.1.0.graph.json'), 'utf8'))
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.graph).not.toHaveProperty('hotspots')
+    expect(result.graph.nodes.filter((node) => node.kind === 'file').every((node) => !('hotspot' in node))).toBe(true)
+  })
+
+  it('refuses a hotspot score outside 0–100', () => {
+    const raw = JSON.parse(document(
+      [root, { ...file, hotspot: { score: 101 } }],
+      [{ source: 'dir:.', type: 'contains', target: 'file:src/app.ts', provenance: 'EXTRACTED' }],
+      { schemaVersion: '1.2.0' }
+    )) as { schemaVersion: string }
+    raw.schemaVersion = '1.2.0'
+    const result = readGraph(JSON.stringify(raw))
+    expect(result.ok).toBe(false)
+  })
+
   it('report FindingsTable tooltip explains INFERRED provenance', () => {
     const messages = scanReportMessages('en')
     expect(messages.provenanceTooltip('INFERRED')).toBe('Inferred: our best guess from patterns, not read directly')
