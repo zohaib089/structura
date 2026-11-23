@@ -20,6 +20,8 @@ import { TS_JS_ADAPTER_ID, TS_JS_ADAPTER_VERSION, createTypeScriptJavaScriptAdap
 import { TsJsResolver } from '../adapters/ts-js/resolver.js'
 import { PYTHON_ADAPTER_ID, PYTHON_ADAPTER_VERSION, createPythonAdapter } from '../adapters/python/adapter.js'
 import { PythonResolver } from '../adapters/python/resolver.js'
+import { GO_ADAPTER_ID, GO_ADAPTER_VERSION, createGoAdapter } from '../adapters/go/adapter.js'
+import { GoResolver, parseGoModulePath } from '../adapters/go/resolver.js'
 import { GraphBuilder } from '../graph/builder.js'
 import { GraphVersionUnsupported } from '../graph/errors.js'
 import { serializeGraph } from '../graph/canonical.js'
@@ -685,8 +687,10 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
   const pool = new ParsePool(limits.jobs, { workerMaxFiles: limits.workerMaxFiles, workerMaxMemoryBytes: limits.workerMaxMemoryBytes })
   const tsAdapter = createTypeScriptJavaScriptAdapter({ pool })
   const pyAdapter = createPythonAdapter({ pool })
+  const goAdapter = createGoAdapter()
   const adapterFor = (language: string | null): { adapter: LanguageAdapter; id: string; version: string } => {
     if (language === 'python') return { adapter: pyAdapter, id: PYTHON_ADAPTER_ID, version: PYTHON_ADAPTER_VERSION }
+    if (language === 'go') return { adapter: goAdapter, id: GO_ADAPTER_ID, version: GO_ADAPTER_VERSION }
     return { adapter: tsAdapter, id: TS_JS_ADAPTER_ID, version: TS_JS_ADAPTER_VERSION }
   }
   const cache = new ContentCache(cacheDirectory ?? defaultCacheDir(rootAbs), cacheDirectory !== undefined)
@@ -715,6 +719,7 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
     if (analyseLanguages.size > 0) {
       if ([...analyseLanguages].some(lang => lang === 'typescript' || lang === 'javascript' || lang === 'vue')) await tsAdapter.load()
       if (analyseLanguages.has('python')) await pyAdapter.load()
+      if (analyseLanguages.has('go')) await goAdapter.load()
     }
     for (const file of walk.files) {
       if (options.signal?.aborted) throw new InterruptedError()
@@ -816,6 +821,19 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
     files: new Set(filesByPath.keys()),
     ignoredPaths: walk.ignoredPaths
   })
+  const goModules = new Map<string, string>()
+  for (const file of walk.files) {
+    if (baseName(file.path) !== 'go.mod') continue
+    const read = await readWalkedFile(file, limits.maxFileSizeBytes)
+    if (!read.ok || read.binary) continue
+    const modulePath = parseGoModulePath(decodeSource(read.content).text)
+    if (modulePath) goModules.set(parentPath(file.path) ?? ROOT_PATH, modulePath)
+  }
+  const goResolver = GoResolver.create({
+    files: new Set(filesByPath.keys()),
+    ignoredPaths: walk.ignoredPaths,
+    modules: goModules
+  })
 
   const resolveReference = (reference: ExtractedReference, file: WalkFile, literal: string | null): ResolveOutcome => {
     if (literal === null) return { kind: 'unresolved', reason: 'non-literal-specifier' }
@@ -843,7 +861,10 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
     if (!facts) continue
     for (const reference of facts.references) {
       const literal = reference.specifier
-      const outcome: ResolveOutcome = resolveReference(reference, file, literal)
+      const outcomes: ResolveOutcome[] = file.language === 'go'
+        ? goResolver.resolveAll(literal, file.path)
+        : [resolveReference(reference, file, literal)]
+      for (const outcome of outcomes) {
       const edgeSpecifier = literal === null ? NON_LITERAL_SPECIFIER : literal
       const target = rememberTarget(builder, outcome, file.path, edgeSpecifier)
       // A non-literal import() is still an import site: EXTRACTED, importKind from the adapter, no confidence.
@@ -903,6 +924,7 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
         }
       }
       if (added && outcome.kind === 'unresolved') bump(outcome.reason)
+      }
     }
   }
   for (const issue of resolver.configIssues) bump(issue.reason)

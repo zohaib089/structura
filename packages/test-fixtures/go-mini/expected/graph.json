@@ -1,0 +1,505 @@
+{
+  "schemaVersion": "1.5.0",
+  "summary": {
+    "nodes": 12,
+    "edges": 15,
+    "files": 5
+  },
+  "coverage": {
+    "files": {
+      "discovered": 5,
+      "parsed": 4,
+      "partial": 0,
+      "failed": 0,
+      "skipped": 1,
+      "ignored": 0
+    },
+    "byLanguage": [
+      {
+        "language": null,
+        "parsed": 0,
+        "partial": 0,
+        "failed": 0,
+        "skipped": 1
+      },
+      {
+        "language": "go",
+        "parsed": 4,
+        "partial": 0,
+        "failed": 0,
+        "skipped": 0
+      }
+    ],
+    "skipped": [
+      {
+        "reason": "unsupported-language",
+        "count": 1
+      }
+    ],
+    "failed": [],
+    "ignored": [],
+    "unresolved": [],
+    "accounting": {
+      "discovered": 5,
+      "accounted": 5
+    }
+  },
+  "nodes": [
+    {
+      "id": "dir:.",
+      "kind": "directory",
+      "path": ".",
+      "label": "."
+    },
+    {
+      "id": "dir:pkg",
+      "kind": "directory",
+      "path": "pkg",
+      "label": "pkg"
+    },
+    {
+      "id": "dir:pkg/hook",
+      "kind": "directory",
+      "path": "pkg/hook",
+      "label": "hook"
+    },
+    {
+      "id": "dir:pkg/util",
+      "kind": "directory",
+      "path": "pkg/util",
+      "label": "util"
+    },
+    {
+      "id": "ext:go:encoding/json",
+      "kind": "external",
+      "ecosystem": "go",
+      "label": "encoding/json"
+    },
+    {
+      "id": "ext:go:fmt",
+      "kind": "external",
+      "ecosystem": "go",
+      "label": "fmt"
+    },
+    {
+      "id": "ext:go:github.com/other/mod/pkg",
+      "kind": "external",
+      "ecosystem": "go",
+      "label": "github.com/other/mod/pkg"
+    },
+    {
+      "id": "file:go.mod",
+      "kind": "file",
+      "path": "go.mod",
+      "label": "go.mod",
+      "language": null,
+      "lineCount": null,
+      "parse": {
+        "status": "skipped",
+        "reason": "unsupported-language"
+      }
+    },
+    {
+      "id": "file:main.go",
+      "kind": "file",
+      "path": "main.go",
+      "label": "main.go",
+      "language": "go",
+      "lineCount": 13,
+      "parse": {
+        "status": "parsed"
+      },
+      "hotspot": {
+        "score": 50
+      }
+    },
+    {
+      "id": "file:pkg/hook/hook.go",
+      "kind": "file",
+      "path": "pkg/hook/hook.go",
+      "label": "hook.go",
+      "language": "go",
+      "lineCount": 8,
+      "parse": {
+        "status": "parsed"
+      },
+      "hotspot": {
+        "score": 46
+      }
+    },
+    {
+      "id": "file:pkg/util/a.go",
+      "kind": "file",
+      "path": "pkg/util/a.go",
+      "label": "a.go",
+      "language": "go",
+      "lineCount": 12,
+      "parse": {
+        "status": "parsed"
+      },
+      "hotspot": {
+        "score": 49
+      }
+    },
+    {
+      "id": "file:pkg/util/b.go",
+      "kind": "file",
+      "path": "pkg/util/b.go",
+      "label": "b.go",
+      "language": "go",
+      "lineCount": 4,
+      "parse": {
+        "status": "parsed"
+      },
+      "hotspot": {
+        "score": 43
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source": "dir:.",
+      "type": "contains",
+      "target": "dir:pkg",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:.",
+      "type": "contains",
+      "target": "file:go.mod",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:.",
+      "type": "contains",
+      "target": "file:main.go",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:pkg",
+      "type": "contains",
+      "target": "dir:pkg/hook",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:pkg",
+      "type": "contains",
+      "target": "dir:pkg/util",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:pkg/hook",
+      "type": "contains",
+      "target": "file:pkg/hook/hook.go",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:pkg/util",
+      "type": "contains",
+      "target": "file:pkg/util/a.go",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:pkg/util",
+      "type": "contains",
+      "target": "file:pkg/util/b.go",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "file:main.go",
+      "type": "imports",
+      "target": "ext:go:fmt",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 4,
+          "col": 2
+        },
+        "end": {
+          "line": 4,
+          "col": 7
+        }
+      },
+      "specifier": "fmt"
+    },
+    {
+      "source": "file:main.go",
+      "type": "imports",
+      "target": "ext:go:github.com/other/mod/pkg",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 7,
+          "col": 2
+        },
+        "end": {
+          "line": 7,
+          "col": 28
+        }
+      },
+      "specifier": "github.com/other/mod/pkg"
+    },
+    {
+      "source": "file:main.go",
+      "type": "imports",
+      "target": "file:pkg/hook/hook.go",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 6,
+          "col": 2
+        },
+        "end": {
+          "line": 6,
+          "col": 31
+        }
+      },
+      "specifier": "example.com/mini/pkg/hook"
+    },
+    {
+      "source": "file:main.go",
+      "type": "imports",
+      "target": "file:pkg/util/a.go",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 5,
+          "col": 2
+        },
+        "end": {
+          "line": 5,
+          "col": 37
+        }
+      },
+      "specifier": "example.com/mini/pkg/util"
+    },
+    {
+      "source": "file:main.go",
+      "type": "imports",
+      "target": "file:pkg/util/b.go",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 5,
+          "col": 2
+        },
+        "end": {
+          "line": 5,
+          "col": 37
+        }
+      },
+      "specifier": "example.com/mini/pkg/util"
+    },
+    {
+      "source": "file:pkg/hook/hook.go",
+      "type": "imports",
+      "target": "ext:go:fmt",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 3,
+          "col": 8
+        },
+        "end": {
+          "line": 3,
+          "col": 13
+        }
+      },
+      "specifier": "fmt"
+    },
+    {
+      "source": "file:pkg/util/a.go",
+      "type": "imports",
+      "target": "ext:go:encoding/json",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 3,
+          "col": 8
+        },
+        "end": {
+          "line": 3,
+          "col": 23
+        }
+      },
+      "specifier": "encoding/json"
+    }
+  ],
+  "hotspots": [
+    {
+      "path": "main.go",
+      "score": 50,
+      "why": "imports 3 files, impacts 3 files, and has 13 lines"
+    },
+    {
+      "path": "pkg/util/a.go",
+      "score": 49,
+      "why": "Used by 1 file, impacts 1 file, and has 12 lines"
+    },
+    {
+      "path": "pkg/hook/hook.go",
+      "score": 46,
+      "why": "Used by 1 file, impacts 1 file, and has 8 lines"
+    },
+    {
+      "path": "pkg/util/b.go",
+      "score": 43,
+      "why": "Used by 1 file, impacts 1 file, and has 4 lines"
+    }
+  ],
+  "quality": {
+    "project": {
+      "score": 94,
+      "grade": "A",
+      "breakdown": [
+        {
+          "category": "architecture",
+          "label": "No architecture rule breaks",
+          "penalty": 0
+        },
+        {
+          "category": "cycles",
+          "label": "No import cycles",
+          "penalty": 0
+        },
+        {
+          "category": "hotspots",
+          "label": "No highly connected hotspots",
+          "penalty": 0
+        },
+        {
+          "category": "imports",
+          "label": "57% of imports come from third-party packages",
+          "penalty": 6
+        },
+        {
+          "category": "size",
+          "label": "No unusually large files or functions",
+          "penalty": 0
+        }
+      ],
+      "tips": [
+        {
+          "text": "Clean up unresolved and heavy third-party imports to gain about 6 points",
+          "gain": 6
+        }
+      ]
+    },
+    "folders": [
+      {
+        "path": "pkg",
+        "score": 90,
+        "grade": "A",
+        "breakdown": [
+          {
+            "category": "architecture",
+            "label": "No architecture rule breaks",
+            "penalty": 0
+          },
+          {
+            "category": "cycles",
+            "label": "No import cycles",
+            "penalty": 0
+          },
+          {
+            "category": "hotspots",
+            "label": "No highly connected hotspots",
+            "penalty": 0
+          },
+          {
+            "category": "imports",
+            "label": "100% of imports come from third-party packages",
+            "penalty": 10
+          },
+          {
+            "category": "size",
+            "label": "No unusually large files or functions",
+            "penalty": 0
+          }
+        ],
+        "tips": [
+          {
+            "text": "Clean up unresolved and heavy third-party imports to gain about 10 points",
+            "gain": 10
+          }
+        ]
+      },
+      {
+        "path": "pkg/hook",
+        "score": 90,
+        "grade": "A",
+        "breakdown": [
+          {
+            "category": "architecture",
+            "label": "No architecture rule breaks",
+            "penalty": 0
+          },
+          {
+            "category": "cycles",
+            "label": "No import cycles",
+            "penalty": 0
+          },
+          {
+            "category": "hotspots",
+            "label": "No highly connected hotspots",
+            "penalty": 0
+          },
+          {
+            "category": "imports",
+            "label": "100% of imports come from third-party packages",
+            "penalty": 10
+          },
+          {
+            "category": "size",
+            "label": "No unusually large files or functions",
+            "penalty": 0
+          }
+        ],
+        "tips": [
+          {
+            "text": "Clean up unresolved and heavy third-party imports to gain about 10 points",
+            "gain": 10
+          }
+        ]
+      },
+      {
+        "path": "pkg/util",
+        "score": 90,
+        "grade": "A",
+        "breakdown": [
+          {
+            "category": "architecture",
+            "label": "No architecture rule breaks",
+            "penalty": 0
+          },
+          {
+            "category": "cycles",
+            "label": "No import cycles",
+            "penalty": 0
+          },
+          {
+            "category": "hotspots",
+            "label": "No highly connected hotspots",
+            "penalty": 0
+          },
+          {
+            "category": "imports",
+            "label": "100% of imports come from third-party packages",
+            "penalty": 10
+          },
+          {
+            "category": "size",
+            "label": "No unusually large files or functions",
+            "penalty": 0
+          }
+        ],
+        "tips": [
+          {
+            "text": "Clean up unresolved and heavy third-party imports to gain about 10 points",
+            "gain": 10
+          }
+        ]
+      }
+    ]
+  }
+}
