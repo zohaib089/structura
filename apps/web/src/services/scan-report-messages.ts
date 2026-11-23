@@ -130,6 +130,20 @@ export interface ScanReportMessages {
   qualityFoldersShowing: (shown: number, total: number) => string
   qualityFoldersOpen: string
   qualityFolderSummaryNone: string
+  duplicatesTitle: string
+  duplicatesHint: string
+  duplicatesGroupsValueLabel: (count: number) => string
+  duplicatesLinesValueLabel: (count: number) => string
+  duplicatesPercentValue: (percent: number) => string
+  duplicatesGroupsCaption: (count: number) => string
+  duplicatesLinesCaption: (count: number) => string
+  duplicatesPercentCaption: string
+  duplicatesSummaryLabel: (groups: number, lines: number, percent: number) => string
+  duplicatesGroupLines: (count: number) => string
+  duplicatesGroupPlaces: (count: number) => string
+  duplicatesLineRange: (startLine: number, endLine: number) => string
+  duplicatesOpen: string
+  duplicatesShowing: (shown: number, total: number) => string
   summaryAllClearTitle: string
   summaryAllClearBody: string
   nextStepsTitle: string
@@ -384,6 +398,43 @@ const en: ScanReportMessages = {
   },
   qualityFoldersOpen: 'Show in graph',
   qualityFolderSummaryNone: 'No issues in this folder.',
+  duplicatesTitle: 'Duplicated code',
+  duplicatesHint: 'These are places where the same block of code appears more than once. Open a file to see it on the graph.',
+  duplicatesGroupsValueLabel(count) {
+    return count === 1 ? '1 repeated block' : `${count.toLocaleString('en')} repeated blocks`
+  },
+  duplicatesLinesValueLabel(count) {
+    return count === 1 ? '1 repeated line' : `${count.toLocaleString('en')} repeated lines`
+  },
+  duplicatesPercentValue(percent) {
+    return `${percent}%`
+  },
+  duplicatesGroupsCaption(count) {
+    return count === 1 ? 'repeated block' : 'repeated blocks'
+  },
+  duplicatesLinesCaption(count) {
+    return count === 1 ? 'repeated line' : 'repeated lines'
+  },
+  duplicatesPercentCaption: 'of the scanned code is repeated',
+  duplicatesSummaryLabel(groups, lines, percent) {
+    const blocks = groups === 1 ? '1 repeated block' : `${groups.toLocaleString('en')} repeated blocks`
+    const repeated = lines === 1 ? '1 repeated line' : `${lines.toLocaleString('en')} repeated lines`
+    return `${blocks}. ${repeated}. ${percent}% of the scanned code is repeated`
+  },
+  duplicatesGroupLines(count) {
+    return count === 1 ? '1 line' : `${count.toLocaleString('en')} lines`
+  },
+  duplicatesGroupPlaces(count) {
+    return count === 1 ? '1 place' : `${count.toLocaleString('en')} places`
+  },
+  duplicatesLineRange(startLine, endLine) {
+    if (startLine === endLine) return `line ${startLine}`
+    return `lines ${startLine}–${endLine}`
+  },
+  duplicatesOpen: 'Show in graph',
+  duplicatesShowing(shown, total) {
+    return `Showing the ${shown} largest repeated blocks, of ${total}. Open a file to see it on the graph.`
+  },
   seeAllFindings(total) {
     return total === 1 ? 'See the finding' : `See all ${total.toLocaleString('en')} findings`
   },

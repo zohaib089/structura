@@ -97,6 +97,35 @@ export interface GraphQuality {
   folders?: FolderQualityScore[]
 }
 
+/** graph.json 1.4 one place a repeated block appears (inclusive 1-based lines). */
+export interface DuplicateOccurrence {
+  path: string
+  startLine: number
+  endLine: number
+}
+
+/** graph.json 1.4 one repeated block and every place it appears. */
+export interface DuplicateGroup {
+  id: string
+  lineCount: number
+  occurrences: DuplicateOccurrence[]
+  /** Plain-English description of what is repeated and where. */
+  description: string
+}
+
+export interface DuplicatesSummary {
+  groups: number
+  duplicatedLines: number
+  /** 0–100, share of scanned lines that are repeated. */
+  percentage: number
+}
+
+/** graph.json 1.4 duplicate code groups. Omitted on older graphs or when none are found. */
+export interface GraphDuplicates {
+  summary: DuplicatesSummary
+  groups: DuplicateGroup[]
+}
+
 /** graph.json 1.1 state scope. `local` is reserved by the engine for a later minor and is not emitted in 1.1. */
 export type StateScope = 'module' | 'class' | 'instance' | 'global' | 'local'
 
@@ -281,6 +310,8 @@ export interface GraphDocument {
   hotspots?: GraphHotspot[]
   /** graph.json 1.3: project and per-folder quality scores. Omitted on older graphs. */
   quality?: GraphQuality
+  /** graph.json 1.4: duplicate code groups. Omitted on older graphs or when none are found. */
+  duplicates?: GraphDuplicates
 }
 
 export type GraphError =

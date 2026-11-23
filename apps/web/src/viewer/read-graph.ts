@@ -24,6 +24,10 @@ import type {
   GraphNode,
   FolderQualityScore,
   GraphQuality,
+  DuplicateGroup,
+  DuplicateOccurrence,
+  DuplicatesSummary,
+  GraphDuplicates,
   ImportKind,
   QualityBreakdownItem,
   QualityCategory,
@@ -195,6 +199,9 @@ function readDocument(value: unknown, schemaVersion: string, paths: string[]): G
   const quality = Object.hasOwn(value, 'quality') ? readQuality(value.quality, paths) : undefined
   if (Object.hasOwn(value, 'quality') && !quality) return null
 
+  const duplicates = Object.hasOwn(value, 'duplicates') ? readDuplicates(value.duplicates, paths) : undefined
+  if (Object.hasOwn(value, 'duplicates') && !duplicates) return null
+
   return {
     schemaVersion,
     summary,
@@ -203,7 +210,8 @@ function readDocument(value: unknown, schemaVersion: string, paths: string[]): G
     edges,
     ...(architecture ? { architecture } : {}),
     ...(hotspots && hotspots.length > 0 ? { hotspots } : {}),
-    ...(quality ? { quality } : {})
+    ...(quality ? { quality } : {}),
+    ...(duplicates && duplicates.groups.length > 0 ? { duplicates } : {})
   }
 }
 
@@ -508,6 +516,95 @@ function readQualityTips(value: unknown, base: string, paths: string[]): Quality
     tips.push({ text, gain })
   })
   return failed ? null : tips
+}
+
+function readDuplicates(value: unknown, paths: string[]): GraphDuplicates | null {
+  if (!isRecord(value)) {
+    push(paths, '/duplicates')
+    return null
+  }
+  const summary = readDuplicatesSummary(value.summary, paths)
+  if (!summary) return null
+  if (!Array.isArray(value.groups)) {
+    push(paths, '/duplicates/groups')
+    return null
+  }
+  const groups: DuplicateGroup[] = []
+  let failed = false
+  value.groups.forEach((entry, index) => {
+    const group = readDuplicateGroup(entry, `/duplicates/groups/${index}`, paths)
+    if (!group) {
+      failed = true
+      return
+    }
+    groups.push(group)
+  })
+  if (failed) return null
+  return { summary, groups }
+}
+
+function readDuplicatesSummary(value: unknown, paths: string[]): DuplicatesSummary | null {
+  if (!isRecord(value)) {
+    push(paths, '/duplicates/summary')
+    return null
+  }
+  const groups = readCount(value.groups, '/duplicates/summary/groups', paths)
+  const duplicatedLines = readCount(value.duplicatedLines, '/duplicates/summary/duplicatedLines', paths)
+  const percentage = readHotspotScore(value.percentage, '/duplicates/summary/percentage', paths)
+  if (groups === null || duplicatedLines === null || percentage === null) return null
+  return { groups, duplicatedLines, percentage }
+}
+
+function readDuplicateGroup(value: unknown, base: string, paths: string[]): DuplicateGroup | null {
+  if (!isRecord(value)) {
+    push(paths, base)
+    return null
+  }
+  const id = readBoundedString(value.id, `${base}/id`, paths)
+  const description = readBoundedString(value.description, `${base}/description`, paths)
+  const lineCount = readPositiveCount(value.lineCount, `${base}/lineCount`, paths)
+  const occurrences = readDuplicateOccurrences(value.occurrences, `${base}/occurrences`, paths)
+  if (!id || !description || lineCount === null || !occurrences) return null
+  return { id, lineCount, occurrences, description }
+}
+
+function readDuplicateOccurrences(value: unknown, base: string, paths: string[]): DuplicateOccurrence[] | null {
+  if (!Array.isArray(value) || value.length < 2) {
+    push(paths, base)
+    return null
+  }
+  const rows: DuplicateOccurrence[] = []
+  let failed = false
+  value.forEach((entry, index) => {
+    const itemBase = `${base}/${index}`
+    if (!isRecord(entry)) {
+      push(paths, itemBase)
+      failed = true
+      return
+    }
+    const path = readBoundedString(entry.path, `${itemBase}/path`, paths)
+    const startLine = readPositiveCount(entry.startLine, `${itemBase}/startLine`, paths)
+    const endLine = readPositiveCount(entry.endLine, `${itemBase}/endLine`, paths)
+    if (!path || startLine === null || endLine === null) {
+      failed = true
+      return
+    }
+    if (startLine > endLine) {
+      push(paths, `${itemBase}/endLine`)
+      failed = true
+      return
+    }
+    rows.push({ path, startLine, endLine })
+  })
+  return failed ? null : rows
+}
+
+function readPositiveCount(value: unknown, path: string, paths: string[]): number | null {
+  if (!isPosInt(value)) {
+    push(paths, path)
+    return null
+  }
+  return value
 }
 
 function readEntryCandidate(value: unknown, base: string, paths: string[]): EntryCandidate | null {
