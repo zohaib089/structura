@@ -185,6 +185,8 @@ function showAllFindings() {
         :messages="messages"
         :findings-href="findingsHref"
         :graph-href="graphHref"
+        :workspace-id="workspaceId"
+        :scan-id="scanId"
         :graph-loading="graphLoading"
         :hotspots="graph?.hotspots ?? []"
         :quality="graph?.quality"

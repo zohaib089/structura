@@ -11,6 +11,7 @@ const props = withDefaults(
     placeholder?: string
     disabled?: boolean
     required?: boolean
+    maxlength?: number
     id?: string
   }>(),
   {
@@ -49,6 +50,7 @@ function onBlur(event: FocusEvent) {
       :placeholder="placeholder"
       :disabled="disabled"
       :required="required"
+      :maxlength="maxlength"
       :aria-invalid="error ? 'true' : undefined"
       :aria-describedby="describedBy"
       autocomplete="off"

@@ -16,6 +16,7 @@ import type { GraphDuplicates, GraphHotspot, GraphQuality } from '../../../viewe
 import SeverityChip from '../../ui/SeverityChip.vue'
 import SkeletonBlock from '../../ui/skeleton/SkeletonBlock.vue'
 import ReportAnalysers from './ReportAnalysers.vue'
+import ReportAsk from './ReportAsk.vue'
 import ReportDuplicates from './ReportDuplicates.vue'
 import ReportHotspots from './ReportHotspots.vue'
 import ReportQuality from './ReportQuality.vue'
@@ -26,6 +27,9 @@ const props = defineProps<{
   /** Link to the findings list, optionally narrowed to one severity. */
   findingsHref: (severity?: ReportSeverity) => RouteLocationRaw
   graphHref: (path?: string) => RouteLocationRaw
+  /** Hosted scan ids; the ask card hides when either is missing. */
+  workspaceId?: string | null
+  scanId?: string | null
   /** The graph feeds coverage and unresolved imports; those parts wait for it. */
   graphLoading?: boolean
   hotspots?: GraphHotspot[]
@@ -91,6 +95,24 @@ const nextSteps = computed(() => {
         <p class="hint">{{ messages.severityHint }}</p>
       </div>
     </section>
+
+    <ReportAsk
+      :workspace-id="workspaceId"
+      :scan-id="scanId"
+      :graph-href="graphHref"
+      :title="messages.askTitle"
+      :hint="messages.askHint"
+      :input-label="messages.askInputLabel"
+      :placeholder="messages.askPlaceholder"
+      :button-label="messages.askButton"
+      :thinking-label="messages.askThinking"
+      :starters="messages.askStarters"
+      :citations-title="messages.askCitationsTitle"
+      :follow-ups-title="messages.askFollowUpsTitle"
+      :open-label="messages.askOpen"
+      :char-count="messages.askCharCount"
+      :too-long="messages.askTooLong"
+    />
 
     <ReportQuality
       :quality="quality"

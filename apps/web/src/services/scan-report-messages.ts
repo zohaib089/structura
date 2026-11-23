@@ -144,6 +144,18 @@ export interface ScanReportMessages {
   duplicatesLineRange: (startLine: number, endLine: number) => string
   duplicatesOpen: string
   duplicatesShowing: (shown: number, total: number) => string
+  askTitle: string
+  askHint: string
+  askInputLabel: string
+  askPlaceholder: string
+  askButton: string
+  askThinking: string
+  askStarters: readonly string[]
+  askCitationsTitle: string
+  askFollowUpsTitle: string
+  askOpen: string
+  askCharCount: (used: number, max: number) => string
+  askTooLong: string
   summaryAllClearTitle: string
   summaryAllClearBody: string
   nextStepsTitle: string
@@ -435,6 +447,25 @@ const en: ScanReportMessages = {
   duplicatesShowing(shown, total) {
     return `Showing the ${shown} largest repeated blocks, of ${total}. Open a file to see it on the graph.`
   },
+  askTitle: 'Ask about this project',
+  askHint: 'Ask a short question about this scan. Answers come from the scan results, not from a chatbot.',
+  askInputLabel: 'Your question',
+  askPlaceholder: 'For example, what are the riskiest files?',
+  askButton: 'Ask',
+  askThinking: 'Thinking…',
+  askStarters: [
+    'What are the riskiest files?',
+    'How healthy is this project?',
+    'Where is code duplicated?',
+    'Any circular imports?'
+  ],
+  askCitationsTitle: 'Places mentioned',
+  askFollowUpsTitle: 'Ask next',
+  askOpen: 'Show in graph',
+  askCharCount(used, max) {
+    return `${used} of ${max} characters`
+  },
+  askTooLong: 'Please keep your question to 500 characters or fewer.',
   seeAllFindings(total) {
     return total === 1 ? 'See the finding' : `See all ${total.toLocaleString('en')} findings`
   },
