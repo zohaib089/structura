@@ -232,6 +232,8 @@ const folders = computed(() =>
 }
 .category__points {
   flex-shrink: 0;
+  margin-inline-start: auto;
+  white-space: nowrap;
   font-size: var(--text-12);
   line-height: var(--text-12-lh);
   font-variant-numeric: tabular-nums;

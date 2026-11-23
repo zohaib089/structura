@@ -9,6 +9,8 @@ import {
   hasHostedAskContext,
   type GraphQaAnswer
 } from '../../../api/scan-ask'
+import type { WebLocale } from '../../../services/locale'
+import { scanReportMessages } from '../../../services/scan-report-messages'
 import Button from '../../ui/Button.vue'
 import Input from '../../ui/Input.vue'
 
@@ -28,6 +30,7 @@ const props = defineProps<{
   openLabel: string
   charCount: (used: number, max: number) => string
   tooLong: string
+  locale?: WebLocale
 }>()
 
 const visible = computed(() => hasHostedAskContext(props.workspaceId, props.scanId))
@@ -45,7 +48,7 @@ const canSubmit = computed(() => question.value.trim().length > 0 && !loading.va
 
 const citations = computed(() =>
   (answer.value?.citations ?? []).map((citation, index) => {
-    const shown = citationDisplay(citation)
+    const shown = citationDisplay(citation, props.locale ?? 'en')
     return {
       key: `${citation.kind}:${citation.path}:${citation.startLine ?? ''}:${citation.endLine ?? ''}:${index}`,
       path: citation.path,
@@ -53,7 +56,7 @@ const citations = computed(() =>
       title: shown.title,
       detail: shown.detail,
       range: shown.range,
-      ariaLabel: citationAriaLabel(citation, props.openLabel)
+      ariaLabel: citationAriaLabel(citation, props.openLabel, props.locale ?? 'en')
     }
   })
 )
@@ -83,7 +86,7 @@ async function submit(text?: string) {
   liveStatus.value = props.thinkingLabel
 
   try {
-    const result = await askScanQuestion(workspaceId, scanId, next)
+    const result = await askScanQuestion(workspaceId, scanId, next, props.locale ?? 'en')
     if (id !== requestId) return
     answer.value = result
     liveStatus.value = result.answer
@@ -91,7 +94,7 @@ async function submit(text?: string) {
     if (id !== requestId) return
     const message = cause instanceof Error && cause.message
       ? cause.message
-      : 'We could not answer that just now. Please try again.'
+      : scanReportMessages(props.locale ?? 'en').askGenericError
     error.value = message
     liveStatus.value = message
   } finally {

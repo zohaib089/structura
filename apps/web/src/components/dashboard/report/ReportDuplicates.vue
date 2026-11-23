@@ -172,6 +172,13 @@ const hintText = computed(() => {
   color: var(--color-text-secondary);
   overflow-wrap: anywhere;
 }
+@media (max-width: 520px) {
+  .metrics {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+    max-inline-size: none;
+  }
+}
 .groups {
   display: grid;
   margin: var(--space-3) 0 0;
