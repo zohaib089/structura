@@ -43,5 +43,11 @@ export {
   createGoAdapter
 } from './go/adapter.js'
 export { GoResolver, parseGoModulePath, type GoResolverContext } from './go/resolver.js'
+export {
+  JAVA_ADAPTER_ID,
+  JAVA_ADAPTER_VERSION,
+  createJavaAdapter
+} from './java/adapter.js'
+export { JavaResolver, type JavaResolverContext } from './java/resolver.js'
 export { parseJsonc } from './ts-js/jsonc.js'
 export { sanitizeDocSummary } from './doc-summary.js'

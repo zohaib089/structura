@@ -129,7 +129,7 @@ test('a greater major is refused and a newer minor is accepted with unknown data
   assert.throws(() => readGraph(future), (error: unknown) => error instanceof GraphVersionUnsupported && error.foundVersion === '2.0.0')
 
   const parsed = JSON.parse(serializeGraph(canary())) as Graph & { summary: { extra?: boolean } }
-  parsed.schemaVersion = '1.6.0'
+  parsed.schemaVersion = '1.7.0'
   parsed.summary.extra = true
   parsed.nodes.push({ id: 'custom:1', kind: 'widget' } as unknown as Graph['nodes'][number])
   parsed.summary.nodes += 1
