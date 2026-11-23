@@ -867,7 +867,7 @@ export function registerWorkspaceRoutes(app: FastifyInstance, database: Workspac
         workspaceId: request.params.workspaceId,
         action,
         projectId: projectId || undefined,
-        cursor,
+        cursor: cursor ?? undefined,
         limit
       })
       return { success: true, events: page.events, next_cursor: page.nextCursor }
