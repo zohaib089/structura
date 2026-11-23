@@ -27,9 +27,9 @@ export type {
 } from '../architecture/types.js'
 export { ARCHITECTURE_DRIFT_RULES, ARCHITECTURE_EDGE_KINDS, ARCHITECTURE_POLICIES } from '../architecture/types.js'
 
-export const GRAPH_SCHEMA_VERSION = '1.2.0'
+export const GRAPH_SCHEMA_VERSION = '1.3.0'
 export const GRAPH_SCHEMA_MAJOR = 1
-export const GRAPH_SCHEMA_MINOR = 2
+export const GRAPH_SCHEMA_MINOR = 3
 /** Brand-free schema id: never changes when the product is renamed. */
 export const GRAPH_SCHEMA_ID = 'urn:repo-graph:schema:graph:1'
 
@@ -226,6 +226,42 @@ export interface GraphHotspot {
   why: string
 }
 
+export const QUALITY_GRADES = ['A', 'B', 'C', 'D', 'F'] as const
+export type QualityGrade = typeof QUALITY_GRADES[number]
+
+export const QUALITY_CATEGORIES = ['architecture', 'cycles', 'hotspots', 'imports', 'size'] as const
+export type QualityCategory = typeof QUALITY_CATEGORIES[number]
+
+export interface QualityBreakdownItem {
+  category: QualityCategory
+  /** Plain-English summary of this category. */
+  label: string
+  penalty: number
+}
+
+export interface QualityTip {
+  text: string
+  /** Estimated score gain from this fix, computed from the published formula. */
+  gain: number
+}
+
+export interface QualityScore {
+  score: number
+  grade: QualityGrade
+  breakdown: QualityBreakdownItem[]
+  tips: QualityTip[]
+}
+
+export interface FolderQualityScore extends QualityScore {
+  path: string
+}
+
+export interface GraphQuality {
+  project: QualityScore
+  /** Folder scores, worst first then by path. Omitted when the repo has no subfolders with files. */
+  folders?: FolderQualityScore[]
+}
+
 export interface SymbolNode {
   id: string
   kind: 'symbol'
@@ -413,5 +449,7 @@ export interface Graph {
   architecture?: GraphArchitecture
   /** Top-N hotspot files, highest score first. Omitted when every file scores 0. */
   hotspots?: GraphHotspot[]
+  /** Project and per-folder quality scores (1.3.0). */
+  quality?: GraphQuality
   extensions?: Extensions
 }

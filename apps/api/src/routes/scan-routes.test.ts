@@ -385,3 +385,51 @@ test('graph route returns stored hotspots when ready', async () => {
     await api.app.close()
   }
 })
+
+test('graph route returns stored quality scores when ready', async () => {
+  const api = createScanApi()
+  try {
+    const created = await api.app.inject({
+      method: 'POST',
+      url: '/api/workspaces/workspace-1/scans',
+      headers: { authorization: 'Bearer valid-session' },
+      payload: { source: 'git', url: 'https://github.com/org/repo' }
+    })
+    const scanId = created.json().scan.id as string
+    const scan = api.scans.get(scanId)!
+    scan.status = 'succeeded'
+    scan.graph_json = {
+      schemaVersion: '1.3.0',
+      nodes: [],
+      edges: [],
+      quality: {
+        project: {
+          score: 92,
+          grade: 'A',
+          breakdown: [
+            { category: 'architecture', label: 'No architecture rule breaks', penalty: 0 },
+            { category: 'cycles', label: '1 import cycle', penalty: 8 },
+            { category: 'hotspots', label: 'No highly connected hotspots', penalty: 0 },
+            { category: 'imports', label: 'Imports resolve cleanly', penalty: 0 },
+            { category: 'size', label: 'No unusually large files or functions', penalty: 0 }
+          ],
+          tips: [{ text: 'Break the cycle between auth and api to gain about 8 points', gain: 8 }]
+        }
+      }
+    }
+
+    const response = await api.app.inject({
+      method: 'GET',
+      url: `/api/workspaces/workspace-1/scans/${scanId}/graph`,
+      headers: { authorization: 'Bearer valid-session' }
+    })
+    assert.equal(response.statusCode, 200)
+    assert.equal(response.json().success, true)
+    assert.equal(response.json().graph.schemaVersion, '1.3.0')
+    assert.equal(response.json().graph.quality.project.score, 92)
+    assert.equal(response.json().graph.quality.project.grade, 'A')
+    assert.equal(response.json().graph.quality.project.tips[0].gain, 8)
+  } finally {
+    await api.app.close()
+  }
+})

@@ -503,3 +503,33 @@ test('omitDocSummaries keeps hotspot scores and the hotspots list', () => {
   assert.deepEqual(graph.nodes[0]?.hotspot, { score: 80 })
   assert.deepEqual(graph.hotspots, [{ path: 'src/app.ts', score: 80, why: 'Used by 4 files' }])
 })
+
+test('omitDocSummaries keeps quality scores', () => {
+  const graph = omitDocSummaries({
+    schemaVersion: '1.3.0',
+    nodes: [
+      {
+        id: 'file:src/app.ts',
+        kind: 'file',
+        path: 'src/app.ts',
+        docSummary: 'Application entry.',
+        hotspot: { score: 80 }
+      }
+    ],
+    quality: {
+      project: {
+        score: 92,
+        grade: 'A',
+        breakdown: [{ category: 'cycles', label: '1 import cycle', penalty: 8 }],
+        tips: [{ text: 'Break the cycle between auth and api to gain about 8 points', gain: 8 }]
+      }
+    }
+  }) as {
+    nodes: Array<{ docSummary?: string }>
+    quality: { project: { score: number; grade: string; tips: Array<{ gain: number }> } }
+  }
+  assert.equal(graph.nodes[0]?.docSummary, undefined)
+  assert.equal(graph.quality.project.score, 92)
+  assert.equal(graph.quality.project.grade, 'A')
+  assert.equal(graph.quality.project.tips[0]?.gain, 8)
+})

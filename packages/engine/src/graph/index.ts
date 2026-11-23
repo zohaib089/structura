@@ -36,4 +36,14 @@ export {
   describeHotspot,
   type FileHotspotSignals
 } from './hotspots.js'
-export { CANARY_GRAPH_PATH, CANARY_V110_GRAPH_PATH, CANARY_V120_GRAPH_PATH, SCHEMA_HASH_PATH, SCHEMA_JSON_PATH, hashSchemaDocument, readCheckedInSchema, readCheckedInSchemaHash, schemaDocumentText } from './hash.js'
+export {
+  attachQuality,
+  collectQualityInputs,
+  gradeOf,
+  penaltiesOf,
+  scoreOf,
+  tipsOf,
+  QUALITY_CAPS,
+  type QualityInputs
+} from './quality.js'
+export { CANARY_GRAPH_PATH, CANARY_V110_GRAPH_PATH, CANARY_V120_GRAPH_PATH, CANARY_V130_GRAPH_PATH, SCHEMA_HASH_PATH, SCHEMA_JSON_PATH, hashSchemaDocument, readCheckedInSchema, readCheckedInSchemaHash, schemaDocumentText } from './hash.js'

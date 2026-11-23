@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.2.0",
+  "schemaVersion": "1.3.0",
   "summary": {
     "nodes": 6,
     "edges": 8,
@@ -253,5 +253,39 @@
       "score": 50,
       "why": "imports 1 file, impacts 2 files, and has 4 lines"
     }
-  ]
+  ],
+  "quality": {
+    "project": {
+      "score": 100,
+      "grade": "A",
+      "breakdown": [
+        {
+          "category": "architecture",
+          "label": "No architecture rule breaks",
+          "penalty": 0
+        },
+        {
+          "category": "cycles",
+          "label": "No import cycles",
+          "penalty": 0
+        },
+        {
+          "category": "hotspots",
+          "label": "No highly connected hotspots",
+          "penalty": 0
+        },
+        {
+          "category": "imports",
+          "label": "Imports resolve cleanly",
+          "penalty": 0
+        },
+        {
+          "category": "size",
+          "label": "No unusually large files or functions",
+          "penalty": 0
+        }
+      ],
+      "tips": []
+    }
+  }
 }

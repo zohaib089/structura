@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:repo-graph:schema:graph:1",
   "title": "graph.json v1",
-  "description": "Deterministic, closed repository graph. Source-text-free except optional sanitised docSummary. Optional hotspots in 1.2.0. See docs/graph-json-v1.md.",
+  "description": "Deterministic, closed repository graph. Source-text-free except optional sanitised docSummary. Optional hotspots in 1.2.0; optional quality scores in 1.3.0. See docs/graph-json-v1.md.",
   "type": "object",
   "properties": {
     "schemaVersion": {
@@ -73,6 +73,9 @@
       "items": {
         "$ref": "#/$defs/hotspotEntry"
       }
+    },
+    "quality": {
+      "$ref": "#/$defs/graphQuality"
     },
     "extensions": {
       "$ref": "#/$defs/extensions"
@@ -1182,6 +1185,160 @@
         "path",
         "score",
         "why"
+      ],
+      "additionalProperties": false
+    },
+    "qualityGrade": {
+      "type": "string",
+      "enum": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "F"
+      ]
+    },
+    "qualityBreakdownItem": {
+      "type": "object",
+      "properties": {
+        "category": {
+          "type": "string",
+          "enum": [
+            "architecture",
+            "cycles",
+            "hotspots",
+            "imports",
+            "size"
+          ]
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "penalty": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        }
+      },
+      "required": [
+        "category",
+        "label",
+        "penalty"
+      ],
+      "additionalProperties": false
+    },
+    "qualityTip": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "gain": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      },
+      "required": [
+        "text",
+        "gain"
+      ],
+      "additionalProperties": false
+    },
+    "qualityScore": {
+      "type": "object",
+      "properties": {
+        "score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "grade": {
+          "$ref": "#/$defs/qualityGrade"
+        },
+        "breakdown": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/qualityBreakdownItem"
+          },
+          "minItems": 5,
+          "maxItems": 5
+        },
+        "tips": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/qualityTip"
+          },
+          "maxItems": 3
+        }
+      },
+      "required": [
+        "score",
+        "grade",
+        "breakdown",
+        "tips"
+      ],
+      "additionalProperties": false
+    },
+    "folderQualityScore": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "grade": {
+          "$ref": "#/$defs/qualityGrade"
+        },
+        "breakdown": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/qualityBreakdownItem"
+          },
+          "minItems": 5,
+          "maxItems": 5
+        },
+        "tips": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/qualityTip"
+          },
+          "maxItems": 3
+        }
+      },
+      "required": [
+        "path",
+        "score",
+        "grade",
+        "breakdown",
+        "tips"
+      ],
+      "additionalProperties": false
+    },
+    "graphQuality": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "$ref": "#/$defs/qualityScore"
+        },
+        "folders": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/folderQualityScore"
+          }
+        }
+      },
+      "required": [
+        "project"
       ],
       "additionalProperties": false
     },

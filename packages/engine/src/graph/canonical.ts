@@ -1,5 +1,5 @@
 import { compareStrings } from './ids.js'
-import type { Coverage, Graph, GraphArchitecture, GraphEdge, GraphNode } from './types.js'
+import type { Coverage, Graph, GraphArchitecture, GraphEdge, GraphNode, GraphQuality } from './types.js'
 
 /**
  * The canonical form is what makes graph.json byte-for-byte reproducible:
@@ -130,6 +130,30 @@ function orderedArchitecture(architecture: GraphArchitecture): Record<string, un
   )
 }
 
+
+const QUALITY_SCORE_ORDER = ['score', 'grade', 'breakdown', 'tips'] as const
+const FOLDER_QUALITY_ORDER = ['path', 'score', 'grade', 'breakdown', 'tips'] as const
+const BREAKDOWN_ORDER = ['category', 'label', 'penalty'] as const
+const TIP_ORDER = ['text', 'gain'] as const
+
+function orderedQualityScore(value: Record<string, unknown>, order: readonly string[]): Record<string, unknown> {
+  const breakdown = Array.isArray(value.breakdown)
+    ? value.breakdown.map(item => ordered(item as Record<string, unknown>, BREAKDOWN_ORDER, false))
+    : value.breakdown
+  const tips = Array.isArray(value.tips)
+    ? value.tips.map(item => ordered(item as Record<string, unknown>, TIP_ORDER, false))
+    : value.tips
+  return ordered({ ...value, breakdown, tips }, order, false)
+}
+
+function orderedQuality(quality: GraphQuality): Record<string, unknown> {
+  const project = orderedQualityScore(quality.project as unknown as Record<string, unknown>, QUALITY_SCORE_ORDER)
+  const folders = quality.folders?.map(item =>
+    orderedQualityScore(item as unknown as Record<string, unknown>, FOLDER_QUALITY_ORDER)
+  )
+  return ordered({ project, ...(folders ? { folders } : {}) }, ['project', 'folders'], false)
+}
+
 /** Returns a sorted, property-ordered copy. Never mutates the input. */
 export function canonicalizeGraph(graph: Graph): Graph {
   const out: Record<string, unknown> = {
@@ -148,6 +172,7 @@ export function canonicalizeGraph(graph: Graph): Graph {
   if (graph.hotspots !== undefined) {
     out.hotspots = graph.hotspots.map(item => ordered(item as unknown as Record<string, unknown>, ['path', 'score', 'why']))
   }
+  if (graph.quality !== undefined) out.quality = orderedQuality(graph.quality)
   if (graph.extensions !== undefined) out.extensions = sortedDeep(graph.extensions)
   return out as unknown as Graph
 }
@@ -176,15 +201,19 @@ export function* graphChunks(graph: Graph): Generator<string> {
       }
       yield '  ]'
     }
-    const trailing = ki === 0 || canonical.architecture !== undefined || canonical.hotspots !== undefined || canonical.extensions !== undefined
+    const trailing = ki === 0 || canonical.architecture !== undefined || canonical.hotspots !== undefined || canonical.quality !== undefined || canonical.extensions !== undefined
     yield trailing ? ',\n' : '\n'
   }
   if (canonical.architecture !== undefined) {
     yield `  "architecture": ${indent(JSON.stringify(canonical.architecture, null, 2), 2)}`
-    yield canonical.hotspots !== undefined || canonical.extensions !== undefined ? ',\n' : '\n'
+    yield canonical.hotspots !== undefined || canonical.quality !== undefined || canonical.extensions !== undefined ? ',\n' : '\n'
   }
   if (canonical.hotspots !== undefined) {
     yield `  "hotspots": ${indent(JSON.stringify(canonical.hotspots, null, 2), 2)}`
+    yield canonical.quality !== undefined || canonical.extensions !== undefined ? ',\n' : '\n'
+  }
+  if (canonical.quality !== undefined) {
+    yield `  "quality": ${indent(JSON.stringify(canonical.quality, null, 2), 2)}`
     yield canonical.extensions !== undefined ? ',\n' : '\n'
   }
   if (canonical.extensions !== undefined) yield `  "extensions": ${indent(JSON.stringify(canonical.extensions, null, 2), 2)}\n`
