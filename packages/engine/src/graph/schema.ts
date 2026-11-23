@@ -53,7 +53,7 @@ export function buildGraphJsonSchema(): Schema {
     $schema: 'https://json-schema.org/draft/2020-12/schema',
     $id: GRAPH_SCHEMA_ID,
     title: 'graph.json v1',
-    description: 'Deterministic, closed repository graph. Source-text-free except optional sanitised docSummary. Optional hotspots in 1.2.0; optional quality scores in 1.3.0; optional duplicates in 1.4.0; `go` is a recognised language in 1.5.0; `java` is a recognised language in 1.6.0. See docs/graph-json-v1.md.',
+    description: 'Deterministic, closed repository graph. Source-text-free except optional sanitised docSummary. Optional hotspots in 1.2.0; optional quality scores in 1.3.0; optional duplicates in 1.4.0; `go` is a recognised language in 1.5.0; `java` is a recognised language in 1.6.0; optional message `code` and `params` in 1.7.0. See docs/graph-json-v1.md and docs/message-codes.md.',
     type: 'object',
     properties: {
       schemaVersion: str({ pattern: '^1\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$' }),
@@ -246,11 +246,27 @@ export function buildGraphJsonSchema(): Schema {
         ['files', 'byLanguage', 'skipped', 'failed', 'ignored', 'unresolved', 'accounting']
       ),
       fileHotspot: closed({ score: { type: 'integer', minimum: 0, maximum: 100 } }, ['score']),
+      messageParams: {
+        type: 'object',
+        minProperties: 1,
+        propertyNames: { pattern: '^[A-Za-z][A-Za-z0-9]*$' },
+        additionalProperties: {
+          oneOf: [
+            { type: 'string', minLength: 0, maxLength: 4096 },
+            { type: 'integer' },
+            { type: 'boolean' },
+            { type: 'array', items: str({ minLength: 1, maxLength: 4096 }), maxItems: 64 }
+          ]
+        }
+      },
+      messageCode: str({ minLength: 1, maxLength: 64, pattern: '^[a-z][a-z0-9]*(\\.[a-z][a-z0-9-]*)+$' }),
       hotspotEntry: closed(
         {
           path: str({ minLength: 1 }),
           score: { type: 'integer', minimum: 0, maximum: 100 },
-          why: str({ minLength: 1, maxLength: 240 })
+          why: str({ minLength: 1, maxLength: 240 }),
+          code: ref('messageCode'),
+          params: ref('messageParams')
         },
         ['path', 'score', 'why']
       ),
@@ -259,6 +275,8 @@ export function buildGraphJsonSchema(): Schema {
         {
           category: { type: 'string', enum: ['architecture', 'cycles', 'hotspots', 'imports', 'size'] },
           label: str({ minLength: 1, maxLength: 240 }),
+          code: ref('messageCode'),
+          params: ref('messageParams'),
           penalty: { type: 'integer', minimum: 0, maximum: 100 }
         },
         ['category', 'label', 'penalty']
@@ -266,6 +284,8 @@ export function buildGraphJsonSchema(): Schema {
       qualityTip: closed(
         {
           text: str({ minLength: 1, maxLength: 240 }),
+          code: ref('messageCode'),
+          params: ref('messageParams'),
           gain: { type: 'integer', minimum: 1, maximum: 100 }
         },
         ['text', 'gain']
@@ -309,7 +329,9 @@ export function buildGraphJsonSchema(): Schema {
           id: str({ minLength: 1, maxLength: 64, pattern: '^[a-f0-9]+$' }),
           lineCount: { type: 'integer', minimum: 1 },
           occurrences: { type: 'array', items: ref('duplicateOccurrence'), minItems: 2 },
-          description: str({ minLength: 1, maxLength: 240 })
+          description: str({ minLength: 1, maxLength: 240 }),
+          code: ref('messageCode'),
+          params: ref('messageParams')
         },
         ['id', 'lineCount', 'occurrences', 'description']
       ),

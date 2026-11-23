@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.6.0",
+  "schemaVersion": "1.7.0",
   "summary": {
     "nodes": 6,
     "edges": 8,
@@ -241,17 +241,39 @@
     {
       "path": "index.ts",
       "score": 78,
-      "why": "Used by 1 file, imports 1 file, impacts 2 files, and has 3 lines"
+      "why": "Used by 1 file, imports 1 file, impacts 2 files, and has 3 lines",
+      "code": "hotspot.why",
+      "params": {
+        "fanIn": 1,
+        "fanOut": 1,
+        "impact": 2,
+        "size": 3,
+        "sizeKind": "lines"
+      }
     },
     {
       "path": "lib.ts",
       "score": 65,
-      "why": "Used by 1 file, impacts 2 files, and has 2 lines"
+      "why": "Used by 1 file, impacts 2 files, and has 2 lines",
+      "code": "hotspot.why",
+      "params": {
+        "fanIn": 1,
+        "impact": 2,
+        "size": 2,
+        "sizeKind": "lines"
+      }
     },
     {
       "path": "main.ts",
       "score": 50,
-      "why": "imports 1 file, impacts 2 files, and has 4 lines"
+      "why": "imports 1 file, impacts 2 files, and has 4 lines",
+      "code": "hotspot.why",
+      "params": {
+        "fanOut": 1,
+        "impact": 2,
+        "size": 4,
+        "sizeKind": "lines"
+      }
     }
   ],
   "quality": {
@@ -262,26 +284,50 @@
         {
           "category": "architecture",
           "label": "No architecture rule breaks",
+          "code": "quality.architecture",
+          "params": {
+            "high": 0,
+            "medium": 0
+          },
           "penalty": 0
         },
         {
           "category": "cycles",
           "label": "No import cycles",
+          "code": "quality.cycles",
+          "params": {
+            "count": 0
+          },
           "penalty": 0
         },
         {
           "category": "hotspots",
           "label": "No highly connected hotspots",
+          "code": "quality.hotspots",
+          "params": {
+            "count": 0,
+            "maxCount": 0
+          },
           "penalty": 0
         },
         {
           "category": "imports",
           "label": "Imports resolve cleanly",
+          "code": "quality.imports",
+          "params": {
+            "externalPercent": 0,
+            "unresolvedPercent": 0
+          },
           "penalty": 0
         },
         {
           "category": "size",
           "label": "No unusually large files or functions",
+          "code": "quality.size",
+          "params": {
+            "largeFiles": 0,
+            "largeFunctions": 0
+          },
           "penalty": 0
         }
       ],

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.6.0",
+  "schemaVersion": "1.7.0",
   "summary": {
     "nodes": 21,
     "edges": 25,
@@ -447,22 +447,51 @@
     {
       "path": "src/main/java/com/example/mini/App.java",
       "score": 80,
-      "why": "Used by 1 file, imports 2 files, impacts 3 files, and has 14 lines"
+      "why": "Used by 1 file, imports 2 files, impacts 3 files, and has 14 lines",
+      "code": "hotspot.why",
+      "params": {
+        "fanIn": 1,
+        "fanOut": 2,
+        "impact": 3,
+        "size": 14,
+        "sizeKind": "lines"
+      }
     },
     {
       "path": "src/main/java/com/example/mini/util/Helper.java",
       "score": 56,
-      "why": "Used by 1 file, impacts 2 files, and has 8 lines"
+      "why": "Used by 1 file, impacts 2 files, and has 8 lines",
+      "code": "hotspot.why",
+      "params": {
+        "fanIn": 1,
+        "impact": 2,
+        "size": 8,
+        "sizeKind": "lines"
+      }
     },
     {
       "path": "src/main/java/com/example/mini/util/More.java",
       "score": 53,
-      "why": "Used by 1 file, impacts 2 files, and has 4 lines"
+      "why": "Used by 1 file, impacts 2 files, and has 4 lines",
+      "code": "hotspot.why",
+      "params": {
+        "fanIn": 1,
+        "impact": 2,
+        "size": 4,
+        "sizeKind": "lines"
+      }
     },
     {
       "path": "src/test/java/com/example/mini/AppTest.java",
       "score": 42,
-      "why": "imports 1 file, impacts 3 files, and has 10 lines"
+      "why": "imports 1 file, impacts 3 files, and has 10 lines",
+      "code": "hotspot.why",
+      "params": {
+        "fanOut": 1,
+        "impact": 3,
+        "size": 10,
+        "sizeKind": "lines"
+      }
     }
   ],
   "quality": {
@@ -473,36 +502,70 @@
         {
           "category": "architecture",
           "label": "No architecture rule breaks",
+          "code": "quality.architecture",
+          "params": {
+            "high": 0,
+            "medium": 0
+          },
           "penalty": 0
         },
         {
           "category": "cycles",
           "label": "No import cycles",
+          "code": "quality.cycles",
+          "params": {
+            "count": 0
+          },
           "penalty": 0
         },
         {
           "category": "hotspots",
           "label": "1 file is a heavy hotspot",
+          "code": "quality.hotspots",
+          "params": {
+            "count": 1,
+            "maxCount": 0
+          },
           "penalty": 3
         },
         {
           "category": "imports",
           "label": "Imports resolve cleanly",
+          "code": "quality.imports",
+          "params": {
+            "externalPercent": 44,
+            "unresolvedPercent": 0
+          },
           "penalty": 4
         },
         {
           "category": "size",
           "label": "No unusually large files or functions",
+          "code": "quality.size",
+          "params": {
+            "largeFiles": 0,
+            "largeFunctions": 0
+          },
           "penalty": 0
         }
       ],
       "tips": [
         {
           "text": "Clean up unresolved and heavy third-party imports to gain about 4 points",
+          "code": "quality.tip.imports",
+          "params": {
+            "gain": 4
+          },
           "gain": 4
         },
         {
           "text": "Spread work out of src/main/java/com/example/mini/App.java (hotspot score 80) to gain about 3 points",
+          "code": "quality.tip.hotspot",
+          "params": {
+            "gain": 3,
+            "path": "src/main/java/com/example/mini/App.java",
+            "score": 80
+          },
           "gain": 3
         }
       ]
@@ -516,32 +579,60 @@
           {
             "category": "architecture",
             "label": "No architecture rule breaks",
+            "code": "quality.architecture",
+            "params": {
+              "high": 0,
+              "medium": 0
+            },
             "penalty": 0
           },
           {
             "category": "cycles",
             "label": "No import cycles",
+            "code": "quality.cycles",
+            "params": {
+              "count": 0
+            },
             "penalty": 0
           },
           {
             "category": "hotspots",
             "label": "No highly connected hotspots",
+            "code": "quality.hotspots",
+            "params": {
+              "count": 0,
+              "maxCount": 0
+            },
             "penalty": 0
           },
           {
             "category": "imports",
             "label": "100% of imports come from third-party packages",
+            "code": "quality.imports",
+            "params": {
+              "externalPercent": 100,
+              "unresolvedPercent": 0
+            },
             "penalty": 10
           },
           {
             "category": "size",
             "label": "No unusually large files or functions",
+            "code": "quality.size",
+            "params": {
+              "largeFiles": 0,
+              "largeFunctions": 0
+            },
             "penalty": 0
           }
         ],
         "tips": [
           {
             "text": "Clean up unresolved and heavy third-party imports to gain about 10 points",
+            "code": "quality.tip.imports",
+            "params": {
+              "gain": 10
+            },
             "gain": 10
           }
         ]
@@ -554,36 +645,70 @@
           {
             "category": "architecture",
             "label": "No architecture rule breaks",
+            "code": "quality.architecture",
+            "params": {
+              "high": 0,
+              "medium": 0
+            },
             "penalty": 0
           },
           {
             "category": "cycles",
             "label": "No import cycles",
+            "code": "quality.cycles",
+            "params": {
+              "count": 0
+            },
             "penalty": 0
           },
           {
             "category": "hotspots",
             "label": "1 file is a heavy hotspot",
+            "code": "quality.hotspots",
+            "params": {
+              "count": 1,
+              "maxCount": 0
+            },
             "penalty": 3
           },
           {
             "category": "imports",
             "label": "Imports resolve cleanly",
+            "code": "quality.imports",
+            "params": {
+              "externalPercent": 44,
+              "unresolvedPercent": 0
+            },
             "penalty": 4
           },
           {
             "category": "size",
             "label": "No unusually large files or functions",
+            "code": "quality.size",
+            "params": {
+              "largeFiles": 0,
+              "largeFunctions": 0
+            },
             "penalty": 0
           }
         ],
         "tips": [
           {
             "text": "Clean up unresolved and heavy third-party imports to gain about 4 points",
+            "code": "quality.tip.imports",
+            "params": {
+              "gain": 4
+            },
             "gain": 4
           },
           {
             "text": "Spread work out of src/main/java/com/example/mini/App.java (hotspot score 80) to gain about 3 points",
+            "code": "quality.tip.hotspot",
+            "params": {
+              "gain": 3,
+              "path": "src/main/java/com/example/mini/App.java",
+              "score": 80
+            },
             "gain": 3
           }
         ]
@@ -596,36 +721,70 @@
           {
             "category": "architecture",
             "label": "No architecture rule breaks",
+            "code": "quality.architecture",
+            "params": {
+              "high": 0,
+              "medium": 0
+            },
             "penalty": 0
           },
           {
             "category": "cycles",
             "label": "No import cycles",
+            "code": "quality.cycles",
+            "params": {
+              "count": 0
+            },
             "penalty": 0
           },
           {
             "category": "hotspots",
             "label": "1 file is a heavy hotspot",
+            "code": "quality.hotspots",
+            "params": {
+              "count": 1,
+              "maxCount": 0
+            },
             "penalty": 3
           },
           {
             "category": "imports",
             "label": "Imports resolve cleanly",
+            "code": "quality.imports",
+            "params": {
+              "externalPercent": 43,
+              "unresolvedPercent": 0
+            },
             "penalty": 4
           },
           {
             "category": "size",
             "label": "No unusually large files or functions",
+            "code": "quality.size",
+            "params": {
+              "largeFiles": 0,
+              "largeFunctions": 0
+            },
             "penalty": 0
           }
         ],
         "tips": [
           {
             "text": "Clean up unresolved and heavy third-party imports to gain about 4 points",
+            "code": "quality.tip.imports",
+            "params": {
+              "gain": 4
+            },
             "gain": 4
           },
           {
             "text": "Spread work out of src/main/java/com/example/mini/App.java (hotspot score 80) to gain about 3 points",
+            "code": "quality.tip.hotspot",
+            "params": {
+              "gain": 3,
+              "path": "src/main/java/com/example/mini/App.java",
+              "score": 80
+            },
             "gain": 3
           }
         ]
@@ -638,36 +797,70 @@
           {
             "category": "architecture",
             "label": "No architecture rule breaks",
+            "code": "quality.architecture",
+            "params": {
+              "high": 0,
+              "medium": 0
+            },
             "penalty": 0
           },
           {
             "category": "cycles",
             "label": "No import cycles",
+            "code": "quality.cycles",
+            "params": {
+              "count": 0
+            },
             "penalty": 0
           },
           {
             "category": "hotspots",
             "label": "1 file is a heavy hotspot",
+            "code": "quality.hotspots",
+            "params": {
+              "count": 1,
+              "maxCount": 0
+            },
             "penalty": 3
           },
           {
             "category": "imports",
             "label": "Imports resolve cleanly",
+            "code": "quality.imports",
+            "params": {
+              "externalPercent": 43,
+              "unresolvedPercent": 0
+            },
             "penalty": 4
           },
           {
             "category": "size",
             "label": "No unusually large files or functions",
+            "code": "quality.size",
+            "params": {
+              "largeFiles": 0,
+              "largeFunctions": 0
+            },
             "penalty": 0
           }
         ],
         "tips": [
           {
             "text": "Clean up unresolved and heavy third-party imports to gain about 4 points",
+            "code": "quality.tip.imports",
+            "params": {
+              "gain": 4
+            },
             "gain": 4
           },
           {
             "text": "Spread work out of src/main/java/com/example/mini/App.java (hotspot score 80) to gain about 3 points",
+            "code": "quality.tip.hotspot",
+            "params": {
+              "gain": 3,
+              "path": "src/main/java/com/example/mini/App.java",
+              "score": 80
+            },
             "gain": 3
           }
         ]
@@ -680,36 +873,70 @@
           {
             "category": "architecture",
             "label": "No architecture rule breaks",
+            "code": "quality.architecture",
+            "params": {
+              "high": 0,
+              "medium": 0
+            },
             "penalty": 0
           },
           {
             "category": "cycles",
             "label": "No import cycles",
+            "code": "quality.cycles",
+            "params": {
+              "count": 0
+            },
             "penalty": 0
           },
           {
             "category": "hotspots",
             "label": "1 file is a heavy hotspot",
+            "code": "quality.hotspots",
+            "params": {
+              "count": 1,
+              "maxCount": 0
+            },
             "penalty": 3
           },
           {
             "category": "imports",
             "label": "Imports resolve cleanly",
+            "code": "quality.imports",
+            "params": {
+              "externalPercent": 43,
+              "unresolvedPercent": 0
+            },
             "penalty": 4
           },
           {
             "category": "size",
             "label": "No unusually large files or functions",
+            "code": "quality.size",
+            "params": {
+              "largeFiles": 0,
+              "largeFunctions": 0
+            },
             "penalty": 0
           }
         ],
         "tips": [
           {
             "text": "Clean up unresolved and heavy third-party imports to gain about 4 points",
+            "code": "quality.tip.imports",
+            "params": {
+              "gain": 4
+            },
             "gain": 4
           },
           {
             "text": "Spread work out of src/main/java/com/example/mini/App.java (hotspot score 80) to gain about 3 points",
+            "code": "quality.tip.hotspot",
+            "params": {
+              "gain": 3,
+              "path": "src/main/java/com/example/mini/App.java",
+              "score": 80
+            },
             "gain": 3
           }
         ]
@@ -722,36 +949,70 @@
           {
             "category": "architecture",
             "label": "No architecture rule breaks",
+            "code": "quality.architecture",
+            "params": {
+              "high": 0,
+              "medium": 0
+            },
             "penalty": 0
           },
           {
             "category": "cycles",
             "label": "No import cycles",
+            "code": "quality.cycles",
+            "params": {
+              "count": 0
+            },
             "penalty": 0
           },
           {
             "category": "hotspots",
             "label": "1 file is a heavy hotspot",
+            "code": "quality.hotspots",
+            "params": {
+              "count": 1,
+              "maxCount": 0
+            },
             "penalty": 3
           },
           {
             "category": "imports",
             "label": "Imports resolve cleanly",
+            "code": "quality.imports",
+            "params": {
+              "externalPercent": 43,
+              "unresolvedPercent": 0
+            },
             "penalty": 4
           },
           {
             "category": "size",
             "label": "No unusually large files or functions",
+            "code": "quality.size",
+            "params": {
+              "largeFiles": 0,
+              "largeFunctions": 0
+            },
             "penalty": 0
           }
         ],
         "tips": [
           {
             "text": "Clean up unresolved and heavy third-party imports to gain about 4 points",
+            "code": "quality.tip.imports",
+            "params": {
+              "gain": 4
+            },
             "gain": 4
           },
           {
             "text": "Spread work out of src/main/java/com/example/mini/App.java (hotspot score 80) to gain about 3 points",
+            "code": "quality.tip.hotspot",
+            "params": {
+              "gain": 3,
+              "path": "src/main/java/com/example/mini/App.java",
+              "score": 80
+            },
             "gain": 3
           }
         ]
@@ -764,36 +1025,70 @@
           {
             "category": "architecture",
             "label": "No architecture rule breaks",
+            "code": "quality.architecture",
+            "params": {
+              "high": 0,
+              "medium": 0
+            },
             "penalty": 0
           },
           {
             "category": "cycles",
             "label": "No import cycles",
+            "code": "quality.cycles",
+            "params": {
+              "count": 0
+            },
             "penalty": 0
           },
           {
             "category": "hotspots",
             "label": "1 file is a heavy hotspot",
+            "code": "quality.hotspots",
+            "params": {
+              "count": 1,
+              "maxCount": 0
+            },
             "penalty": 3
           },
           {
             "category": "imports",
             "label": "Imports resolve cleanly",
+            "code": "quality.imports",
+            "params": {
+              "externalPercent": 43,
+              "unresolvedPercent": 0
+            },
             "penalty": 4
           },
           {
             "category": "size",
             "label": "No unusually large files or functions",
+            "code": "quality.size",
+            "params": {
+              "largeFiles": 0,
+              "largeFunctions": 0
+            },
             "penalty": 0
           }
         ],
         "tips": [
           {
             "text": "Clean up unresolved and heavy third-party imports to gain about 4 points",
+            "code": "quality.tip.imports",
+            "params": {
+              "gain": 4
+            },
             "gain": 4
           },
           {
             "text": "Spread work out of src/main/java/com/example/mini/App.java (hotspot score 80) to gain about 3 points",
+            "code": "quality.tip.hotspot",
+            "params": {
+              "gain": 3,
+              "path": "src/main/java/com/example/mini/App.java",
+              "score": 80
+            },
             "gain": 3
           }
         ]
@@ -806,32 +1101,60 @@
           {
             "category": "architecture",
             "label": "No architecture rule breaks",
+            "code": "quality.architecture",
+            "params": {
+              "high": 0,
+              "medium": 0
+            },
             "penalty": 0
           },
           {
             "category": "cycles",
             "label": "No import cycles",
+            "code": "quality.cycles",
+            "params": {
+              "count": 0
+            },
             "penalty": 0
           },
           {
             "category": "hotspots",
             "label": "No highly connected hotspots",
+            "code": "quality.hotspots",
+            "params": {
+              "count": 0,
+              "maxCount": 0
+            },
             "penalty": 0
           },
           {
             "category": "imports",
             "label": "50% of imports come from third-party packages",
+            "code": "quality.imports",
+            "params": {
+              "externalPercent": 50,
+              "unresolvedPercent": 0
+            },
             "penalty": 5
           },
           {
             "category": "size",
             "label": "No unusually large files or functions",
+            "code": "quality.size",
+            "params": {
+              "largeFiles": 0,
+              "largeFunctions": 0
+            },
             "penalty": 0
           }
         ],
         "tips": [
           {
             "text": "Clean up unresolved and heavy third-party imports to gain about 5 points",
+            "code": "quality.tip.imports",
+            "params": {
+              "gain": 5
+            },
             "gain": 5
           }
         ]
@@ -844,32 +1167,60 @@
           {
             "category": "architecture",
             "label": "No architecture rule breaks",
+            "code": "quality.architecture",
+            "params": {
+              "high": 0,
+              "medium": 0
+            },
             "penalty": 0
           },
           {
             "category": "cycles",
             "label": "No import cycles",
+            "code": "quality.cycles",
+            "params": {
+              "count": 0
+            },
             "penalty": 0
           },
           {
             "category": "hotspots",
             "label": "No highly connected hotspots",
+            "code": "quality.hotspots",
+            "params": {
+              "count": 0,
+              "maxCount": 0
+            },
             "penalty": 0
           },
           {
             "category": "imports",
             "label": "50% of imports come from third-party packages",
+            "code": "quality.imports",
+            "params": {
+              "externalPercent": 50,
+              "unresolvedPercent": 0
+            },
             "penalty": 5
           },
           {
             "category": "size",
             "label": "No unusually large files or functions",
+            "code": "quality.size",
+            "params": {
+              "largeFiles": 0,
+              "largeFunctions": 0
+            },
             "penalty": 0
           }
         ],
         "tips": [
           {
             "text": "Clean up unresolved and heavy third-party imports to gain about 5 points",
+            "code": "quality.tip.imports",
+            "params": {
+              "gain": 5
+            },
             "gain": 5
           }
         ]
@@ -882,32 +1233,60 @@
           {
             "category": "architecture",
             "label": "No architecture rule breaks",
+            "code": "quality.architecture",
+            "params": {
+              "high": 0,
+              "medium": 0
+            },
             "penalty": 0
           },
           {
             "category": "cycles",
             "label": "No import cycles",
+            "code": "quality.cycles",
+            "params": {
+              "count": 0
+            },
             "penalty": 0
           },
           {
             "category": "hotspots",
             "label": "No highly connected hotspots",
+            "code": "quality.hotspots",
+            "params": {
+              "count": 0,
+              "maxCount": 0
+            },
             "penalty": 0
           },
           {
             "category": "imports",
             "label": "50% of imports come from third-party packages",
+            "code": "quality.imports",
+            "params": {
+              "externalPercent": 50,
+              "unresolvedPercent": 0
+            },
             "penalty": 5
           },
           {
             "category": "size",
             "label": "No unusually large files or functions",
+            "code": "quality.size",
+            "params": {
+              "largeFiles": 0,
+              "largeFunctions": 0
+            },
             "penalty": 0
           }
         ],
         "tips": [
           {
             "text": "Clean up unresolved and heavy third-party imports to gain about 5 points",
+            "code": "quality.tip.imports",
+            "params": {
+              "gain": 5
+            },
             "gain": 5
           }
         ]
@@ -920,32 +1299,60 @@
           {
             "category": "architecture",
             "label": "No architecture rule breaks",
+            "code": "quality.architecture",
+            "params": {
+              "high": 0,
+              "medium": 0
+            },
             "penalty": 0
           },
           {
             "category": "cycles",
             "label": "No import cycles",
+            "code": "quality.cycles",
+            "params": {
+              "count": 0
+            },
             "penalty": 0
           },
           {
             "category": "hotspots",
             "label": "No highly connected hotspots",
+            "code": "quality.hotspots",
+            "params": {
+              "count": 0,
+              "maxCount": 0
+            },
             "penalty": 0
           },
           {
             "category": "imports",
             "label": "50% of imports come from third-party packages",
+            "code": "quality.imports",
+            "params": {
+              "externalPercent": 50,
+              "unresolvedPercent": 0
+            },
             "penalty": 5
           },
           {
             "category": "size",
             "label": "No unusually large files or functions",
+            "code": "quality.size",
+            "params": {
+              "largeFiles": 0,
+              "largeFunctions": 0
+            },
             "penalty": 0
           }
         ],
         "tips": [
           {
             "text": "Clean up unresolved and heavy third-party imports to gain about 5 points",
+            "code": "quality.tip.imports",
+            "params": {
+              "gain": 5
+            },
             "gain": 5
           }
         ]
@@ -958,32 +1365,60 @@
           {
             "category": "architecture",
             "label": "No architecture rule breaks",
+            "code": "quality.architecture",
+            "params": {
+              "high": 0,
+              "medium": 0
+            },
             "penalty": 0
           },
           {
             "category": "cycles",
             "label": "No import cycles",
+            "code": "quality.cycles",
+            "params": {
+              "count": 0
+            },
             "penalty": 0
           },
           {
             "category": "hotspots",
             "label": "No highly connected hotspots",
+            "code": "quality.hotspots",
+            "params": {
+              "count": 0,
+              "maxCount": 0
+            },
             "penalty": 0
           },
           {
             "category": "imports",
             "label": "50% of imports come from third-party packages",
+            "code": "quality.imports",
+            "params": {
+              "externalPercent": 50,
+              "unresolvedPercent": 0
+            },
             "penalty": 5
           },
           {
             "category": "size",
             "label": "No unusually large files or functions",
+            "code": "quality.size",
+            "params": {
+              "largeFiles": 0,
+              "largeFunctions": 0
+            },
             "penalty": 0
           }
         ],
         "tips": [
           {
             "text": "Clean up unresolved and heavy third-party imports to gain about 5 points",
+            "code": "quality.tip.imports",
+            "params": {
+              "gain": 5
+            },
             "gain": 5
           }
         ]

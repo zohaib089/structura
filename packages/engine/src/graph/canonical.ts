@@ -133,15 +133,35 @@ function orderedArchitecture(architecture: GraphArchitecture): Record<string, un
 
 const QUALITY_SCORE_ORDER = ['score', 'grade', 'breakdown', 'tips'] as const
 const FOLDER_QUALITY_ORDER = ['path', 'score', 'grade', 'breakdown', 'tips'] as const
-const BREAKDOWN_ORDER = ['category', 'label', 'penalty'] as const
-const TIP_ORDER = ['text', 'gain'] as const
+const BREAKDOWN_ORDER = ['category', 'label', 'code', 'params', 'penalty'] as const
+const TIP_ORDER = ['text', 'code', 'params', 'gain'] as const
+
+function orderedParams(value: unknown): unknown {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value
+  const record = value as Record<string, unknown>
+  const out: Record<string, unknown> = {}
+  for (const key of Object.keys(record).sort(compareStrings)) {
+    const item = record[key]
+    out[key] = Array.isArray(item) ? [...item] : item
+  }
+  return out
+}
+
+function withOrderedParams(value: Record<string, unknown>): Record<string, unknown> {
+  if (value.params === undefined) return value
+  return { ...value, params: orderedParams(value.params) }
+}
+
+function orderedHotspot(value: Record<string, unknown>): Record<string, unknown> {
+  return ordered(withOrderedParams(value), ['path', 'score', 'why', 'code', 'params'], false)
+}
 
 function orderedQualityScore(value: Record<string, unknown>, order: readonly string[]): Record<string, unknown> {
   const breakdown = Array.isArray(value.breakdown)
-    ? value.breakdown.map(item => ordered(item as Record<string, unknown>, BREAKDOWN_ORDER, false))
+    ? value.breakdown.map(item => ordered(withOrderedParams(item as Record<string, unknown>), BREAKDOWN_ORDER, false))
     : value.breakdown
   const tips = Array.isArray(value.tips)
-    ? value.tips.map(item => ordered(item as Record<string, unknown>, TIP_ORDER, false))
+    ? value.tips.map(item => ordered(withOrderedParams(item as Record<string, unknown>), TIP_ORDER, false))
     : value.tips
   return ordered({ ...value, breakdown, tips }, order, false)
 }
@@ -157,12 +177,12 @@ function orderedQuality(quality: GraphQuality): Record<string, unknown> {
 
 function orderedDuplicates(duplicates: GraphDuplicates): Record<string, unknown> {
   const groups = duplicates.groups.map(group =>
-    ordered({
+    ordered(withOrderedParams({
       ...group,
       occurrences: group.occurrences.map(item =>
         ordered(item as unknown as Record<string, unknown>, ['path', 'startLine', 'endLine'], false)
       )
-    } as unknown as Record<string, unknown>, ['id', 'lineCount', 'occurrences', 'description'], false)
+    } as unknown as Record<string, unknown>), ['id', 'lineCount', 'occurrences', 'description', 'code', 'params'], false)
   )
   const summary = ordered(duplicates.summary as unknown as Record<string, unknown>, ['groups', 'duplicatedLines', 'percentage'], false)
   return ordered({ summary, groups }, ['summary', 'groups'], false)
@@ -184,7 +204,7 @@ export function canonicalizeGraph(graph: Graph): Graph {
   }
   if (graph.architecture !== undefined) out.architecture = orderedArchitecture(graph.architecture)
   if (graph.hotspots !== undefined) {
-    out.hotspots = graph.hotspots.map(item => ordered(item as unknown as Record<string, unknown>, ['path', 'score', 'why']))
+    out.hotspots = graph.hotspots.map(item => orderedHotspot(item as unknown as Record<string, unknown>))
   }
   if (graph.quality !== undefined) out.quality = orderedQuality(graph.quality)
   if (graph.duplicates !== undefined) out.duplicates = orderedDuplicates(graph.duplicates)

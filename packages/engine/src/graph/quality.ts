@@ -18,6 +18,7 @@
  * the same formula after a hypothetical fix.
  */
 import { compareStrings, parentPath } from './ids.js'
+import { graphEmitsMessageCodes, messageFields, type MessageCodeId, type MessageParams } from './message-codes.js'
 import type {
   FileNode,
   FolderQualityScore,
@@ -203,7 +204,7 @@ function andJoin(parts: string[]): string {
   return `${parts.slice(0, -1).join(', ')}, and ${parts.at(-1)}`
 }
 
-export function describeBreakdown(inputs: QualityInputs, penalties: QualityPenalties): QualityBreakdownItem[] {
+export function describeBreakdown(inputs: QualityInputs, penalties: QualityPenalties, emitCodes = false): QualityBreakdownItem[] {
   const high = inputs.findings.filter(item => item.severity === 'high').length
   const medium = inputs.findings.length - high
   const archParts: string[] = []
@@ -212,12 +213,14 @@ export function describeBreakdown(inputs: QualityInputs, penalties: QualityPenal
   const architecture: QualityBreakdownItem = {
     category: 'architecture',
     label: archParts.length === 0 ? 'No architecture rule breaks' : andJoin(archParts),
+    ...(emitCodes ? messageFields('quality.architecture', { high, medium }) : {}),
     penalty: penalties.architecture
   }
 
   const cycles: QualityBreakdownItem = {
     category: 'cycles',
     label: inputs.cycles.length === 0 ? 'No import cycles' : plural(inputs.cycles.length, 'import cycle'),
+    ...(emitCodes ? messageFields('quality.cycles', { count: inputs.cycles.length }) : {}),
     penalty: penalties.cycles
   }
 
@@ -228,7 +231,12 @@ export function describeBreakdown(inputs: QualityInputs, penalties: QualityPenal
     hotLabel = `${plural(hotCount, 'file')} ${hotCount === 1 ? 'is a' : 'are'} heavy hotspot${hotCount === 1 ? '' : 's'}`
     if (maxCount > 0) hotLabel += `, including ${plural(maxCount, 'file')} at the maximum score`
   }
-  const hotspots: QualityBreakdownItem = { category: 'hotspots', label: hotLabel, penalty: penalties.hotspots }
+  const hotspots: QualityBreakdownItem = {
+    category: 'hotspots',
+    label: hotLabel,
+    ...(emitCodes ? messageFields('quality.hotspots', { count: hotCount, maxCount }) : {}),
+    penalty: penalties.hotspots
+  }
 
   const denom = inputs.importEdges
   const unresolvedRatio = denom > 0 ? inputs.unresolvedEdges / denom : 0
@@ -243,6 +251,10 @@ export function describeBreakdown(inputs: QualityInputs, penalties: QualityPenal
   const imports: QualityBreakdownItem = {
     category: 'imports',
     label: importParts.length === 0 ? 'Imports resolve cleanly' : andJoin(importParts),
+    ...(emitCodes ? messageFields('quality.imports', {
+      unresolvedPercent: Math.round(unresolvedRatio * 100),
+      externalPercent: Math.round(externalRatio * 100)
+    }) : {}),
     penalty: penalties.imports
   }
 
@@ -252,6 +264,10 @@ export function describeBreakdown(inputs: QualityInputs, penalties: QualityPenal
   const size: QualityBreakdownItem = {
     category: 'size',
     label: sizeParts.length === 0 ? 'No unusually large files or functions' : andJoin(sizeParts),
+    ...(emitCodes ? messageFields('quality.size', {
+      largeFiles: inputs.largeFiles.length,
+      largeFunctions: inputs.largeFunctions.length
+    }) : {}),
     penalty: penalties.size
   }
 
@@ -286,10 +302,10 @@ function aboutGain(gain: number): string {
   return `to gain about ${gain} point${gain === 1 ? '' : 's'}`
 }
 
-function withTip(text: string, gain: number, tips: QualityTip[]): void {
+function withTip(text: string, gain: number, tips: QualityTip[], code?: MessageCodeId, params?: MessageParams): void {
   if (gain <= 0) return
   const clipped = text.length <= 240 ? text : `${text.slice(0, 237)}...`
-  tips.push({ text: clipped, gain })
+  tips.push({ text: clipped, ...(code ? messageFields(code, params) : {}), gain })
 }
 
 function cloneInputs(inputs: QualityInputs): QualityInputs {
@@ -305,37 +321,49 @@ function cloneInputs(inputs: QualityInputs): QualityInputs {
   }
 }
 
-export function tipsOf(inputs: QualityInputs): QualityTip[] {
+export function tipsOf(inputs: QualityInputs, emitCodes = false): QualityTip[] {
   const baseline = scoreOf(inputs)
   const tips: QualityTip[] = []
   const gainFor = (next: QualityInputs): number => scoreOf(next) - baseline
+  const tip = (text: string, gain: number, code: MessageCodeId, params: MessageParams): void => {
+    withTip(text, gain, tips, emitCodes ? code : undefined, emitCodes ? { ...params, gain } : undefined)
+  }
 
   for (const finding of inputs.findings) {
     const next = cloneInputs(inputs)
     next.findings = next.findings.filter(item => item !== finding)
     const kind = finding.severity === 'high' ? 'forbidden import' : 'undeclared import'
-    withTip(`Fix the ${kind} in ${finding.file} ${aboutGain(gainFor(next))}`, gainFor(next), tips)
+    const code: MessageCodeId = finding.severity === 'high' ? 'quality.tip.forbidden-import' : 'quality.tip.undeclared-import'
+    tip(`Fix the ${kind} in ${finding.file} ${aboutGain(gainFor(next))}`, gainFor(next), code, { file: finding.file })
   }
 
   for (const cycle of inputs.cycles) {
     const next = cloneInputs(inputs)
     next.cycles = next.cycles.filter(item => item !== cycle)
-    withTip(`Break the cycle ${cycleLabel(cycle.paths)} ${aboutGain(gainFor(next))}`, gainFor(next), tips)
+    tip(`Break the cycle ${cycleLabel(cycle.paths)} ${aboutGain(gainFor(next))}`, gainFor(next), 'quality.tip.cycle', {
+      files: cycle.paths
+    })
   }
 
   for (const file of inputs.largeFiles) {
     const next = cloneInputs(inputs)
     next.largeFiles = next.largeFiles.filter(item => item !== file)
-    withTip(`Split ${file.path} (${file.lines} lines) into smaller files ${aboutGain(gainFor(next))}`, gainFor(next), tips)
+    tip(
+      `Split ${file.path} (${file.lines} lines) into smaller files ${aboutGain(gainFor(next))}`,
+      gainFor(next),
+      'quality.tip.large-file',
+      { path: file.path, lines: file.lines }
+    )
   }
 
   for (const fn of inputs.largeFunctions) {
     const next = cloneInputs(inputs)
     next.largeFunctions = next.largeFunctions.filter(item => item !== fn)
-    withTip(
+    tip(
       `Shorten the ${fn.name} function in ${fn.path} (${fn.lines} lines) ${aboutGain(gainFor(next))}`,
       gainFor(next),
-      tips
+      'quality.tip.large-function',
+      { name: fn.name, path: fn.path, lines: fn.lines }
     )
   }
 
@@ -343,41 +371,50 @@ export function tipsOf(inputs: QualityInputs): QualityTip[] {
     const next = cloneInputs(inputs)
     next.importEdges = Math.max(0, next.importEdges - next.unresolvedEdges)
     next.unresolvedEdges = 0
-    withTip(`Resolve the missing imports ${aboutGain(gainFor(next))}`, gainFor(next), tips)
+    tip(`Resolve the missing imports ${aboutGain(gainFor(next))}`, gainFor(next), 'quality.tip.unresolved-imports', {})
   }
 
   for (const item of inputs.hotspots.filter(hot => hot.score >= HOTSPOT_HIGH_THRESHOLD)) {
     const next = cloneInputs(inputs)
     next.hotspots = next.hotspots.filter(hot => hot !== item)
-    withTip(
+    tip(
       `Spread work out of ${item.path} (hotspot score ${item.score}) ${aboutGain(gainFor(next))}`,
       gainFor(next),
-      tips
+      'quality.tip.hotspot',
+      { path: item.path, score: item.score }
     )
   }
 
   // If a cap hid every single-item gain, offer a category-level fix.
-  const categories: Array<{ key: keyof QualityPenalties; apply: (next: QualityInputs) => void; text: string }> = [
+  const categories: Array<{
+    key: keyof QualityPenalties
+    apply: (next: QualityInputs) => void
+    text: string
+    code: MessageCodeId
+  }> = [
     {
       key: 'architecture',
       apply: next => {
         next.findings = []
       },
-      text: 'Fix the architecture rule breaks'
+      text: 'Fix the architecture rule breaks',
+      code: 'quality.tip.architecture'
     },
     {
       key: 'cycles',
       apply: next => {
         next.cycles = []
       },
-      text: 'Break the remaining import cycles'
+      text: 'Break the remaining import cycles',
+      code: 'quality.tip.cycles'
     },
     {
       key: 'hotspots',
       apply: next => {
         next.hotspots = []
       },
-      text: 'Spread work out of the heaviest hotspot files'
+      text: 'Spread work out of the heaviest hotspot files',
+      code: 'quality.tip.hotspots'
     },
     {
       key: 'imports',
@@ -386,7 +423,8 @@ export function tipsOf(inputs: QualityInputs): QualityTip[] {
         next.unresolvedEdges = 0
         next.externalEdges = 0
       },
-      text: 'Clean up unresolved and heavy third-party imports'
+      text: 'Clean up unresolved and heavy third-party imports',
+      code: 'quality.tip.imports'
     },
     {
       key: 'size',
@@ -394,7 +432,8 @@ export function tipsOf(inputs: QualityInputs): QualityTip[] {
         next.largeFiles = []
         next.largeFunctions = []
       },
-      text: 'Split the unusually large files and functions'
+      text: 'Split the unusually large files and functions',
+      code: 'quality.tip.size'
     }
   ]
   const penalties = penaltiesOf(inputs)
@@ -407,7 +446,7 @@ export function tipsOf(inputs: QualityInputs): QualityTip[] {
     // Only used when a cap hides every single-item gain (individual tips
     // already cover the case where one fix equals the category gain).
     if (gain > bestIndividual) {
-      withTip(`${category.text} ${aboutGain(gain)}`, gain, tips)
+      tip(`${category.text} ${aboutGain(gain)}`, gain, category.code, {})
     }
   }
 
@@ -423,14 +462,14 @@ export function tipsOf(inputs: QualityInputs): QualityTip[] {
   return unique
 }
 
-function buildScore(inputs: QualityInputs): QualityScore {
+function buildScore(inputs: QualityInputs, emitCodes = false): QualityScore {
   const penalties = penaltiesOf(inputs)
   const score = scoreOf(inputs)
   return {
     score,
     grade: gradeOf(score),
-    breakdown: describeBreakdown(inputs, penalties),
-    tips: tipsOf(inputs)
+    breakdown: describeBreakdown(inputs, penalties, emitCodes),
+    tips: tipsOf(inputs, emitCodes)
   }
 }
 
@@ -621,10 +660,11 @@ function folderSet(graph: Graph): string[] {
  * per-folder scores. Does not mutate the input.
  */
 export function attachQuality(graph: Graph): Graph {
-  const project = buildScore(collectQualityInputs(graph, null))
+  const emitCodes = graphEmitsMessageCodes(graph.schemaVersion)
+  const project = buildScore(collectQualityInputs(graph, null), emitCodes)
   const folders: FolderQualityScore[] = []
   for (const path of folderSet(graph)) {
-    const score = buildScore(collectQualityInputs(graph, path))
+    const score = buildScore(collectQualityInputs(graph, path), emitCodes)
     folders.push({ path, ...score })
   }
   folders.sort((left, right) => left.score - right.score || compareStrings(left.path, right.path))

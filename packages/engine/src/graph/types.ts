@@ -27,9 +27,9 @@ export type {
 } from '../architecture/types.js'
 export { ARCHITECTURE_DRIFT_RULES, ARCHITECTURE_EDGE_KINDS, ARCHITECTURE_POLICIES } from '../architecture/types.js'
 
-export const GRAPH_SCHEMA_VERSION = '1.6.0'
+export const GRAPH_SCHEMA_VERSION = '1.7.0'
 export const GRAPH_SCHEMA_MAJOR = 1
-export const GRAPH_SCHEMA_MINOR = 6
+export const GRAPH_SCHEMA_MINOR = 7
 /** Brand-free schema id: never changes when the product is renamed. */
 export const GRAPH_SCHEMA_ID = 'urn:repo-graph:schema:graph:1'
 
@@ -219,11 +219,19 @@ export interface FileHotspot {
   score: number
 }
 
+/** JSON-serialisable parameters for a structured message `code` (1.7.0). */
+export type MessageParamValue = string | number | boolean | readonly string[]
+export type MessageParams = { [key: string]: MessageParamValue }
+
 /** Top-N hotspot entry (plain-English `why`, repo-relative `path`). */
 export interface GraphHotspot {
   path: string
   score: number
   why: string
+  /** Structured code for `why` (1.7.0). */
+  code?: string
+  /** Parameters for `code`. Omitted when empty (1.7.0). */
+  params?: MessageParams
 }
 
 export const QUALITY_GRADES = ['A', 'B', 'C', 'D', 'F'] as const
@@ -236,11 +244,19 @@ export interface QualityBreakdownItem {
   category: QualityCategory
   /** Plain-English summary of this category. */
   label: string
+  /** Structured code for `label` (1.7.0). */
+  code?: string
+  /** Parameters for `code`. Omitted when empty (1.7.0). */
+  params?: MessageParams
   penalty: number
 }
 
 export interface QualityTip {
   text: string
+  /** Structured code for `text` (1.7.0). */
+  code?: string
+  /** Parameters for `code`. Omitted when empty (1.7.0). */
+  params?: MessageParams
   /** Estimated score gain from this fix, computed from the published formula. */
   gain: number
 }
@@ -279,6 +295,10 @@ export interface DuplicateGroup {
   lineCount: number
   occurrences: DuplicateOccurrence[]
   description: string
+  /** Structured code for `description` (1.7.0). */
+  code?: string
+  /** Parameters for `code`. Omitted when empty (1.7.0). */
+  params?: MessageParams
 }
 
 export interface DuplicatesSummary {
