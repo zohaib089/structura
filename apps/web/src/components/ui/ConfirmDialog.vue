@@ -100,6 +100,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
             class="primary-button"
             :class="{ 'confirm-danger': danger }"
             type="button"
+            data-testid="confirm-accept"
             :disabled="busy"
             @click="emit('confirm')"
           >
@@ -168,6 +169,17 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   flex-wrap: wrap;
   gap: var(--space-3);
   margin-top: var(--space-2);
+}
+
+/* Neutral white/dark primary — never amber (amber is reserved for brand, not confirm actions). */
+.primary-button {
+  background: var(--button-primary-bg);
+  color: var(--button-primary-fg);
+  border-color: var(--button-primary-border);
+}
+
+.primary-button:hover:not(:disabled) {
+  background: var(--button-primary-hover-bg);
 }
 
 .confirm-danger {

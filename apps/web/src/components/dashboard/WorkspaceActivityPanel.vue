@@ -498,6 +498,11 @@ watch(
   .activity-header {
     align-items: stretch;
     flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .activity-intro {
+    gap: var(--space-1);
   }
 
   .activity-filters,
@@ -507,8 +512,21 @@ watch(
     min-inline-size: 0;
   }
 
+  .activity-filters {
+    gap: var(--space-2);
+  }
+
   .activity-page {
-    gap: var(--space-3);
+    gap: var(--space-2);
+  }
+
+  .activity-row {
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .activity-footer {
+    padding: var(--space-2) var(--space-3);
   }
 }
 </style>

@@ -240,7 +240,8 @@ const barDensity = computed<'full' | 'tight' | 'narrow' | 'xnarrow'>(() => {
   if (!viewerWidth.value || viewerWidth.value <= 640) return 'full'
   const space = viewerWidth.value - panelInset.value - 48
   // Prefer keeping "Fit to view" at 1280 with both the sidebar and the details panel open.
-  if (space >= 900) return 'full'
+  // 1120 keeps a 1440 pane with the 23rem details panel in tight (one row), not full (wraps).
+  if (space >= 1120) return 'full'
   if (space >= 560) return 'tight'
   if (space >= 420) return 'narrow'
   return 'xnarrow'
@@ -2073,8 +2074,11 @@ button:disabled { opacity: var(--alpha-40); }
 }
 @media (max-width: 640px) {
   .hotspot-legend-wrap {
-    inset-inline-start: var(--space-2);
-    inset-block-start: calc(var(--space-2) + var(--viewer-hit-target, 2.75rem) + var(--space-4));
+    /* Compact pill, centred just under the floating toolbar — not a card over the top-left nodes. */
+    inset-inline-start: 50%;
+    transform: translateX(-50%);
+    inset-block-start: calc(var(--space-3) + var(--space-1) + var(--viewer-hit-target, 2.75rem) + var(--space-1) + 2px + var(--space-2));
+    max-inline-size: calc(100% - var(--space-4));
   }
 }
 .viewer { font-feature-settings: var(--font-feature-ui); }

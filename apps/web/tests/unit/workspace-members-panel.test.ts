@@ -193,10 +193,11 @@ describe('WorkspaceMembersPanel', () => {
       member: { id: 'user-2', role: 'owner', created_at: member.created_at },
       left: false
     })
-    const confirm = [...document.body.querySelectorAll('button')].find(button =>
-      button.textContent?.trim() === 'Make owner'
-    )
+    const confirm = document.body.querySelector('[data-testid="confirm-accept"]') as HTMLButtonElement | null
     expect(confirm).toBeTruthy()
+    expect(confirm?.textContent?.trim()).toBe('Make owner')
+    expect(confirm?.className).toContain('primary-button')
+    expect(confirm?.className).not.toContain('confirm-danger')
     confirm!.click()
     await flushPromises()
     expect(transferWorkspaceOwnership).toHaveBeenCalledWith('workspace-1', 'user-2', true)
@@ -225,9 +226,10 @@ describe('WorkspaceMembersPanel', () => {
       member: { id: 'user-2', role: 'owner', created_at: member.created_at },
       left: true
     })
-    const confirm = [...document.body.querySelectorAll('button')].find(button =>
-      button.textContent?.trim() === 'Make owner'
-    )
+    const confirm = document.body.querySelector('[data-testid="confirm-accept"]') as HTMLButtonElement | null
+    expect(confirm?.textContent?.trim()).toBe('Make owner')
+    expect(confirm?.className).toContain('primary-button')
+    expect(confirm?.className).not.toContain('confirm-danger')
     confirm!.click()
     await flushPromises()
     expect(transferWorkspaceOwnership).toHaveBeenCalledWith('workspace-1', 'user-2', false)
