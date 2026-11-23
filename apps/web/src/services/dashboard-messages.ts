@@ -70,7 +70,7 @@ export interface DashboardMessages {
   noPendingInvitations: string
   inviteSuccess: string
   revokeInvitation: string
-  revokeInvitationShort?: string
+  revokeInvitationShort: string
   invitedBy: string
   expiresAt: string
   roleOwner: string
@@ -390,6 +390,7 @@ const messages: Record<WebLocale, DashboardMessages> = {
     noPendingInvitations: 'Não há convites pendentes.',
     inviteSuccess: 'E-mail de convite enviado.',
     revokeInvitation: 'Revogar convite',
+    revokeInvitationShort: 'Revogar',
     invitedBy: 'Convidado por',
     expiresAt: 'Expira',
     roleOwner: 'Proprietário',
@@ -548,6 +549,7 @@ const messages: Record<WebLocale, DashboardMessages> = {
     noPendingInvitations: 'Non ci sono inviti in sospeso.',
     inviteSuccess: 'E-mail di invito inviata.',
     revokeInvitation: 'Revoca invito',
+    revokeInvitationShort: 'Revoca',
     invitedBy: 'Invitato da',
     expiresAt: 'Scade',
     roleOwner: 'Proprietario',
@@ -706,6 +708,7 @@ const messages: Record<WebLocale, DashboardMessages> = {
     noPendingInvitations: 'Aucune invitation en attente.',
     inviteSuccess: 'E-mail d’invitation envoyé.',
     revokeInvitation: 'Révoquer l’invitation',
+    revokeInvitationShort: 'Révoquer',
     invitedBy: 'Invité par',
     expiresAt: 'Expire le',
     roleOwner: 'Propriétaire',
@@ -864,6 +867,7 @@ const messages: Record<WebLocale, DashboardMessages> = {
     noPendingInvitations: 'Er zijn geen openstaande uitnodigingen.',
     inviteSuccess: 'Uitnodigingsmail verzonden.',
     revokeInvitation: 'Uitnodiging intrekken',
+    revokeInvitationShort: 'Intrekken',
     invitedBy: 'Uitgenodigd door',
     expiresAt: 'Verloopt',
     roleOwner: 'Eigenaar',
@@ -1022,6 +1026,7 @@ const messages: Record<WebLocale, DashboardMessages> = {
     noPendingInvitations: 'No hay invitaciones pendientes.',
     inviteSuccess: 'Correo de invitación enviado.',
     revokeInvitation: 'Revocar invitación',
+    revokeInvitationShort: 'Revocar',
     invitedBy: 'Invitado por',
     expiresAt: 'Caduca',
     roleOwner: 'Propietario',
@@ -1180,6 +1185,7 @@ const messages: Record<WebLocale, DashboardMessages> = {
     noPendingInvitations: '保留中の招待はありません。',
     inviteSuccess: '招待メールを送信しました。',
     revokeInvitation: '招待を取り消す',
+    revokeInvitationShort: '取り消す',
     invitedBy: '招待者',
     expiresAt: '有効期限',
     roleOwner: 'オーナー',
@@ -1338,6 +1344,7 @@ const messages: Record<WebLocale, DashboardMessages> = {
     noPendingInvitations: '没有待处理的邀请。',
     inviteSuccess: '邀请邮件已发送。',
     revokeInvitation: '撤销邀请',
+    revokeInvitationShort: '撤销',
     invitedBy: '邀请人',
     expiresAt: '到期时间',
     roleOwner: '所有者',
@@ -1496,6 +1503,7 @@ const messages: Record<WebLocale, DashboardMessages> = {
     noPendingInvitations: 'कोई लंबित आमंत्रण नहीं है।',
     inviteSuccess: 'आमंत्रण ईमेल भेजा गया।',
     revokeInvitation: 'आमंत्रण रद्द करें',
+    revokeInvitationShort: 'रद्द करें',
     invitedBy: 'आमंत्रितकर्ता',
     expiresAt: 'समाप्ति',
     roleOwner: 'स्वामी',
@@ -1654,6 +1662,7 @@ const messages: Record<WebLocale, DashboardMessages> = {
     noPendingInvitations: 'کوئی زیر التوا دعوت نامہ نہیں۔',
     inviteSuccess: 'دعوت نامے کی ای میل بھیج دی گئی۔',
     revokeInvitation: 'دعوت نامہ منسوخ کریں',
+    revokeInvitationShort: 'منسوخ',
     invitedBy: 'دعوت دینے والا',
     expiresAt: 'میعاد ختم',
     roleOwner: 'مالک',

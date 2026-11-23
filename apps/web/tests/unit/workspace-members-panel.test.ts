@@ -114,7 +114,7 @@ describe('WorkspaceMembersPanel', () => {
     const revoke = row.get('button[aria-label="Revoke invitation"]')
     expect(revoke.text()).toBe('Revoke')
     expect(revoke.classes()).toContain('invite-revoke')
-    expect(wrapper.get('.members-card--invites').exists()).toBe(true)
+    expect(wrapper.find('.members-card--invites').exists()).toBe(true)
     wrapper.unmount()
   })
 

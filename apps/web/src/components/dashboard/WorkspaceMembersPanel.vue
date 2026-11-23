@@ -376,7 +376,7 @@ watch(() => props.workspaceId, () => {
               :aria-label="messages.revokeInvitation"
               @click="handleRevokeInvitation(invitation.id)"
             >
-              {{ messages.revokeInvitationShort ?? messages.revokeInvitation }}
+              {{ messages.revokeInvitationShort }}
             </Button>
           </li>
         </ul>
