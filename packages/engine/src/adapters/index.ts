@@ -37,5 +37,11 @@ export {
   shutdownPythonParsePool
 } from './python/adapter.js'
 export { PythonResolver, type PythonResolverContext } from './python/resolver.js'
+export {
+  GO_ADAPTER_ID,
+  GO_ADAPTER_VERSION,
+  createGoAdapter
+} from './go/adapter.js'
+export { GoResolver, parseGoModulePath, type GoResolverContext } from './go/resolver.js'
 export { parseJsonc } from './ts-js/jsonc.js'
 export { sanitizeDocSummary } from './doc-summary.js'
