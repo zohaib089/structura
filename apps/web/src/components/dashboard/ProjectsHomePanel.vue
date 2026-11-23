@@ -14,6 +14,7 @@ import { scanMessages } from '../../services/scan-messages'
 import type { WebLocale } from '../../services/locale'
 import {
   openProjectPath,
+  projectAccessPath,
   projectGraphPath,
   scanReportPath,
   workspaceScansPath
@@ -173,8 +174,8 @@ onMounted(() => {
           :key="project.id"
           class="projects-home__row"
           tabindex="0"
-          @click="($event.currentTarget as HTMLElement).querySelector('a')?.click()"
-          @keydown.enter="($event.currentTarget as HTMLElement).querySelector('a')?.click()"
+          @click="($event.currentTarget as HTMLElement).querySelector<HTMLElement>('[data-testid=project-open-link]')?.click()"
+          @keydown.enter="($event.currentTarget as HTMLElement).querySelector<HTMLElement>('[data-testid=project-open-link]')?.click()"
         >
           <td>
             <h3 class="projects-home__name">
@@ -185,6 +186,14 @@ onMounted(() => {
                 {{ project.name }}
               </RouterLink>
             </h3>
+            <RouterLink
+              class="projects-home__access"
+              :to="projectAccessPath(locale, workspaceId, project.id)"
+              data-testid="project-access-link"
+              @click.stop
+            >
+              {{ messages.projectAccessLink }}
+            </RouterLink>
           </td>
           <td class="projects-home__desc">
             {{ project.description || messages.noDescription }}
@@ -380,6 +389,25 @@ onMounted(() => {
 
 .projects-home__name a:hover {
   color: var(--color-brand-amber-ui);
+}
+
+.projects-home__access {
+  display: inline-block;
+  margin-block-start: var(--space-1);
+  color: var(--color-text-secondary);
+  font-size: var(--text-13);
+  line-height: var(--text-13-lh);
+  text-decoration: none;
+}
+
+.projects-home__access:hover {
+  color: var(--color-brand-amber-ui);
+}
+
+.projects-home__access:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-sm);
 }
 
 .projects-home__desc {

@@ -122,6 +122,12 @@ export function createAppRouter(history: RouterHistory = createWebHistory(import
             })
           },
           {
+            path: 'projects/:projectId/access',
+            name: 'project-access',
+            component: dashboardView,
+            meta: { dashboardSection: 'project-access' }
+          },
+          {
             path: 'projects/:projectId/scans',
             name: 'project-scans',
             component: dashboardView,
