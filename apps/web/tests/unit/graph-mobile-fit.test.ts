@@ -72,4 +72,12 @@ describe('radial fit (S3 mobile)', () => {
     // A zoom or pan the person made must not be overwritten when the pane resizes.
     expect(frame).toContain('sameViewport(lastFit, flow.viewport.value)')
   })
+
+  it('pads the phone stage above the expanded sheet so the lower graph stays clear', () => {
+    const app = read('src/viewer/ViewerApp.vue')
+    expect(app).toContain('padding-block-end: var(--viewer-sheet-cover, 0px)')
+    expect(app).toContain('panelBottomInset.value = Math.round(panel.offsetHeight) || 0')
+    expect(app).toContain(':panel-bottom-inset="0"')
+  })
+
 })

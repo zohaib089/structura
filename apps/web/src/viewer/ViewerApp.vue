@@ -198,6 +198,14 @@ const viewerWidth = ref(0)
 /** Below this pane width an editor host (never the dashboard or a phone browser) gets the compact toolbar. */
 const COMPACT_HOST_WIDTH = 420
 let viewerResize: ResizeObserver | null = null
+let inspectorResize: ResizeObserver | null = null
+function attachInspectorObserver() {
+  inspectorResize?.disconnect()
+  inspectorResize = null
+  if (typeof ResizeObserver === 'undefined' || !inspectorEl.value) return
+  inspectorResize = new ResizeObserver(() => measurePanelInset())
+  inspectorResize.observe(inspectorEl.value)
+}
 onMounted(() => {
   if (typeof ResizeObserver === 'undefined' || !viewerEl.value) return
   viewerResize = new ResizeObserver((entries) => {
@@ -206,8 +214,15 @@ onMounted(() => {
     if (!panelChosen && props.autoCollapseBelow && viewerWidth.value > 640) panelCollapsed.value = viewerWidth.value < props.autoCollapseBelow
   })
   viewerResize.observe(viewerEl.value)
+  void nextTick(() => {
+    attachInspectorObserver()
+    measurePanelInset()
+  })
 })
-onBeforeUnmount(() => viewerResize?.disconnect())
+onBeforeUnmount(() => {
+  viewerResize?.disconnect()
+  inspectorResize?.disconnect()
+})
 /** Narrow hosts (VS Code webview below autoCollapseBelow): slimmer open panel, status line clipped cleanly. */
 const isNarrowHost = computed(() => Boolean(props.autoCollapseBelow) && viewerWidth.value > 640 && viewerWidth.value < (props.autoCollapseBelow ?? 0))
 const barDensity = computed<'full' | 'tight' | 'narrow' | 'xnarrow'>(() => {
@@ -225,19 +240,20 @@ function measurePanelInset() {
   const panel = inspectorEl.value
   const canvas = viewerEl.value?.querySelector<HTMLElement>('[data-testid="graph-canvas"]')
   const phone = typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 640px)').matches
-  if (!inspectorOpen.value || !panel || !canvas || !viewerEl.value) {
+  if (!inspectorOpen.value || !panel || !viewerEl.value) {
     panelInset.value = 0
     panelBottomInset.value = 0
     return
   }
   if (phone) {
     panelInset.value = 0
-    // The sheet (peek or expanded) covers the canvas bottom: the graph fits into the area above it,
-    // and the zoom pad sits just above its top edge.
-    // Use the resting height (not the sliding rect) so the fit is right before the slide finishes.
-    const bottom = Math.min(viewerEl.value.getBoundingClientRect().bottom, window.innerHeight)
-    const covered = canvas.getBoundingClientRect().bottom - (bottom - panel.offsetHeight)
-    panelBottomInset.value = covered > 0 ? Math.round(covered) : 0
+    // Stage padding uses the sheet's resting height (peek or expanded), so nodes stay in the area above it.
+    panelBottomInset.value = Math.round(panel.offsetHeight) || 0
+    return
+  }
+  if (!canvas) {
+    panelInset.value = 0
+    panelBottomInset.value = 0
     return
   }
   panelBottomInset.value = 0
@@ -247,7 +263,12 @@ function measurePanelInset() {
   const covered = canvas.getBoundingClientRect().right - (right - panel.offsetWidth)
   panelInset.value = covered > 0 ? Math.round(covered + 12) : 0
 }
-watch(inspectorOpen, () => { void nextTick(measurePanelInset) }, { flush: 'post' })
+watch(inspectorOpen, () => {
+  void nextTick(() => {
+    attachInspectorObserver()
+    measurePanelInset()
+  })
+}, { flush: 'post' })
 const tab = ref<'details' | 'coverage' | 'drift'>('details')
 const ready = ref(false)
 const selection = ref<{ kind: 'node' | 'edge'; id: string } | null>(null)
@@ -1355,7 +1376,7 @@ const snippet = 'layers: []\nrules: []\n'
         :reserve-zoom-pad="embedded"
         :hide-overlapping-ring1="embedded"
         :panel-inset="panelInset"
-        :panel-bottom-inset="panelBottomInset"
+        :panel-bottom-inset="0"
         :impact-ids="impactIds"
         :inside-open-caption="embedded && overviewLayout === 'folders' ? messages.insideOpenCaption : undefined"
         :inside-close-caption="embedded && overviewLayout === 'folders' ? messages.insideCloseCaption : undefined"
@@ -2048,6 +2069,10 @@ button:disabled { opacity: var(--alpha-40); }
   /* Phone: the panel is a bottom sheet over a full-height graph. Collapsed = peek (handle, tab icons,
    * file name); expanded = half the pane. The toolbar and chip stay above it, uncovered. */
   .viewer.viewer-radial.is-inspector-open { --graph-controls-inset-end: 0px; }
+  /* Keep the graph in the area above the sheet so the expanded sheet cannot cover the lower nodes. */
+  .viewer.viewer-radial.is-inspector-open .stage {
+    padding-block-end: var(--viewer-sheet-cover, 0px);
+  }
   .viewer.viewer-radial.is-focusing { --viewer-toolbar-extra: 2.75rem; }
   .viewer.viewer-radial .inspector,
   .viewer.viewer-radial:not(.viewer-embedded) .inspector,
@@ -2101,7 +2126,8 @@ button:disabled { opacity: var(--alpha-40); }
   .viewer.viewer-radial.is-inspector-open:not(.is-panel-collapsed) .coach { visibility: hidden; }
   .viewer.viewer-radial.is-inspector-open :deep(.vue-flow__panel.zoom) {
     margin-inline-end: var(--space-3);
-    margin-block-end: calc(var(--viewer-sheet-cover, 0px) + var(--space-2));
+    /* The stage is already padded above the sheet, so only a small gap is needed. */
+    margin-block-end: var(--space-2);
   }
 }
 </style>
