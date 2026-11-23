@@ -53,7 +53,7 @@ export function buildGraphJsonSchema(): Schema {
     $schema: 'https://json-schema.org/draft/2020-12/schema',
     $id: GRAPH_SCHEMA_ID,
     title: 'graph.json v1',
-    description: 'Deterministic, closed repository graph. Source-text-free except optional sanitised docSummary. Optional hotspots in 1.2.0. See docs/graph-json-v1.md.',
+    description: 'Deterministic, closed repository graph. Source-text-free except optional sanitised docSummary. Optional hotspots in 1.2.0; optional quality scores in 1.3.0. See docs/graph-json-v1.md.',
     type: 'object',
     properties: {
       schemaVersion: str({ pattern: '^1\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$' }),
@@ -68,6 +68,7 @@ export function buildGraphJsonSchema(): Schema {
       edges: { type: 'array', items: ref('edge') },
       architecture: ref('architecture'),
       hotspots: { type: 'array', items: ref('hotspotEntry') },
+      quality: ref('graphQuality'),
       extensions: ref('extensions')
     },
     required: ['schemaVersion', 'summary', 'coverage', 'nodes', 'edges'],
@@ -251,6 +252,48 @@ export function buildGraphJsonSchema(): Schema {
           why: str({ minLength: 1, maxLength: 240 })
         },
         ['path', 'score', 'why']
+      ),
+      qualityGrade: { type: 'string', enum: ['A', 'B', 'C', 'D', 'F'] },
+      qualityBreakdownItem: closed(
+        {
+          category: { type: 'string', enum: ['architecture', 'cycles', 'hotspots', 'imports', 'size'] },
+          label: str({ minLength: 1, maxLength: 240 }),
+          penalty: { type: 'integer', minimum: 0, maximum: 100 }
+        },
+        ['category', 'label', 'penalty']
+      ),
+      qualityTip: closed(
+        {
+          text: str({ minLength: 1, maxLength: 240 }),
+          gain: { type: 'integer', minimum: 1, maximum: 100 }
+        },
+        ['text', 'gain']
+      ),
+      qualityScore: closed(
+        {
+          score: { type: 'integer', minimum: 0, maximum: 100 },
+          grade: ref('qualityGrade'),
+          breakdown: { type: 'array', items: ref('qualityBreakdownItem'), minItems: 5, maxItems: 5 },
+          tips: { type: 'array', items: ref('qualityTip'), maxItems: 3 }
+        },
+        ['score', 'grade', 'breakdown', 'tips']
+      ),
+      folderQualityScore: closed(
+        {
+          path: str({ minLength: 1 }),
+          score: { type: 'integer', minimum: 0, maximum: 100 },
+          grade: ref('qualityGrade'),
+          breakdown: { type: 'array', items: ref('qualityBreakdownItem'), minItems: 5, maxItems: 5 },
+          tips: { type: 'array', items: ref('qualityTip'), maxItems: 3 }
+        },
+        ['path', 'score', 'grade', 'breakdown', 'tips']
+      ),
+      graphQuality: closed(
+        {
+          project: ref('qualityScore'),
+          folders: { type: 'array', items: ref('folderQualityScore') }
+        },
+        ['project']
       ),
       architectureModule: closed(
         {

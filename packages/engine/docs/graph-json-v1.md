@@ -4,7 +4,7 @@
 Run metadata (time, tool version, absolute paths, memory) goes to `run.json` and to `--json` stdout, never into this file.
 
 - Schema id: `urn:repo-graph:schema:graph:1` (brand-free).
-- `schemaVersion`: semver string `1.2.0` (major 1). A greater major is refused (`GraphVersionUnsupported`, CLI exit 2). The same major with a higher minor is accepted: unknown properties are stripped, unknown kind/type values are kept as generic nodes or edges. A 1.2.0 reader accepts 1.0.0 and 1.1.0 documents (all new fields are optional). A 1.1.0 reader loading a 1.2.0 document sets `newerMinor` and strips unknown properties such as `hotspot` / `hotspots`.
+- `schemaVersion`: semver string `1.3.0` (major 1). A greater major is refused (`GraphVersionUnsupported`, CLI exit 2). The same major with a higher minor is accepted: unknown properties are stripped, unknown kind/type values are kept as generic nodes or edges. A 1.3.0 reader accepts 1.0.0, 1.1.0, and 1.2.0 documents (all new fields are optional). A 1.2.0 reader loading a 1.3.0 document sets `newerMinor` and strips unknown properties such as `quality`.
 - UTF-8 without a BOM, 2-space indent, `\n` line endings, exactly one trailing `\n`.
 - Property order is the order in this document. Nodes are sorted by `id`. Edges are sorted by `(source, type, target, span.start.line, span.start.col)` in UTF-16 code-unit order (`contains` edges have no span and sort as line 0, column 0). `localeCompare` is never used.
 - `additionalProperties` is false everywhere. The only open object is optional `extensions`, whose keys match `^[a-z][a-z0-9-]*:[A-Za-z0-9._-]+$`.
@@ -15,7 +15,7 @@ Run metadata (time, tool version, absolute paths, memory) goes to `run.json` and
 
 ```json
 {
-  "schemaVersion": "1.2.0",
+  "schemaVersion": "1.3.0",
   "summary": { "nodes": 4, "edges": 3, "files": 1 },
   "coverage": {
     "files": { "discovered": 1, "parsed": 1, "partial": 0, "failed": 0, "skipped": 0, "ignored": 0 },
@@ -341,7 +341,19 @@ The score is a documented, deterministic weighted sum of signals already in the 
 
 Property order: `hotspot` sits on a file node after `docSummary` and before `extensions`. Graph-level `hotspots` sits after `architecture` and before `extensions`.
 
+
+## Quality scores (1.3.0)
+
+Optional. A scan may attach `quality`:
+
+- `quality.project`: `{ score, grade, breakdown, tips }`. `score` is an integer 0–100. `grade` is `A` | `B` | `C` | `D` | `F`. `breakdown` is the five penalty categories with a plain-English `label` and the `penalty` subtracted. `tips` are at most three `{ text, gain }` items; `gain` is the score increase from re-running the formula after that fix.
+- `quality.folders`: the same shape plus a repo-relative `path`, for every folder that contains files, worst score first then by path. Omitted when there are no subfolders with files. The root is the project score and is not repeated here.
+
+Weights, caps, and grade bands are documented in `docs/quality-scores.md`. Property order: `quality` sits after `hotspots` and before `extensions`.
+
 ## Changelog
+
+- **2026-11-23, schemaVersion 1.3.0**: optional project and per-folder `quality` scores (letter grade, plain-English breakdown, top-3 tips with formula-based gains). Additive; 1.0.0, 1.1.0, and 1.2.0 documents still read. Frozen `schema-fixtures/v1.0.0.graph.json`, `v1.1.0.graph.json`, and `v1.2.0.graph.json` are unchanged; `schema-fixtures/v1.3.0.graph.json` covers the new shapes.
 
 - **2026-11-23, schemaVersion 1.2.0**: optional per-file `hotspot` and top-N `hotspots` list (plain-English `why`). Additive; 1.0.0 and 1.1.0 documents still read. Frozen `schema-fixtures/v1.0.0.graph.json` and `v1.1.0.graph.json` are unchanged; `schema-fixtures/v1.2.0.graph.json` covers the new shapes.
 
