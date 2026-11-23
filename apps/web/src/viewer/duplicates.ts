@@ -44,3 +44,31 @@ export function descriptionSegments(text: string): string[] {
   if (!text.includes('/')) return [text]
   return text.split(/(?=\/)/)
 }
+
+
+export interface DuplicateDescriptionMessages {
+  duplicatesDescriptionTwoPaths: (lines: number, pathA: string, pathB: string) => string
+  duplicatesDescriptionOnePath: (lines: number, count: number, path: string) => string
+  duplicatesDescriptionManyPaths: (lines: number, fileCount: number) => string
+}
+
+/** Build a description from lineCount + occurrences; fall back to the engine string. */
+export function duplicateGroupDescription(
+  group: Pick<DuplicateGroup, 'lineCount' | 'occurrences' | 'description'>,
+  messages: DuplicateDescriptionMessages
+): string {
+  const paths: string[] = []
+  for (const item of group.occurrences) {
+    if (!paths.includes(item.path)) paths.push(item.path)
+  }
+  if (paths.length === 1 && paths[0]) {
+    return messages.duplicatesDescriptionOnePath(group.lineCount, group.occurrences.length, paths[0])
+  }
+  if (paths.length === 2 && group.occurrences.length === 2 && paths[0] && paths[1]) {
+    return messages.duplicatesDescriptionTwoPaths(group.lineCount, paths[0], paths[1])
+  }
+  if (paths.length > 0) {
+    return messages.duplicatesDescriptionManyPaths(group.lineCount, paths.length)
+  }
+  return group.description
+}

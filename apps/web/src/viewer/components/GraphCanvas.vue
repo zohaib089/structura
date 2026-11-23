@@ -29,7 +29,7 @@ const props = defineProps<{
   ready: boolean
   label: string
   /** Heading of the files-in-view list (G02). */
-  fileListLabel?: string
+  fileListLabel?: (count: number) => string
   selectedId: string | null
   activeId: string | null
   moreLabel: (count: number) => string
@@ -38,6 +38,7 @@ const props = defineProps<{
   zoomIn: string
   zoomOut: string
   zoomFit: string
+  zoomFitShort?: string
   focusIds?: string[]
   fitDuration?: number
   fitPadding?: number
@@ -491,7 +492,7 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
         :panel-inset="panelInset ?? 0"
         :panel-bottom-inset="panelBottomInset ?? 0"
       />
-      <ZoomPad ref="zoomPad" :zoom-in="zoomIn" :zoom-out="zoomOut" :zoom-fit="zoomFit" :fit="fitNow" />
+      <ZoomPad ref="zoomPad" :zoom-in="zoomIn" :zoom-out="zoomOut" :zoom-fit="zoomFit" :zoom-fit-short="zoomFitShort" :fit="fitNow" />
     </VueFlow>
     <!-- G02: every file in the view by name, for assistive tech always and as a tappable list on phones
          (dense phone rings hide some names; the list replaces them). -->
@@ -502,8 +503,8 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
         :aria-expanded="fileListOpen ? 'true' : 'false'"
         aria-controls="graph-file-list-items"
         @click="fileListOpen = !fileListOpen"
-      >{{ fileListLabel ?? 'Files in view' }} ({{ listedFiles.length }})</button>
-      <ul id="graph-file-list-items" class="file-list-items" :class="{ 'is-open': fileListOpen }" :aria-label="fileListLabel ?? 'Files in view'">
+      >{{ fileListLabel ? fileListLabel(listedFiles.length) : `Files in view (${listedFiles.length})` }}</button>
+      <ul id="graph-file-list-items" class="file-list-items" :class="{ 'is-open': fileListOpen }" :aria-label="fileListLabel ? fileListLabel(listedFiles.length) : `Files in view (${listedFiles.length})`">
         <li v-for="file in listedFiles" :key="file.id">
           <button type="button" :data-node-id="file.id" :aria-current="selectedId === file.id ? 'true' : undefined" @click="emit('select', file.id); fileListOpen = false">{{ file.label }}</button>
         </li>
@@ -534,7 +535,7 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
 .file-list { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .file-list.is-phone {
   position: absolute; clip: auto; overflow: visible; inline-size: auto; block-size: auto; white-space: normal;
-  inset-inline-start: var(--space-3, 12px); inset-block-start: calc(var(--space-3, 12px) + var(--viewer-hit-target, 2.75rem) + var(--space-4, 16px));
+  inset-inline-start: var(--space-3, 12px); inset-block-start: calc(var(--space-3, 12px) + var(--viewer-hit-target, 2.75rem) + var(--space-4, 16px) + var(--graph-file-list-extra-top, 0px));
   z-index: var(--z-graph-controls, 5); max-inline-size: calc(100% - 2 * var(--space-3, 12px));
 }
 .file-list:not(.is-phone) .file-list-toggle { display: none; }

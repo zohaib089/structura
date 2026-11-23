@@ -60,7 +60,32 @@ const MUST_TRANSLATE_PREFIXES = [
   'ask',
   'showHotspots',
   'hotspotLegend',
-  'riskToChange'
+  'riskToChange',
+  'layout',
+  'coachOpen',
+  'zoomFit',
+  'fitTooltip',
+  'fileListLabel',
+  'provExtracted',
+  'provInferred',
+  'provUnresolved',
+  'provMixed',
+  'budgetMeter',
+  'search',
+  'crumbRoot',
+  'projectBreadcrumb',
+  'scanBreadcrumb',
+  'graphTabBreadcrumb',
+  'tabSummary',
+  'tabFindings',
+  'tabViolations',
+  'tabSecurity',
+  'tabBadPractices',
+  'tabImprovements',
+  'tabRemovals',
+  'tabGraph',
+  'tabHistory',
+  'tabArchitecture'
 ]
 
 /** Templates that can legitimately stay identical across locales (placeholders only, or shared punctuation). */
@@ -70,7 +95,15 @@ const MAY_MATCH_EN = new Set([
   'duplicatesPercentValue',
   'riskToChangeValue',
   'askCitationIn', // Italian naturally uses "in {path}"
-  'nl:activityFilterProject' // Dutch uses the same word
+  'nl:activityFilterProject', // Dutch uses the same word
+  'nl:projectBreadcrumb',
+  'nl:coachOpenLabel', // "Tips" is also the Dutch word
+  'pt:layoutRadial',
+  'pt:layoutLinear',
+  'fr:layoutRadial',
+  'es:layoutRadial',
+  'fr:tabArchitecture', // "Architecture" is the same word in French
+  'it:searchFiles' // "File" is the same word in Italian
 ])
 
 function isNewScreenKey(key: string): boolean {
@@ -100,6 +133,14 @@ function sample(key: string, value: unknown): string {
   if (/AccessLimited/.test(key)) return call('Taylor', 'Atlas', 2)
   if (/ExactTimeLabel/.test(key)) return call('yesterday', '12:00')
   if (/CitationIn/.test(key)) return call('src/app.ts')
+  if (/ListAnd/.test(key)) return call(['alpha', 'bravo', 'charlie'])
+  if (/SmallPenalty/.test(key)) return call('Circular imports')
+  if (/budgetMeter/.test(key)) return call('4', '3', 3)
+  if (/HotspotsWithMax/.test(key)) return call(3, 1)
+  if (/DescriptionTwoPaths/.test(key)) return call(12, 'a.ts', 'b.ts')
+  if (/DescriptionOnePath/.test(key)) return call(12, 8, 'a.ts')
+  if (/DescriptionManyPaths/.test(key)) return call(12, 3)
+  if (/tabArchitecture|qualityLabel|duplicatesDescription|fileListLabel/.test(key) && fn.length === 1) return call(2)
   if (fn.length >= 2) return call('Taylor', 'Sam')
   if (fn.length === 1) return call('Taylor')
   return call()

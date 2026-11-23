@@ -4,7 +4,7 @@ import { zoomAnchor, zoomAroundPoint } from '../graph-history'
 import { prefersReducedMotion } from '../motion'
 import Tip from './Tip.vue'
 
-const props = defineProps<{ zoomIn: string; zoomOut: string; zoomFit: string; fit?: () => void }>()
+const props = defineProps<{ zoomIn: string; zoomOut: string; zoomFit: string; zoomFitShort?: string; fit?: () => void }>()
 
 const flow = useVueFlow()
 
@@ -58,7 +58,7 @@ defineExpose({ zoomBy, ZOOM_STEP })
   <Panel position="bottom-right" class="zoom">
     <Tip side="start" :text="zoomIn"><button type="button" data-testid="zoom-in" :aria-label="zoomIn" @click="zoomBy(ZOOM_STEP)">+</button></Tip>
     <Tip side="start" :text="zoomOut"><button type="button" data-testid="zoom-out" :aria-label="zoomOut" @click="zoomBy(1 / ZOOM_STEP)">−</button></Tip>
-    <Tip side="start" :text="zoomFit"><button type="button" data-testid="zoom-fit" :aria-label="zoomFit" @click="fit()">Fit</button></Tip>
+    <Tip side="start" :text="zoomFit"><button type="button" data-testid="zoom-fit" :aria-label="zoomFit" @click="fit()">{{ zoomFitShort || zoomFit }}</button></Tip>
   </Panel>
 </template>
 

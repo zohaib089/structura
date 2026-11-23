@@ -109,6 +109,7 @@ async function mountCard(data: GraphQuality | null | undefined | 'default' = 'de
       foldersShowing: messages.qualityFoldersShowing,
       openLabel: messages.qualityFoldersOpen,
       folderEmptySummary: messages.qualityFolderSummaryNone,
+      breakdownMessages: messages,
       graphHref: (path?: string) => ({ path: '/graph', query: path ? { node: path } : {} })
     },
     global: { plugins: [router] }
