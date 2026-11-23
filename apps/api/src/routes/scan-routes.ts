@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import type { MultipartFile } from '@fastify/multipart'
+import { answerGraphQuestion, GRAPH_QA_MAX_QUESTION_LENGTH, isGraphLike } from '@atlasmith/engine'
 import {
   assertAllowlistedGitHttpsUrl,
   limitsFromEnv
@@ -260,6 +261,59 @@ export function registerWorkspaceScanRoutes(app: FastifyInstance, database: Work
       }
 
       return { success: true, graph: scan.graph_json }
+    }
+  )
+
+  app.post<{ Params: { workspaceId: string; scanId: string } }>(
+    '/api/workspaces/:workspaceId/scans/:scanId/ask',
+    async (request, reply) => {
+      const userId = await authenticatedUserId(request.headers.authorization, database)
+      if (!userId) return unauthenticated(reply)
+      if (!(await requireWorkspaceMember(database, request.params.workspaceId, userId))) {
+        return reply.code(404).send({ success: false, message: 'Workspace not found.' })
+      }
+
+      const body = readRecord(request.body)
+      const question = typeof body?.question === 'string' ? body.question.trim() : ''
+      if (!body || !('question' in body) || typeof body.question !== 'string' || question.length === 0) {
+        return reply.code(400).send({ success: false, message: 'A question is required.' })
+      }
+      if (question.length > GRAPH_QA_MAX_QUESTION_LENGTH) {
+        return reply.code(400).send({
+          success: false,
+          message: `Question must be ${GRAPH_QA_MAX_QUESTION_LENGTH} characters or fewer.`
+        })
+      }
+
+      const result = await database.query(
+        `SELECT status, graph_json
+         FROM workspace_scans
+         WHERE workspace_id = $1 AND id = $2`,
+        [request.params.workspaceId, request.params.scanId]
+      )
+      const scan = result.rows[0]
+      if (!scan) {
+        return reply.code(404).send({ success: false, message: 'Scan not found.' })
+      }
+      if (scan.status === 'queued' || scan.status === 'running') {
+        return reply.code(409).send({
+          success: false,
+          message: 'Graph is not ready yet.',
+          status: scan.status
+        })
+      }
+      if (scan.status === 'failed' || scan.graph_json == null || !isGraphLike(scan.graph_json)) {
+        return reply.code(404).send({ success: false, message: 'Graph is not available for this scan.' })
+      }
+
+      const qa = answerGraphQuestion(scan.graph_json, question)
+      return {
+        success: true,
+        intent: qa.intent,
+        answer: qa.answer,
+        citations: qa.citations,
+        suggestions: qa.suggestions
+      }
     }
   )
 
