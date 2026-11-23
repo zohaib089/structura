@@ -15,7 +15,7 @@ import {
 test('exports versioned, language-neutral source and analysis contract types', () => {
   assert.equal(ANALYSIS_CONTRACT_VERSION, '1.0.0')
   assert.deepEqual(ANALYSIS_SOURCE_KINDS, ['archive', 'single-file', 'github', 'gitlab'])
-  assert.equal(GRAPH_SCHEMA_VERSION, '1.1.0')
+  assert.equal(GRAPH_SCHEMA_VERSION, '1.2.0')
   assert.equal(GRAPH_SCHEMA_ID, 'urn:repo-graph:schema:graph:1')
   assert.ok(NODE_KINDS.includes('file'))
   assert.ok(NODE_KINDS.includes('unresolved'))

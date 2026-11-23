@@ -53,7 +53,7 @@ export function buildGraphJsonSchema(): Schema {
     $schema: 'https://json-schema.org/draft/2020-12/schema',
     $id: GRAPH_SCHEMA_ID,
     title: 'graph.json v1',
-    description: 'Deterministic, closed repository graph. Source-text-free except optional sanitised docSummary. See docs/graph-json-v1.md.',
+    description: 'Deterministic, closed repository graph. Source-text-free except optional sanitised docSummary. Optional hotspots in 1.2.0. See docs/graph-json-v1.md.',
     type: 'object',
     properties: {
       schemaVersion: str({ pattern: '^1\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$' }),
@@ -67,6 +67,7 @@ export function buildGraphJsonSchema(): Schema {
       nodes: { type: 'array', items: ref('node') },
       edges: { type: 'array', items: ref('edge') },
       architecture: ref('architecture'),
+      hotspots: { type: 'array', items: ref('hotspotEntry') },
       extensions: ref('extensions')
     },
     required: ['schemaVersion', 'summary', 'coverage', 'nodes', 'edges'],
@@ -113,7 +114,8 @@ export function buildGraphJsonSchema(): Schema {
           entryCandidate: ref('entryCandidate'),
           entryCandidates: { type: 'array', items: ref('entryCandidateDetail') },
           module: { type: 'string', pattern: '^[a-z][a-z0-9-]*$' },
-          docSummary: str({ minLength: 1, maxLength: 160 })
+          docSummary: str({ minLength: 1, maxLength: 160 }),
+          hotspot: ref('fileHotspot')
         }),
         ['id', 'kind', 'path', 'label', 'language', 'lineCount', 'parse']
       ),
@@ -240,6 +242,15 @@ export function buildGraphJsonSchema(): Schema {
           accounting: closed({ discovered: count, accounted: count }, ['discovered', 'accounted'])
         },
         ['files', 'byLanguage', 'skipped', 'failed', 'ignored', 'unresolved', 'accounting']
+      ),
+      fileHotspot: closed({ score: { type: 'integer', minimum: 0, maximum: 100 } }, ['score']),
+      hotspotEntry: closed(
+        {
+          path: str({ minLength: 1 }),
+          score: { type: 'integer', minimum: 0, maximum: 100 },
+          why: str({ minLength: 1, maxLength: 240 })
+        },
+        ['path', 'score', 'why']
       ),
       architectureModule: closed(
         {

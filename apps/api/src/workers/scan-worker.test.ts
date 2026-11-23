@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import test from 'node:test'
 import {
   abortRunningWorkspaceScan,
+  omitDocSummaries,
   runWorkspaceScan,
   recoverWorkspaceScansOnStartup
 } from './scan-worker.js'
@@ -479,4 +480,26 @@ test('scan worker sanitises hosted fileSummaries with sanitizeDocSummary before 
   for (const value of fileMeta.values()) {
     assert.notEqual(value, undefined)
   }
+})
+
+test('omitDocSummaries keeps hotspot scores and the hotspots list', () => {
+  const graph = omitDocSummaries({
+    schemaVersion: '1.2.0',
+    nodes: [
+      {
+        id: 'file:src/app.ts',
+        kind: 'file',
+        path: 'src/app.ts',
+        docSummary: 'Application entry.',
+        hotspot: { score: 80 }
+      }
+    ],
+    hotspots: [{ path: 'src/app.ts', score: 80, why: 'Used by 4 files' }]
+  }) as {
+    nodes: Array<{ docSummary?: string; hotspot?: { score: number } }>
+    hotspots: Array<{ path: string; score: number; why: string }>
+  }
+  assert.equal(graph.nodes[0]?.docSummary, undefined)
+  assert.deepEqual(graph.nodes[0]?.hotspot, { score: 80 })
+  assert.deepEqual(graph.hotspots, [{ path: 'src/app.ts', score: 80, why: 'Used by 4 files' }])
 })

@@ -11,7 +11,7 @@ import type { Coverage, Graph, GraphArchitecture, GraphEdge, GraphNode } from '.
 
 const NODE_ORDER: Record<string, readonly string[]> = {
   directory: ['id', 'kind', 'path', 'label', 'extensions'],
-  file: ['id', 'kind', 'path', 'label', 'language', 'lineCount', 'parse', 'decoding', 'entryCandidate', 'entryCandidates', 'module', 'docSummary', 'extensions'],
+  file: ['id', 'kind', 'path', 'label', 'language', 'lineCount', 'parse', 'decoding', 'entryCandidate', 'entryCandidates', 'module', 'docSummary', 'hotspot', 'extensions'],
   symbol: ['id', 'kind', 'file', 'label', 'symbolKind', 'exported', 'span', 'parent', 'paramCount', 'scope', 'mutable', 'stateKind', 'docSummary', 'extensions'],
   external: ['id', 'kind', 'ecosystem', 'label', 'extensions'],
   unresolved: ['id', 'kind', 'label', 'reason', 'extensions']
@@ -27,7 +27,8 @@ const NESTED_ORDER: Record<string, readonly string[]> = {
   parse: ['status', 'reason'],
   entryCandidate: ['reason', 'provenance'],
   entryCandidateDetail: ['reason', 'evidence', 'confidence'],
-  entryEvidence: ['source', 'pointer', 'span']
+  entryEvidence: ['source', 'pointer', 'span'],
+  hotspot: ['score']
 }
 
 function ordered(value: Record<string, unknown>, order: readonly string[], nested = true): Record<string, unknown> {
@@ -144,6 +145,9 @@ export function canonicalizeGraph(graph: Graph): Graph {
     edges: [...graph.edges].sort(compareEdges).map(edge => ordered(edge as unknown as Record<string, unknown>, EDGE_ORDER))
   }
   if (graph.architecture !== undefined) out.architecture = orderedArchitecture(graph.architecture)
+  if (graph.hotspots !== undefined) {
+    out.hotspots = graph.hotspots.map(item => ordered(item as unknown as Record<string, unknown>, ['path', 'score', 'why']))
+  }
   if (graph.extensions !== undefined) out.extensions = sortedDeep(graph.extensions)
   return out as unknown as Graph
 }
@@ -172,11 +176,15 @@ export function* graphChunks(graph: Graph): Generator<string> {
       }
       yield '  ]'
     }
-    const trailing = ki === 0 || graph.architecture !== undefined || canonical.extensions !== undefined
+    const trailing = ki === 0 || canonical.architecture !== undefined || canonical.hotspots !== undefined || canonical.extensions !== undefined
     yield trailing ? ',\n' : '\n'
   }
   if (canonical.architecture !== undefined) {
     yield `  "architecture": ${indent(JSON.stringify(canonical.architecture, null, 2), 2)}`
+    yield canonical.hotspots !== undefined || canonical.extensions !== undefined ? ',\n' : '\n'
+  }
+  if (canonical.hotspots !== undefined) {
+    yield `  "hotspots": ${indent(JSON.stringify(canonical.hotspots, null, 2), 2)}`
     yield canonical.extensions !== undefined ? ',\n' : '\n'
   }
   if (canonical.extensions !== undefined) yield `  "extensions": ${indent(JSON.stringify(canonical.extensions, null, 2), 2)}\n`

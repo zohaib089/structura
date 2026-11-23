@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.1.0",
+  "schemaVersion": "1.2.0",
   "summary": {
     "nodes": 7,
     "edges": 7,
@@ -54,6 +54,9 @@
       "lineCount": 2,
       "parse": {
         "status": "parsed"
+      },
+      "hotspot": {
+        "score": 10
       }
     },
     {
@@ -65,6 +68,9 @@
       "lineCount": 6,
       "parse": {
         "status": "parsed"
+      },
+      "hotspot": {
+        "score": 45
       }
     },
     {
@@ -76,6 +82,9 @@
       "lineCount": 2,
       "parse": {
         "status": "parsed"
+      },
+      "hotspot": {
+        "score": 70
       }
     },
     {
@@ -171,6 +180,23 @@
       "type": "contains",
       "target": "sym:pkg/util.py#VALUE",
       "provenance": "EXTRACTED"
+    }
+  ],
+  "hotspots": [
+    {
+      "path": "pkg/util.py",
+      "score": 70,
+      "why": "Used by 1 file, impacts 1 file, and has 2 lines"
+    },
+    {
+      "path": "pkg/app.py",
+      "score": 45,
+      "why": "imports 1 file, impacts 1 file, and has 1 function"
+    },
+    {
+      "path": "pkg/__init__.py",
+      "score": 10,
+      "why": "has 2 lines"
     }
   ]
 }

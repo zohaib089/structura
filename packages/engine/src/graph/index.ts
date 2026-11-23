@@ -29,4 +29,11 @@ export {
 export { validateStrict, type ValidationResult } from './validate-strict.js'
 export { canonicalizeGraph, serializeGraph, graphChunks, compareEdges, compareNodes } from './canonical.js'
 export { GraphBuilder } from './builder.js'
-export { CANARY_GRAPH_PATH, CANARY_V110_GRAPH_PATH, SCHEMA_HASH_PATH, SCHEMA_JSON_PATH, hashSchemaDocument, readCheckedInSchema, readCheckedInSchemaHash, schemaDocumentText } from './hash.js'
+export {
+  HOTSPOTS_DEFAULT_LIMIT,
+  attachHotspots,
+  collectFileHotspotSignals,
+  describeHotspot,
+  type FileHotspotSignals
+} from './hotspots.js'
+export { CANARY_GRAPH_PATH, CANARY_V110_GRAPH_PATH, CANARY_V120_GRAPH_PATH, SCHEMA_HASH_PATH, SCHEMA_JSON_PATH, hashSchemaDocument, readCheckedInSchema, readCheckedInSchemaHash, schemaDocumentText } from './hash.js'

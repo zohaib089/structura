@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url'
 import { GraphBuilder } from './builder.js'
 import { serializeGraph } from './canonical.js'
 import { GraphReadError, GraphVersionUnsupported } from './errors.js'
-import { CANARY_GRAPH_PATH, CANARY_V110_GRAPH_PATH, hashSchemaDocument, readCheckedInSchema, readCheckedInSchemaHash, schemaDocumentText } from './hash.js'
+import { CANARY_GRAPH_PATH, CANARY_V110_GRAPH_PATH, CANARY_V120_GRAPH_PATH, hashSchemaDocument, readCheckedInSchema, readCheckedInSchemaHash, schemaDocumentText } from './hash.js'
+import { attachHotspots } from './hotspots.js'
 import { readGraph } from './read.js'
 import { validateStrict } from './validate-strict.js'
 import {
@@ -126,7 +127,7 @@ test('a greater major is refused and a newer minor is accepted with unknown data
   assert.throws(() => readGraph(future), (error: unknown) => error instanceof GraphVersionUnsupported && error.foundVersion === '2.0.0')
 
   const parsed = JSON.parse(serializeGraph(canary())) as Graph & { summary: { extra?: boolean } }
-  parsed.schemaVersion = '1.2.0'
+  parsed.schemaVersion = '1.3.0'
   parsed.summary.extra = true
   parsed.nodes.push({ id: 'custom:1', kind: 'widget' } as unknown as Graph['nodes'][number])
   parsed.summary.nodes += 1
@@ -295,7 +296,11 @@ function canaryV11(): Graph {
   const coverage = emptyCoverage(2, 2)
   coverage.files.ignored = 0
   coverage.calls = { resolved: 2, unresolved: 1 }
-  return builder.build(coverage)
+  return { ...builder.build(coverage), schemaVersion: '1.1.0' }
+}
+
+function canaryV12(): Graph {
+  return attachHotspots({ ...canaryV11(), schemaVersion: GRAPH_SCHEMA_VERSION })
 }
 
 test('v1.1.0 fixture is stable, ordered, and accepted by a 1.1.0 reader', () => {
@@ -328,13 +333,34 @@ test('v1.1.0 fixture is stable, ordered, and accepted by a 1.1.0 reader', () => 
   assert.equal(inferredCall && 'reason' in inferredCall ? inferredCall.reason : undefined, 'src-subpath')
 })
 
-test('readGraph accepts both the 1.0.0 canary and the 1.1.0 fixture', () => {
+test('readGraph accepts the 1.0.0 canary, the 1.1.0 fixture, and the 1.2.0 fixture', () => {
   const v10 = readGraph(readFileSync(CANARY_GRAPH_PATH, 'utf8'))
   const v11 = readGraph(readFileSync(CANARY_V110_GRAPH_PATH, 'utf8'))
+  const v12 = readGraph(readFileSync(CANARY_V120_GRAPH_PATH, 'utf8'))
   assert.equal(v10.version, '1.0.0')
   assert.equal(v10.newerMinor, false)
   assert.equal(v11.version, '1.1.0')
   assert.equal(v11.newerMinor, false)
+  assert.equal(v12.version, '1.2.0')
+  assert.equal(v12.newerMinor, false)
+})
+
+test('v1.2.0 fixture is stable, ordered, and accepted by a 1.2.0 reader', () => {
+  const frozen = readFileSync(CANARY_V120_GRAPH_PATH, 'utf8')
+  const first = serializeGraph(canaryV12())
+  assert.equal(first, frozen)
+  assert.equal(serializeGraph(JSON.parse(first) as Graph), first)
+  const loaded = readGraph(frozen)
+  assert.equal(loaded.version, '1.2.0')
+  assert.equal(loaded.newerMinor, false)
+  assert.equal(serializeGraph(loaded.graph), frozen)
+  const strict = validateStrict(JSON.parse(frozen))
+  assert.equal(strict.ok, true, strict.issues.map(issue => `${issue.path} ${issue.message}`).join('; '))
+  assert.ok((loaded.graph.hotspots?.length ?? 0) > 0)
+  const file = loaded.graph.nodes.find(node => node.id === 'file:src/app.ts')
+  if (!file || file.kind !== 'file') throw new Error('missing v1.2.0 file node')
+  assert.equal(typeof file.hotspot?.score, 'number')
+  assert.deepEqual(Object.keys(loaded.graph.hotspots?.[0] ?? {}), ['path', 'score', 'why'])
 })
 
 test('v1.1.0 closed objects reject extra keys and reserved or overlong values', () => {
