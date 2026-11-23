@@ -75,7 +75,7 @@ function createInvitationApi(options: {
     }
     if (text.startsWith('UPDATE workspace_invitations SET revoked_at')) {
       invitationRevoked = true
-      return { rows: [{ id: params[0] }] }
+      return { rows: [{ id: params[0], email: invitedEmail || 'invitee@example.test' }] }
     }
     if (text.startsWith('UPDATE workspace_invitations SET revoked_at = NOW()')) {
       invitationRevoked = true
@@ -118,7 +118,7 @@ function createInvitationApi(options: {
       members.push({ workspace_id: params[0], user_id: params[1], role: 'member' })
       return { rows: [] }
     }
-    return { rows: [] }
+    return query(text, params)
   })
 
   const database: WorkspaceDatabase = { query, transaction }
