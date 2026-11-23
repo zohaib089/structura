@@ -242,3 +242,26 @@ test('attachDuplicates does not mutate the input and serialises stably', () => {
   const checked = validateStrict(JSON.parse(first) as Graph)
   assert.equal(checked.ok, true, checked.issues.map(issue => `${issue.path} ${issue.message}`).join('; '))
 })
+
+
+test('a long run of repeated lines stays bounded and stays deterministic', () => {
+  const line = '  const repeatedValue = computeShared(input, 0, flags)'
+  const block = Array.from({ length: 400 }, () => line).join('\n') + '\n'
+  const once = detectDuplicateGroups([source('src/only.ts', block)])
+  const againOnce = detectDuplicateGroups([source('src/only.ts', block)])
+  assert.deepEqual(once, againOnce)
+  for (const group of once) {
+    const occ = group.occurrences
+    for (let i = 0; i < occ.length; i += 1) {
+      for (let j = i + 1; j < occ.length; j += 1) {
+        assert.ok(occ[i]!.path !== occ[j]!.path || occ[i]!.endLine < occ[j]!.startLine || occ[j]!.endLine < occ[i]!.startLine)
+      }
+    }
+  }
+  const two = detectDuplicateGroups([source('src/a.ts', block), source('src/b.ts', block)])
+  const again = detectDuplicateGroups([source('src/b.ts', block), source('src/a.ts', block)])
+  assert.deepEqual(two, again)
+  assert.ok((two[0]?.lineCount ?? 0) >= MIN_MEANINGFUL_LINES)
+  const paths = new Set(two.flatMap(group => group.occurrences.map(item => item.path)))
+  assert.deepEqual([...paths].sort(), ['src/a.ts', 'src/b.ts'])
+})

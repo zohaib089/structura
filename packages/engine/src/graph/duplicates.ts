@@ -6,9 +6,10 @@
  * and the output shape are documented in docs/duplicate-detection.md.
  *
  * A block must have at least MIN_MEANINGFUL_LINES non-trivial lines and
- * MIN_BLOCK_CHARS of normalised text. Overlapping windows are merged into
- * maximal spans; sub-spans of a larger group are suppressed. Group ids are
- * a short sha256 of the normalised block.
+ * MIN_BLOCK_CHARS of normalised text. Matching uses 6-line window hashes
+ * (O(N) memory) and left-maximal span extension, not a suffix trie.
+ * Overlapping windows are merged into maximal spans; sub-spans of a larger
+ * group are suppressed. Group ids are a short sha256 of the normalised block.
  */
 import { createHash } from 'node:crypto'
 import { compareStrings } from './ids.js'
@@ -24,6 +25,10 @@ export const DUPLICATES_DEFAULT_LIMIT = 20
 export const MIN_MEANINGFUL_LINES = 6
 export const MIN_BLOCK_CHARS = 48
 export const DUPLICATE_ID_LENGTH = 12
+/** Deterministic cap on how many 6-line window hits one hash may keep in total. */
+export const MAX_WINDOW_OCCURRENCES = 256
+/** Per-file cap applied before the overall window-hit cap, so later files are not dropped. */
+export const MAX_WINDOW_OCCURRENCES_PER_FILE = 8
 
 interface MeaningfulLine {
   line: number
@@ -36,9 +41,9 @@ interface FileSequence {
   rawLineCount: number
 }
 
-interface TrieNode {
-  children: Map<string, TrieNode>
-  occ: Array<{ path: string; startIndex: number; startLine: number }>
+interface WindowHit {
+  path: string
+  startIndex: number
 }
 
 function isPython(language: string | null): boolean {
@@ -259,57 +264,77 @@ function isSubSpan(inner: DuplicateGroup, outer: DuplicateGroup): boolean {
   return inner.occurrences.every(item => outer.occurrences.some(host => containedIn(item, host)))
 }
 
-function insertSuffix(root: TrieNode, file: FileSequence, startIndex: number): void {
-  let node = root
-  for (let index = startIndex; index < file.lines.length; index += 1) {
-    const key = file.lines[index]!.norm
-    let child = node.children.get(key)
-    if (!child) {
-      child = { children: new Map(), occ: [] }
-      node.children.set(key, child)
-    }
-    child.occ.push({ path: file.path, startIndex, startLine: file.lines[startIndex]!.line })
-    node = child
+function windowKey(lines: MeaningfulLine[], start: number): string {
+  let key = lines[start]!.norm
+  for (let offset = 1; offset < MIN_MEANINGFUL_LINES; offset += 1) {
+    key += '\n' + lines[start + offset]!.norm
   }
+  return key
 }
 
-function collectFromTrie(
-  node: TrieNode,
-  depth: number,
-  norms: string[],
-  files: Map<string, FileSequence>,
-  groups: DuplicateGroup[]
-): void {
-  if (depth >= MIN_MEANINGFUL_LINES && node.occ.length >= 2 && charCount(norms) >= MIN_BLOCK_CHARS) {
-    let allContinueTogether = false
-    for (const child of node.children.values()) {
-      if (child.occ.length === node.occ.length) {
-        allContinueTogether = true
-        break
-      }
+function compareHits(left: WindowHit, right: WindowHit): number {
+  return compareStrings(left.path, right.path) || left.startIndex - right.startIndex
+}
+
+function capWindowHits(hits: WindowHit[]): WindowHit[] {
+  const byFile: WindowHit[][] = []
+  let current: WindowHit[] | undefined
+  let currentPath: string | undefined
+  for (const hit of hits) {
+    if (hit.path !== currentPath) {
+      current = []
+      currentPath = hit.path
+      byFile.push(current)
     }
-    if (!allContinueTogether) {
-      const occurrences = dropOverlapping(
-        node.occ.map(item => {
-          const file = files.get(item.path)
-          const end = file?.lines[item.startIndex + depth - 1]?.line ?? item.startLine
-          return { path: item.path, startLine: item.startLine, endLine: end }
-        })
-      )
-      if (occurrences.length >= 2) {
-        occurrences.sort(compareOccurrences)
-        groups.push({
-          id: blockId(norms),
-          lineCount: depth,
-          occurrences,
-          description: describeGroup(depth, occurrences)
-        })
-      }
-    }
+    if (current && current.length < MAX_WINDOW_OCCURRENCES_PER_FILE) current.push(hit)
   }
-  const keys = [...node.children.keys()].sort(compareStrings)
-  for (const key of keys) {
-    collectFromTrie(node.children.get(key)!, depth + 1, [...norms, key], files, groups)
+  const limited: WindowHit[] = []
+  let index = 0
+  let added = true
+  while (limited.length < MAX_WINDOW_OCCURRENCES && added) {
+    added = false
+    for (const list of byFile) {
+      if (index < list.length && limited.length < MAX_WINDOW_OCCURRENCES) {
+        limited.push(list[index]!)
+        added = true
+      }
+    }
+    index += 1
+  }
+  limited.sort(compareHits)
+  return limited
+}
+
+function isLeftMaximal(left: FileSequence, leftIndex: number, right: FileSequence, rightIndex: number): boolean {
+  if (leftIndex === 0 || rightIndex === 0) return true
+  return left.lines[leftIndex - 1]!.norm !== right.lines[rightIndex - 1]!.norm
+}
+
+function forwardMatch(left: FileSequence, leftIndex: number, right: FileSequence, rightIndex: number): number {
+  const limit = Math.min(left.lines.length - leftIndex, right.lines.length - rightIndex)
+  let length = MIN_MEANINGFUL_LINES
+  while (
+    length < limit &&
+    left.lines[leftIndex + length]!.norm === right.lines[rightIndex + length]!.norm
+  ) {
+    length += 1
+  }
+  return length
+}
+
+function diagonalKey(left: WindowHit, right: WindowHit): string {
+  return `${left.path}\u0000${right.path}\u0000${left.startIndex - right.startIndex}`
+}
+
+function blockKey(norms: string[]): string {
+  return createHash('sha256').update(norms.join('\n'), 'utf8').digest('hex')
+}
+
+function occurrenceAt(file: FileSequence, startIndex: number, length: number): DuplicateOccurrence {
+  return {
+    path: file.path,
+    startLine: file.lines[startIndex]!.line,
+    endLine: file.lines[startIndex + length - 1]!.line
   }
 }
 
@@ -339,15 +364,71 @@ export function detectDuplicateGroups(sources: readonly DuplicateSource[]): Dupl
     const lines = meaningfulLines(source.content, source.language)
     files.set(source.path, { path: source.path, lines, rawLineCount: rawLineCount(source.content) })
   }
-  const root: TrieNode = { children: new Map(), occ: [] }
   const paths = [...files.keys()].sort(compareStrings)
+  const buckets = new Map<string, WindowHit[]>()
   for (const path of paths) {
     const file = files.get(path)!
     const lastStart = file.lines.length - MIN_MEANINGFUL_LINES
-    for (let index = 0; index <= lastStart; index += 1) insertSuffix(root, file, index)
+    for (let index = 0; index <= lastStart; index += 1) {
+      const key = windowKey(file.lines, index)
+      const hits = buckets.get(key)
+      if (hits) hits.push({ path, startIndex: index })
+      else buckets.set(key, [{ path, startIndex: index }])
+    }
   }
+
+  const blocks = new Map<string, { norms: string[]; starts: Map<string, { path: string; startIndex: number; length: number }> }>()
+  for (const hits of buckets.values()) {
+    if (hits.length < 2) continue
+    hits.sort(compareHits)
+    const list = capWindowHits(hits)
+    const covered = new Set<string>()
+    for (let i = 0; i < list.length; i += 1) {
+      const leftHit = list[i]!
+      const left = files.get(leftHit.path)!
+      for (let j = i + 1; j < list.length; j += 1) {
+        const rightHit = list[j]!
+        const key = diagonalKey(leftHit, rightHit)
+        if (covered.has(key)) continue
+        const right = files.get(rightHit.path)!
+        if (!isLeftMaximal(left, leftHit.startIndex, right, rightHit.startIndex)) continue
+        const length = forwardMatch(left, leftHit.startIndex, right, rightHit.startIndex)
+        if (length < MIN_MEANINGFUL_LINES) continue
+        const norms = left.lines.slice(leftHit.startIndex, leftHit.startIndex + length).map(line => line.norm)
+        if (charCount(norms) < MIN_BLOCK_CHARS) continue
+        for (let shift = 0; shift <= length - MIN_MEANINGFUL_LINES; shift += 1) {
+          covered.add(diagonalKey(
+            { path: leftHit.path, startIndex: leftHit.startIndex + shift },
+            { path: rightHit.path, startIndex: rightHit.startIndex + shift }
+          ))
+        }
+        const digest = blockKey(norms)
+        let block = blocks.get(digest)
+        if (!block) {
+          block = { norms, starts: new Map() }
+          blocks.set(digest, block)
+        }
+        block.starts.set(`${leftHit.path}\0${leftHit.startIndex}`, { path: leftHit.path, startIndex: leftHit.startIndex, length })
+        block.starts.set(`${rightHit.path}\0${rightHit.startIndex}`, { path: rightHit.path, startIndex: rightHit.startIndex, length })
+      }
+    }
+  }
+
   const groups: DuplicateGroup[] = []
-  collectFromTrie(root, 0, [], files, groups)
+  for (const block of blocks.values()) {
+    const length = block.norms.length
+    const occurrences = dropOverlapping(
+      [...block.starts.values()].map(item => occurrenceAt(files.get(item.path)!, item.startIndex, item.length))
+    )
+    if (occurrences.length < 2) continue
+    occurrences.sort(compareOccurrences)
+    groups.push({
+      id: blockId(block.norms),
+      lineCount: length,
+      occurrences,
+      description: describeGroup(length, occurrences)
+    })
+  }
   return suppressSubSpans(groups).sort(compareGroups)
 }
 

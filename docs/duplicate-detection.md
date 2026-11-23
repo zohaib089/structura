@@ -27,7 +27,11 @@ After comments are removed, each line is trimmed and internal whitespace is coll
 
 ## Matching
 
-The remaining meaningful lines in each file are walked with a suffix trie. A group is a set of at least two occurrences that share a common prefix of 6 or more meaningful lines and cannot all be extended together by the same next line (a maximal span). Overlapping occurrences in the same file are reduced to the earliest non-overlapping set. A group is dropped when every one of its occurrences sits inside a longer group.
+Each file's meaningful lines are scanned with a sliding 6-line window. The windows are grouped in a hash map (`Map` from the joined normalised text to the positions that share it), which uses memory linear in the number of windows, not a suffix trie.
+
+Buckets with fewer than two hits are dropped. A bucket is first capped at 8 hits per file (earliest start indexes), then at 256 hits overall, taking files in a round-robin so later paths are not dropped. This keeps highly repetitive windows from exploding time or memory, deterministically. Each remaining pair is kept only when it is left-maximal (the previous meaningful lines differ, or one side is at the start of the file), then extended forward while the lines stay equal. Already-covered diagonals of the same pair of files are skipped so overlapping windows of one long match are not re-extended.
+
+Pairs that grow to the same maximal block are merged into one group. Overlapping occurrences in the same file are reduced to the earliest non-overlapping set. A group is dropped when every one of its occurrences sits inside a longer group.
 
 The group `id` is the first 12 hex characters of the SHA-256 digest of the normalised lines joined with `\n`. `lineCount` is the number of meaningful lines. Each occurrence records the repo-relative `path` and the inclusive 1-based `startLine` / `endLine` of the raw span (comments and blanks between the first and last meaningful line are included in the span, not in `lineCount`).
 
