@@ -7,6 +7,7 @@ export type DashboardShellSection =
   | 'projects'
   | 'open-project'
   | 'project'
+  | 'project-access'
   | 'project-graph'
   | 'scans'
   | 'scan-report'
@@ -34,6 +35,10 @@ export function openProjectPath(locale: WebLocale, workspaceId: string) {
 
 export function projectPath(locale: WebLocale, workspaceId: string, projectId: string) {
   return `${workspaceRootPath(locale, workspaceId)}/projects/${encodeURIComponent(projectId)}`
+}
+
+export function projectAccessPath(locale: WebLocale, workspaceId: string, projectId: string) {
+  return `${projectPath(locale, workspaceId, projectId)}/access`
 }
 
 export function projectScansPath(locale: WebLocale, workspaceId: string, projectId: string) {

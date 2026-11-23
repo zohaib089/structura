@@ -16,6 +16,17 @@ export interface Project {
   updated_at: string
 }
 
+export interface ProjectAccessMember {
+  id: string
+  role: Workspace['role']
+  created_at: string
+}
+
+export interface ProjectAccess {
+  restricted: boolean
+  members: ProjectAccessMember[]
+}
+
 export interface WorkspaceMember {
   id: string
   full_name: string
@@ -89,6 +100,37 @@ function parseProject(value: unknown): Project {
     description: value.description,
     created_at: value.created_at,
     updated_at: value.updated_at
+  }
+}
+
+function parseProjectAccessMember(value: unknown): ProjectAccessMember {
+  if (
+    !isRecord(value) ||
+    !isNonEmptyString(value.id) ||
+    (value.role !== 'owner' && value.role !== 'admin' && value.role !== 'member') ||
+    !isTimestamp(value.created_at)
+  ) {
+    throw new Error('The project access response was invalid.')
+  }
+  return {
+    id: value.id,
+    role: value.role,
+    created_at: value.created_at
+  }
+}
+
+function parseProjectAccess(value: unknown): ProjectAccess {
+  if (!isRecord(value) || typeof value.restricted !== 'boolean' || !Array.isArray(value.members)) {
+    throw new Error('The project access response was invalid.')
+  }
+  return {
+    restricted: value.restricted,
+    members: parseUniqueRecords(
+      value.members,
+      parseProjectAccessMember,
+      member => member.id,
+      'project access member'
+    )
   }
 }
 
@@ -332,3 +374,30 @@ export async function transferWorkspaceOwnership(
   return { member: parseUpdatedMember(result.member), left: result.left }
 }
 
+
+export async function getProject(workspaceId: string, projectId: string): Promise<Project> {
+  const result = await request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/projects/${encodeURIComponent(projectId)}`
+  )
+  return parseProject(result.project)
+}
+
+export async function getProjectAccess(workspaceId: string, projectId: string): Promise<ProjectAccess> {
+  const result = await request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/projects/${encodeURIComponent(projectId)}/access`
+  )
+  return parseProjectAccess(result.access)
+}
+
+export async function updateProjectAccess(
+  workspaceId: string,
+  projectId: string,
+  access: { restricted: boolean; member_ids: string[] }
+): Promise<ProjectAccess> {
+  const result = await request(
+    `/workspaces/${encodeURIComponent(workspaceId)}/projects/${encodeURIComponent(projectId)}/access`,
+    'PUT',
+    access
+  )
+  return parseProjectAccess(result.access)
+}

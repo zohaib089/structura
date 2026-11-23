@@ -86,7 +86,7 @@ const navItems = computed<SidebarNavItem[]>(() => {
       group: messages.value.navGroupWork,
       label: messages.value.projects,
       to: workspaceRootPath(base, ws),
-      active: route.name === 'workspace-projects' || route.name === 'workspace-project' || route.name === 'project-graph'
+      active: route.name === 'workspace-projects' || route.name === 'workspace-project' || route.name === 'project-graph' || route.name === 'project-access'
     },
     {
       id: 'open-project',
@@ -174,6 +174,8 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => {
     items.push({ label: messages.value.settingsNav })
   } else if (route.name === 'workspace-members') {
     items.push({ label: messages.value.membersNav })
+  } else if (route.name === 'project-access') {
+    items.push({ label: messages.value.projectAccessNav })
   }
   return items
 })
