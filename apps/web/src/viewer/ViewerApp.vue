@@ -1288,6 +1288,13 @@ const snippet = 'layers: []\nrules: []\n'
         <p class="impact-banner-line">
           <Waypoints :size="16" aria-hidden="true" />
           <span>{{ impactLine || messages.impactAskTooltip }}</span>
+          <button
+            v-if="impact && impact.dependents.length"
+            type="button"
+            class="impact-see"
+            data-testid="impact-see"
+            @click="openImpactList"
+          >{{ messages.impactSeeFiles }}</button>
         </p>
         <ul v-if="impact && impact.dependents.length" class="impact-chips" :aria-label="messages.impactListLabel">
           <li v-for="row in impactPreview" :key="row.fileId">
@@ -1305,9 +1312,8 @@ const snippet = 'layers: []\nrules: []\n'
           </li>
         </ul>
         <p v-if="impact?.truncated" class="impact-truncated">{{ format(messages.impactTruncated, { n: impact.dependents.length }) }}</p>
-        <div class="impact-banner-actions">
-          <button v-if="impact && impact.dependents.length" type="button" class="impact-see" @click="openImpactList">{{ messages.impactSeeFiles }}</button>
-          <Tip v-else-if="canAskImpact && !impact" :text="messages.impactAskTooltip" side="below">
+        <div v-if="canAskImpact && !impact" class="impact-banner-actions">
+          <Tip :text="messages.impactAskTooltip" side="below">
             <button type="button" class="impact-ask" data-testid="impact-ask" @click="emit('showImpact')">{{ messages.impactAskLabel }}</button>
           </Tip>
         </div>
@@ -1807,7 +1813,8 @@ const snippet = 'layers: []\nrules: []\n'
   position: absolute;
   z-index: var(--z-graph-controls, 6);
   inset-inline-start: var(--space-3, 12px);
-  inset-block-end: calc(var(--space-3, 12px) + var(--viewer-statusbar-height, 0px));
+  /* Sit above the Tips chip (same corner, higher z-index) so See the files stays clickable on first open. */
+  inset-block-end: calc(var(--space-3, 12px) + var(--viewer-statusbar-height, 0px) + 2.75rem + var(--space-2, 8px));
   max-inline-size: min(22rem, calc(100% - var(--graph-controls-inset-end, 0px) - var(--space-6, 24px)));
   padding: var(--space-2, 8px) var(--space-3, 12px);
   border: 1px solid color-mix(in srgb, var(--color-brand-amber-ui, #d4a017) 55%, var(--color-border, #3a4a5c));
@@ -1820,11 +1827,17 @@ const snippet = 'layers: []\nrules: []\n'
 .impact-banner-line,
 .impact-panel-title {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--space-2, 8px);
   margin: 0;
   font-size: var(--font-size-sm, 0.875rem);
   line-height: 1.35;
+  font-weight: 600;
+}
+.impact-banner-line .impact-see {
+  margin-inline-start: auto;
+  flex: 0 0 auto;
   font-weight: 600;
 }
 .impact-banner-line svg,
