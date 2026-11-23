@@ -103,6 +103,21 @@ describe('WorkspaceMembersPanel', () => {
     wrapper.unmount()
   })
 
+  it('lists a pending invite with a compact nowrap Revoke control and a nowrap expiry date', async () => {
+    listWorkspaceInvitations.mockResolvedValue([invitation()])
+    const wrapper = await mountPanel()
+    const row = wrapper.get('.invite-item')
+    expect(row.text()).toContain('new.member@example.test')
+    const expiry = row.get('time.invite-expiry')
+    expect(expiry.text()).toMatch(/8 Mar 2026|Mar 8, 2026|8 Mar, 2026/)
+    expect(expiry.attributes('datetime')).toBe('2026-03-08T00:00:00.000Z')
+    const revoke = row.get('button[aria-label="Revoke invitation"]')
+    expect(revoke.text()).toBe('Revoke')
+    expect(revoke.classes()).toContain('invite-revoke')
+    expect(wrapper.get('.members-card--invites').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
   it('shows a read-only list to members without invite or role controls', async () => {
     listWorkspaceInvitations.mockRejectedValue(new Error('should not list invitations'))
     const wrapper = await mountPanel({ currentRole: 'member', currentUserId: 'user-2' })

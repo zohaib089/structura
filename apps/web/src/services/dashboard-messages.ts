@@ -70,6 +70,7 @@ export interface DashboardMessages {
   noPendingInvitations: string
   inviteSuccess: string
   revokeInvitation: string
+  revokeInvitationShort?: string
   invitedBy: string
   expiresAt: string
   roleOwner: string
@@ -230,6 +231,7 @@ const messages: Record<WebLocale, DashboardMessages> = {
     noPendingInvitations: 'There are no pending invitations.',
     inviteSuccess: 'Invitation email sent.',
     revokeInvitation: 'Revoke invitation',
+    revokeInvitationShort: 'Revoke',
     invitedBy: 'Invited by',
     expiresAt: 'Expires',
     roleOwner: 'Owner',

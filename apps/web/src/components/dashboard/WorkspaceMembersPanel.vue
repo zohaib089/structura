@@ -293,7 +293,7 @@ watch(() => props.workspaceId, () => {
     <div v-else-if="loading" class="state-card" role="status">{{ messages.loadingWorkspaces }}</div>
 
     <div v-else class="members-grid">
-      <section class="members-card" aria-labelledby="members-heading">
+      <section class="members-card members-card--people" aria-labelledby="members-heading">
         <header class="members-card__header">
           <h2 id="members-heading">{{ messages.teamMembers }}</h2>
         </header>
@@ -352,25 +352,31 @@ watch(() => props.workspaceId, () => {
         </ul>
       </section>
 
-      <section v-if="canManageTeam" class="members-card" aria-labelledby="invites-heading">
+      <section v-if="canManageTeam" class="members-card members-card--invites" aria-labelledby="invites-heading">
         <header class="members-card__header">
           <h2 id="invites-heading">{{ messages.pendingInvitations }}</h2>
         </header>
         <p v-if="invitations.length === 0" class="members-card__empty">{{ messages.noPendingInvitations }}</p>
         <ul v-else class="team-list">
-          <li v-for="invitation in invitations" :key="invitation.id" class="team-item">
+          <li v-for="invitation in invitations" :key="invitation.id" class="team-item invite-item">
             <div>
               <strong>{{ invitation.email }}</strong>
-              <span>{{ messages.invitedBy }} {{ invitation.inviter_name }} · {{ messages.expiresAt }} {{ joinedDate(invitation.expires_at) }}</span>
+              <span>
+                {{ messages.invitedBy }} {{ invitation.inviter_name }} ·
+                {{ messages.expiresAt }}
+                <time class="invite-expiry" :datetime="invitation.expires_at">{{ joinedDate(invitation.expires_at) }}</time>
+              </span>
             </div>
             <Button
+              class="invite-revoke"
               variant="secondary"
               size="sm"
               type="button"
               :disabled="submitting"
+              :aria-label="messages.revokeInvitation"
               @click="handleRevokeInvitation(invitation.id)"
             >
-              {{ messages.revokeInvitation }}
+              {{ messages.revokeInvitationShort ?? messages.revokeInvitation }}
             </Button>
           </li>
         </ul>
@@ -577,6 +583,20 @@ watch(() => props.workspaceId, () => {
   min-width: 0;
 }
 
+.invite-item {
+  flex-wrap: nowrap;
+  gap: var(--space-3);
+}
+
+.invite-expiry,
+.invite-revoke {
+  white-space: nowrap;
+}
+
+.invite-revoke {
+  flex: 0 0 auto;
+}
+
 .team-item span {
   color: var(--color-text-secondary);
   overflow-wrap: anywhere;
@@ -700,9 +720,29 @@ watch(() => props.workspaceId, () => {
     flex: 1 1 100%;
   }
 
+  /* Pending invites sit under the invite form so they are visible on a 390 phone without a short scroll. */
+  .members-card--invites {
+    order: -1;
+  }
+
+  .members-page,
+  .members-grid {
+    gap: var(--space-3);
+  }
+
+  .members-card__header {
+    padding-block: var(--space-2);
+  }
+
   .team-item {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .invite-item {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
   }
 
   .member-actions {
