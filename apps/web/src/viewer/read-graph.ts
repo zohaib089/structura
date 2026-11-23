@@ -22,13 +22,21 @@ import type {
   GraphEdge,
   GraphHotspot,
   GraphNode,
+  FolderQualityScore,
+  GraphQuality,
   ImportKind,
+  QualityBreakdownItem,
+  QualityCategory,
+  QualityGrade,
+  QualityScore,
+  QualityTip,
   ReadResult,
   Span,
   StateKind,
   StateScope,
   SymbolNode
 } from './graph-types'
+import { QUALITY_CATEGORIES, QUALITY_GRADES } from './graph-types'
 
 const KNOWN_KINDS = new Set(['directory', 'file', 'symbol', 'external', 'unresolved'])
 const STATE_SCOPES = new Set<string>(['module', 'class', 'instance', 'global', 'local'])
@@ -184,6 +192,9 @@ function readDocument(value: unknown, schemaVersion: string, paths: string[]): G
   const hotspots = Object.hasOwn(value, 'hotspots') ? readHotspots(value.hotspots, paths) : undefined
   if (Object.hasOwn(value, 'hotspots') && !hotspots) return null
 
+  const quality = Object.hasOwn(value, 'quality') ? readQuality(value.quality, paths) : undefined
+  if (Object.hasOwn(value, 'quality') && !quality) return null
+
   return {
     schemaVersion,
     summary,
@@ -191,7 +202,8 @@ function readDocument(value: unknown, schemaVersion: string, paths: string[]): G
     nodes,
     edges,
     ...(architecture ? { architecture } : {}),
-    ...(hotspots && hotspots.length > 0 ? { hotspots } : {})
+    ...(hotspots && hotspots.length > 0 ? { hotspots } : {}),
+    ...(quality ? { quality } : {})
   }
 }
 
@@ -361,6 +373,141 @@ function readHotspotScore(value: unknown, path: string, paths: string[]): number
     return null
   }
   return value
+}
+
+const QUALITY_GRADE_SET = new Set<string>(QUALITY_GRADES)
+const QUALITY_CATEGORY_SET = new Set<string>(QUALITY_CATEGORIES)
+
+function readQuality(value: unknown, paths: string[]): GraphQuality | null {
+  if (!isRecord(value)) {
+    push(paths, '/quality')
+    return null
+  }
+  const project = readQualityScore(value.project, '/quality/project', paths, false)
+  if (!project) return null
+  if (!Object.hasOwn(value, 'folders')) return { project }
+  if (!Array.isArray(value.folders)) {
+    push(paths, '/quality/folders')
+    return null
+  }
+  const folders: FolderQualityScore[] = []
+  let failed = false
+  value.folders.forEach((entry, index) => {
+    const row = readQualityScore(entry, `/quality/folders/${index}`, paths, true)
+    if (!row || !('path' in row)) {
+      failed = true
+      return
+    }
+    folders.push(row)
+  })
+  if (failed) return null
+  return folders.length > 0 ? { project, folders } : { project }
+}
+
+function readQualityScore(
+  value: unknown,
+  base: string,
+  paths: string[],
+  withPath: false
+): QualityScore | null
+function readQualityScore(
+  value: unknown,
+  base: string,
+  paths: string[],
+  withPath: true
+): FolderQualityScore | null
+function readQualityScore(
+  value: unknown,
+  base: string,
+  paths: string[],
+  withPath: boolean
+): QualityScore | FolderQualityScore | null {
+  if (!isRecord(value)) {
+    push(paths, base)
+    return null
+  }
+  const score = readHotspotScore(value.score, `${base}/score`, paths)
+  const grade = readQualityGrade(value.grade, `${base}/grade`, paths)
+  const breakdown = readQualityBreakdown(value.breakdown, `${base}/breakdown`, paths)
+  const tips = readQualityTips(value.tips, `${base}/tips`, paths)
+  if (score === null || !grade || !breakdown || !tips) return null
+  if (withPath) {
+    const path = readBoundedString(value.path, `${base}/path`, paths)
+    if (!path) return null
+    return { path, score, grade, breakdown, tips }
+  }
+  return { score, grade, breakdown, tips }
+}
+
+function readQualityGrade(value: unknown, path: string, paths: string[]): QualityGrade | null {
+  if (typeof value !== 'string' || !QUALITY_GRADE_SET.has(value)) {
+    push(paths, path)
+    return null
+  }
+  return value as QualityGrade
+}
+
+function readQualityBreakdown(value: unknown, base: string, paths: string[]): QualityBreakdownItem[] | null {
+  if (!Array.isArray(value) || value.length !== QUALITY_CATEGORIES.length) {
+    push(paths, base)
+    return null
+  }
+  const items: QualityBreakdownItem[] = []
+  let failed = false
+  value.forEach((entry, index) => {
+    const itemBase = `${base}/${index}`
+    if (!isRecord(entry)) {
+      push(paths, itemBase)
+      failed = true
+      return
+    }
+    const category = entry.category
+    if (typeof category !== 'string' || !QUALITY_CATEGORY_SET.has(category)) {
+      push(paths, `${itemBase}/category`)
+      failed = true
+      return
+    }
+    const label = readBoundedString(entry.label, `${itemBase}/label`, paths)
+    const penalty = readHotspotScore(entry.penalty, `${itemBase}/penalty`, paths)
+    if (!label || penalty === null) {
+      failed = true
+      return
+    }
+    items.push({ category: category as QualityCategory, label, penalty })
+  })
+  if (failed) return null
+  const categories = new Set(items.map((item) => item.category))
+  if (categories.size !== QUALITY_CATEGORIES.length) {
+    push(paths, base)
+    return null
+  }
+  return items
+}
+
+function readQualityTips(value: unknown, base: string, paths: string[]): QualityTip[] | null {
+  if (!Array.isArray(value) || value.length > 3) {
+    push(paths, base)
+    return null
+  }
+  const tips: QualityTip[] = []
+  let failed = false
+  value.forEach((entry, index) => {
+    const itemBase = `${base}/${index}`
+    if (!isRecord(entry)) {
+      push(paths, itemBase)
+      failed = true
+      return
+    }
+    const text = readBoundedString(entry.text, `${itemBase}/text`, paths)
+    const gain = readHotspotScore(entry.gain, `${itemBase}/gain`, paths)
+    if (!text || gain === null || gain < 1) {
+      if (gain === 0) push(paths, `${itemBase}/gain`)
+      failed = true
+      return
+    }
+    tips.push({ text, gain })
+  })
+  return failed ? null : tips
 }
 
 function readEntryCandidate(value: unknown, base: string, paths: string[]): EntryCandidate | null {
