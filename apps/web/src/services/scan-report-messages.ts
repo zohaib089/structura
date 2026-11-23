@@ -115,6 +115,21 @@ export interface ScanReportMessages {
   riskiestFilesOpen: string
   hotspotBandLabel: (band: 'low' | 'medium' | 'high') => string
   riskiestFilesScore: (score: number, band: string) => string
+  qualityTitle: string
+  qualityHint: string
+  qualityScoreLabel: (score: number, grade: string) => string
+  qualityGradeLabel: (grade: string) => string
+  qualityOutOf: string
+  qualityBreakdownTitle: string
+  qualityCategoryTitle: (category: 'architecture' | 'cycles' | 'hotspots' | 'imports' | 'size') => string
+  qualityPointsOff: (penalty: number) => string
+  qualityTipsTitle: string
+  qualityTipGain: (gain: number) => string
+  qualityFoldersTitle: string
+  qualityFoldersHint: string
+  qualityFoldersShowing: (shown: number, total: number) => string
+  qualityFoldersOpen: string
+  qualityFolderSummaryNone: string
   summaryAllClearTitle: string
   summaryAllClearBody: string
   nextStepsTitle: string
@@ -332,6 +347,43 @@ const en: ScanReportMessages = {
   riskiestFilesScore(score, band) {
     return `${score} · ${band}`
   },
+  qualityTitle: 'Project quality',
+  qualityHint:
+    'A score out of 100 for the whole project, based on structure rules, circular imports, risky files, imports, and size.',
+  qualityScoreLabel(score, grade) {
+    return `${score} out of 100, grade ${grade}`
+  },
+  qualityGradeLabel(grade) {
+    return `Grade ${grade}`
+  },
+  qualityOutOf: 'out of 100',
+  qualityBreakdownTitle: 'What makes up this score',
+  qualityCategoryTitle(category) {
+    return (
+      {
+        architecture: 'Structure rules',
+        cycles: 'Circular imports',
+        hotspots: 'Riskiest files',
+        imports: 'Imports',
+        size: 'File and function size'
+      } as const
+    )[category]
+  },
+  qualityPointsOff(penalty) {
+    if (penalty <= 0) return 'No points off'
+    return penalty === 1 ? '1 point off' : `${penalty} points off`
+  },
+  qualityTipsTitle: 'How to raise this score',
+  qualityTipGain(gain) {
+    return gain === 1 ? 'About +1 point' : `About +${gain} points`
+  },
+  qualityFoldersTitle: 'Folder scores',
+  qualityFoldersHint: 'Folders with the lowest scores first. Open one to see it on the graph.',
+  qualityFoldersShowing(shown, total) {
+    return `Showing the ${shown} folders with the lowest scores, of ${total}. Open one to see it on the graph.`
+  },
+  qualityFoldersOpen: 'Show in graph',
+  qualityFolderSummaryNone: 'No issues in this folder.',
   seeAllFindings(total) {
     return total === 1 ? 'See the finding' : `See all ${total.toLocaleString('en')} findings`
   },

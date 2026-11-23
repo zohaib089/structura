@@ -291,6 +291,48 @@ describe('readGraph', () => {
     expect(result.ok).toBe(false)
   })
 
+  it('reads a 1.3.0 graph with project and folder quality scores', () => {
+    const result = readGraph(readFileSync(resolve('../../packages/engine/schema-fixtures/v1.3.0.graph.json'), 'utf8'))
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.graph.schemaVersion).toBe('1.3.0')
+    expect(result.graph.quality?.project).toEqual(expect.objectContaining({
+      score: expect.any(Number),
+      grade: expect.stringMatching(/^[ABCDF]$/),
+      breakdown: expect.arrayContaining([
+        expect.objectContaining({ category: 'architecture', label: expect.any(String), penalty: expect.any(Number) })
+      ]),
+      tips: expect.any(Array)
+    }))
+    expect(result.graph.quality?.project.breakdown).toHaveLength(5)
+    expect(result.graph.quality?.folders?.length).toBeGreaterThan(0)
+    expect(result.graph.quality?.folders?.[0]).toEqual(expect.objectContaining({
+      path: expect.any(String),
+      score: expect.any(Number),
+      grade: expect.stringMatching(/^[ABCDF]$/)
+    }))
+  })
+
+  it('reads a 1.1.0 and 1.2.0 graph and leaves quality off', () => {
+    for (const file of ['v1.1.0.graph.json', 'v1.2.0.graph.json'] as const) {
+      const result = readGraph(readFileSync(resolve(`../../packages/engine/schema-fixtures/${file}`), 'utf8'))
+      expect(result.ok).toBe(true)
+      if (!result.ok) return
+      expect(result.graph).not.toHaveProperty('quality')
+    }
+  })
+
+  it('refuses a quality score outside 0–100 or an unknown grade', () => {
+    const raw = JSON.parse(readFileSync(resolve('../../packages/engine/schema-fixtures/v1.3.0.graph.json'), 'utf8')) as {
+      quality: { project: { score: number; grade: string } }
+    }
+    raw.quality.project.score = 101
+    expect(readGraph(JSON.stringify(raw)).ok).toBe(false)
+    raw.quality.project.score = 80
+    raw.quality.project.grade = 'E'
+    expect(readGraph(JSON.stringify(raw)).ok).toBe(false)
+  })
+
   it('report FindingsTable tooltip explains INFERRED provenance', () => {
     const messages = scanReportMessages('en')
     expect(messages.provenanceTooltip('INFERRED')).toBe('Inferred: our best guess from patterns, not read directly')

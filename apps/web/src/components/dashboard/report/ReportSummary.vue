@@ -12,11 +12,12 @@ import type { ReportSeverity } from '../../../api/scan-report-types'
 import type { ScanReportMessages } from '../../../services/scan-report-messages'
 import { SEVERITY_DESCENDING } from '../../../services/scan-report-severity'
 import type { ReportSummary } from '../../../services/scan-report-summary'
-import type { GraphHotspot } from '../../../viewer/graph-types'
+import type { GraphHotspot, GraphQuality } from '../../../viewer/graph-types'
 import SeverityChip from '../../ui/SeverityChip.vue'
 import SkeletonBlock from '../../ui/skeleton/SkeletonBlock.vue'
 import ReportAnalysers from './ReportAnalysers.vue'
 import ReportHotspots from './ReportHotspots.vue'
+import ReportQuality from './ReportQuality.vue'
 
 const props = defineProps<{
   summary: ReportSummary
@@ -27,6 +28,7 @@ const props = defineProps<{
   /** The graph feeds coverage and unresolved imports; those parts wait for it. */
   graphLoading?: boolean
   hotspots?: GraphHotspot[]
+  quality?: GraphQuality | null
 }>()
 
 const coverageLabel = computed(() => {
@@ -87,6 +89,26 @@ const nextSteps = computed(() => {
         <p class="hint">{{ messages.severityHint }}</p>
       </div>
     </section>
+
+    <ReportQuality
+      :quality="quality"
+      :title="messages.qualityTitle"
+      :hint="messages.qualityHint"
+      :score-label="messages.qualityScoreLabel"
+      :grade-label="messages.qualityGradeLabel"
+      :out-of-label="messages.qualityOutOf"
+      :breakdown-title="messages.qualityBreakdownTitle"
+      :category-title="messages.qualityCategoryTitle"
+      :points-off="messages.qualityPointsOff"
+      :tips-title="messages.qualityTipsTitle"
+      :tip-gain="messages.qualityTipGain"
+      :folders-title="messages.qualityFoldersTitle"
+      :folders-hint="messages.qualityFoldersHint"
+      :folders-showing="messages.qualityFoldersShowing"
+      :open-label="messages.qualityFoldersOpen"
+      :folder-empty-summary="messages.qualityFolderSummaryNone"
+      :graph-href="graphHref"
+    />
 
     <section class="block" :aria-labelledby="'report-top-findings'">
       <div class="block__head">

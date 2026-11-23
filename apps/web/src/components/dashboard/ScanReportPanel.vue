@@ -187,6 +187,7 @@ function showAllFindings() {
         :graph-href="graphHref"
         :graph-loading="graphLoading"
         :hotspots="graph?.hotspots ?? []"
+        :quality="graph?.quality"
       />
 
       <ReportFindingsTab

@@ -59,6 +59,44 @@ export interface GraphHotspot {
   why: string
 }
 
+/** graph.json 1.3 letter grades for a 0–100 quality score. */
+export const QUALITY_GRADES = ['A', 'B', 'C', 'D', 'F'] as const
+export type QualityGrade = (typeof QUALITY_GRADES)[number]
+
+export const QUALITY_CATEGORIES = ['architecture', 'cycles', 'hotspots', 'imports', 'size'] as const
+export type QualityCategory = (typeof QUALITY_CATEGORIES)[number]
+
+export interface QualityBreakdownItem {
+  category: QualityCategory
+  /** Plain-English summary of this category. */
+  label: string
+  penalty: number
+}
+
+export interface QualityTip {
+  text: string
+  /** Estimated score gain from this fix, computed from the published formula. */
+  gain: number
+}
+
+export interface QualityScore {
+  score: number
+  grade: QualityGrade
+  breakdown: QualityBreakdownItem[]
+  tips: QualityTip[]
+}
+
+export interface FolderQualityScore extends QualityScore {
+  path: string
+}
+
+/** graph.json 1.3 project and per-folder quality scores. */
+export interface GraphQuality {
+  project: QualityScore
+  /** Folder scores, worst first then by path. Omitted when the repo has no subfolders with files. */
+  folders?: FolderQualityScore[]
+}
+
 /** graph.json 1.1 state scope. `local` is reserved by the engine for a later minor and is not emitted in 1.1. */
 export type StateScope = 'module' | 'class' | 'instance' | 'global' | 'local'
 
@@ -241,6 +279,8 @@ export interface GraphDocument {
   architecture?: GraphArchitecture
   /** graph.json 1.2: top-N hotspot files, highest score first. Omitted when every file scores 0. */
   hotspots?: GraphHotspot[]
+  /** graph.json 1.3: project and per-folder quality scores. Omitted on older graphs. */
+  quality?: GraphQuality
 }
 
 export type GraphError =
