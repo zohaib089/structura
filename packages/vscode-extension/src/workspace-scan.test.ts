@@ -47,4 +47,14 @@ test('toGraphPayload keeps the fields the viewer needs and drops run metadata', 
   assert.equal(payload.nodes.length, 2)
   assert.equal(payload.edges.length, 1)
   assert.equal('run' in payload, false)
+  assert.equal('hotspots' in payload, false)
+})
+
+test('toGraphPayload keeps the 1.2 hotspot list when the graph has one', () => {
+  const graph = fixtureGraph()
+  const file = graph.nodes.find((node) => node.kind === 'file')
+  if (file && file.kind === 'file') file.hotspot = { score: 80 }
+  graph.hotspots = [{ path: 'src/app.ts', score: 80, why: 'Used by 4 files' }]
+  const payload = toGraphPayload(graph)
+  assert.deepEqual(payload.hotspots, [{ path: 'src/app.ts', score: 80, why: 'Used by 4 files' }])
 })

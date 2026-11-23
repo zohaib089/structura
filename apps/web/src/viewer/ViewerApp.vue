@@ -54,6 +54,7 @@ import { scanReportMessages } from '../services/scan-report-messages'
 import type { SeverityCounts } from '../services/scan-report-tree'
 import type { WebLocale } from '../services/locale'
 import { buildNodeDetailSections, internalLinksText } from './node-detail-data'
+import { graphHasHotspots, hotspotScoreByNodeId } from './hotspot-band'
 import { sampleGraph } from './sample-graph'
 import BudgetMeter from './components/BudgetMeter.vue'
 import CoachMark from './components/CoachMark.vue'
@@ -68,6 +69,7 @@ import { ArrowLeft, ChartPie, GitCompareArrows, PanelRightClose, PanelRightOpen,
 import GraphFloatingBar from './components/GraphFloatingBar.vue'
 import Tip from './components/Tip.vue'
 import GraphLegend from './components/GraphLegend.vue'
+import HotspotLegend from './components/HotspotLegend.vue'
 import GraphSourcePicker from './components/GraphSourcePicker.vue'
 import NodeDetail, { type FileSummaryState } from './components/NodeDetail.vue'
 import SearchPalette from './components/SearchPalette.vue'
@@ -162,6 +164,13 @@ const loadingVisible = ref(false)
 const loadingBytes = ref(0)
 const coachDismissed = ref(false)
 const showAllCross = ref(false)
+const showHotspots = ref(false)
+const hasHotspots = computed(() => graphHasHotspots(graph.value))
+const hotspotScores = computed(() => (graph.value ? hotspotScoreByNodeId(graph.value.nodes) : new Map<string, number>()))
+watch(hasHotspots, (ok) => { if (!ok) showHotspots.value = false })
+const hotspotLegendBands = computed(() =>
+  (['low', 'medium', 'high'] as const).map((id) => ({ id, label: messages.hotspotBandLabels[id] }))
+)
 const fileName = ref('')
 const sample = ref(false)
 const dragging = ref(false)
@@ -1268,6 +1277,10 @@ const snippet = 'layers: []\nrules: []\n'
         :rescan-busy="rescanBusy"
         :rescan-busy-label="messages.rescanBusy"
         @rescan="emit('rescan')"
+        :show-hotspots-label="hasHotspots ? messages.showHotspotsLabel : undefined"
+        :show-hotspots-tooltip="messages.showHotspotsTooltip"
+        :show-hotspots="showHotspots"
+        @toggle-show-hotspots="showHotspots = !showHotspots"
       >
         <template v-if="focus && focusSummary" #below>
           <FocusBar
@@ -1378,6 +1391,9 @@ const snippet = 'layers: []\nrules: []\n'
         :panel-inset="panelInset"
         :panel-bottom-inset="0"
         :impact-ids="impactIds"
+        :show-hotspots="showHotspots && hasHotspots"
+        :hotspot-scores="hotspotScores"
+        :hotspot-band-labels="messages.hotspotBandLabels"
         :inside-open-caption="embedded && overviewLayout === 'folders' ? messages.insideOpenCaption : undefined"
         :inside-close-caption="embedded && overviewLayout === 'folders' ? messages.insideCloseCaption : undefined"
         :layout="layout"
@@ -1390,6 +1406,12 @@ const snippet = 'layers: []\nrules: []\n'
       <p v-else-if="graph && graph.nodes.length === 0" class="empty-graph">{{ messages.detailsEmpty }}</p>
       <p v-if="overview && overview.nodes.length === 0 && graph" class="empty-graph">{{ messages.filterEmpty }}</p>
       <GraphLegend class="stage-legend" :title="messages.legendTitle" :rows="legendRows" @toggle="legendToggle" />
+      <HotspotLegend
+        v-if="showHotspots && hasHotspots"
+        class="hotspot-legend-wrap"
+        :title="messages.hotspotLegendTitle"
+        :bands="hotspotLegendBands"
+      />
       <CoachMark
         v-if="overview && graph && graph.nodes.length > 0 && !coachDismissed"
         :steps="coachSteps"
@@ -1562,6 +1584,9 @@ const snippet = 'layers: []\nrules: []\n'
         :state-kind-labels="messages.stateKindLabels"
         :open-call-tooltip="messages.openCallTooltip"
         :method-of="messages.methodOf"
+        :risk-to-change-label="messages.riskToChangeLabel"
+        :risk-to-change-value="messages.riskToChangeValue"
+        :hotspot-band-labels="messages.hotspotBandLabels"
         :can-open-symbols="canOpenFiles"
         @open-symbol="onOpenSymbol"
         @open-call="onOpenCall"
@@ -2034,6 +2059,23 @@ button:disabled { opacity: var(--alpha-40); }
   background: var(--color-surface-raised);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
+}
+.hotspot-legend-wrap {
+  position: absolute;
+  inset-inline-start: var(--space-3);
+  /* Below the floating toolbar, away from the Tips chip in the lower-start corner. */
+  inset-block-start: 8rem;
+  inset-block-end: auto;
+  z-index: var(--z-graph-controls);
+}
+.viewer:not(.viewer-radial) .hotspot-legend-wrap {
+  /* Linear: the edge legend uses the lower-start corner; stay at the top. */
+}
+@media (max-width: 640px) {
+  .hotspot-legend-wrap {
+    inset-inline-start: var(--space-2);
+    inset-block-start: calc(var(--space-2) + var(--viewer-hit-target, 2.75rem) + var(--space-4));
+  }
 }
 .viewer { font-feature-settings: var(--font-feature-ui); }
 @media (prefers-reduced-motion: reduce) {

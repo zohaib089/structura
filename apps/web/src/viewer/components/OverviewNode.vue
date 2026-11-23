@@ -8,6 +8,7 @@ import { CircleAlert, CircleDot, HelpCircle, Info, OctagonAlert, Package, Triang
 import { SEVERITY_LABELS } from '../../services/severity-display'
 import type { SeverityCounts } from '../../services/scan-report-tree'
 import { fileSeverityChips, folderSeverityChip } from '../../services/scan-report-tree-display'
+import { hotspotBand, type HotspotBand } from '../hotspot-band'
 
 const props = defineProps<{
   id: string
@@ -46,6 +47,10 @@ const props = defineProps<{
   expandCaption?: string
   /** Folder group caption, e.g. "12 files". Falls back to the raw count. */
   groupLabel?: string
+  /** When on, tints and sizes this file by its hotspot score. */
+  showHotspots?: boolean
+  hotspotScore?: number | null
+  hotspotBandLabels?: { low: string; medium: string; high: string }
 }>()
 
 const emit = defineEmits<{ select: []; toggle: [] }>()
@@ -70,7 +75,16 @@ const insideLabel = computed(() => {
 
 /** Disc colour carries meaning: the file's highest finding severity (with the chip/word beside it), else neutral. */
 const topSeverity = computed(() => fileChips.value?.chips[0]?.severity ?? folderChip.value?.severity ?? null)
-const discColor = computed(() => (topSeverity.value ? `var(--sev-${topSeverity.value}-fg)` : 'var(--graph-node-border)'))
+const fileHotspotBand = computed<HotspotBand | null>(() => {
+  if (!props.showHotspots || props.hotspotScore == null) return null
+  return hotspotBand(props.hotspotScore)
+})
+const hotspotT = computed(() => (props.hotspotScore != null ? Math.max(0, Math.min(1, props.hotspotScore / 100)) : 0))
+const discColor = computed(() => {
+  const band = fileHotspotBand.value
+  if (band) return `var(--hotspot-${band})`
+  return topSeverity.value ? `var(--sev-${topSeverity.value}-fg)` : 'var(--graph-node-border)'
+})
 
 /** Landing-style disc glyph key: severity when findings exist, else type glyph. */
 const discGlyphKind = computed(() => {
@@ -81,7 +95,13 @@ const discGlyphKind = computed(() => {
   return 'file'
 })
 
-const accessible = computed(() => (props.more ? props.moreLabel : props.label))
+const accessible = computed(() => {
+  const name = props.more ? props.moreLabel : props.label
+  const band = fileHotspotBand.value
+  if (!band || props.hotspotScore == null) return name
+  const word = props.hotspotBandLabels?.[band] ?? band
+  return `${name}, risk to change ${props.hotspotScore} (${word})`
+})
 /** Full label text in the DOM (CSS ellipsis truncates visually; title/aria keep the name). */
 const shortLabel = computed(() => {
   if (!props.more && props.displayLabel) return props.displayLabel
@@ -152,9 +172,10 @@ function onSpace(event: KeyboardEvent) {
       'is-entering': entering,
       'is-plain': plainMarks
     }"
-    :style="{ '--node-layer': discColor, animationDelay: `${enterDelay ?? 0}ms` }"
+    :style="{ '--node-layer': discColor, '--hotspot-t': hotspotT, animationDelay: `${enterDelay ?? 0}ms` }"
     :data-node-id="id"
     :data-node-kind="kind"
+    :data-hotspot-band="fileHotspotBand ?? undefined"
     :data-depth="depth ?? 0"
     :data-nbh-group="expandCaption ? 'true' : undefined"
     :data-has-findings="topSeverity ? 'true' : undefined"
@@ -382,6 +403,15 @@ function onSpace(event: KeyboardEvent) {
   text-transform: lowercase;
 }
 .is-external .kind-mark--disc { border-style: dashed; color: var(--color-text-secondary); border-color: var(--color-text-secondary); }
+.overview-node {
+  --hotspot-low: var(--sev-low-fg);
+  --hotspot-medium: var(--sev-medium-fg);
+  --hotspot-high: var(--sev-high-fg);
+}
+.overview-node[data-hotspot-band] .kind-mark--disc {
+  transform: scale(calc(0.94 + var(--hotspot-t, 0) * 0.36));
+  transform-origin: center;
+}
 .kind-mark--disc .sev-glyph {
   color: var(--node-layer, var(--graph-layer-1));
   display: block;

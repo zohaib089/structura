@@ -44,6 +44,19 @@ export interface FileNode {
   module?: string
   /** graph.json 1.1: first sentence of the file's leading doc comment (only with --doc-summaries). */
   docSummary?: string
+  /** graph.json 1.2: 0–100 hotspot score. Omitted when the score is 0. */
+  hotspot?: FileHotspot
+}
+
+export interface FileHotspot {
+  score: number
+}
+
+/** graph.json 1.2 top-N hotspot entry (plain-English `why`, repo-relative `path`). */
+export interface GraphHotspot {
+  path: string
+  score: number
+  why: string
 }
 
 /** graph.json 1.1 state scope. `local` is reserved by the engine for a later minor and is not emitted in 1.1. */
@@ -226,6 +239,8 @@ export interface GraphDocument {
   nodes: GraphNode[]
   edges: GraphEdge[]
   architecture?: GraphArchitecture
+  /** graph.json 1.2: top-N hotspot files, highest score first. Omitted when every file scores 0. */
+  hotspots?: GraphHotspot[]
 }
 
 export type GraphError =

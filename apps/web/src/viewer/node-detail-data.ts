@@ -10,6 +10,7 @@ import {
 import type { GraphDocument, GraphEdge, GraphNode } from './graph-types'
 import type { GraphIndex } from './overview'
 import { buildFileInsights, type FileInsights } from './file-insights'
+import { hotspotBand, type HotspotBand } from './hotspot-band'
 
 export interface DirectoryChildRow {
   id: string
@@ -67,12 +68,19 @@ export interface NodeDetailStats {
   provenance: string
 }
 
+export interface NodeHotspotInsight {
+  score: number
+  band: HotspotBand
+}
+
 export interface NodeDetailSections {
   stats: NodeDetailStats
   summary: string | null
   summarySource: 'api' | 'exports' | 'none'
   symbols: SymbolRow[]
   insights: FileInsights | null
+  /** Present when this file has a 1.2 hotspot score. */
+  hotspot: NodeHotspotInsight | null
   symbolCounts: SymbolKindCount[]
   imports: RelatedNodeRow[]
   importers: RelatedNodeRow[]
@@ -258,6 +266,10 @@ export function buildNodeDetailSections(input: {
   const deps = dependencyCounts(input.index, input.nodeId)
   const symbols = isFile ? symbolsForFile(input.index, input.nodeId) : []
   const insights = isFile ? buildFileInsights(input.index.document, input.nodeId, input.index.nodesById) : null
+  const fileHotspot =
+    isFile && node && 'hotspot' in node && node.hotspot && node.hotspot.score > 0
+      ? { score: node.hotspot.score, band: hotspotBand(node.hotspot.score) }
+      : null
   return {
     stats: {
       depth: input.depth,
@@ -269,6 +281,7 @@ export function buildNodeDetailSections(input: {
     summarySource,
     symbols,
     insights: insights && insights.hasInsightData ? insights : null,
+    hotspot: fileHotspot,
     symbolCounts: symbolKindCounts(symbols),
     imports: isFile ? relatedRows(input.index, input.nodeId, 'out') : [],
     importers: isFile ? relatedRows(input.index, input.nodeId, 'in') : [],

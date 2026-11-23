@@ -173,6 +173,8 @@ describe('viewer components', () => {
           summary: null,
           summarySource: 'none',
           symbols: [],
+          insights: null,
+          hotspot: null,
           symbolCounts: [],
           imports: [],
           importers: [],

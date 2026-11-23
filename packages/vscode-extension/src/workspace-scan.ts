@@ -32,7 +32,8 @@ export function toGraphPayload(graph: Graph): GraphPayload {
     coverage: graph.coverage,
     nodes: graph.nodes,
     edges: graph.edges,
-    architecture: graph.architecture
+    architecture: graph.architecture,
+    ...(graph.hotspots ? { hotspots: graph.hotspots } : {})
   }
 }
 

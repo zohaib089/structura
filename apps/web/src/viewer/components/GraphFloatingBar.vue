@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChartNoAxesGantt, ListFilter, Maximize, Orbit, RefreshCw, Search } from '@lucide/vue'
+import { ChartNoAxesGantt, Flame, ListFilter, Maximize, Orbit, RefreshCw, Search } from '@lucide/vue'
 import { computed } from 'vue'
 import { middleEllipsis } from '../pill-label'
 import Tip from './Tip.vue'
@@ -37,6 +37,10 @@ const props = defineProps<{
   /** A scan is running: the icon spins and the button waits. */
   rescanBusy?: boolean
   rescanBusyLabel?: string
+  /** Optional "Show hotspots" toggle; hidden when the host does not pass a label. */
+  showHotspotsLabel?: string
+  showHotspotsTooltip?: string
+  showHotspots?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -47,6 +51,7 @@ const emit = defineEmits<{
   toggleShowAllCross: []
   'update:layout': [layout: 'radial' | 'linear']
   rescan: []
+  toggleShowHotspots: []
 }>()
 /** Compact bars: the closed picker shows a middle-ellipsis name (start + tail + extension) that fits its
  * box; the list keeps full names, and the tooltip names the current file's full path. */
@@ -113,6 +118,21 @@ const entryTitle = computed(() => {
       >
         <Maximize class="btn-icon" :size="14" aria-hidden="true" />
         <span class="btn-label">{{ fitLabel }}</span>
+      </button>
+    </Tip>
+    <Tip v-if="showHotspotsLabel" :text="showHotspotsTooltip ?? showHotspotsLabel">
+      <button
+        type="button"
+        class="hotspot-button"
+        :class="{ 'is-compact': (density ?? 'full') !== 'full' }"
+        :aria-pressed="showHotspots ? 'true' : 'false'"
+        :aria-label="showHotspotsLabel"
+        :title="showHotspotsTooltip ?? showHotspotsLabel"
+        data-testid="graph-show-hotspots"
+        @click="emit('toggleShowHotspots')"
+      >
+        <Flame class="btn-icon" :size="16" aria-hidden="true" />
+        <span class="btn-label">{{ showHotspotsLabel }}</span>
       </button>
     </Tip>
     <button
@@ -189,6 +209,7 @@ const entryTitle = computed(() => {
 .search-button,
 .fit-button,
 .links-button,
+.hotspot-button,
 .layout-switch {
   display: inline-flex;
   flex-shrink: 0;
@@ -404,6 +425,36 @@ select {
     position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
   }
   .floating-bar.density-xnarrow .search-button { flex: 0 0 auto; }
+}
+.hotspot-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-shrink: 0;
+  pointer-events: auto;
+  min-block-size: var(--viewer-hit-target);
+  padding-inline: var(--space-3);
+  border: 1px solid var(--viewer-control-border, var(--color-border));
+  border-radius: var(--r-sm);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  line-height: 1;
+  white-space: nowrap;
+}
+.hotspot-button[aria-pressed='true'] {
+  border-color: color-mix(in srgb, var(--color-brand-amber-ui) 50%, var(--color-border));
+  background: color-mix(in srgb, var(--color-brand-amber, #e9a53a) 22%, var(--color-surface));
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+/* Icon-only like Filters: the name stays on the button as an accessible label and tooltip. */
+.hotspot-button .btn-label {
+  position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+.hotspot-button {
+  padding-inline: 0;
+  inline-size: var(--viewer-hit-target);
 }
 .rescan-button:disabled { cursor: progress; opacity: 0.85; }
 .rescan-button.is-busy svg { color: var(--color-brand-amber, #d4a017); animation: rescan-spin 0.9s linear infinite; }

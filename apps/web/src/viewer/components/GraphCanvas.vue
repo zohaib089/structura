@@ -69,6 +69,10 @@ const props = defineProps<{
   halfCaptions?: import('../file-neighborhood').HalfRingCaption[]
   /** File node ids to highlight as change-impact dependents (and the target file). */
   impactIds?: string[]
+  /** Tint and size file marks by hotspot score. Off unless the host turns this on. */
+  showHotspots?: boolean
+  hotspotScores?: Map<string, number>
+  hotspotBandLabels?: { low: string; medium: string; high: string }
 }>()
 
 const hoverId = ref<string | null>(null)
@@ -437,6 +441,9 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
           :inside-close-caption="insideCloseCaption"
           :expand-caption="nodeProps.data?.expandCaption"
           :group-label="groupLabel ? groupLabel(nodeProps.data?.clusterSize ?? 0) : undefined"
+          :show-hotspots="showHotspots"
+          :hotspot-score="hotspotScores?.get(nodeProps.id) ?? null"
+          :hotspot-band-labels="hotspotBandLabels"
           @select="emit('select', nodeProps.id)"
           @toggle="emit('toggle', nodeProps.id)"
         />
@@ -458,6 +465,8 @@ defineExpose({ root, getViewport, zoomBy, fitNow })
           :tab-index="activeId === pillProps.id ? 0 : -1"
           :more-label="moreLabel(pillProps.data?.remainder ?? 0)"
           :group-label="groupLabel ? groupLabel(pillProps.data?.clusterSize ?? 0) : String(pillProps.data?.clusterSize ?? 0)"
+          :show-hotspots="showHotspots"
+          :hotspot-score="hotspotScores?.get(pillProps.id) ?? null"
           @select="emit('select', pillProps.id)"
           @toggle="emit('toggle', pillProps.id)"
         />

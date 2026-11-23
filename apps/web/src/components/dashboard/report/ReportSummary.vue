@@ -12,9 +12,11 @@ import type { ReportSeverity } from '../../../api/scan-report-types'
 import type { ScanReportMessages } from '../../../services/scan-report-messages'
 import { SEVERITY_DESCENDING } from '../../../services/scan-report-severity'
 import type { ReportSummary } from '../../../services/scan-report-summary'
+import type { GraphHotspot } from '../../../viewer/graph-types'
 import SeverityChip from '../../ui/SeverityChip.vue'
 import SkeletonBlock from '../../ui/skeleton/SkeletonBlock.vue'
 import ReportAnalysers from './ReportAnalysers.vue'
+import ReportHotspots from './ReportHotspots.vue'
 
 const props = defineProps<{
   summary: ReportSummary
@@ -24,6 +26,7 @@ const props = defineProps<{
   graphHref: (path?: string) => RouteLocationRaw
   /** The graph feeds coverage and unresolved imports; those parts wait for it. */
   graphLoading?: boolean
+  hotspots?: GraphHotspot[]
 }>()
 
 const coverageLabel = computed(() => {
@@ -116,6 +119,16 @@ const nextSteps = computed(() => {
         </li>
       </ol>
     </section>
+
+    <ReportHotspots
+      :items="hotspots ?? []"
+      :title="messages.riskiestFilesTitle"
+      :hint="messages.riskiestFilesHint"
+      :open-label="messages.riskiestFilesOpen"
+      :band-label="messages.hotspotBandLabel"
+      :score-label="messages.riskiestFilesScore"
+      :graph-href="graphHref"
+    />
 
     <section class="block" aria-labelledby="report-next-steps">
       <h3 id="report-next-steps" class="block__title">{{ messages.nextStepsTitle }}</h3>

@@ -280,6 +280,12 @@ export interface ViewerMessages {
   stateKindLabels: Record<'binding' | 'ref' | 'reactive' | 'computed' | 'prop' | 'store' | 'provide' | 'inject', string>
   openCallTooltip: string
   methodOf: string
+  showHotspotsLabel: string
+  showHotspotsTooltip: string
+  hotspotLegendTitle: string
+  hotspotBandLabels: { low: string; medium: string; high: string }
+  riskToChangeLabel: string
+  riskToChangeValue: string
 }
 
 const en: ViewerMessages = {
@@ -581,7 +587,13 @@ const en: ViewerMessages = {
     inject: 'received from a parent'
   },
   openCallTooltip: 'Open {name} at line {line}',
-  methodOf: 'on {parent}'
+  methodOf: 'on {parent}',
+  showHotspotsLabel: 'Show hotspots',
+  showHotspotsTooltip: 'Colour files by how risky they are to change',
+  hotspotLegendTitle: 'Risk to change',
+  hotspotBandLabels: { low: 'Low', medium: 'Medium', high: 'High' },
+  riskToChangeLabel: 'Risk to change',
+  riskToChangeValue: '{score} ({band})'
 
 }
 
