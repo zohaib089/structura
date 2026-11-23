@@ -333,6 +333,114 @@ describe('readGraph', () => {
     expect(readGraph(JSON.stringify(raw)).ok).toBe(false)
   })
 
+  it('reads a 1.4.0 graph with duplicate groups', () => {
+    const raw = JSON.parse(document(
+      [root, file],
+      [{ source: 'dir:.', type: 'contains', target: 'file:src/app.ts', provenance: 'EXTRACTED' }],
+      {
+        schemaVersion: '1.4.0',
+        duplicates: {
+          summary: { groups: 1, duplicatedLines: 14, percentage: 8 },
+          groups: [
+            {
+              id: 'a1b2c3d4e5f6',
+              lineCount: 6,
+              occurrences: [
+                { path: 'src/a.ts', startLine: 10, endLine: 16 },
+                { path: 'src/b.ts', startLine: 4, endLine: 10 }
+              ],
+              description: '6 identical lines in src/a.ts and src/b.ts'
+            }
+          ]
+        }
+      }
+    )) as { schemaVersion: string }
+    raw.schemaVersion = '1.4.0'
+    const result = readGraph(JSON.stringify(raw))
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.graph.schemaVersion).toBe('1.4.0')
+    expect(result.graph.duplicates).toEqual({
+      summary: { groups: 1, duplicatedLines: 14, percentage: 8 },
+      groups: [
+        {
+          id: 'a1b2c3d4e5f6',
+          lineCount: 6,
+          occurrences: [
+            { path: 'src/a.ts', startLine: 10, endLine: 16 },
+            { path: 'src/b.ts', startLine: 4, endLine: 10 }
+          ],
+          description: '6 identical lines in src/a.ts and src/b.ts'
+        }
+      ]
+    })
+  })
+
+  it('reads a 1.1–1.3 graph and leaves duplicates off', () => {
+    for (const file of ['v1.1.0.graph.json', 'v1.2.0.graph.json', 'v1.3.0.graph.json'] as const) {
+      const result = readGraph(readFileSync(resolve(`../../packages/engine/schema-fixtures/${file}`), 'utf8'))
+      expect(result.ok).toBe(true)
+      if (!result.ok) return
+      expect(result.graph).not.toHaveProperty('duplicates')
+    }
+  })
+
+  it('omits an empty duplicates.groups list the same way the engine omits the field', () => {
+    const raw = JSON.parse(document(
+      [root, file],
+      [{ source: 'dir:.', type: 'contains', target: 'file:src/app.ts', provenance: 'EXTRACTED' }],
+      {
+        schemaVersion: '1.4.0',
+        duplicates: { summary: { groups: 0, duplicatedLines: 0, percentage: 0 }, groups: [] }
+      }
+    )) as { schemaVersion: string }
+    raw.schemaVersion = '1.4.0'
+    const result = readGraph(JSON.stringify(raw))
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.graph).not.toHaveProperty('duplicates')
+  })
+
+  it('refuses a malformed or invalid duplicates payload', () => {
+    const base = JSON.parse(document(
+      [root, file],
+      [{ source: 'dir:.', type: 'contains', target: 'file:src/app.ts', provenance: 'EXTRACTED' }],
+      { schemaVersion: '1.4.0' }
+    )) as {
+      schemaVersion: string
+      duplicates?: unknown
+    }
+    base.schemaVersion = '1.4.0'
+    const validGroup = {
+      id: 'a1b2c3d4e5f6',
+      lineCount: 6,
+      occurrences: [
+        { path: 'src/a.ts', startLine: 10, endLine: 16 },
+        { path: 'src/b.ts', startLine: 4, endLine: 10 }
+      ],
+      description: '6 identical lines in src/a.ts and src/b.ts'
+    }
+    const valid = { summary: { groups: 1, duplicatedLines: 14, percentage: 8 }, groups: [validGroup] }
+
+    base.duplicates = 'nope'
+    expect(readGraph(JSON.stringify(base)).ok).toBe(false)
+
+    base.duplicates = { summary: { groups: 1, duplicatedLines: 14, percentage: 101 }, groups: [validGroup] }
+    expect(readGraph(JSON.stringify(base)).ok).toBe(false)
+
+    base.duplicates = { ...valid, groups: [{ ...validGroup, occurrences: [{ path: 'src/a.ts', startLine: 16, endLine: 10 }, { path: 'src/b.ts', startLine: 4, endLine: 10 }] }] }
+    expect(readGraph(JSON.stringify(base)).ok).toBe(false)
+
+    base.duplicates = { ...valid, groups: [{ ...validGroup, occurrences: [{ path: 'src/a.ts', startLine: 10, endLine: 16 }] }] }
+    expect(readGraph(JSON.stringify(base)).ok).toBe(false)
+
+    base.duplicates = { ...valid, groups: [{ ...validGroup, lineCount: 0 }] }
+    expect(readGraph(JSON.stringify(base)).ok).toBe(false)
+
+    base.duplicates = { summary: { groups: 1, duplicatedLines: 14 }, groups: [validGroup] }
+    expect(readGraph(JSON.stringify(base)).ok).toBe(false)
+  })
+
   it('report FindingsTable tooltip explains INFERRED provenance', () => {
     const messages = scanReportMessages('en')
     expect(messages.provenanceTooltip('INFERRED')).toBe('Inferred: our best guess from patterns, not read directly')

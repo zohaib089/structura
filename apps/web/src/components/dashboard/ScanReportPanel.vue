@@ -188,6 +188,7 @@ function showAllFindings() {
         :graph-loading="graphLoading"
         :hotspots="graph?.hotspots ?? []"
         :quality="graph?.quality"
+        :duplicates="graph?.duplicates"
       />
 
       <ReportFindingsTab

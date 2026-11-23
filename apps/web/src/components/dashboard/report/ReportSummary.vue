@@ -12,10 +12,11 @@ import type { ReportSeverity } from '../../../api/scan-report-types'
 import type { ScanReportMessages } from '../../../services/scan-report-messages'
 import { SEVERITY_DESCENDING } from '../../../services/scan-report-severity'
 import type { ReportSummary } from '../../../services/scan-report-summary'
-import type { GraphHotspot, GraphQuality } from '../../../viewer/graph-types'
+import type { GraphDuplicates, GraphHotspot, GraphQuality } from '../../../viewer/graph-types'
 import SeverityChip from '../../ui/SeverityChip.vue'
 import SkeletonBlock from '../../ui/skeleton/SkeletonBlock.vue'
 import ReportAnalysers from './ReportAnalysers.vue'
+import ReportDuplicates from './ReportDuplicates.vue'
 import ReportHotspots from './ReportHotspots.vue'
 import ReportQuality from './ReportQuality.vue'
 
@@ -29,6 +30,7 @@ const props = defineProps<{
   graphLoading?: boolean
   hotspots?: GraphHotspot[]
   quality?: GraphQuality | null
+  duplicates?: GraphDuplicates | null
 }>()
 
 const coverageLabel = computed(() => {
@@ -149,6 +151,23 @@ const nextSteps = computed(() => {
       :open-label="messages.riskiestFilesOpen"
       :band-label="messages.hotspotBandLabel"
       :score-label="messages.riskiestFilesScore"
+      :graph-href="graphHref"
+    />
+
+    <ReportDuplicates
+      :duplicates="duplicates"
+      :title="messages.duplicatesTitle"
+      :hint="messages.duplicatesHint"
+      :groups-caption="messages.duplicatesGroupsCaption"
+      :lines-caption="messages.duplicatesLinesCaption"
+      :percent-value="messages.duplicatesPercentValue"
+      :percent-caption="messages.duplicatesPercentCaption"
+      :summary-label="messages.duplicatesSummaryLabel"
+      :group-lines="messages.duplicatesGroupLines"
+      :group-places="messages.duplicatesGroupPlaces"
+      :line-range="messages.duplicatesLineRange"
+      :open-label="messages.duplicatesOpen"
+      :showing="messages.duplicatesShowing"
       :graph-href="graphHref"
     />
 
