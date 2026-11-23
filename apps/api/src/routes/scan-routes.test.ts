@@ -342,3 +342,46 @@ test('report route returns stored report when ready', async () => {
     await api.app.close()
   }
 })
+
+test('graph route returns stored hotspots when ready', async () => {
+  const api = createScanApi()
+  try {
+    const created = await api.app.inject({
+      method: 'POST',
+      url: '/api/workspaces/workspace-1/scans',
+      headers: { authorization: 'Bearer valid-session' },
+      payload: { source: 'git', url: 'https://github.com/org/repo' }
+    })
+    const scanId = created.json().scan.id as string
+    const scan = api.scans.get(scanId)!
+    scan.status = 'succeeded'
+    scan.graph_json = {
+      schemaVersion: '1.2.0',
+      nodes: [
+        {
+          id: 'file:src/app.ts',
+          kind: 'file',
+          path: 'src/app.ts',
+          hotspot: { score: 80 }
+        }
+      ],
+      edges: [],
+      hotspots: [{ path: 'src/app.ts', score: 80, why: 'Used by 4 files and has 2 findings' }]
+    }
+
+    const response = await api.app.inject({
+      method: 'GET',
+      url: `/api/workspaces/workspace-1/scans/${scanId}/graph`,
+      headers: { authorization: 'Bearer valid-session' }
+    })
+    assert.equal(response.statusCode, 200)
+    assert.equal(response.json().success, true)
+    assert.equal(response.json().graph.schemaVersion, '1.2.0')
+    assert.deepEqual(response.json().graph.hotspots, [
+      { path: 'src/app.ts', score: 80, why: 'Used by 4 files and has 2 findings' }
+    ])
+    assert.equal(response.json().graph.nodes[0].hotspot.score, 80)
+  } finally {
+    await api.app.close()
+  }
+})

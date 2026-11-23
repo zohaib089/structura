@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.1.0",
+  "schemaVersion": "1.2.0",
   "summary": {
     "nodes": 4,
     "edges": 4,
@@ -66,7 +66,10 @@
           },
           "confidence": 0.65
         }
-      ]
+      ],
+      "hotspot": {
+        "score": 50
+      }
     },
     {
       "id": "file:util.js",
@@ -77,6 +80,9 @@
       "lineCount": 2,
       "parse": {
         "status": "parsed"
+      },
+      "hotspot": {
+        "score": 65
       }
     },
     {
@@ -136,6 +142,18 @@
       },
       "specifier": "./util",
       "importKind": "require"
+    }
+  ],
+  "hotspots": [
+    {
+      "path": "util.js",
+      "score": 65,
+      "why": "Used by 1 file, impacts 1 file, and has 2 lines"
+    },
+    {
+      "path": "main.js",
+      "score": 50,
+      "why": "imports 1 file, impacts 1 file, and has 4 lines"
     }
   ]
 }

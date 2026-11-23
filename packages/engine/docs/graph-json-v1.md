@@ -4,7 +4,7 @@
 Run metadata (time, tool version, absolute paths, memory) goes to `run.json` and to `--json` stdout, never into this file.
 
 - Schema id: `urn:repo-graph:schema:graph:1` (brand-free).
-- `schemaVersion`: semver string `1.1.0` (major 1). A greater major is refused (`GraphVersionUnsupported`, CLI exit 2). The same major with a higher minor is accepted: unknown properties are stripped, unknown kind/type values are kept as generic nodes or edges. A 1.1.0 reader accepts a 1.0.0 document (all new fields are optional). A 1.0.0 reader loading a 1.1.0 document sets `newerMinor` and strips unknown properties, keeping `type: "calls"` as a generic edge.
+- `schemaVersion`: semver string `1.2.0` (major 1). A greater major is refused (`GraphVersionUnsupported`, CLI exit 2). The same major with a higher minor is accepted: unknown properties are stripped, unknown kind/type values are kept as generic nodes or edges. A 1.2.0 reader accepts 1.0.0 and 1.1.0 documents (all new fields are optional). A 1.1.0 reader loading a 1.2.0 document sets `newerMinor` and strips unknown properties such as `hotspot` / `hotspots`.
 - UTF-8 without a BOM, 2-space indent, `\n` line endings, exactly one trailing `\n`.
 - Property order is the order in this document. Nodes are sorted by `id`. Edges are sorted by `(source, type, target, span.start.line, span.start.col)` in UTF-16 code-unit order (`contains` edges have no span and sort as line 0, column 0). `localeCompare` is never used.
 - `additionalProperties` is false everywhere. The only open object is optional `extensions`, whose keys match `^[a-z][a-z0-9-]*:[A-Za-z0-9._-]+$`.
@@ -15,7 +15,7 @@ Run metadata (time, tool version, absolute paths, memory) goes to `run.json` and
 
 ```json
 {
-  "schemaVersion": "1.1.0",
+  "schemaVersion": "1.2.0",
   "summary": { "nodes": 4, "edges": 3, "files": 1 },
   "coverage": {
     "files": { "discovered": 1, "parsed": 1, "partial": 0, "failed": 0, "skipped": 0, "ignored": 0 },
@@ -330,7 +330,20 @@ Pass `--config <path>` to use a config file other than the default at the scan r
 
 `run.json` may be written outside `--out` with `--meta`. That path uses the same output safety as `graph.json`: a symlink is never followed, and an existing file is overwritten only when its JSON shape is a previous run (`command` `"scan"` plus the run counters). Any other file is refused.
 
+## Hotspots (1.2.0)
+
+Optional. A scan may attach:
+
+- `nodes[]` of kind `file` may include `hotspot: { score }` where `score` is an integer 0–100. The field is omitted when the score is 0.
+- `hotspots`: the top 10 files by score (ties broken by path), each `{ path, score, why }`. `why` is a short plain-English phrase such as `Used by 42 files and has 3 findings`. The list is omitted when every file scores 0.
+
+The score is a documented, deterministic weighted sum of signals already in the graph (no git history): fan-in, impact radius (walkFileImpact default depth 3, both directions), architecture-finding count, fan-out, and function count or `lineCount`. See `src/graph/hotspots.ts`.
+
+Property order: `hotspot` sits on a file node after `docSummary` and before `extensions`. Graph-level `hotspots` sits after `architecture` and before `extensions`.
+
 ## Changelog
+
+- **2026-11-23, schemaVersion 1.2.0**: optional per-file `hotspot` and top-N `hotspots` list (plain-English `why`). Additive; 1.0.0 and 1.1.0 documents still read. Frozen `schema-fixtures/v1.0.0.graph.json` and `v1.1.0.graph.json` are unchanged; `schema-fixtures/v1.2.0.graph.json` covers the new shapes.
 
 - **2026-11-16, schemaVersion 1.1.0** (Security review): `docSummary` is **off by default** and opt-in via `--doc-summaries` (`--no-doc-summaries` is a no-op). Detection runs on the full sanitised sentence before the 160-code-point cap; mid-token truncation drops the field. Zero-width characters and U+00AD are stripped and the text is NFKC-normalised before detection and on the output. `looksSecret` also matches GitLab token prefixes, AWS / base64 blobs that contain `/` or `+`, and credential prose. API scans never persist `docSummary`.
 - **2026-11-15, schemaVersion 1.1.0** (Tech Lead sign-off): additive file-insights contract. New optional edge type `calls` (file or function/method symbol → function/method or class symbol; module-scope caller is the file node). Optional symbol fields `parent`, `paramCount`, `scope`, `mutable`, `stateKind`, and `docSummary`; optional `docSummary` on file nodes; optional `coverage.calls`. `docSummary` is a narrow, named exception to source-text-free (sanitised first sentence of a doc comment or docstring only, 160 code-point cap, omitted when `looksSecret` matches; default on, `--no-doc-summaries` to opt out). No `reads` / `writes` edges and no function-local variable symbols. Architecture drift stays `imports` / `reexports` only. The frozen `schema-fixtures/v1.0.0.graph.json` canary is unchanged; `schema-fixtures/v1.1.0.graph.json` covers the new shapes. A 1.0.0 reader loading 1.1.0 sets `newerMinor` and strips unknown properties, keeping `calls` as a generic edge. A 1.1.0 reader accepts 1.0.0 documents because every new field is optional.

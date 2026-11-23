@@ -27,9 +27,9 @@ export type {
 } from '../architecture/types.js'
 export { ARCHITECTURE_DRIFT_RULES, ARCHITECTURE_EDGE_KINDS, ARCHITECTURE_POLICIES } from '../architecture/types.js'
 
-export const GRAPH_SCHEMA_VERSION = '1.1.0'
+export const GRAPH_SCHEMA_VERSION = '1.2.0'
 export const GRAPH_SCHEMA_MAJOR = 1
-export const GRAPH_SCHEMA_MINOR = 1
+export const GRAPH_SCHEMA_MINOR = 2
 /** Brand-free schema id: never changes when the product is renamed. */
 export const GRAPH_SCHEMA_ID = 'urn:repo-graph:schema:graph:1'
 
@@ -210,7 +210,20 @@ export interface FileNode {
   module?: string
   /** First sentence of a leading file doc comment or module docstring. Omitted when empty, secret-shaped, or disabled. */
   docSummary?: string
+  /** 0–100 hotspot score. Omitted when the score is 0. */
+  hotspot?: FileHotspot
   extensions?: Extensions
+}
+
+export interface FileHotspot {
+  score: number
+}
+
+/** Top-N hotspot entry (plain-English `why`, repo-relative `path`). */
+export interface GraphHotspot {
+  path: string
+  score: number
+  why: string
 }
 
 export interface SymbolNode {
@@ -398,5 +411,7 @@ export interface Graph {
   /** Sorted by (source, type, target, span.start.line, span.start.col). */
   edges: GraphEdge[]
   architecture?: GraphArchitecture
+  /** Top-N hotspot files, highest score first. Omitted when every file scores 0. */
+  hotspots?: GraphHotspot[]
   extensions?: Extensions
 }

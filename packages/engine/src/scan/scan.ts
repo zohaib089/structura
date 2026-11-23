@@ -23,6 +23,7 @@ import { PythonResolver } from '../adapters/python/resolver.js'
 import { GraphBuilder } from '../graph/builder.js'
 import { GraphVersionUnsupported } from '../graph/errors.js'
 import { serializeGraph } from '../graph/canonical.js'
+import { attachHotspots } from '../graph/hotspots.js'
 import { readCheckedInSchemaHash } from '../graph/hash.js'
 import { readGraph } from '../graph/read.js'
 import { validateStrict } from '../graph/validate-strict.js'
@@ -990,6 +991,7 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
     }
     graph = { ...graph, architecture }
   }
+  graph = attachHotspots(graph)
   const checked = validateStrict(graph)
   if (!checked.ok) {
     const first = checked.issues.slice(0, 8).map(issue => `${issue.path} ${issue.message}`).join('; ')
