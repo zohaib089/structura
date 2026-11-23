@@ -4,6 +4,7 @@
  * one source.
  */
 import type { DuplicateGroup, GraphDuplicates } from './graph-types'
+import { formatDuplicateGroupText } from './graph-message-codes'
 import { hotspotFileName, hotspotShortPath } from './hotspot-band'
 
 /** Engine lists at most 20 groups; the Summary tab keeps the same cap. */
@@ -54,9 +55,11 @@ export interface DuplicateDescriptionMessages {
 
 /** Build a description from lineCount + occurrences; fall back to the engine string. */
 export function duplicateGroupDescription(
-  group: Pick<DuplicateGroup, 'lineCount' | 'occurrences' | 'description'>,
+  group: Pick<DuplicateGroup, 'lineCount' | 'occurrences' | 'description' | 'code' | 'params'>,
   messages: DuplicateDescriptionMessages
 ): string {
+  const fromCode = formatDuplicateGroupText(group, messages)
+  if (fromCode) return fromCode
   const paths: string[] = []
   for (const item of group.occurrences) {
     if (!paths.includes(item.path)) paths.push(item.path)

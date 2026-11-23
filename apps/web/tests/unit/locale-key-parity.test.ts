@@ -85,7 +85,9 @@ const MUST_TRANSLATE_PREFIXES = [
   'tabRemovals',
   'tabGraph',
   'tabHistory',
-  'tabArchitecture'
+  'tabArchitecture',
+  'hotspotWhy',
+  'qa'
 ]
 
 /** Templates that can legitimately stay identical across locales (placeholders only, or shared punctuation). */
@@ -103,7 +105,19 @@ const MAY_MATCH_EN = new Set([
   'fr:layoutRadial',
   'es:layoutRadial',
   'fr:tabArchitecture', // "Architecture" is the same word in French
-  'it:searchFiles' // "File" is the same word in Italian
+  'it:searchFiles', // "File" is the same word in Italian
+  'qaExplainKind', // `${kind} ${name}` keeps identifier order
+  'qaQualityPenaltyItem', // label plus unicode minus penalty
+  'qaDuplicatesItem', // numbered list marker
+  'qaQuote', // typographic quotes are shared by several locales
+  'pt:qaEntryPythonMain',
+  'it:qaEntryPythonMain',
+  'fr:qaEntryPythonMain',
+  'nl:qaEntryPythonMain',
+  'es:qaEntryPythonMain',
+  'zh-Hans:qaEntryPythonMain',
+  'hi:qaEntryPythonMain',
+  'ur:qaEntryPythonMain'
 ])
 
 function isNewScreenKey(key: string): boolean {
@@ -140,6 +154,16 @@ function sample(key: string, value: unknown): string {
   if (/DescriptionTwoPaths/.test(key)) return call(12, 'a.ts', 'b.ts')
   if (/DescriptionOnePath/.test(key)) return call(12, 8, 'a.ts')
   if (/DescriptionManyPaths/.test(key)) return call(12, 3)
+  if (/HotspotsItem/.test(key)) return call(1, 'src/app.ts', 61, 'Used by 2 files')
+  if (/ExplainFileLead/.test(key)) return call('src/app.ts', 'TypeScript', 40)
+  if (/ExplainFolderLead/.test(key)) return call('src', 4, '4 TypeScript')
+  if (/ExplainFolderTip|QualityTipItem/.test(key)) return call('Fix the cycle', 4)
+  if (/ExplainSymbol/.test(key) && fn.length >= 4) return call('parse', 'function', 'src/app.ts', 10, 18)
+  if (/FolderMissing/.test(key)) return call('src', 80, 'B')
+  if (/DuplicatesHead/.test(key)) return call(3, 40, 6)
+  if (/ScoreLine/.test(key)) return call('The project scores', 80, 'B')
+  if (/DependentsFolder/.test(key)) return call('src', 4, 6, 'a.ts (depth 1)', ' 2 more.')
+  if (/DependentsFile|ResolveAmbiguous/.test(key)) return call('src/app.ts', 'a.ts and b.ts', ' and 2 more')
   if (/tabArchitecture|qualityLabel|duplicatesDescription|fileListLabel/.test(key) && fn.length === 1) return call(2)
   if (fn.length >= 2) return call('Taylor', 'Sam')
   if (fn.length === 1) return call('Taylor')

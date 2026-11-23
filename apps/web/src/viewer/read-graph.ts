@@ -41,6 +41,7 @@ import type {
   SymbolNode
 } from './graph-types'
 import { QUALITY_CATEGORIES, QUALITY_GRADES } from './graph-types'
+import { readMessageFields } from './message-fields'
 
 const KNOWN_KINDS = new Set(['directory', 'file', 'symbol', 'external', 'unresolved'])
 const STATE_SCOPES = new Set<string>(['module', 'class', 'instance', 'global', 'local'])
@@ -370,7 +371,13 @@ function readHotspots(value: unknown, paths: string[]): GraphHotspot[] | null {
       failed = true
       return
     }
-    rows.push({ path, score, why })
+    const fields = readMessageFields(entry)
+    if (fields === 'invalid') {
+      push(paths, base)
+      failed = true
+      return
+    }
+    rows.push(fields ? { path, score, why, ...fields } : { path, score, why })
   })
   return failed ? null : rows
 }
@@ -481,7 +488,13 @@ function readQualityBreakdown(value: unknown, base: string, paths: string[]): Qu
       failed = true
       return
     }
-    items.push({ category: category as QualityCategory, label, penalty })
+    const fields = readMessageFields(entry)
+    if (fields === 'invalid') {
+      push(paths, itemBase)
+      failed = true
+      return
+    }
+    items.push(fields ? { category: category as QualityCategory, label, penalty, ...fields } : { category: category as QualityCategory, label, penalty })
   })
   if (failed) return null
   const categories = new Set(items.map((item) => item.category))
@@ -513,7 +526,13 @@ function readQualityTips(value: unknown, base: string, paths: string[]): Quality
       failed = true
       return
     }
-    tips.push({ text, gain })
+    const fields = readMessageFields(entry)
+    if (fields === 'invalid') {
+      push(paths, itemBase)
+      failed = true
+      return
+    }
+    tips.push(fields ? { text, gain, ...fields } : { text, gain })
   })
   return failed ? null : tips
 }
@@ -565,7 +584,12 @@ function readDuplicateGroup(value: unknown, base: string, paths: string[]): Dupl
   const lineCount = readPositiveCount(value.lineCount, `${base}/lineCount`, paths)
   const occurrences = readDuplicateOccurrences(value.occurrences, `${base}/occurrences`, paths)
   if (!id || !description || lineCount === null || !occurrences) return null
-  return { id, lineCount, occurrences, description }
+  const fields = readMessageFields(value)
+  if (fields === 'invalid') {
+    push(paths, base)
+    return null
+  }
+  return fields ? { id, lineCount, occurrences, description, ...fields } : { id, lineCount, occurrences, description }
 }
 
 function readDuplicateOccurrences(value: unknown, base: string, paths: string[]): DuplicateOccurrence[] | null {

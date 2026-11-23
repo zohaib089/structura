@@ -1,6 +1,8 @@
 import { getCurrentSession } from '../services/auth'
 import type { WebLocale } from '../services/locale'
 import { scanReportMessages } from '../services/scan-report-messages'
+import type { MessageParams } from '../viewer/graph-types'
+import { readMessageFields } from '../viewer/message-fields'
 
 /** Matches the hosted ask route and `GRAPH_QA_MAX_QUESTION_LENGTH` in the engine. */
 export const GRAPH_QA_MAX_QUESTION_LENGTH = 500
@@ -28,6 +30,9 @@ export interface GraphQaCitation {
 export interface GraphQaAnswer {
   intent: GraphQaIntent
   answer: string
+  /** Structured code for `answer` when the ask API forwards 1.7.0 fields. */
+  code?: string
+  params?: MessageParams
   citations: GraphQaCitation[]
   suggestions: string[]
 }
@@ -231,5 +236,14 @@ export async function askScanQuestion(
     ? result.suggestions.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
     : []
 
-  return { intent, answer: result.answer, citations, suggestions }
+  const fields = isRecord(result) ? readMessageFields(result) : null
+  const messageFields = fields && fields !== 'invalid' ? fields : null
+  return {
+    intent,
+    answer: result.answer,
+    ...(messageFields?.code ? { code: messageFields.code } : {}),
+    ...(messageFields?.params ? { params: messageFields.params } : {}),
+    citations,
+    suggestions
+  }
 }

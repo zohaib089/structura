@@ -14,6 +14,7 @@ import type { ScanReportMessages } from '../../../services/scan-report-messages'
 import { SEVERITY_DESCENDING } from '../../../services/scan-report-severity'
 import type { ReportSummary } from '../../../services/scan-report-summary'
 import type { GraphDuplicates, GraphHotspot, GraphQuality } from '../../../viewer/graph-types'
+import { formatHotspotWhyText } from '../../../viewer/graph-message-codes'
 import SeverityChip from '../../ui/SeverityChip.vue'
 import SkeletonBlock from '../../ui/skeleton/SkeletonBlock.vue'
 import ReportAnalysers from './ReportAnalysers.vue'
@@ -48,6 +49,13 @@ const coverageLabel = computed(() => {
 })
 
 const showSecondary = computed(() => !props.graphLoading)
+
+const localizedHotspots = computed(() =>
+  (props.hotspots ?? []).map((item) => ({
+    ...item,
+    why: formatHotspotWhyText(item, props.messages)
+  }))
+)
 const hasSecondaryContent = computed(
   () =>
     props.summary.skippedAnalysers.length > 0 ||
@@ -100,6 +108,7 @@ const nextSteps = computed(() => {
 
     <ReportAsk
       :locale="locale"
+      :message-context="{ hotspots, quality, duplicates }"
       :workspace-id="workspaceId"
       :scan-id="scanId"
       :graph-href="graphHref"
@@ -171,7 +180,7 @@ const nextSteps = computed(() => {
     </section>
 
     <ReportHotspots
-      :items="hotspots ?? []"
+      :items="localizedHotspots"
       :title="messages.riskiestFilesTitle"
       :hint="messages.riskiestFilesHint"
       :open-label="messages.riskiestFilesOpen"

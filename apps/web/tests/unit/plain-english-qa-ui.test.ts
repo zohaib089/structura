@@ -29,6 +29,12 @@ const answerBody = {
   suggestions: ['How healthy is this project?', 'Where is code duplicated?']
 }
 
+const answerBodyWithCode = {
+  ...answerBody,
+  code: 'qa.hotspots.list',
+  params: { count: 2, paths: ['src/app.ts', 'packages/engine/src/graph/qa.ts'], scores: ['61', '47'], extraCount: 0 }
+}
+
 function sessionJson() {
   return JSON.stringify({
     token: 'qa-session',
@@ -148,9 +154,16 @@ describe('askScanQuestion client', () => {
   })
 
   it('POSTs the trimmed question to the hosted ask route', async () => {
-    vi.mocked(fetch).mockResolvedValue(jsonResponse(answerBody))
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(answerBodyWithCode))
     const result = await askScanQuestion('ws-1', 'scan-1', '  What are the riskiest files?  ')
     expect(result.answer).toContain('riskiest files')
+    expect(result.code).toBe('qa.hotspots.list')
+    expect(result.params).toEqual({
+      count: 2,
+      paths: ['src/app.ts', 'packages/engine/src/graph/qa.ts'],
+      scores: ['61', '47'],
+      extraCount: 0
+    })
     expect(result.citations).toHaveLength(3)
     expect(result.suggestions).toHaveLength(2)
     expect(fetch).toHaveBeenCalledWith(

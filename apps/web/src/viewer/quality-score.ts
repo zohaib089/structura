@@ -11,6 +11,7 @@ import type {
   QualityTip
 } from './graph-types'
 import { QUALITY_CATEGORIES, QUALITY_GRADES } from './graph-types'
+import { formatQualityTipAction, type GraphMessageCodeMessages } from './graph-message-codes'
 
 export const QUALITY_TIPS_LIMIT = 3
 /** Summary tab shows the worst folders first; cap keeps the list readable. */
@@ -122,7 +123,11 @@ export function qualityFolderShortPath(path: string): string {
 const GAIN_SUFFIX = /\s+to gain about (\d+) points?$/
 
 /** Tip wording without the trailing "to gain about N points" when the gain chip already shows it. */
-export function tipActionText(tip: QualityTip): string {
+export function tipActionText(tip: QualityTip, messages?: GraphMessageCodeMessages): string {
+  if (messages) {
+    const action = formatQualityTipAction(tip, messages)
+    if (action) return action
+  }
   const match = tip.text.match(GAIN_SUFFIX)
   if (match && Number(match[1]) === tip.gain) {
     return tip.text.slice(0, match.index).trim()
