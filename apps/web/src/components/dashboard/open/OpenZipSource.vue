@@ -6,6 +6,7 @@ defineProps<{
   disabled?: boolean
   dropTitle: string
   browseLabel: string
+  dropOr: string
   hint: string
 }>()
 
@@ -75,7 +76,7 @@ function onDragLeave() {
       <div class="open-source__icon" aria-hidden="true">🗜️</div>
       <p class="open-source__title">
         <strong>{{ dropTitle }}</strong>
-        or
+        {{ dropOr }}
         <Button
           variant="secondary"
           size="sm"

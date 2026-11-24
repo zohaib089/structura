@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { BRAND } from '../../../../../packages/brand/src/brand'
 import BrandMark from '../brand/BrandMark.vue'
 import { hostedAppEnabled } from '../../hosted-app'
-import LocaleSwitcher from './LocaleSwitcher.vue'
-import ThemeToggle from './ThemeToggle.vue'
+import LocaleSwitcher from '../layout/LocaleSwitcher.vue'
+import ThemeToggle from '../layout/ThemeToggle.vue'
 import { isSupportedWebLocale, readLocalePreference, resolvePreferredWebLocale } from '../../services/locale'
 import { navigationMessages } from '../../services/navigation-messages'
 import { getCurrentSession, logoutUser } from '../../services/auth'
@@ -19,7 +19,6 @@ const locale = computed(() => {
   return resolvePreferredWebLocale(readLocalePreference(), navigator.languages)
 })
 const messages = computed(() => navigationMessages(locale.value))
-const showLandingLinks = computed(() => route.name === 'home' || route.name === 'localized-home')
 const isAuthenticated = computed(() =>
   Boolean(route.fullPath) && getCurrentSession() !== null
 )
@@ -61,17 +60,6 @@ async function handleLogout() {
         </RouterLink>
       </div>
 
-      <nav v-if="showLandingLinks" class="nav-links" :aria-label="messages.mainNavigation">
-        <a href="#honest">{{ messages.honest }}</a>
-        <a href="#coverage">{{ messages.coverage }}</a>
-        <a href="#drift">{{ messages.drift }}</a>
-        <a href="#how">{{ messages.howItWorks }}</a>
-        <a href="#quickstart">{{ messages.quickstart }}</a>
-        <a v-if="hostedAppEnabled" :href="`${BRAND.repoUrl}#readme`">{{ messages.docs }}</a>
-        <RouterLink v-if="hostedAppEnabled" :to="`/${locale}/dashboard`">{{ messages.dashboard }}</RouterLink>
-        <a :href="BRAND.repoUrl">{{ messages.github }}</a>
-      </nav>
-
       <div class="right-side">
         <LocaleSwitcher />
 
@@ -92,7 +80,6 @@ async function handleLogout() {
 </template>
 
 <style scoped>
-/* Same geometry as LandingNav and the dashboard TopBar: full-width bar, --shell-topbar-height, bottom border. */
 .navbar {
   position: sticky;
   top: 0;
@@ -126,16 +113,6 @@ async function handleLogout() {
   font-weight: var(--font-weight-semibold);
   letter-spacing: -0.02em;
 }
-.nav-links { display: flex; align-items: center; gap: var(--space-1); }
-.nav-links a {
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--r-sm);
-  color: var(--color-text-secondary);
-  font-size: var(--text-14);
-  font-weight: var(--font-weight-medium);
-  text-decoration: none;
-}
-.nav-links a:hover { color: var(--color-text-primary); background: var(--gray-3); }
 .right-side { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 :deep(.locale-control select) {
   inline-size: 7.5rem;
@@ -162,7 +139,6 @@ async function handleLogout() {
   color: var(--button-primary-fg);
   cursor: pointer;
 }
-@media (max-width: 1000px) { .nav-links { display: none; } }
 @media (max-width: 640px) {
   .container { padding-inline: var(--space-3); gap: var(--space-2); }
   .right-side { gap: var(--space-1); }

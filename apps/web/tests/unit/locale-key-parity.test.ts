@@ -146,7 +146,152 @@ const MUST_TRANSLATE_PREFIXES = [
   'treeExpandFolder',
   'treeCollapseFolder',
   'historyHotspotsHint',
-  'historyChurnHint'
+  'historyChurnHint',
+  'analyserColumnDetails',
+  'analyserColumnDuration',
+  'analyserColumnName',
+  'analyserColumnStatus',
+  'analyserSkippedNoReason',
+  'analyserStatusLabel',
+  'analysersEmpty',
+  'analysersRanCaption',
+  'analysersSkippedCaption',
+  'analysersSkippedHeading',
+  'analysersTitle',
+  'architectureColumnEdge',
+  'architectureColumnFrom',
+  'architectureColumnLocation',
+  'architectureColumnProvenance',
+  'architectureColumnRule',
+  'architectureColumnTo',
+  'architectureEmptyBody',
+  'architectureEmptyTitle',
+  'architectureFindingsTitle',
+  'architectureGraphHint',
+  'architectureModuleFiles',
+  'architectureModuleName',
+  'architectureModulePaths',
+  'architectureModulesTitle',
+  'architectureNeedsGraphBody',
+  'architectureNeedsGraphTitle',
+  'architectureNoFindings',
+  'architectureSummary',
+  'backToScans',
+  'clearFilters',
+  'clearTreeScope',
+  'columnActions',
+  'columnFinding',
+  'columnFoundBy',
+  'columnSeverity',
+  'columnWhere',
+  'coverageHint',
+  'coverageOfChecks',
+  'coverageOfFiles',
+  'coverageTitle',
+  'coverageUnavailable',
+  'detailEmpty',
+  'detailTitle',
+  'emptyFilteredBody',
+  'emptyFilteredTitle',
+  'emptySection',
+  'emptyTabAction',
+  'emptyTabBody',
+  'emptyTabTitle',
+  'exportErrorBody',
+  'exportErrorTitle',
+  'exportJson',
+  'exportJsonHint',
+  'exportJsonLabel',
+  'exportMarkdown',
+  'exportMarkdownHint',
+  'exportMarkdownLabel',
+  'exportMenu',
+  'exportMenuTooltip',
+  'exportRetry',
+  'exportScope',
+  'exportSuccessBody',
+  'exportSuccessTitle',
+  'filterCategoryHint',
+  'filterClear',
+  'filterPath',
+  'filterPathHint',
+  'filterPathPlaceholder',
+  'filterSection',
+  'filterSeverity',
+  'filterSeverityHint',
+  'filterToggleTooltip',
+  'filtersShowing',
+  'filtersTitle',
+  'graphHint',
+  'graphLoadingLabel',
+  'graphRetry',
+  'graphUnavailableBody',
+  'graphUnavailableTitle',
+  'graphView',
+  'historyAuthors',
+  'historyChurn',
+  'historyEmptyBody',
+  'historyEmptyTitle',
+  'historyHotspots',
+  'historyLimited',
+  'historyTimeline',
+  'improvementsRelated',
+  'loadReportError',
+  'loadingReport',
+  'nextStepCritical',
+  'nextStepGraph',
+  'nextStepReview',
+  'nextStepsTitle',
+  'noReportSelected',
+  'nothingSkipped',
+  'openGraph',
+  'openGraphTooltip',
+  'openReport',
+  'paginationNext',
+  'paginationPrevious',
+  'paginationStatus',
+  'panelDescription',
+  'panelEyebrow',
+  'panelTitle',
+  'problemAnalysersHint',
+  'problemAnalysersTitle',
+  'provenanceTooltip',
+  'reportNotReadyBody',
+  'reportNotReadyTitle',
+  'reportTitle',
+  'ruleLabel',
+  'scanMeta',
+  'secondaryHint',
+  'secondaryTitle',
+  'sectionLabel',
+  'seeAllFindings',
+  'severityCount',
+  'severityHint',
+  'severityLabel',
+  'severityTitle',
+  'severityTooltip',
+  'showInGraph',
+  'skippedHint',
+  'summaryAllClearBody',
+  'summaryAllClearTitle',
+  'tabHint',
+  'tabTooltip',
+  'tableCaption',
+  'tabsAriaLabel',
+  'topFindingsHint',
+  'topFindingsTitle',
+  'treeScope',
+  'treeTitle',
+  'treeToggleHide',
+  'treeToggleShow',
+  'treeView',
+  'unresolvedColumnCount',
+  'unresolvedColumnReason',
+  'unresolvedHint',
+  'unresolvedTitle',
+  'viewGraph',
+  'viewReport',
+  'dropOr'
 ]
 
 /** Templates that can legitimately stay identical across locales (placeholders only, or shared punctuation). */
@@ -194,7 +339,21 @@ const MAY_MATCH_EN = new Set([
   'ur:sourceGit',
   'pt:branchLabel',
   'it:branchLabel',
-  'nl:branchLabel'
+  'nl:branchLabel',
+  'nl:filtersTitle', // Dutch uses the same word,
+  'nl:scanMeta', // Dutch keeps the word Scan in this label,
+  'it:severityLabel.info',
+  'fr:severityLabel.info',
+  'nl:severityLabel.info',
+  'es:severityLabel.info',
+  'nl:analyserColumnStatus', // Status is the Dutch word,
+  'fr:architectureModuleName', // Module is the same word in French,
+  'nl:architectureModuleName',
+  'nl:historyHotspots',
+  'it:exportJsonLabel', // File JSON — File is also Italian
+  'severityCount', // interpolates a pre-translated label plus a number
+  'fr:columnActions', // 'Actions' is also the French word
+  'nl:analyserColumnDetails' // 'Details' is also the Dutch word
 ])
 
 function isNewScreenKey(key: string): boolean {
@@ -247,6 +406,26 @@ function sample(key: string, value: unknown, self?: unknown): string {
   if (/scanStepStatusLines|scanStepLabels|scanStepTerminalLabels/.test(key)) {
     return JSON.stringify((fn as (this: unknown, ...a: unknown[]) => unknown).call(self) ?? {})
   }
+  if (/tabHint|tabTooltip/.test(key)) return call('summary')
+  if (/severityTooltip|severityLabel/.test(key)) return call('high')
+  if (/sectionLabel/.test(key)) return call('violations')
+  if (/analyserStatusLabel/.test(key)) return call('ran')
+  if (/provenanceTooltip/.test(key)) return call('EXTRACTED')
+  if (/architectureSummary/.test(key)) return call(2, 1)
+  if (/architectureFindingsTitle/.test(key)) return call(2)
+  if (/scanMeta/.test(key)) return call('abc123', 'main', 'yesterday')
+  if (/coverageOfFiles/.test(key)) return call(10, 20)
+  if (/coverageOfChecks/.test(key)) return call(3, 5)
+  if (/severityCount/.test(key)) return call('High', 3)
+  if (/seeAllFindings/.test(key)) return call(4)
+  if (/nextStepCritical/.test(key)) return call(2)
+  if (/filtersShowing/.test(key)) return call(5, 20)
+  if (/filterToggleTooltip/.test(key)) return call('Critical', 'Serious issues', false)
+  if (/tableCaption|emptyTabTitle/.test(key)) return call('Security')
+  if (/treeScope/.test(key)) return call('src')
+  if (/improvementsRelated|exportScope/.test(key)) return call(3)
+  if (/exportSuccessBody/.test(key)) return call('report.json')
+  if (/paginationStatus/.test(key)) return call(1, 4, 40)
   if (fn.length >= 2) return call('Taylor', 'Sam')
   if (fn.length === 1) return call('Taylor')
   return call()

@@ -14,6 +14,7 @@ export const HEX_LOADER_PX: Record<HexLoaderSize, number> = { sm: 16, md: 24, lg
  * `inline` is for async buttons: decorative, the button's own text is the status.
  */
 import { computed, toRef } from 'vue'
+import { uiFallbackMessage } from '../../services/ui-fallback-messages'
 import { useDelayedVisible } from '../../composables/useDelayedVisible'
 import BrandMark from '../brand/BrandMark.vue'
 
@@ -40,7 +41,7 @@ const props = withDefaults(
   }>(),
   {
     size: 'md',
-    label: 'Loading…',
+    label: undefined,
     hideLabel: false,
     active: true,
     delay: 200,
@@ -49,6 +50,8 @@ const props = withDefaults(
     inline: false
   }
 )
+
+const labelText = computed(() => props.label ?? uiFallbackMessage('loadingEllipsis'))
 
 const visible = useDelayedVisible(toRef(props, 'active'), {
   delay: props.delay,
@@ -64,10 +67,10 @@ const px = computed(() => HEX_LOADER_PX[props.size])
     :class="[`hex-loader--${size}`, { 'hex-loader--stacked': stacked }]"
     :role="inline ? undefined : 'status'"
     :aria-hidden="inline ? 'true' : undefined"
-    :aria-label="hideLabel && !inline ? label : undefined"
+    :aria-label="hideLabel && !inline ? labelText : undefined"
   >
     <BrandMark class="hex-loader__mark" :size="px" animated />
-    <span v-if="!inline" class="hex-loader__label" :class="{ 'hex-loader__label--hidden': hideLabel }">{{ label }}</span>
+    <span v-if="!inline" class="hex-loader__label" :class="{ 'hex-loader__label--hidden': hideLabel }">{{ labelText }}</span>
   </span>
 </template>
 

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { uiFallbackMessage } from '../../../services/ui-fallback-messages'
 /**
  * SkeletonTableRows - flat placeholder rows for list/table regions (projects, past scans).
  * Columns match the projects table: name (40% bar) · last scan (date bar) · status (pill) ·
@@ -7,11 +9,12 @@
  */
 import SkeletonBlock from './SkeletonBlock.vue'
 
-withDefaults(defineProps<{ rows?: number; label?: string }>(), { rows: 8, label: 'Loading' })
+const props = withDefaults(defineProps<{ rows?: number; label?: string }>(), { rows: 8 })
+const labelText = computed(() => props.label ?? uiFallbackMessage('loading'))
 </script>
 
 <template>
-  <div class="sk-table" role="status" aria-busy="true" :aria-label="label">
+  <div class="sk-table" role="status" aria-busy="true" :aria-label="labelText">
     <div v-for="row in rows" :key="row" class="sk-table__row" aria-hidden="true">
       <SkeletonBlock width="40%" height="0.875rem" />
       <SkeletonBlock width="6rem" />

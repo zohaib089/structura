@@ -5,6 +5,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { isSupportedWebLocale } from '../../services/locale'
 import { navigationMessages } from '../../services/navigation-messages'
+import { authCoreMessages } from '../../services/auth-core-messages'
 
 const route = useRoute()
 
@@ -13,19 +14,21 @@ const motifNodes: Array<[number, number, number]> = [
   [390, 300, 6], [236, 236, 5], [300, 140, 5], [460, 220, 6], [413, 413, 5],
   [180, 380, 6], [530, 330, 5], [300, 530, 6], [110, 250, 5], [470, 470, 4]
 ]
-const tagline = computed(() => {
+const locale = computed(() => {
   const raw = route?.params.locale
-  return navigationMessages(typeof raw === 'string' && isSupportedWebLocale(raw) ? raw : 'en').brandTagline
+  return typeof raw === 'string' && isSupportedWebLocale(raw) ? raw : 'en'
 })
+const tagline = computed(() => navigationMessages(locale.value).brandTagline)
+const core = computed(() => authCoreMessages(locale.value))
 
-defineProps({
+const props = defineProps({
   eyebrow: {
     type: String,
-    default: 'Access your workspace'
+    default: ''
   },
   title: {
     type: String,
-    default: 'Welcome back'
+    default: ''
   },
   subtitle: {
     type: String,
@@ -60,14 +63,14 @@ defineProps({
       <main class="form-panel">
         <div class="form-panel__inner">
           <div class="form-topline">
-            <span class="eyebrow">{{ eyebrow }}</span>
+            <span class="eyebrow">{{ props.eyebrow || core.loginEyebrow }}</span>
           </div>
 
           <slot name="top" />
 
           <div class="panel-header">
-            <h1>{{ title }}</h1>
-            <p v-if="subtitle">{{ subtitle }}</p>
+            <h1>{{ props.title || core.loginTitle }}</h1>
+            <p v-if="props.subtitle">{{ props.subtitle }}</p>
           </div>
 
           <slot />

@@ -1,6 +1,7 @@
 import type { WebLocale } from './locale'
 import { scanReportNewScreenMessages } from './scan-report-locale-overrides'
 import { scanReportChromeMessages } from './scan-report-chrome-locale-overrides'
+import { scanReportPanelMessages } from './scan-report-panel-locale-overrides'
 import { scanReportStructuredMessages } from './scan-report-structured-locale-overrides'
 import { graphMessageCodeMessages } from './graph-message-code-locale-overrides'
 import { englishGraphMessageCodes, type GraphMessageCodeAdditions } from '../viewer/graph-message-codes'
@@ -748,15 +749,15 @@ const en: ScanReportMessages = {
 
 const messages: Record<WebLocale, ScanReportMessages> = {
   en,
-  pt: { ...en, ...scanReportNewScreenMessages.pt, ...scanReportStructuredMessages.pt, ...graphMessageCodeMessages.pt, ...scanReportChromeMessages.pt },
-  it: { ...en, ...scanReportNewScreenMessages.it, ...scanReportStructuredMessages.it, ...graphMessageCodeMessages.it, ...scanReportChromeMessages.it },
-  fr: { ...en, ...scanReportNewScreenMessages.fr, ...scanReportStructuredMessages.fr, ...graphMessageCodeMessages.fr, ...scanReportChromeMessages.fr },
-  nl: { ...en, ...scanReportNewScreenMessages.nl, ...scanReportStructuredMessages.nl, ...graphMessageCodeMessages.nl, ...scanReportChromeMessages.nl },
-  es: { ...en, ...scanReportNewScreenMessages.es, ...scanReportStructuredMessages.es, ...graphMessageCodeMessages.es, ...scanReportChromeMessages.es },
-  ja: { ...en, ...scanReportNewScreenMessages.ja, ...scanReportStructuredMessages.ja, ...graphMessageCodeMessages.ja, ...scanReportChromeMessages.ja },
-  'zh-Hans': { ...en, ...scanReportNewScreenMessages['zh-Hans'], ...scanReportStructuredMessages['zh-Hans'], ...graphMessageCodeMessages['zh-Hans'], ...scanReportChromeMessages['zh-Hans'] },
-  hi: { ...en, ...scanReportNewScreenMessages.hi, ...scanReportStructuredMessages.hi, ...graphMessageCodeMessages.hi, ...scanReportChromeMessages.hi },
-  ur: { ...en, ...scanReportNewScreenMessages.ur, ...scanReportStructuredMessages.ur, ...graphMessageCodeMessages.ur, ...scanReportChromeMessages.ur }
+  pt: { ...en, ...scanReportNewScreenMessages.pt, ...scanReportStructuredMessages.pt, ...graphMessageCodeMessages.pt, ...scanReportChromeMessages.pt, ...scanReportPanelMessages.pt },
+  it: { ...en, ...scanReportNewScreenMessages.it, ...scanReportStructuredMessages.it, ...graphMessageCodeMessages.it, ...scanReportChromeMessages.it, ...scanReportPanelMessages.it },
+  fr: { ...en, ...scanReportNewScreenMessages.fr, ...scanReportStructuredMessages.fr, ...graphMessageCodeMessages.fr, ...scanReportChromeMessages.fr, ...scanReportPanelMessages.fr },
+  nl: { ...en, ...scanReportNewScreenMessages.nl, ...scanReportStructuredMessages.nl, ...graphMessageCodeMessages.nl, ...scanReportChromeMessages.nl, ...scanReportPanelMessages.nl },
+  es: { ...en, ...scanReportNewScreenMessages.es, ...scanReportStructuredMessages.es, ...graphMessageCodeMessages.es, ...scanReportChromeMessages.es, ...scanReportPanelMessages.es },
+  ja: { ...en, ...scanReportNewScreenMessages.ja, ...scanReportStructuredMessages.ja, ...graphMessageCodeMessages.ja, ...scanReportChromeMessages.ja, ...scanReportPanelMessages.ja },
+  'zh-Hans': { ...en, ...scanReportNewScreenMessages['zh-Hans'], ...scanReportStructuredMessages['zh-Hans'], ...graphMessageCodeMessages['zh-Hans'], ...scanReportChromeMessages['zh-Hans'], ...scanReportPanelMessages['zh-Hans'] },
+  hi: { ...en, ...scanReportNewScreenMessages.hi, ...scanReportStructuredMessages.hi, ...graphMessageCodeMessages.hi, ...scanReportChromeMessages.hi, ...scanReportPanelMessages.hi },
+  ur: { ...en, ...scanReportNewScreenMessages.ur, ...scanReportStructuredMessages.ur, ...graphMessageCodeMessages.ur, ...scanReportChromeMessages.ur, ...scanReportPanelMessages.ur }
 }
 
 export function scanReportMessages(locale: WebLocale): ScanReportMessages {

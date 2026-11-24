@@ -214,6 +214,7 @@ function onRetry() {
         :disabled="!canSubmit"
         :drop-title="messages.folderDropTitle"
         :browse-label="messages.browseLabel"
+        :drop-or="messages.dropOr"
         :hint="messages.folderHint"
         @pick-directory="pickDirectoryHandle"
         @folder-files="onFolderFiles"
@@ -225,6 +226,7 @@ function onRetry() {
         :disabled="!canSubmit"
         :drop-title="messages.zipDropTitle"
         :browse-label="messages.browseLabel"
+        :drop-or="messages.dropOr"
         :hint="zipHint"
         @zip-file="onZipFile"
       />

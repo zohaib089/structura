@@ -14,16 +14,19 @@ const NODES = GHOSTS.map(([ring, deg]) => {
 </script>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import { uiFallbackMessage } from '../../../services/ui-fallback-messages'
 /**
  * SkeletonGraph - faint concentric rings + ghost nodes (loading-and-toasts.md §1.3).
  * Fills its container; never a spinner over the canvas. Render real floating bars / status bar around it.
  * Slot: optional status content pinned to the bottom (e.g. HexLoader "Laying out graph…").
  */
-withDefaults(defineProps<{ label?: string }>(), { label: 'Loading graph' })
+const props = withDefaults(defineProps<{ label?: string }>(), {})
+const labelText = computed(() => props.label ?? uiFallbackMessage('loadingGraph'))
 </script>
 
 <template>
-  <div class="sk-graph" role="status" aria-busy="true" :aria-label="label">
+  <div class="sk-graph" role="status" aria-busy="true" :aria-label="labelText">
     <svg class="sk-graph__svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
       <circle v-for="r in RING_RADII" :key="r" cx="50" cy="50" :r="r" class="sk-graph__ring" />
       <circle cx="50" cy="50" r="3.2" class="sk-graph__node sk-graph__node--root" />

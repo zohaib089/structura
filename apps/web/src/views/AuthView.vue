@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AuthField from '../components/auth/AuthField.vue'
 import AuthShell from '../components/auth/AuthShell.vue'
-import Navbar from '../components/layout/Navbar.vue'
+import AuthNav from '../components/auth/AuthNav.vue'
 import { authCoreMessages } from '../services/auth-core-messages'
 import {
     deleteAccount,
@@ -330,7 +330,7 @@ const activeEyebrow = computed(() => activeView.value === 'login'
 </script>
 
 <template>
-  <Navbar />
+  <AuthNav />
 
   <AuthShell
     :eyebrow="activeEyebrow"

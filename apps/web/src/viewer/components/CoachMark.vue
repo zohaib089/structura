@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { uiFallbackMessage } from '../../services/ui-fallback-messages'
 
 const props = withDefaults(
   defineProps<{
@@ -9,8 +10,10 @@ const props = withDefaults(
     /** Chip label when collapsed so the guide does not cover nodes at first paint. */
     openLabel?: string
   }>(),
-  { openLabel: 'Tips' }
+  { openLabel: undefined }
 )
+
+const openLabelText = computed(() => props.openLabel ?? uiFallbackMessage('tips'))
 
 const emit = defineEmits<{ dismiss: [] }>()
 const index = ref(0)
@@ -43,10 +46,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
       type="button"
       class="coach-chip"
       data-testid="coach-expand"
-      :aria-label="openLabel"
+      :aria-label="openLabelText"
       @click="expanded = true"
     >
-      {{ openLabel }}
+      {{ openLabelText }}
     </button>
     <template v-else>
       <p>{{ step }}</p>

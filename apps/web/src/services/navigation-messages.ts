@@ -1,13 +1,7 @@
 import type { WebLocale } from './locale'
 
 export interface NavigationMessages {
-  mainNavigation: string
   home: string
-  honest: string
-  howItWorks: string
-  coverage: string
-  drift: string
-  quickstart: string
   language: string
   toggleTheme: string
   /** Accessible name for the dashboard drawer close button. */
@@ -17,23 +11,14 @@ export interface NavigationMessages {
   logIn: string
   logOut: string
   launchApp: string
-  dashboard: string
-  docs: string
-  github: string
 }
 
 /**
- * Landing section labels and shell chrome for every supported locale.
+ * Shared shell chrome for every supported locale.
  */
-const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> = {
+const messages: Record<WebLocale, NavigationMessages> = {
   en: {
-    mainNavigation: 'Main navigation',
     home: 'Go back home',
-    honest: 'Edges',
-    howItWorks: 'How it works',
-    coverage: 'Coverage',
-    drift: 'Drift',
-    quickstart: 'Quickstart',
     language: 'Language',
     toggleTheme: 'Toggle theme',
     closeMenu: 'Close menu',
@@ -41,16 +26,9 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     logIn: 'Log in',
     logOut: 'Log out',
     launchApp: 'Launch app',
-    dashboard: 'Dashboard'
   },
   pt: {
-    mainNavigation: 'Navegação principal',
     home: 'Voltar ao início',
-    honest: 'Ligações',
-    howItWorks: 'Como funciona',
-    coverage: 'Cobertura',
-    drift: 'Desvio',
-    quickstart: 'Início rápido',
     language: 'Idioma',
     toggleTheme: 'Alternar tema',
     closeMenu: 'Fechar menu',
@@ -58,16 +36,9 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     logIn: 'Entrar',
     logOut: 'Sair',
     launchApp: 'Abrir aplicativo',
-    dashboard: 'Painel'
   },
   it: {
-    mainNavigation: 'Navigazione principale',
     home: 'Torna alla pagina iniziale',
-    honest: 'Collegamenti',
-    howItWorks: 'Come funziona',
-    coverage: 'Copertura',
-    drift: 'Deriva',
-    quickstart: 'Avvio rapido',
     language: 'Lingua',
     toggleTheme: 'Cambia tema',
     closeMenu: 'Chiudi menu',
@@ -75,16 +46,9 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     logIn: 'Accedi',
     logOut: 'Esci',
     launchApp: 'Apri app',
-    dashboard: 'Dashboard'
   },
   fr: {
-    mainNavigation: 'Navigation principale',
     home: 'Retour à l’accueil',
-    honest: 'Liens',
-    howItWorks: 'Fonctionnement',
-    coverage: 'Couverture',
-    drift: 'Dérive',
-    quickstart: 'Démarrage rapide',
     language: 'Langue',
     toggleTheme: 'Changer de thème',
     closeMenu: 'Fermer le menu',
@@ -92,16 +56,9 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     logIn: 'Connexion',
     logOut: 'Déconnexion',
     launchApp: 'Ouvrir l’application',
-    dashboard: 'Tableau de bord'
   },
   nl: {
-    mainNavigation: 'Hoofdnavigatie',
     home: 'Terug naar home',
-    honest: 'Verbindingen',
-    howItWorks: 'Hoe het werkt',
-    coverage: 'Dekking',
-    drift: 'Afwijking',
-    quickstart: 'Snelstart',
     language: 'Taal',
     toggleTheme: 'Thema wisselen',
     closeMenu: 'Menu sluiten',
@@ -109,16 +66,9 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     logIn: 'Inloggen',
     logOut: 'Uitloggen',
     launchApp: 'App openen',
-    dashboard: 'Dashboard'
   },
   es: {
-    mainNavigation: 'Navegación principal',
     home: 'Volver al inicio',
-    honest: 'Enlaces',
-    howItWorks: 'Cómo funciona',
-    coverage: 'Cobertura',
-    drift: 'Deriva',
-    quickstart: 'Inicio rápido',
     language: 'Idioma',
     toggleTheme: 'Cambiar tema',
     closeMenu: 'Cerrar menú',
@@ -126,16 +76,9 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     logIn: 'Iniciar sesión',
     logOut: 'Cerrar sesión',
     launchApp: 'Abrir aplicación',
-    dashboard: 'Panel'
   },
   ja: {
-    mainNavigation: 'メインナビゲーション',
     home: 'ホームに戻る',
-    honest: 'つながり',
-    howItWorks: '使い方',
-    coverage: '対象範囲',
-    drift: 'ずれ',
-    quickstart: 'クイックスタート',
     language: '言語',
     toggleTheme: 'テーマを切り替え',
     closeMenu: 'メニューを閉じる',
@@ -143,16 +86,9 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     logIn: 'ログイン',
     logOut: 'ログアウト',
     launchApp: 'アプリを開く',
-    dashboard: 'ダッシュボード'
   },
   'zh-Hans': {
-    mainNavigation: '主导航',
     home: '返回首页',
-    honest: '关联',
-    howItWorks: '工作原理',
-    coverage: '覆盖范围',
-    drift: '漂移',
-    quickstart: '快速开始',
     language: '语言',
     toggleTheme: '切换主题',
     closeMenu: '关闭菜单',
@@ -160,16 +96,9 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     logIn: '登录',
     logOut: '退出登录',
     launchApp: '打开应用',
-    dashboard: '仪表盘'
   },
   hi: {
-    mainNavigation: 'मुख्य नेविगेशन',
     home: 'मुखपृष्ठ पर वापस जाएँ',
-    honest: 'संबंध',
-    howItWorks: 'यह कैसे काम करता है',
-    coverage: 'कवरेज',
-    drift: 'विचलन',
-    quickstart: 'त्वरित शुरुआत',
     language: 'भाषा',
     toggleTheme: 'थीम बदलें',
     closeMenu: 'मेनू बंद करें',
@@ -177,16 +106,9 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     logIn: 'लॉग इन करें',
     logOut: 'लॉग आउट करें',
     launchApp: 'ऐप खोलें',
-    dashboard: 'डैशबोर्ड'
   },
   ur: {
-    mainNavigation: 'مرکزی نیویگیشن',
     home: 'صفحۂ اول پر واپس جائیں',
-    honest: 'روابط',
-    howItWorks: 'یہ کیسے کام کرتا ہے',
-    coverage: 'احاطہ',
-    drift: 'انحراف',
-    quickstart: 'فوری آغاز',
     language: 'زبان',
     toggleTheme: 'تھیم تبدیل کریں',
     closeMenu: 'مینو بند کریں',
@@ -194,10 +116,9 @@ const messages: Record<WebLocale, Omit<NavigationMessages, 'docs' | 'github'>> =
     logIn: 'لاگ اِن',
     logOut: 'لاگ آؤٹ',
     launchApp: 'ایپ کھولیں',
-    dashboard: 'ڈیش بورڈ'
   }
 }
 
 export function navigationMessages(locale: WebLocale): NavigationMessages {
-  return { ...messages[locale], docs: 'Docs', github: 'GitHub' }
+  return messages[locale]
 }
