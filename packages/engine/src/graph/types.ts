@@ -27,9 +27,9 @@ export type {
 } from '../architecture/types.js'
 export { ARCHITECTURE_DRIFT_RULES, ARCHITECTURE_EDGE_KINDS, ARCHITECTURE_POLICIES } from '../architecture/types.js'
 
-export const GRAPH_SCHEMA_VERSION = '1.7.0'
+export const GRAPH_SCHEMA_VERSION = '1.8.0'
 export const GRAPH_SCHEMA_MAJOR = 1
-export const GRAPH_SCHEMA_MINOR = 7
+export const GRAPH_SCHEMA_MINOR = 8
 /** Brand-free schema id: never changes when the product is renamed. */
 export const GRAPH_SCHEMA_ID = 'urn:repo-graph:schema:graph:1'
 
@@ -151,7 +151,7 @@ export const STATE_KINDS = ['binding', 'ref', 'reactive', 'computed', 'prop', 's
 export type StateKind = typeof STATE_KINDS[number]
 
 /** Languages the engine can analyse. Anything else is `null`. */
-export const LANGUAGES = ['go', 'java', 'javascript', 'python', 'typescript', 'vue'] as const
+export const LANGUAGES = ['go', 'java', 'javascript', 'python', 'rust', 'typescript', 'vue'] as const
 
 /** Namespaced extension keys, e.g. `acme:owner`. */
 export const EXTENSION_KEY_PATTERN = '^[a-z][a-z0-9-]*:[A-Za-z0-9._-]+$'

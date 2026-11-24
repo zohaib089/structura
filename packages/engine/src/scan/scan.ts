@@ -25,6 +25,8 @@ import { GoResolver, parseGoModulePath } from '../adapters/go/resolver.js'
 import { JAVA_ADAPTER_ID, JAVA_ADAPTER_VERSION, createJavaAdapter } from '../adapters/java/adapter.js'
 import { JavaResolver } from '../adapters/java/resolver.js'
 import { readJavaPackage } from '../adapters/java/extract.js'
+import { RUST_ADAPTER_ID, RUST_ADAPTER_VERSION, createRustAdapter } from '../adapters/rust/adapter.js'
+import { RustResolver } from '../adapters/rust/resolver.js'
 import { GraphBuilder } from '../graph/builder.js'
 import { GraphVersionUnsupported } from '../graph/errors.js'
 import { serializeGraph } from '../graph/canonical.js'
@@ -692,10 +694,12 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
   const pyAdapter = createPythonAdapter({ pool })
   const goAdapter = createGoAdapter()
   const javaAdapter = createJavaAdapter()
+  const rustAdapter = createRustAdapter()
   const adapterFor = (language: string | null): { adapter: LanguageAdapter; id: string; version: string } => {
     if (language === 'python') return { adapter: pyAdapter, id: PYTHON_ADAPTER_ID, version: PYTHON_ADAPTER_VERSION }
     if (language === 'go') return { adapter: goAdapter, id: GO_ADAPTER_ID, version: GO_ADAPTER_VERSION }
     if (language === 'java') return { adapter: javaAdapter, id: JAVA_ADAPTER_ID, version: JAVA_ADAPTER_VERSION }
+    if (language === 'rust') return { adapter: rustAdapter, id: RUST_ADAPTER_ID, version: RUST_ADAPTER_VERSION }
     return { adapter: tsAdapter, id: TS_JS_ADAPTER_ID, version: TS_JS_ADAPTER_VERSION }
   }
   const cache = new ContentCache(cacheDirectory ?? defaultCacheDir(rootAbs), cacheDirectory !== undefined)
@@ -726,6 +730,7 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
       if (analyseLanguages.has('python')) await pyAdapter.load()
       if (analyseLanguages.has('go')) await goAdapter.load()
       if (analyseLanguages.has('java')) await javaAdapter.load()
+      if (analyseLanguages.has('rust')) await rustAdapter.load()
     }
     for (const file of walk.files) {
       if (options.signal?.aborted) throw new InterruptedError()
@@ -850,6 +855,16 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
     ignoredPaths: walk.ignoredPaths,
     packages: javaPackages
   })
+  const cargoDirs = new Set<string>()
+  for (const file of walk.files) {
+    if (baseName(file.path) !== 'Cargo.toml') continue
+    cargoDirs.add(parentPath(file.path) ?? ROOT_PATH)
+  }
+  const rustResolver = RustResolver.create({
+    files: new Set(filesByPath.keys()),
+    ignoredPaths: walk.ignoredPaths,
+    cargoDirs
+  })
 
   const resolveReference = (reference: ExtractedReference, file: WalkFile, literal: string | null): ResolveOutcome => {
     if (literal === null) return { kind: 'unresolved', reason: 'non-literal-specifier' }
@@ -881,7 +896,9 @@ export async function scanRepository(root: string, options: ScanOptions = {}): P
         ? goResolver.resolveAll(literal, file.path)
         : file.language === 'java'
           ? javaResolver.resolveAll(literal, file.path)
-          : [resolveReference(reference, file, literal)]
+          : file.language === 'rust'
+            ? rustResolver.resolveAll(literal, file.path)
+            : [resolveReference(reference, file, literal)]
       for (const outcome of outcomes) {
       const edgeSpecifier = literal === null ? NON_LITERAL_SPECIFIER : literal
       const target = rememberTarget(builder, outcome, file.path, edgeSpecifier)

@@ -49,5 +49,11 @@ export {
   createJavaAdapter
 } from './java/adapter.js'
 export { JavaResolver, type JavaResolverContext } from './java/resolver.js'
+export {
+  RUST_ADAPTER_ID,
+  RUST_ADAPTER_VERSION,
+  createRustAdapter
+} from './rust/adapter.js'
+export { RustResolver, type RustResolverContext } from './rust/resolver.js'
 export { parseJsonc } from './ts-js/jsonc.js'
 export { sanitizeDocSummary } from './doc-summary.js'

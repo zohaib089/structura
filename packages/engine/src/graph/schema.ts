@@ -32,7 +32,7 @@ const closed = (properties: Record<string, Schema>, required: string[]): Schema 
   required,
   additionalProperties: false
 })
-/** `typescript` | `javascript` | `python` | `vue` | null. Anything else is stored as null. */
+/** `go` | `java` | `javascript` | `python` | `rust` | `typescript` | `vue` | null. Anything else is stored as null. */
 const languageValue: Schema = { type: ['string', 'null'], enum: [...LANGUAGES, null] }
 const withExt = (properties: Record<string, Schema>): Record<string, Schema> => ({ ...properties, extensions: ref('extensions') })
 
@@ -53,7 +53,7 @@ export function buildGraphJsonSchema(): Schema {
     $schema: 'https://json-schema.org/draft/2020-12/schema',
     $id: GRAPH_SCHEMA_ID,
     title: 'graph.json v1',
-    description: 'Deterministic, closed repository graph. Source-text-free except optional sanitised docSummary. Optional hotspots in 1.2.0; optional quality scores in 1.3.0; optional duplicates in 1.4.0; `go` is a recognised language in 1.5.0; `java` is a recognised language in 1.6.0; optional message `code` and `params` in 1.7.0. See docs/graph-json-v1.md and docs/message-codes.md.',
+    description: 'Deterministic, closed repository graph. Source-text-free except optional sanitised docSummary. Optional hotspots in 1.2.0; optional quality scores in 1.3.0; optional duplicates in 1.4.0; `go` is a recognised language in 1.5.0; `java` is a recognised language in 1.6.0; optional message `code` and `params` in 1.7.0; `rust` is a recognised language in 1.8.0. See docs/graph-json-v1.md and docs/message-codes.md.',
     type: 'object',
     properties: {
       schemaVersion: str({ pattern: '^1\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$' }),

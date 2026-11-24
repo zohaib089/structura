@@ -69,7 +69,8 @@ const LANGUAGE_LABELS: Record<string, string> = {
   javascript: 'JavaScript',
   typescript: 'TypeScript',
   python: 'Python',
-  vue: 'Vue'
+  vue: 'Vue',
+  rust: 'Rust'
 }
 
 export type GraphQaCitationKind = 'file' | 'folder' | 'symbol'
