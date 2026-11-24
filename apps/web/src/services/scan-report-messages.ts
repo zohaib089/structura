@@ -1,5 +1,6 @@
 import type { WebLocale } from './locale'
 import { scanReportNewScreenMessages } from './scan-report-locale-overrides'
+import { scanReportChromeMessages } from './scan-report-chrome-locale-overrides'
 import { scanReportStructuredMessages } from './scan-report-structured-locale-overrides'
 import { graphMessageCodeMessages } from './graph-message-code-locale-overrides'
 import { englishGraphMessageCodes, type GraphMessageCodeAdditions } from '../viewer/graph-message-codes'
@@ -34,6 +35,8 @@ export interface ScanReportMessages extends GraphMessageCodeAdditions {
   exportJson: string
   exportMarkdown: string
   treeTitle: string
+  treeExpandFolder: string
+  treeCollapseFolder: string
   treeView: string
   graphView: string
   detailTitle: string
@@ -54,7 +57,9 @@ export interface ScanReportMessages extends GraphMessageCodeAdditions {
   paginationStatus: (page: number, totalPages: number, totalItems: number) => string
   historyTimeline: string
   historyHotspots: string
+  historyHotspotsHint: string
   historyChurn: string
+  historyChurnHint: string
   historyAuthors: string
   historyLimited: string
   openReport: string
@@ -282,6 +287,8 @@ const en: ScanReportMessages = {
   exportJson: 'Export JSON',
   exportMarkdown: 'Export Markdown',
   treeTitle: 'Project tree',
+  treeExpandFolder: 'Expand folder',
+  treeCollapseFolder: 'Collapse folder',
   treeView: 'Tree',
   graphView: 'Graph',
   detailTitle: 'Findings',
@@ -711,7 +718,9 @@ const en: ScanReportMessages = {
   },
   historyTimeline: 'Recent commits',
   historyHotspots: 'Hotspots',
+  historyHotspotsHint: 'Files that change often. They are where problems tend to appear.',
   historyChurn: 'File churn',
+  historyChurnHint: 'How many lines were added and removed in each file.',
   historyAuthors: 'Authors',
   historyLimited: 'History depth was limited for this repository.',
   openReport: 'Open project report',
@@ -739,15 +748,15 @@ const en: ScanReportMessages = {
 
 const messages: Record<WebLocale, ScanReportMessages> = {
   en,
-  pt: { ...en, ...scanReportNewScreenMessages.pt, ...scanReportStructuredMessages.pt, ...graphMessageCodeMessages.pt },
-  it: { ...en, ...scanReportNewScreenMessages.it, ...scanReportStructuredMessages.it, ...graphMessageCodeMessages.it },
-  fr: { ...en, ...scanReportNewScreenMessages.fr, ...scanReportStructuredMessages.fr, ...graphMessageCodeMessages.fr },
-  nl: { ...en, ...scanReportNewScreenMessages.nl, ...scanReportStructuredMessages.nl, ...graphMessageCodeMessages.nl },
-  es: { ...en, ...scanReportNewScreenMessages.es, ...scanReportStructuredMessages.es, ...graphMessageCodeMessages.es },
-  ja: { ...en, ...scanReportNewScreenMessages.ja, ...scanReportStructuredMessages.ja, ...graphMessageCodeMessages.ja },
-  'zh-Hans': { ...en, ...scanReportNewScreenMessages['zh-Hans'], ...scanReportStructuredMessages['zh-Hans'], ...graphMessageCodeMessages['zh-Hans'] },
-  hi: { ...en, ...scanReportNewScreenMessages.hi, ...scanReportStructuredMessages.hi, ...graphMessageCodeMessages.hi },
-  ur: { ...en, ...scanReportNewScreenMessages.ur, ...scanReportStructuredMessages.ur, ...graphMessageCodeMessages.ur }
+  pt: { ...en, ...scanReportNewScreenMessages.pt, ...scanReportStructuredMessages.pt, ...graphMessageCodeMessages.pt, ...scanReportChromeMessages.pt },
+  it: { ...en, ...scanReportNewScreenMessages.it, ...scanReportStructuredMessages.it, ...graphMessageCodeMessages.it, ...scanReportChromeMessages.it },
+  fr: { ...en, ...scanReportNewScreenMessages.fr, ...scanReportStructuredMessages.fr, ...graphMessageCodeMessages.fr, ...scanReportChromeMessages.fr },
+  nl: { ...en, ...scanReportNewScreenMessages.nl, ...scanReportStructuredMessages.nl, ...graphMessageCodeMessages.nl, ...scanReportChromeMessages.nl },
+  es: { ...en, ...scanReportNewScreenMessages.es, ...scanReportStructuredMessages.es, ...graphMessageCodeMessages.es, ...scanReportChromeMessages.es },
+  ja: { ...en, ...scanReportNewScreenMessages.ja, ...scanReportStructuredMessages.ja, ...graphMessageCodeMessages.ja, ...scanReportChromeMessages.ja },
+  'zh-Hans': { ...en, ...scanReportNewScreenMessages['zh-Hans'], ...scanReportStructuredMessages['zh-Hans'], ...graphMessageCodeMessages['zh-Hans'], ...scanReportChromeMessages['zh-Hans'] },
+  hi: { ...en, ...scanReportNewScreenMessages.hi, ...scanReportStructuredMessages.hi, ...graphMessageCodeMessages.hi, ...scanReportChromeMessages.hi },
+  ur: { ...en, ...scanReportNewScreenMessages.ur, ...scanReportStructuredMessages.ur, ...graphMessageCodeMessages.ur, ...scanReportChromeMessages.ur }
 }
 
 export function scanReportMessages(locale: WebLocale): ScanReportMessages {

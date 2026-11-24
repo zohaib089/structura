@@ -115,3 +115,19 @@ select {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* RTL helpers live here (not in scoped Vue CSS): :global([dir='rtl']) compiled to a
+   page-wide transform on <html> and mirrored the whole shell. */
+html[dir='rtl'] .sep {
+  display: inline-block;
+  transform: scaleX(-1);
+}
+html[dir='rtl'] .rail-toggle svg {
+  transform: scaleX(-1);
+}
+html[dir='rtl'] .tree-row.selected {
+  box-shadow: inset -2px 0 0 var(--color-brand-amber-ui);
+}
+html[dir='rtl'] .expander:not(.spacer) {
+  transform: scaleX(-1);
+}

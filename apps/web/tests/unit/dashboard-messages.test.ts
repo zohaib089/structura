@@ -28,3 +28,15 @@ describe('dashboard message catalog', () => {
     expect(dashboardMessages('ur').logOut).toBe('لاگ آؤٹ')
   })
 })
+
+  it('translates remaining dashboard chrome and shortens scan breadcrumbs', () => {
+    expect(dashboardMessages('fr').scansNav).toBe('Analyses')
+    expect(dashboardMessages('fr').settingsNav).toBe('Paramètres')
+    expect(dashboardMessages('ur').settingsNav).toBe('ترتیبات')
+    expect(dashboardMessages('ur').scansNav).toBe('اسکینز')
+    expect(dashboardMessages('pt').openProjectNav).toBe('Abrir projeto')
+    expect(dashboardMessages('fr').breadcrumbLabel).toBe('Fil d’Ariane')
+    expect(dashboardMessages('en').scanBreadcrumb('7834b476-7240-406f-a4ed-a4e207eda285')).toBe('Scan \u2066#7834b476\u2069')
+    expect(dashboardMessages('fr').scanBreadcrumb('7834b476-7240-406f-a4ed-a4e207eda285')).toBe('Analyse \u2066#7834b476\u2069')
+    expect(dashboardMessages('ja').scanBreadcrumb('abc')).toBe('スキャン \u2066#abc\u2069')
+  })

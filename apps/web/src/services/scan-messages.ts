@@ -1,4 +1,5 @@
 import type { WebLocale } from './locale'
+import { scanMessageLocaleOverrides } from './scan-message-locale-overrides'
 import type { Scan, ScanStatus } from '../api/scans'
 import type { ScanStepperPhase } from './scan-step-display'
 import { formatArchiveLimitLabel } from './scan-step-display'
@@ -160,6 +161,6 @@ const en: ScanMessages = {
 }
 
 export function scanMessages(locale: WebLocale): ScanMessages {
-  void locale
-  return en
+  if (locale === 'en') return en
+  return { ...en, ...scanMessageLocaleOverrides[locale] }
 }
