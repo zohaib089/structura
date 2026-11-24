@@ -4,7 +4,7 @@
 Run metadata (time, tool version, absolute paths, memory) goes to `run.json` and to `--json` stdout, never into this file.
 
 - Schema id: `urn:repo-graph:schema:graph:1` (brand-free).
-- `schemaVersion`: semver string `1.7.0` (major 1). A greater major is refused (`GraphVersionUnsupported`, CLI exit 2). The same major with a higher minor is accepted: unknown properties are stripped, unknown kind/type values are kept as generic nodes or edges. A 1.7.0 reader accepts 1.0.0–1.6.0 documents (all new fields are optional). A 1.6.0 reader loading a 1.7.0 document sets `newerMinor`.
+- `schemaVersion`: semver string `1.8.0` (major 1). A greater major is refused (`GraphVersionUnsupported`, CLI exit 2). The same major with a higher minor is accepted: unknown properties are stripped, unknown kind/type values are kept as generic nodes or edges. A 1.8.0 reader accepts 1.0.0–1.7.0 documents (all new fields are optional). A 1.7.0 reader loading a 1.8.0 document sets `newerMinor`.
 - UTF-8 without a BOM, 2-space indent, `\n` line endings, exactly one trailing `\n`.
 - Property order is the order in this document. Nodes are sorted by `id`. Edges are sorted by `(source, type, target, span.start.line, span.start.col)` in UTF-16 code-unit order (`contains` edges have no span and sort as line 0, column 0). `localeCompare` is never used.
 - `additionalProperties` is false everywhere. The only open object is optional `extensions`, whose keys match `^[a-z][a-z0-9-]*:[A-Za-z0-9._-]+$`.
@@ -15,7 +15,7 @@ Run metadata (time, tool version, absolute paths, memory) goes to `run.json` and
 
 ```json
 {
-  "schemaVersion": "1.7.0",
+  "schemaVersion": "1.8.0",
   "summary": { "nodes": 4, "edges": 3, "files": 1 },
   "coverage": {
     "files": { "discovered": 1, "parsed": 1, "partial": 0, "failed": 0, "skipped": 0, "ignored": 0 },
@@ -86,7 +86,7 @@ Kinds: `directory`, `file`, `symbol`, `external`, `unresolved`.
 - external: `id`, `kind`, `ecosystem`, `label`.
 - unresolved: `id`, `kind`, `label`, `reason`.
 
-`language` is `go`, `java`, `javascript`, `python`, `typescript`, `vue`, or `null`.
+`language` is `go`, `java`, `javascript`, `python`, `rust`, `typescript`, `vue`, or `null`.
 
 `parse.status` is `parsed`, `partial`, `failed`, or `skipped`. `parsed` has no reason. The other statuses require one.
 
@@ -258,7 +258,7 @@ Comments, JSDoc `@example` blocks and commented-out code never create edges. Onl
 
 ## Strict mode
 
-`--strict` exits 4 after writing the graph when the default thresholds fail. Those defaults fail on failed files (`maxFailed` 0), timeouts (`maxTimeout` 0), and when a recognised language (`go`, `java`, `javascript`, `python`, `typescript`, `vue`) has files in the scan but none were parsed because every file was skipped as `unsupported-language`. Partial files and unresolved imports are reported and do not fail the default thresholds (`maxPartial` and `maxUnresolved` are unbounded). The thresholds live in `packages/engine/src/report/strict.ts`.
+`--strict` exits 4 after writing the graph when the default thresholds fail. Those defaults fail on failed files (`maxFailed` 0), timeouts (`maxTimeout` 0), and when a recognised language (`go`, `java`, `javascript`, `python`, `rust`, `typescript`, `vue`) has files in the scan but none were parsed because every file was skipped as `unsupported-language`. Partial files and unresolved imports are reported and do not fail the default thresholds (`maxPartial` and `maxUnresolved` are unbounded). The thresholds live in `packages/engine/src/report/strict.ts`.
 
 ## Tech Lead rulings (2026-11)
 
@@ -268,7 +268,7 @@ Comments, JSDoc `@example` blocks and commented-out code never create edges. Onl
 
 3. **Module augmentation:** `declare module '…' { … }` blocks do not emit symbol nodes (the string module name is not a path-named symbol).
 
-4. **Strict on recognised-but-unsupported:** With `--strict`, if the scan sees `go`, `java`, `javascript`, `python`, `typescript`, or `vue` files and every one is skipped as `unsupported-language` (so `parsed + partial` is 0), the CLI exits 4 after writing the graph.
+4. **Strict on recognised-but-unsupported:** With `--strict`, if the scan sees `go`, `java`, `javascript`, `python`, `rust`, `typescript`, or `vue` files and every one is skipped as `unsupported-language` (so `parsed + partial` is 0), the CLI exits 4 after writing the graph.
 
 ### Symbol labels and ids
 
@@ -368,6 +368,7 @@ Detection is deterministic and offline; see `docs/duplicate-detection.md`. Prope
 - **2026-11-23, schemaVersion 1.6.0**: `language` enum adds `java`. Additive; 1.0.0–1.5.0 documents still read. Frozen `schema-fixtures/v1.0.0.graph.json` through `v1.4.0.graph.json` are unchanged.
 - **2026-11-23, schemaVersion 1.7.0**: optional `code` and `params` on quality factor details (`label`), quality tips (`text`), hotspot explanations (`why`), and duplicate group descriptions. English fields stay required. Codes are documented in `docs/message-codes.md`. Additive; 1.0.0–1.6.0 documents still read. Frozen `schema-fixtures/v1.0.0.graph.json` through `v1.4.0.graph.json` are unchanged.
 
+- **2026-11-24, schemaVersion 1.8.0**: `language` enum adds `rust`. Additive; 1.0.0–1.7.0 documents still read. Frozen `schema-fixtures/v1.0.0.graph.json` through `v1.4.0.graph.json` are unchanged.
 - **2026-11-23, schemaVersion 1.3.0**: optional project and per-folder `quality` scores (letter grade, plain-English breakdown, top-3 tips with formula-based gains). Additive; 1.0.0, 1.1.0, and 1.2.0 documents still read. Frozen `schema-fixtures/v1.0.0.graph.json`, `v1.1.0.graph.json`, and `v1.2.0.graph.json` are unchanged; `schema-fixtures/v1.3.0.graph.json` covers the new shapes.
 
 - **2026-11-23, schemaVersion 1.2.0**: optional per-file `hotspot` and top-N `hotspots` list (plain-English `why`). Additive; 1.0.0 and 1.1.0 documents still read. Frozen `schema-fixtures/v1.0.0.graph.json` and `v1.1.0.graph.json` are unchanged; `schema-fixtures/v1.2.0.graph.json` covers the new shapes.

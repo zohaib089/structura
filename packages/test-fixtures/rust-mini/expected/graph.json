@@ -1,0 +1,705 @@
+{
+  "schemaVersion": "1.8.0",
+  "summary": {
+    "nodes": 11,
+    "edges": 22,
+    "files": 5
+  },
+  "coverage": {
+    "files": {
+      "discovered": 5,
+      "parsed": 4,
+      "partial": 0,
+      "failed": 0,
+      "skipped": 1,
+      "ignored": 0
+    },
+    "byLanguage": [
+      {
+        "language": null,
+        "parsed": 0,
+        "partial": 0,
+        "failed": 0,
+        "skipped": 1
+      },
+      {
+        "language": "rust",
+        "parsed": 4,
+        "partial": 0,
+        "failed": 0,
+        "skipped": 0
+      }
+    ],
+    "skipped": [
+      {
+        "reason": "unsupported-language",
+        "count": 1
+      }
+    ],
+    "failed": [],
+    "ignored": [],
+    "unresolved": [],
+    "accounting": {
+      "discovered": 5,
+      "accounted": 5
+    }
+  },
+  "nodes": [
+    {
+      "id": "dir:.",
+      "kind": "directory",
+      "path": ".",
+      "label": "."
+    },
+    {
+      "id": "dir:src",
+      "kind": "directory",
+      "path": "src",
+      "label": "src"
+    },
+    {
+      "id": "dir:src/hook",
+      "kind": "directory",
+      "path": "src/hook",
+      "label": "hook"
+    },
+    {
+      "id": "ext:cargo:alloc",
+      "kind": "external",
+      "ecosystem": "cargo",
+      "label": "alloc"
+    },
+    {
+      "id": "ext:cargo:core",
+      "kind": "external",
+      "ecosystem": "cargo",
+      "label": "core"
+    },
+    {
+      "id": "ext:cargo:std",
+      "kind": "external",
+      "ecosystem": "cargo",
+      "label": "std"
+    },
+    {
+      "id": "file:Cargo.toml",
+      "kind": "file",
+      "path": "Cargo.toml",
+      "label": "Cargo.toml",
+      "language": null,
+      "lineCount": null,
+      "parse": {
+        "status": "skipped",
+        "reason": "unsupported-language"
+      }
+    },
+    {
+      "id": "file:src/hook/inner.rs",
+      "kind": "file",
+      "path": "src/hook/inner.rs",
+      "label": "inner.rs",
+      "language": "rust",
+      "lineCount": 2,
+      "parse": {
+        "status": "parsed"
+      },
+      "hotspot": {
+        "score": 46
+      }
+    },
+    {
+      "id": "file:src/hook/mod.rs",
+      "kind": "file",
+      "path": "src/hook/mod.rs",
+      "label": "mod.rs",
+      "language": "rust",
+      "lineCount": 9,
+      "parse": {
+        "status": "parsed"
+      },
+      "hotspot": {
+        "score": 71
+      }
+    },
+    {
+      "id": "file:src/main.rs",
+      "kind": "file",
+      "path": "src/main.rs",
+      "label": "main.rs",
+      "language": "rust",
+      "lineCount": 16,
+      "parse": {
+        "status": "parsed"
+      },
+      "hotspot": {
+        "score": 50
+      }
+    },
+    {
+      "id": "file:src/util.rs",
+      "kind": "file",
+      "path": "src/util.rs",
+      "label": "util.rs",
+      "language": "rust",
+      "lineCount": 9,
+      "parse": {
+        "status": "parsed"
+      },
+      "hotspot": {
+        "score": 56
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source": "dir:.",
+      "type": "contains",
+      "target": "dir:src",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:.",
+      "type": "contains",
+      "target": "file:Cargo.toml",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:src",
+      "type": "contains",
+      "target": "dir:src/hook",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:src",
+      "type": "contains",
+      "target": "file:src/main.rs",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:src",
+      "type": "contains",
+      "target": "file:src/util.rs",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:src/hook",
+      "type": "contains",
+      "target": "file:src/hook/inner.rs",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "dir:src/hook",
+      "type": "contains",
+      "target": "file:src/hook/mod.rs",
+      "provenance": "EXTRACTED"
+    },
+    {
+      "source": "file:src/hook/mod.rs",
+      "type": "imports",
+      "target": "ext:cargo:core",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 1,
+          "col": 5
+        },
+        "end": {
+          "line": 1,
+          "col": 14
+        }
+      },
+      "specifier": "core::fmt"
+    },
+    {
+      "source": "file:src/hook/mod.rs",
+      "type": "imports",
+      "target": "file:src/hook/inner.rs",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 2,
+          "col": 5
+        },
+        "end": {
+          "line": 2,
+          "col": 22
+        }
+      },
+      "specifier": "self::inner::step"
+    },
+    {
+      "source": "file:src/hook/mod.rs",
+      "type": "imports",
+      "target": "file:src/hook/inner.rs",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 3,
+          "col": 5
+        },
+        "end": {
+          "line": 3,
+          "col": 10
+        }
+      },
+      "specifier": "mod inner"
+    },
+    {
+      "source": "file:src/main.rs",
+      "type": "imports",
+      "target": "ext:cargo:alloc",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 6,
+          "col": 13
+        },
+        "end": {
+          "line": 6,
+          "col": 19
+        }
+      },
+      "specifier": "alloc"
+    },
+    {
+      "source": "file:src/main.rs",
+      "type": "imports",
+      "target": "ext:cargo:std",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 1,
+          "col": 5
+        },
+        "end": {
+          "line": 1,
+          "col": 30
+        }
+      },
+      "specifier": "std::collections::HashMap"
+    },
+    {
+      "source": "file:src/main.rs",
+      "type": "imports",
+      "target": "ext:cargo:std",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 2,
+          "col": 15
+        },
+        "end": {
+          "line": 2,
+          "col": 19
+        }
+      },
+      "specifier": "std::io"
+    },
+    {
+      "source": "file:src/main.rs",
+      "type": "imports",
+      "target": "ext:cargo:std",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 2,
+          "col": 21
+        },
+        "end": {
+          "line": 2,
+          "col": 37
+        }
+      },
+      "specifier": "std::io::Write"
+    },
+    {
+      "source": "file:src/main.rs",
+      "type": "imports",
+      "target": "file:src/hook/mod.rs",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 4,
+          "col": 19
+        },
+        "end": {
+          "line": 4,
+          "col": 23
+        }
+      },
+      "specifier": "crate::hook"
+    },
+    {
+      "source": "file:src/main.rs",
+      "type": "imports",
+      "target": "file:src/hook/mod.rs",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 4,
+          "col": 25
+        },
+        "end": {
+          "line": 4,
+          "col": 40
+        }
+      },
+      "specifier": "crate::hook::run"
+    },
+    {
+      "source": "file:src/main.rs",
+      "type": "imports",
+      "target": "file:src/hook/mod.rs",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 8,
+          "col": 5
+        },
+        "end": {
+          "line": 8,
+          "col": 9
+        }
+      },
+      "specifier": "mod hook"
+    },
+    {
+      "source": "file:src/main.rs",
+      "type": "imports",
+      "target": "file:src/util.rs",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 3,
+          "col": 5
+        },
+        "end": {
+          "line": 3,
+          "col": 24
+        }
+      },
+      "specifier": "crate::util::helper"
+    },
+    {
+      "source": "file:src/main.rs",
+      "type": "imports",
+      "target": "file:src/util.rs",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 5,
+          "col": 9
+        },
+        "end": {
+          "line": 5,
+          "col": 36
+        }
+      },
+      "specifier": "crate::util::helper"
+    },
+    {
+      "source": "file:src/main.rs",
+      "type": "imports",
+      "target": "file:src/util.rs",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 7,
+          "col": 5
+        },
+        "end": {
+          "line": 7,
+          "col": 9
+        }
+      },
+      "specifier": "mod util"
+    },
+    {
+      "source": "file:src/util.rs",
+      "type": "imports",
+      "target": "file:src/hook/mod.rs",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 1,
+          "col": 5
+        },
+        "end": {
+          "line": 1,
+          "col": 21
+        }
+      },
+      "specifier": "super::hook::run"
+    },
+    {
+      "source": "file:src/util.rs",
+      "type": "imports",
+      "target": "file:src/hook/mod.rs",
+      "provenance": "EXTRACTED",
+      "span": {
+        "start": {
+          "line": 2,
+          "col": 5
+        },
+        "end": {
+          "line": 2,
+          "col": 33
+        }
+      },
+      "specifier": "crate::hook::run"
+    }
+  ],
+  "hotspots": [
+    {
+      "path": "src/hook/mod.rs",
+      "score": 71,
+      "why": "Used by 2 files, imports 1 file, impacts 3 files, and has 9 lines",
+      "code": "hotspot.why",
+      "params": {
+        "fanIn": 2,
+        "fanOut": 1,
+        "impact": 3,
+        "size": 9,
+        "sizeKind": "lines"
+      }
+    },
+    {
+      "path": "src/util.rs",
+      "score": 56,
+      "why": "Used by 1 file, imports 1 file, impacts 3 files, and has 9 lines",
+      "code": "hotspot.why",
+      "params": {
+        "fanIn": 1,
+        "fanOut": 1,
+        "impact": 3,
+        "size": 9,
+        "sizeKind": "lines"
+      }
+    },
+    {
+      "path": "src/main.rs",
+      "score": 50,
+      "why": "imports 2 files, impacts 3 files, and has 16 lines",
+      "code": "hotspot.why",
+      "params": {
+        "fanOut": 2,
+        "impact": 3,
+        "size": 16,
+        "sizeKind": "lines"
+      }
+    },
+    {
+      "path": "src/hook/inner.rs",
+      "score": 46,
+      "why": "Used by 1 file, impacts 3 files, and has 2 lines",
+      "code": "hotspot.why",
+      "params": {
+        "fanIn": 1,
+        "impact": 3,
+        "size": 2,
+        "sizeKind": "lines"
+      }
+    }
+  ],
+  "quality": {
+    "project": {
+      "score": 97,
+      "grade": "A",
+      "breakdown": [
+        {
+          "category": "architecture",
+          "label": "No architecture rule breaks",
+          "code": "quality.architecture",
+          "params": {
+            "high": 0,
+            "medium": 0
+          },
+          "penalty": 0
+        },
+        {
+          "category": "cycles",
+          "label": "No import cycles",
+          "code": "quality.cycles",
+          "params": {
+            "count": 0
+          },
+          "penalty": 0
+        },
+        {
+          "category": "hotspots",
+          "label": "No highly connected hotspots",
+          "code": "quality.hotspots",
+          "params": {
+            "count": 0,
+            "maxCount": 0
+          },
+          "penalty": 0
+        },
+        {
+          "category": "imports",
+          "label": "Imports resolve cleanly",
+          "code": "quality.imports",
+          "params": {
+            "externalPercent": 33,
+            "unresolvedPercent": 0
+          },
+          "penalty": 3
+        },
+        {
+          "category": "size",
+          "label": "No unusually large files or functions",
+          "code": "quality.size",
+          "params": {
+            "largeFiles": 0,
+            "largeFunctions": 0
+          },
+          "penalty": 0
+        }
+      ],
+      "tips": [
+        {
+          "text": "Clean up unresolved and heavy third-party imports to gain about 3 points",
+          "code": "quality.tip.imports",
+          "params": {
+            "gain": 3
+          },
+          "gain": 3
+        }
+      ]
+    },
+    "folders": [
+      {
+        "path": "src",
+        "score": 97,
+        "grade": "A",
+        "breakdown": [
+          {
+            "category": "architecture",
+            "label": "No architecture rule breaks",
+            "code": "quality.architecture",
+            "params": {
+              "high": 0,
+              "medium": 0
+            },
+            "penalty": 0
+          },
+          {
+            "category": "cycles",
+            "label": "No import cycles",
+            "code": "quality.cycles",
+            "params": {
+              "count": 0
+            },
+            "penalty": 0
+          },
+          {
+            "category": "hotspots",
+            "label": "No highly connected hotspots",
+            "code": "quality.hotspots",
+            "params": {
+              "count": 0,
+              "maxCount": 0
+            },
+            "penalty": 0
+          },
+          {
+            "category": "imports",
+            "label": "Imports resolve cleanly",
+            "code": "quality.imports",
+            "params": {
+              "externalPercent": 33,
+              "unresolvedPercent": 0
+            },
+            "penalty": 3
+          },
+          {
+            "category": "size",
+            "label": "No unusually large files or functions",
+            "code": "quality.size",
+            "params": {
+              "largeFiles": 0,
+              "largeFunctions": 0
+            },
+            "penalty": 0
+          }
+        ],
+        "tips": [
+          {
+            "text": "Clean up unresolved and heavy third-party imports to gain about 3 points",
+            "code": "quality.tip.imports",
+            "params": {
+              "gain": 3
+            },
+            "gain": 3
+          }
+        ]
+      },
+      {
+        "path": "src/hook",
+        "score": 97,
+        "grade": "A",
+        "breakdown": [
+          {
+            "category": "architecture",
+            "label": "No architecture rule breaks",
+            "code": "quality.architecture",
+            "params": {
+              "high": 0,
+              "medium": 0
+            },
+            "penalty": 0
+          },
+          {
+            "category": "cycles",
+            "label": "No import cycles",
+            "code": "quality.cycles",
+            "params": {
+              "count": 0
+            },
+            "penalty": 0
+          },
+          {
+            "category": "hotspots",
+            "label": "No highly connected hotspots",
+            "code": "quality.hotspots",
+            "params": {
+              "count": 0,
+              "maxCount": 0
+            },
+            "penalty": 0
+          },
+          {
+            "category": "imports",
+            "label": "Imports resolve cleanly",
+            "code": "quality.imports",
+            "params": {
+              "externalPercent": 33,
+              "unresolvedPercent": 0
+            },
+            "penalty": 3
+          },
+          {
+            "category": "size",
+            "label": "No unusually large files or functions",
+            "code": "quality.size",
+            "params": {
+              "largeFiles": 0,
+              "largeFunctions": 0
+            },
+            "penalty": 0
+          }
+        ],
+        "tips": [
+          {
+            "text": "Clean up unresolved and heavy third-party imports to gain about 3 points",
+            "code": "quality.tip.imports",
+            "params": {
+              "gain": 3
+            },
+            "gain": 3
+          }
+        ]
+      }
+    ]
+  }
+}
