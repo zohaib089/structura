@@ -71,10 +71,10 @@ These appear on `answerGraphQuestion` (and `POST .../scans/:scanId/ask`) next to
 | `qa.impact.none` | `target`, `kind` (`file`, `folder`, or `symbol`); `fileCount` when `kind` is `folder` |
 | `qa.impact.dependents` | `target`, `kind`, `dependentCount`, `listed` (paths with depth), `extraCount`; `fileCount` when `kind` is `folder` |
 | `qa.explain.need-target` | (none) |
-| `qa.explain.file` | `path`, `language`; optional `lineCount`, `hotspotScore`, `symbols`, `extraSymbols`, `imports`, `extraImports`, `importers`, `extraImporters`, `findings`, `entry` |
+| `qa.explain.file` | `path`, `language`; optional `lineCount`, `docSummary` (the file’s already-sanitised graph `docSummary`, when present), `hotspotScore`, `symbols`, `extraSymbols`, `imports`, `extraImports`, `importers`, `extraImporters`, `findings`, `entry` |
 | `qa.explain.folder` | `path`, `fileCount`; optional `languages`, `score`, `grade`, `tip`, `tipGain`, `files`, `extraFiles` |
 | `qa.explain.folder-empty` | `path` |
-| `qa.explain.symbol` | `name`, `kind`, `path`, `startLine`, `endLine`, `exported` |
+| `qa.explain.symbol` | `name`, `kind`, `path`, `startLine`, `endLine`, `exported`; optional `docSummary` (the symbol’s already-sanitised graph `docSummary`), `fileDocSummary` (the surrounding file’s, when present) |
 | `qa.hotspots.none` | (none) |
 | `qa.hotspots.list` | `count`, `paths`, `scores` (string array, same order as `paths`), `extraCount` |
 | `qa.quality.none` | (none) |
@@ -82,7 +82,7 @@ These appear on `answerGraphQuestion` (and `POST .../scans/:scanId/ask`) next to
 | `qa.quality.folder-missing` | `path`, `projectScore`, `projectGrade` |
 | `qa.duplicates.none` | (none) |
 | `qa.duplicates.list` | `groups`, `duplicatedLines`, `percentage`, `descriptions` (string array), `extraCount` |
-| `qa.architecture` | `cycleCount`, `hasConfig` (boolean), `findingCount` |
-| `qa.overview` | `fileCount`; optional `languages`, `folders`, `extraFolders`, `entries`, `extraEntries` |
+| `qa.architecture` | `cycleCount`, `hasConfig` (boolean), `findingCount`; optional `cycles` (string array of folder/file path lists, e.g. `src/a.ts → src/b.ts`), `extraCycles`, `findings` (string array of `file:line (rule: layer → layer)` entries), `extraFindings` |
+| `qa.overview` | `fileCount`; optional `languages`, `folders`, `extraFolders`, `entries`, `extraEntries`, `unimported` (files nothing imports, capped at 10), `unimportedCount` (total, may exceed the cap) |
 | `qa.fallback.empty` | optional `examples` (suggested questions) |
 | `qa.fallback.unknown` | optional `examples` |
