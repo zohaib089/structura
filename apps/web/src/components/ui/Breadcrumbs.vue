@@ -40,6 +40,12 @@ withDefaults(
   color: var(--color-text-secondary);
 }
 
+.breadcrumbs li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
 .breadcrumbs a {
   color: var(--color-text-secondary);
   text-decoration: none;
