@@ -47,14 +47,14 @@ const inspectBody = computed(() =>
       </p>
       <div class="landing-hero__ctas">
         <LandingCta :to="links.viewer.value" variant="amber" size="lg">
-          {{ copy.cta.viewer }} <ArrowRight aria-hidden="true" />
+          {{ copy.cta.viewer }} <ArrowRight class="cta-arrow" aria-hidden="true" />
         </LandingCta>
         <LandingCta to="#self-host" variant="ghost" size="lg">{{ copy.cta.selfHost }}</LandingCta>
         <LandingCta :to="links.repo" variant="ghost" size="lg"><GithubMark />{{ copy.cta.github }}</LandingCta>
       </div>
       <RouterLink v-if="links.app.value" :to="links.app.value.to" class="landing-hero__scan">
         <template v-if="!links.signedIn.value">{{ copy.hero.scanPrompt }}</template>{{ links.app.value.label }}
-        <ArrowRight :size="14" aria-hidden="true" />
+        <ArrowRight class="cta-arrow" :size="14" aria-hidden="true" />
       </RouterLink>
     </div>
 

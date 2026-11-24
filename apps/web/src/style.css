@@ -131,3 +131,7 @@ html[dir='rtl'] .tree-row.selected {
 html[dir='rtl'] .expander:not(.spacer) {
   transform: scaleX(-1);
 }
+
+html[dir='rtl'] .cta-arrow {
+  transform: scaleX(-1);
+}

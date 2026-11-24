@@ -1,21 +1,24 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { uiFallbackMessage } from '../../services/ui-fallback-messages'
 export interface BreadcrumbItem {
   label: string
   to?: string
 }
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     items: BreadcrumbItem[]
     /** Accessible name for the breadcrumb nav. */
     label?: string
   }>(),
-  { label: 'Breadcrumb' }
+  {}
 )
+const labelText = computed(() => props.label ?? uiFallbackMessage('breadcrumb'))
 </script>
 
 <template>
-  <nav class="breadcrumbs" :aria-label="label">
+  <nav class="breadcrumbs" :aria-label="labelText">
     <ol>
       <li v-for="(item, index) in items" :key="`${item.label}-${index}`">
         <RouterLink v-if="item.to && index < items.length - 1" :to="item.to"><bdi>{{ item.label }}</bdi></RouterLink>

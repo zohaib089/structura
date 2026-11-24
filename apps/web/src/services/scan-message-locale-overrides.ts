@@ -33,6 +33,7 @@ export const scanMessageLocaleOverrides: Record<Exclude<WebLocale, 'en'>, ScanMe
     folderDropTitle: 'Largue uma pasta',
     zipDropTitle: 'Largue um .zip',
     browseLabel: 'Procurar',
+    dropOr: 'ou',
     folderHint: 'Análise local primeiro · pastas de compilação como node_modules e .git são ignoradas',
     zipHint(maxLabel) {
       return `Tamanho máximo do ficheiro ${maxLabel} · análise local primeiro`
@@ -111,6 +112,7 @@ export const scanMessageLocaleOverrides: Record<Exclude<WebLocale, 'en'>, ScanMe
     folderDropTitle: 'Trascina una cartella',
     zipDropTitle: 'Trascina un .zip',
     browseLabel: 'Sfoglia',
+    dropOr: 'oppure',
     folderHint: 'Analisi prima in locale · le cartelle di build come node_modules e .git vengono ignorate',
     zipHint(maxLabel) {
       return `Dimensione massima dell’archivio ${maxLabel} · analisi prima in locale`
@@ -189,6 +191,7 @@ export const scanMessageLocaleOverrides: Record<Exclude<WebLocale, 'en'>, ScanMe
     folderDropTitle: 'Déposez un dossier',
     zipDropTitle: 'Déposez un .zip',
     browseLabel: 'Parcourir',
+    dropOr: 'ou',
     folderHint: 'Analyse d’abord en local · les dossiers de compilation comme node_modules et .git sont ignorés',
     zipHint(maxLabel) {
       return `Taille maximale de l’archive ${maxLabel} · analyse d’abord en local`
@@ -267,6 +270,7 @@ export const scanMessageLocaleOverrides: Record<Exclude<WebLocale, 'en'>, ScanMe
     folderDropTitle: 'Sleep een map hierheen',
     zipDropTitle: 'Sleep een .zip hierheen',
     browseLabel: 'Bladeren',
+    dropOr: 'of',
     folderHint: 'Eerst lokaal analyseren · buildmappen zoals node_modules en .git worden overgeslagen',
     zipHint(maxLabel) {
       return `Maximale archiefgrootte ${maxLabel} · eerst lokaal analyseren`
@@ -345,6 +349,7 @@ export const scanMessageLocaleOverrides: Record<Exclude<WebLocale, 'en'>, ScanMe
     folderDropTitle: 'Suelta una carpeta',
     zipDropTitle: 'Suelta un .zip',
     browseLabel: 'Examinar',
+    dropOr: 'o',
     folderHint: 'Análisis primero en local · se omiten carpetas de compilación como node_modules y .git',
     zipHint(maxLabel) {
       return `Tamaño máximo del archivo ${maxLabel} · análisis primero en local`
@@ -423,6 +428,7 @@ export const scanMessageLocaleOverrides: Record<Exclude<WebLocale, 'en'>, ScanMe
     folderDropTitle: 'フォルダーをドロップ',
     zipDropTitle: '.zip をドロップ',
     browseLabel: '参照',
+    dropOr: 'または',
     folderHint: 'まずローカルで分析 · node_modules や .git などのビルド用フォルダーは除外されます',
     zipHint(maxLabel) {
       return `アーカイブの上限 ${maxLabel} · まずローカルで分析`
@@ -501,6 +507,7 @@ export const scanMessageLocaleOverrides: Record<Exclude<WebLocale, 'en'>, ScanMe
     folderDropTitle: '拖放文件夹',
     zipDropTitle: '拖放 .zip',
     browseLabel: '浏览',
+    dropOr: '或',
     folderHint: '先在本地分析 · 会跳过 node_modules 和 .git 等构建文件夹',
     zipHint(maxLabel) {
       return `压缩包大小上限 ${maxLabel} · 先在本地分析`
@@ -578,6 +585,7 @@ export const scanMessageLocaleOverrides: Record<Exclude<WebLocale, 'en'>, ScanMe
     folderDropTitle: 'फ़ोल्डर यहाँ छोड़ें',
     zipDropTitle: '.zip यहाँ छोड़ें',
     browseLabel: 'ब्राउज़ करें',
+    dropOr: 'या',
     folderHint: 'पहले स्थानीय स्कैन · node_modules और .git जैसे बिल्ड फ़ोल्डर छोड़ दिए जाते हैं',
     zipHint(maxLabel) {
       return `संग्रह की अधिकतम साइज़ ${maxLabel} · पहले स्थानीय स्कैन`
@@ -656,6 +664,7 @@ export const scanMessageLocaleOverrides: Record<Exclude<WebLocale, 'en'>, ScanMe
     folderDropTitle: 'فولڈر یہاں چھوڑیں',
     zipDropTitle: '.zip یہاں چھوڑیں',
     browseLabel: 'براؤز کریں',
+    dropOr: 'یا',
     folderHint: 'پہلے مقامی اسکین · node_modules اور .git جیسے بلڈ فولڈر چھوڑ دیے جاتے ہیں',
     zipHint(maxLabel) {
       return `محفوظہ کی زیادہ سے زیادہ سائز ${maxLabel} · پہلے مقامی اسکین`

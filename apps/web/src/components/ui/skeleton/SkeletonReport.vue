@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { uiFallbackMessage } from '../../../services/ui-fallback-messages'
 /**
  * SkeletonReport - 4 KPI pills (coverage, critical, high, medium) + 4 finding rows.
  * Full-bleed and flat. Sections that depend on resolved data (skipped analysers, unresolved tables)
@@ -6,11 +8,12 @@
  */
 import SkeletonBlock from './SkeletonBlock.vue'
 
-withDefaults(defineProps<{ findings?: number; label?: string }>(), { findings: 4, label: 'Loading report' })
+const props = withDefaults(defineProps<{ findings?: number; label?: string }>(), { findings: 4 })
+const labelText = computed(() => props.label ?? uiFallbackMessage('loadingReport'))
 </script>
 
 <template>
-  <div class="sk-report" role="status" aria-busy="true" :aria-label="label">
+  <div class="sk-report" role="status" aria-busy="true" :aria-label="labelText">
     <div class="sk-report__kpis" aria-hidden="true">
       <SkeletonBlock v-for="n in 4" :key="n" width="7.5rem" height="2rem" shape="pill" />
     </div>

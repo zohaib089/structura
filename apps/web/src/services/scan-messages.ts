@@ -17,6 +17,7 @@ export interface ScanMessages {
   folderDropTitle: string
   zipDropTitle: string
   browseLabel: string
+  dropOr: string
   folderHint: string
   zipHint: (maxLabel: string) => string
   gitUrlLabel: string
@@ -76,6 +77,7 @@ const en: ScanMessages = {
   folderDropTitle: 'Drop a folder',
   zipDropTitle: 'Drop a .zip',
   browseLabel: 'Browse',
+  dropOr: 'or',
   folderHint: 'Local-first scan · build folders like node_modules and .git are skipped',
   zipHint(maxLabel) {
     return `Max archive size ${maxLabel} · local-first scan`

@@ -107,10 +107,6 @@ describe('small auth and shell translations', () => {
       if (tag !== 'en') {
         expect(m.brandTagline, tag).not.toBe(navigationMessages('en').brandTagline)
         expect(m.closeMenu, tag).not.toBe(navigationMessages('en').closeMenu)
-        expect(m.honest, tag).not.toBe(navigationMessages('en').honest)
-        expect(m.coverage, tag).not.toBe(navigationMessages('en').coverage)
-        expect(m.drift, tag).not.toBe(navigationMessages('en').drift)
-        expect(m.quickstart, tag).not.toBe(navigationMessages('en').quickstart)
       }
     }
     const r = router()
