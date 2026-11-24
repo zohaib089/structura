@@ -9,6 +9,7 @@ import ThemeToggle from '../../components/layout/ThemeToggle.vue'
 import { dashboardMessages } from '../../services/dashboard-messages'
 import { scanReportMessages } from '../../services/scan-report-messages'
 import { reportTabBreadcrumbLabel } from '../../services/report-tab-label'
+import { shortScanId } from '../../services/scan-report-format'
 import { navigationMessages } from '../../services/navigation-messages'
 import { isSupportedWebLocale, readLocalePreference, resolvePreferredWebLocale } from '../../services/locale'
 import {
@@ -192,7 +193,7 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => {
   }
   if (scanId.value) {
     items.push({
-      label: messages.value.scanBreadcrumb(scanId.value),
+      label: messages.value.scanBreadcrumb(shortScanId(scanId.value)),
       to: scanReportPath(locale.value, workspaceParam.value, projectId.value || 'default', scanId.value)
     })
   }
@@ -266,6 +267,7 @@ onMounted(loadWorkspaces)
     :app-navigation-label="messages.appShellNavigation"
     :workspace-label="messages.workspace"
     :skip-to-content-label="messages.skipToContent"
+    :breadcrumb-label="messages.breadcrumbLabel"
     :command-palette-label="messages.commandPalette"
     :command-palette-hint="messages.commandPaletteHint"
     :close-navigation-label="navMessages.closeMenu"

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { dashboardMessages } from '../../src/services/dashboard-messages'
 import { WEB_LOCALES, type WebLocale } from '../../src/services/locale'
+import { scanMessages } from '../../src/services/scan-messages'
 import { scanReportMessages } from '../../src/services/scan-report-messages'
 import { viewerMessages } from '../../src/viewer/messages'
 
@@ -46,6 +47,7 @@ function leafMap(value: unknown): Map<string, unknown> {
 const catalogs: Array<{ name: string; read: (locale: WebLocale) => unknown }> = [
   { name: 'dashboard', read: dashboardMessages },
   { name: 'scan-report', read: scanReportMessages },
+  { name: 'scan', read: scanMessages },
   { name: 'viewer', read: viewerMessages }
 ]
 
@@ -87,7 +89,64 @@ const MUST_TRANSLATE_PREFIXES = [
   'tabHistory',
   'tabArchitecture',
   'hotspotWhy',
-  'qa'
+  'qa',
+  'scansNav',
+  'settingsNav',
+  'openProjectNav',
+  'navGroup',
+  'switchWorkspace',
+  'sidebarCollapse',
+  'sidebarExpand',
+  'skipToContent',
+  'commandPalette',
+  'appShellNavigation',
+  'breadcrumbLabel',
+  'hubEyebrow',
+  'hubTitle',
+  'hubDescription',
+  'openProjectTitle',
+  'openProjectHint',
+  'sourceFolder',
+  'sourceZip',
+  'sourceGit',
+  'folderDropTitle',
+  'zipDropTitle',
+  'browseLabel',
+  'folderHint',
+  'zipHint',
+  'gitUrlLabel',
+  'gitUrlHint',
+  'invalidGitUrl',
+  'branchLabel',
+  'branchOptional',
+  'startScan',
+  'scanning',
+  'uploadProgress',
+  'zipUploadTooLarge',
+  'invalidZipUpload',
+  'scanListTitle',
+  'scanListEmpty',
+  'loadScansError',
+  'refreshScans',
+  'scanStatus',
+  'scanSourceLabel',
+  'scanFailed',
+  'scanStep',
+  'scanCancel',
+  'scanCancelling',
+  'scanCompleteToast',
+  'viewReportAction',
+  'progressHeading',
+  'selectScan',
+  'recentScansTitle',
+  'viewAllScans',
+  'noScanSelected',
+  'loadingScanGraph',
+  'loadScanGraphError',
+  'treeExpandFolder',
+  'treeCollapseFolder',
+  'historyHotspotsHint',
+  'historyChurnHint'
 ]
 
 /** Templates that can legitimately stay identical across locales (placeholders only, or shared punctuation). */
@@ -117,7 +176,25 @@ const MAY_MATCH_EN = new Set([
   'es:qaEntryPythonMain',
   'zh-Hans:qaEntryPythonMain',
   'hi:qaEntryPythonMain',
-  'ur:qaEntryPythonMain'
+  'ur:qaEntryPythonMain',
+  'archiveLimitLabel', // formatted size, shared across locales
+  'pt:sourceZip',
+  'it:sourceZip',
+  'fr:sourceZip',
+  'nl:sourceZip',
+  'es:sourceZip',
+  'ja:sourceZip',
+  'zh-Hans:sourceZip',
+  'hi:sourceZip',
+  'ur:sourceZip',
+  'pt:sourceGit',
+  'it:sourceGit',
+  'ja:sourceGit',
+  'hi:sourceGit',
+  'ur:sourceGit',
+  'pt:branchLabel',
+  'it:branchLabel',
+  'nl:branchLabel'
 ])
 
 function isNewScreenKey(key: string): boolean {
@@ -125,11 +202,11 @@ function isNewScreenKey(key: string): boolean {
   return MUST_TRANSLATE_PREFIXES.some((prefix) => head.startsWith(prefix))
 }
 
-function sample(key: string, value: unknown): string {
+function sample(key: string, value: unknown, self?: unknown): string {
   if (typeof value === 'string') return value
   if (typeof value !== 'function') return String(value ?? '')
   const fn = value as (...args: never[]) => string
-  const call = (...args: unknown[]) => String((fn as (...a: unknown[]) => unknown)(...args) ?? '')
+  const call = (...args: unknown[]) => String((fn as (this: unknown, ...a: unknown[]) => unknown).call(self, ...args) ?? '')
   if (/hotspotBand|BandLabel/.test(key)) return call('high')
   if (/qualityCategory/.test(key)) return call('architecture')
   if (/RolePhrase/.test(key)) return call('admin')
@@ -165,6 +242,11 @@ function sample(key: string, value: unknown): string {
   if (/DependentsFolder/.test(key)) return call('src', 4, 6, 'a.ts (depth 1)', ' 2 more.')
   if (/DependentsFile|ResolveAmbiguous/.test(key)) return call('src/app.ts', 'a.ts and b.ts', ' and 2 more')
   if (/tabArchitecture|qualityLabel|duplicatesDescription|fileListLabel/.test(key) && fn.length === 1) return call(2)
+  if (/scanStatus/.test(key)) return call('succeeded')
+  if (/scanSourceLabel/.test(key)) return call({ source: 'upload', branch: null, url: null })
+  if (/scanStepStatusLines|scanStepLabels|scanStepTerminalLabels/.test(key)) {
+    return JSON.stringify((fn as (this: unknown, ...a: unknown[]) => unknown).call(self) ?? {})
+  }
   if (fn.length >= 2) return call('Taylor', 'Sam')
   if (fn.length === 1) return call('Taylor')
   return call()
@@ -189,7 +271,7 @@ describe('locale key parity', () => {
     }
   })
 
-  it('translates Access, Activity, riskiest files, quality, duplicates, ask, and hotspot legend strings', () => {
+  it('translates Access, Activity, riskiest files, quality, duplicates, ask, hotspot legend, and remaining dashboard chrome strings', () => {
     for (const catalog of catalogs) {
       const english = leafMap(catalog.read('en'))
       for (const { tag } of WEB_LOCALES) {
@@ -199,8 +281,8 @@ describe('locale key parity', () => {
         for (const [key, enValue] of english) {
           if (!isNewScreenKey(key) || MAY_MATCH_EN.has(key) || MAY_MATCH_EN.has(`${tag}:${key}`)) continue
           const value = localized.get(key)
-          const enSample = sample(key, enValue)
-          const locSample = sample(key, value)
+          const enSample = sample(key, enValue, catalog.read('en'))
+          const locSample = sample(key, value, catalog.read(tag))
           expect(locSample.trim().length, `${catalog.name} ${tag} ${key}`).toBeGreaterThan(0)
           if (locSample === enSample && /[a-z]{3,}/i.test(enSample)) leftover.push(key)
         }

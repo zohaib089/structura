@@ -38,7 +38,7 @@ defineProps<{
         </ol>
       </section>
       <section>
-        <h3 :title="'Files that change often. They are where problems tend to appear.'">{{ messages.historyHotspots }}</h3>
+        <h3 :title="messages.historyHotspotsHint">{{ messages.historyHotspots }}</h3>
         <p v-if="history.hotspots.length === 0" class="muted">{{ messages.emptySection }}</p>
         <ol v-else class="list">
           <li v-for="row in history.hotspots.slice(0, LIST_LIMIT)" :key="row.path">
@@ -48,7 +48,7 @@ defineProps<{
         </ol>
       </section>
       <section>
-        <h3 :title="'How many lines were added and removed in each file.'">{{ messages.historyChurn }}</h3>
+        <h3 :title="messages.historyChurnHint">{{ messages.historyChurn }}</h3>
         <p v-if="history.fileChurn.length === 0" class="muted">{{ messages.emptySection }}</p>
         <ol v-else class="list">
           <li v-for="row in history.fileChurn.slice(0, LIST_LIMIT)" :key="row.path">

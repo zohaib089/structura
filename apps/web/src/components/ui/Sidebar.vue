@@ -118,7 +118,7 @@ const toggleLabel = computed(() => (props.collapsed ? props.expandLabel : props.
   <aside class="sidebar" :class="{ 'is-rail': collapsed }" :data-collapsed="collapsed ? 'true' : 'false'">
     <div class="brand-row">
       <BrandMark :size="26" />
-      <span class="product-name">{{ BRAND.name }}</span>
+      <span class="product-name" dir="ltr">{{ BRAND.name }}</span>
       <slot name="brand-action" />
     </div>
 
@@ -136,7 +136,7 @@ const toggleLabel = computed(() => (props.collapsed ? props.expandLabel : props.
         <span class="workspace-avatar" aria-hidden="true">{{ initials(workspaceName) }}</span>
         <span class="workspace-copy">
           <span class="workspace-label">{{ workspaceLabel }}</span>
-          <span class="workspace-name" role="heading" aria-level="2">{{ workspaceName }}</span>
+          <span class="workspace-name" role="heading" aria-level="2"><bdi>{{ workspaceName }}</bdi></span>
         </span>
         <ChevronsUpDown v-if="workspaces.length" class="workspace-chevron" :size="14" aria-hidden="true" />
       </button>
@@ -160,7 +160,7 @@ const toggleLabel = computed(() => (props.collapsed ? props.expandLabel : props.
         >
           <span class="workspace-avatar small" aria-hidden="true">{{ initials(ws.name) }}</span>
           <span class="workspace-copy">
-            <span class="workspace-name">{{ ws.name }}</span>
+            <span class="workspace-name"><bdi>{{ ws.name }}</bdi></span>
             <span v-if="ws.meta" class="workspace-label">{{ ws.meta }}</span>
           </span>
           <Check v-if="ws.id === currentWorkspaceId" :size="14" aria-hidden="true" />
@@ -220,8 +220,8 @@ const toggleLabel = computed(() => (props.collapsed ? props.expandLabel : props.
       <div v-if="userName" class="user-card" data-testid="sidebar-user" :title="collapsed ? userName : undefined">
         <span class="user-avatar" aria-hidden="true">{{ initials(userName) }}</span>
         <span class="user-copy">
-          <span class="user-name">{{ userName }}</span>
-          <span v-if="userEmail" class="user-email">{{ userEmail }}</span>
+          <span class="user-name"><bdi>{{ userName }}</bdi></span>
+          <span v-if="userEmail" class="user-email" dir="ltr">{{ userEmail }}</span>
         </span>
       </div>
     </div>
@@ -240,7 +240,7 @@ const toggleLabel = computed(() => (props.collapsed ? props.expandLabel : props.
   overflow: hidden auto;
   padding: var(--space-3) var(--space-3) var(--space-3);
   background: var(--color-surface);
-  border-right: 1px solid var(--color-border);
+  border-inline-end: 1px solid var(--color-border);
 }
 
 /* Matches the 56px TopBar so the drawer and header share one baseline (S1). */

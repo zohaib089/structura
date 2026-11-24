@@ -90,12 +90,15 @@ function onKeydown(event: KeyboardEvent) {
     event.preventDefault()
     focusedIndex.value = Math.max(0, focusedIndex.value - 1)
     selectRow(focusedIndex.value)
-  } else if (event.key === 'ArrowRight' && row.node.kind === 'folder') {
+  } else if (row.node.kind === 'folder' && (event.key === 'ArrowRight' || event.key === 'ArrowLeft')) {
     event.preventDefault()
-    if (!isExpanded(row.node.path)) toggleExpanded(row.node.path)
-  } else if (event.key === 'ArrowLeft' && row.node.kind === 'folder') {
-    event.preventDefault()
-    if (isExpanded(row.node.path)) toggleExpanded(row.node.path)
+    const rtl = typeof document !== 'undefined' && document.documentElement.dir === 'rtl'
+    const expandKey = rtl ? 'ArrowLeft' : 'ArrowRight'
+    if (event.key === expandKey) {
+      if (!isExpanded(row.node.path)) toggleExpanded(row.node.path)
+    } else if (isExpanded(row.node.path)) {
+      toggleExpanded(row.node.path)
+    }
   } else if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault()
     selectRow(focusedIndex.value)
@@ -131,8 +134,8 @@ function folderChip(node: ReportTreeNode) {
           v-if="row.node.kind === 'folder'"
           type="button"
           class="expander"
-          :aria-label="isExpanded(row.node.path) ? 'Collapse folder' : 'Expand folder'"
-          :title="isExpanded(row.node.path) ? 'Collapse folder' : 'Expand folder'"
+          :aria-label="isExpanded(row.node.path) ? messages.treeCollapseFolder : messages.treeExpandFolder"
+          :title="isExpanded(row.node.path) ? messages.treeCollapseFolder : messages.treeExpandFolder"
           @click.stop="toggleExpanded(row.node.path)"
         >
           {{ isExpanded(row.node.path) ? '▾' : '▸' }}
@@ -209,6 +212,7 @@ ul {
 }
 
 .expander {
+  inline-size: 1.25rem;
   width: 1.25rem;
   border: none;
   background: transparent;

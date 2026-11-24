@@ -4,18 +4,23 @@ export interface BreadcrumbItem {
   to?: string
 }
 
-defineProps<{
-  items: BreadcrumbItem[]
-}>()
+withDefaults(
+  defineProps<{
+    items: BreadcrumbItem[]
+    /** Accessible name for the breadcrumb nav. */
+    label?: string
+  }>(),
+  { label: 'Breadcrumb' }
+)
 </script>
 
 <template>
-  <nav class="breadcrumbs" aria-label="Breadcrumb">
+  <nav class="breadcrumbs" :aria-label="label">
     <ol>
       <li v-for="(item, index) in items" :key="`${item.label}-${index}`">
-        <RouterLink v-if="item.to && index < items.length - 1" :to="item.to">{{ item.label }}</RouterLink>
-        <span v-else aria-current="page">{{ item.label }}</span>
-        <span v-if="index < items.length - 1" class="sep" aria-hidden="true">/</span>
+        <RouterLink v-if="item.to && index < items.length - 1" :to="item.to"><bdi>{{ item.label }}</bdi></RouterLink>
+        <span v-else aria-current="page"><bdi>{{ item.label }}</bdi></span>
+        <span v-if="index < items.length - 1" class="sep" aria-hidden="true">›</span>
       </li>
     </ol>
   </nav>
@@ -50,6 +55,7 @@ defineProps<{
 }
 
 .sep {
+  display: inline-block;
   color: var(--color-text-muted);
 }
 </style>

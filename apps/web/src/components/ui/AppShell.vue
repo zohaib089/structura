@@ -30,13 +30,15 @@ withDefaults(
     /** When both are set, the desktop sidebar can collapse to an icon rail (remembered in this browser). */
     collapseNavigationLabel?: string
     expandNavigationLabel?: string
+    /** Accessible name for the breadcrumb nav. */
+    breadcrumbLabel?: string
     userName?: string
     userEmail?: string
   }>(),
   {
     flushContent: false, fillContent: false, closeNavigationLabel: undefined,
     workspaces: () => [], currentWorkspaceId: '', switchWorkspaceLabel: undefined,
-    collapseNavigationLabel: undefined, expandNavigationLabel: undefined, userName: '', userEmail: ''
+    collapseNavigationLabel: undefined, expandNavigationLabel: undefined, breadcrumbLabel: 'Breadcrumb', userName: '', userEmail: ''
   }
 )
 
@@ -118,6 +120,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
         :breadcrumbs="breadcrumbs"
         :command-palette-label="commandPaletteLabel"
         :command-palette-hint="commandPaletteHint"
+        :breadcrumb-label="breadcrumbLabel"
       >
         <template #leading>
           <button

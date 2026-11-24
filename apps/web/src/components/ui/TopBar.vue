@@ -1,17 +1,21 @@
 <script setup lang="ts">
 import Breadcrumbs, { type BreadcrumbItem } from './Breadcrumbs.vue'
 
-defineProps<{
-  breadcrumbs: BreadcrumbItem[]
-  commandPaletteLabel: string
-  commandPaletteHint: string
-}>()
+withDefaults(
+  defineProps<{
+    breadcrumbs: BreadcrumbItem[]
+    commandPaletteLabel: string
+    commandPaletteHint: string
+    breadcrumbLabel?: string
+  }>(),
+  { breadcrumbLabel: 'Breadcrumb' }
+)
 </script>
 
 <template>
   <header class="topbar" role="banner">
     <slot name="leading" />
-    <Breadcrumbs class="topbar-crumbs" :items="breadcrumbs" />
+    <Breadcrumbs class="topbar-crumbs" :items="breadcrumbs" :label="breadcrumbLabel" />
     <div class="topbar-actions">
       <button type="button" class="command-button" :aria-label="commandPaletteLabel" disabled>
         <span>{{ commandPaletteLabel }}</span>
@@ -78,6 +82,16 @@ defineProps<{
   .command-button { display: none; }
 }
 @media (max-width: 480px) {
-  .topbar-crumbs { display: none; }
+  .topbar {
+    flex-wrap: wrap;
+    height: auto;
+    padding-block-end: var(--space-2);
+  }
+  .topbar-crumbs {
+    display: block;
+    order: 3;
+    flex: 1 0 100%;
+    overflow: visible;
+  }
 }
 </style>
