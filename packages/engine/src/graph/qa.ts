@@ -34,6 +34,8 @@ export const GRAPH_QA_MAX_QUESTION_LENGTH = 500
 const MAX_CITATIONS = 12
 const MAX_SUGGESTIONS = 8
 const MAX_LISTED = 8
+/** Overview lists files that nothing imports, capped separately from other lists. */
+const UNIMPORTED_CAP = 10
 
 const GENERIC_TARGETS = new Set([
   'it',
@@ -633,7 +635,11 @@ function explainFile(graph: Graph, target: QaFileTarget): { answer: string; code
   const lines = file.lineCount !== null ? ` (${file.lineCount} lines)` : ''
   parts.push(`${file.path} is a ${language} file${lines}.`)
   if (file.lineCount !== null) params.lineCount = file.lineCount
-  if (file.docSummary) parts.push(file.docSummary.replace(/\s+/g, ' ').trim())
+  const docSummary = existingDocSummary(file.docSummary)
+  if (docSummary) {
+    parts.push(docSummary)
+    params.docSummary = docSummary
+  }
   if (file.hotspot && file.hotspot.score > 0) {
     parts.push(`Its hotspot score is ${file.hotspot.score}.`)
     params.hotspotScore = file.hotspot.score
@@ -742,10 +748,16 @@ function explainSymbol(graph: Graph, target: QaSymbolTarget): { answer: string; 
     `${symbol.label} is ${article(symbol.symbolKind)} ${symbol.symbolKind} in ${target.path} (lines ${symbol.span.start.line}–${symbol.span.end.line}).`
   ]
   if (symbol.exported) parts.push('It is exported.')
-  if (symbol.docSummary) parts.push(symbol.docSummary.replace(/\s+/g, ' ').trim())
+  const docSummary = existingDocSummary(symbol.docSummary)
+  if (docSummary) {
+    parts.push(docSummary)
+    params.docSummary = docSummary
+  }
   const file = indexNodes(graph).get(symbol.file)
-  if (file?.kind === 'file' && file.docSummary) {
-    parts.push(`The surrounding file: ${file.docSummary.replace(/\s+/g, ' ').trim()}`)
+  const fileDocSummary = file?.kind === 'file' ? existingDocSummary(file.docSummary) : undefined
+  if (fileDocSummary) {
+    parts.push(`The surrounding file: ${fileDocSummary}`)
+    params.fileDocSummary = fileDocSummary
   }
   return { answer: parts.join(' '), code: 'qa.explain.symbol', params }
 }
@@ -978,25 +990,27 @@ function answerArchitecture(graph: Graph): GraphQaResponse {
   const parts: string[] = []
   const citations: GraphQaCitation[] = []
 
+  const listedCycles = cycles.slice(0, MAX_LISTED).map(cycle => cycle.paths.join(' → '))
+  const extraCycles = Math.max(0, cycles.length - MAX_LISTED)
   if (cycles.length === 0) {
     parts.push('No file-level import cycles showed up in this scan.')
   } else {
-    const listed = cycles.slice(0, MAX_LISTED).map(cycle => cycle.paths.join(' → '))
-    const extra = cycles.length > MAX_LISTED ? ` and ${cycles.length - MAX_LISTED} more` : ''
-    parts.push(`${plural(cycles.length, 'import cycle')} ${cycles.length === 1 ? 'was' : 'were'} found: ${andList(listed)}${extra}.`)
+    const extra = extraCycles > 0 ? ` and ${extraCycles} more` : ''
+    parts.push(`${plural(cycles.length, 'import cycle')} ${cycles.length === 1 ? 'was' : 'were'} found: ${andList(listedCycles)}${extra}.`)
     for (const cycle of cycles.slice(0, MAX_LISTED)) {
       for (const path of cycle.paths) citations.push({ kind: 'file', path })
     }
   }
 
+  const listedFindings = findings.slice(0, MAX_LISTED).map(formatFinding)
+  const extraFindings = Math.max(0, findings.length - MAX_LISTED)
   if (!graph.architecture) {
     parts.push('This scan has no architecture rules section, so I cannot report configured rule breaks.')
   } else if (findings.length === 0) {
     parts.push('No architecture rule breaks were recorded.')
   } else {
-    const listed = findings.slice(0, MAX_LISTED).map(formatFinding)
-    const extra = findings.length > MAX_LISTED ? ` and ${findings.length - MAX_LISTED} more` : ''
-    parts.push(`${plural(findings.length, 'architecture finding')} ${findings.length === 1 ? 'was' : 'were'} recorded: ${andList(listed)}${extra}.`)
+    const extra = extraFindings > 0 ? ` and ${extraFindings} more` : ''
+    parts.push(`${plural(findings.length, 'architecture finding')} ${findings.length === 1 ? 'was' : 'were'} recorded: ${andList(listedFindings)}${extra}.`)
     for (const finding of findings.slice(0, MAX_LISTED)) {
       citations.push({ kind: 'file', path: finding.file, startLine: finding.line, endLine: finding.line })
     }
@@ -1005,7 +1019,9 @@ function answerArchitecture(graph: Graph): GraphQaResponse {
   return finish(graph, 'architecture', parts.join(' '), citations, citations[0]?.path, 'qa.architecture', {
     cycleCount: cycles.length,
     hasConfig: Boolean(graph.architecture),
-    findingCount: findings.length
+    findingCount: findings.length,
+    ...(listedCycles.length > 0 ? { cycles: listedCycles, extraCycles } : {}),
+    ...(listedFindings.length > 0 ? { findings: listedFindings, extraFindings } : {})
   })
 }
 
@@ -1024,15 +1040,16 @@ function answerOverview(graph: Graph): GraphQaResponse {
     parts.push(`Top-level folders: ${andList(folders.slice(0, MAX_LISTED))}${folders.length > MAX_LISTED ? ` and ${folders.length - MAX_LISTED} more` : ''}.`)
   }
   const entries = entryPointPaths(files)
+  const unimported = rootFiles(graph, files)
   if (entries.length > 0) {
     parts.push(`Likely entry points: ${andList(entries.slice(0, MAX_LISTED))}${entries.length > MAX_LISTED ? ` and ${entries.length - MAX_LISTED} more` : ''}.`)
   } else {
-    const roots = rootFiles(graph, files)
-    if (roots.length > 0) {
-      parts.push(`No conventional entry points were marked. Files that nothing else imports include ${andList(roots.slice(0, MAX_LISTED))}.`)
-    } else {
-      parts.push('No conventional entry points were marked.')
-    }
+    parts.push('No conventional entry points were marked.')
+  }
+  if (unimported.length > 0) {
+    const listed = unimported.slice(0, UNIMPORTED_CAP)
+    const extra = unimported.length > UNIMPORTED_CAP ? ` and ${unimported.length - UNIMPORTED_CAP} more` : ''
+    parts.push(`Files that nothing else imports include ${andList(listed)}${extra}.`)
   }
   const citations: GraphQaCitation[] = [
     ...folders.slice(0, 4).map(path => ({ kind: 'folder' as const, path })),
@@ -1045,7 +1062,10 @@ function answerOverview(graph: Graph): GraphQaResponse {
     fileCount,
     ...(languages ? { languages } : {}),
     ...(folders.length > 0 ? { folders: folders.slice(0, MAX_LISTED), extraFolders: Math.max(0, folders.length - MAX_LISTED) } : {}),
-    ...(entries.length > 0 ? { entries: entries.slice(0, MAX_LISTED), extraEntries: Math.max(0, entries.length - MAX_LISTED) } : {})
+    ...(entries.length > 0 ? { entries: entries.slice(0, MAX_LISTED), extraEntries: Math.max(0, entries.length - MAX_LISTED) } : {}),
+    ...(unimported.length > 0
+      ? { unimported: unimported.slice(0, UNIMPORTED_CAP), unimportedCount: unimported.length }
+      : {})
   })
 }
 
@@ -1199,6 +1219,14 @@ function entryPointPaths(files: readonly FileNode[]): string[] {
     .filter(file => Boolean(file.entryCandidate) || (file.entryCandidates && file.entryCandidates.length > 0))
     .map(file => file.path)
     .sort(compareStrings)
+}
+
+
+/** Copy a graph node's already-sanitised docSummary; never read raw comments. */
+function existingDocSummary(value: string | undefined): string | undefined {
+  if (!value) return undefined
+  const trimmed = value.replace(/\s+/g, ' ').trim()
+  return trimmed.length > 0 ? trimmed : undefined
 }
 
 function rootFiles(graph: Graph, files: readonly FileNode[]): string[] {

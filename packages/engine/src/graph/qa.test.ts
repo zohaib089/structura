@@ -355,3 +355,71 @@ test('answers stay byte-identical across repeated calls and equivalent wording',
   const b = answerGraphQuestion(graph, 'What breaks if I change src/app.ts???')
   assert.deepEqual(a, b)
 })
+
+test('architecture params include cycle and finding lists, not just counts', () => {
+  const result = assertDeterministic(cycleGraph(), 'Any circular imports?')
+  assert.equal(result.code, 'qa.architecture')
+  assert.equal(result.params?.cycleCount, 1)
+  assert.equal(result.params?.hasConfig, true)
+  assert.equal(result.params?.findingCount, 1)
+  assert.deepEqual(result.params?.cycles, ['src/a.ts → src/b.ts'])
+  assert.equal(result.params?.extraCycles, 0)
+  assert.deepEqual(result.params?.findings, ['src/a.ts:3 (deny-list: app → core)'])
+  assert.equal(result.params?.extraFindings, 0)
+})
+
+test('explain copies only the existing sanitised docSummary onto params', () => {
+  const withSummary = assertDeterministic(chainGraph(), 'What does src/app.ts do?')
+  assert.equal(withSummary.code, 'qa.explain.file')
+  assert.equal(withSummary.params?.docSummary, 'Application entry.')
+  assert.match(withSummary.answer, /Application entry/)
+
+  const noSummary = assertDeterministic(chainGraph(), 'What does src/util.ts do?')
+  assert.equal(noSummary.code, 'qa.explain.file')
+  assert.equal(noSummary.params?.docSummary, undefined)
+
+  const symbol = functionSymbol('src/app.ts', 'boot', 3)
+  symbol.docSummary = 'Starts the app.'
+  const withSymbol = graphOf(
+    [directory('.'), directory('src'), fileNode('src/app.ts', { docSummary: 'Application entry.' }), symbol],
+    [contains('dir:.', 'dir:src'), contains('dir:src', 'file:src/app.ts'), contains('file:src/app.ts', symbol.id)]
+  )
+  const explained = assertDeterministic(withSymbol, 'What does boot do?')
+  assert.equal(explained.code, 'qa.explain.symbol')
+  assert.equal(explained.params?.docSummary, 'Starts the app.')
+  assert.equal(explained.params?.fileDocSummary, 'Application entry.')
+  assert.match(explained.answer, /Starts the app/)
+  assert.match(explained.answer, /Application entry/)
+})
+
+test('overview lists files nothing imports, capped at 10, with a total count', () => {
+  const nodes: GraphNode[] = [directory('.')]
+  const edges: GraphEdge[] = []
+  for (let index = 1; index <= 12; index += 1) {
+    const path = `file-${String(index).padStart(2, '0')}.ts`
+    nodes.push(fileNode(path))
+    edges.push(contains('dir:.', `file:${path}`))
+  }
+  const result = assertDeterministic(graphOf(nodes, edges), 'Give me an overview of the project')
+  assert.equal(result.code, 'qa.overview')
+  const unimported = result.params?.unimported
+  assert.ok(Array.isArray(unimported))
+  assert.equal(unimported?.length, 10)
+  assert.deepEqual(unimported, [
+    'file-01.ts',
+    'file-02.ts',
+    'file-03.ts',
+    'file-04.ts',
+    'file-05.ts',
+    'file-06.ts',
+    'file-07.ts',
+    'file-08.ts',
+    'file-09.ts',
+    'file-10.ts'
+  ])
+  assert.equal(result.params?.unimportedCount, 12)
+  assert.match(result.answer, /Files that nothing else imports include/)
+  assert.match(result.answer, /file-01\.ts/)
+  assert.match(result.answer, /2 more/)
+  assert.equal(result.params?.entries, undefined)
+})
