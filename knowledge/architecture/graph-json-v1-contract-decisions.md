@@ -175,3 +175,17 @@ Open details Backend settles inside this shape without changing the contract (pr
 - Frontend: single-file `file://` build, worker loading, MIXED provenance rendering, version-first load.
 - DevOps: confirm pinned perf runner class (Q-27).
 - Tech Lead: threat model E-10 write-up using Q-7/Q-8; ADR 012 (`knowledge/decisions/012-local-first-engine-pivot.md`).
+
+## 5. Later minor versions (landed)
+
+These additive minor bumps landed after the original v1.0.0 decisions above. Current `main` writes **graph.json 1.8.0**.
+
+| Version | PR | What was added |
+| --- | --- | --- |
+| 1.2.0 | [#100](https://github.com/zohaib089/structura/pull/100) | Per-file hotspot scores. |
+| 1.3.0 | [#103](https://github.com/zohaib089/structura/pull/103) | Project and folder quality scores. |
+| 1.4.0 | [#104](https://github.com/zohaib089/structura/pull/104) | Offline duplicate code detection. |
+| 1.5.0 | [#113](https://github.com/zohaib089/structura/pull/113) | `go` in the language enum. |
+| 1.6.0 | [#115](https://github.com/zohaib089/structura/pull/115) | `java` in the language enum. |
+| 1.7.0 | [#116](https://github.com/zohaib089/structura/pull/116) | Structured message codes (`code` and `params`) alongside the existing English strings. |
+| 1.8.0 | [#120](https://github.com/zohaib089/structura/pull/120) | `rust` in the language enum. |
